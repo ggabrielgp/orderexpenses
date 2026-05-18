@@ -20,6 +20,7 @@ Privacy-first personal expense dashboard for Banco de Chile Gmail movements.
 
 - Node.js >= 24
 - Gmail API OAuth credentials
+- Optional for deploy: Turso database and Vercel project
 
 ## Install
 
@@ -55,6 +56,20 @@ npm test
 
 See [`GMAIL_SETUP.md`](./GMAIL_SETUP.md).
 
+## Environment examples
+
+Use the checked-in templates and replace placeholder values only:
+
+```text
+.env.example
+.env.turso.example
+.env.vercel.example
+```
+
+## Deploy
+
+See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the Turso + Vercel + Gmail OAuth steps.
+
 ## Local data
 
 By default the app stores local runtime/configuration data in:
@@ -62,6 +77,8 @@ By default the app stores local runtime/configuration data in:
 ```text
 data/finance.db
 ```
+
+When `TURSO_DATABASE_URL` is set, the same async database layer uses Turso/libSQL instead.
 
 The `data/` folder is intentionally ignored by git because it can contain private financial data and OAuth credentials.
 

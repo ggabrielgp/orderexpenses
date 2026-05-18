@@ -16,15 +16,23 @@ The local server binds to `127.0.0.1` by default because it handles private fina
    - Authorized redirect URI for local use: `http://127.0.0.1:3000/auth/google/callback`
 7. Download the JSON credentials.
 
-## 2. Save credentials locally
+## 2. Save credentials locally or use env vars
 
-Save the downloaded file as:
+For local development you can save the downloaded file as:
 
 ```text
 data/google-credentials.json
 ```
 
 The `data/` folder is ignored by git.
+
+For Vercel/deploy environments, use variables instead of a JSON file:
+
+```bash
+GOOGLE_CLIENT_ID=replace-with-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=replace-with-client-secret
+GOOGLE_REDIRECT_URI=https://your-domain.vercel.app/auth/google/callback
+```
 
 ## 3. Run and connect
 
@@ -44,11 +52,15 @@ Then press:
 Conectar Gmail
 ```
 
-OAuth tokens, profile data, sessions, category rules, custom categories, manual movements, and movement overrides are stored in the local SQLite database configured by `DB_PATH` or the default:
+OAuth tokens, profile data, sessions, category rules, custom categories, manual movements, and movement overrides are stored in the configured libSQL database.
+
+For local development without Turso, the app uses the local file configured by `DB_PATH` or the default:
 
 ```text
 data/finance.db
 ```
+
+When `TURSO_DATABASE_URL` is set, it uses Turso instead.
 
 ## Useful environment variables
 
@@ -57,6 +69,9 @@ PORT=3000
 HOST=127.0.0.1
 DB_PATH=data/finance.db
 GOOGLE_CREDENTIALS_PATH=data/google-credentials.json
+GOOGLE_CLIENT_ID=replace-with-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=replace-with-client-secret
+GOOGLE_REDIRECT_URI=http://127.0.0.1:3000/auth/google/callback
 ```
 
 For a QA/public URL, configure these explicitly:
@@ -68,6 +83,8 @@ APP_BASE_URL=https://your-qa-domain.example
 GOOGLE_REDIRECT_URI=https://your-qa-domain.example/auth/google/callback
 COOKIE_SECURE=true
 ```
+
+For Vercel + Turso, follow [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 Only use non-loopback hosting if you understand the privacy and security implications.
 
