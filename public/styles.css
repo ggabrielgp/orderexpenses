@@ -1440,6 +1440,8 @@ select:focus {
 .category-detail-merchants {
 	display: grid;
 	gap: 2px;
+	max-height: 400px;
+	overflow-y: auto;
 }
 
 .category-detail-merchant {
