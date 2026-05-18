@@ -1,0 +1,18 @@
+# Local Pi / agent runtime state
+.atl/
+.pi/
+.pi-lens/
+
+# Local app data and secrets
+data/
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log

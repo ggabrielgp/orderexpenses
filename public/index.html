@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finanzas personales MVP</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <h1 id="heroTitle">Captura tus gastos</h1>
+          <p class="subtitle" id="heroSubtitle">
+            Conecta Gmail para detectar movimientos automáticamente. Agrega solo
+            los gastos que falten y corrige directamente en la tabla.
+          </p>
+        </div>
+        <div class="hero-aside">
+          <div id="profile" class="profile" hidden></div>
+          <div class="summary" id="summary">Cargando...</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Gmail</h2>
+            <p>
+              Conecta Gmail con permiso de solo lectura y sincroniza gastos del
+              periodo seleccionado detectados desde Banco de Chile.
+            </p>
+          </div>
+          <div class="button-row">
+            <a class="button" href="/auth/google" id="connectGmail"
+              >Conectar Gmail</a
+            >
+            <button class="secondary" id="disconnectGmailButton" hidden>
+              Desconectar Gmail
+            </button>
+          </div>
+        </div>
+        <div id="gmailStatus" class="status-box">
+          Revisando estado de Gmail...
+        </div>
+        <div id="gmailSyncProgress" class="progress-card" hidden>
+          <div class="progress-copy">
+            <strong>Sincronizando periodo...</strong>
+            <span
+              >Buscando mensajes del periodo seleccionado de Banco de Chile y
+              extrayendo gastos.</span
+            >
+          </div>
+          <div class="progress-bar" aria-hidden="true">
+            <div id="gmailSyncProgressFill" class="progress-fill"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Gastos</h2>
+            <p>
+              Revisa métricas clave del periodo seleccionado o cambia a la tabla
+              para editar movimientos.
+            </p>
+          </div>
+          <div class="button-row">
+            <div class="period-controls">
+              <label class="month-picker">
+                Periodo
+                <select
+                  id="monthSelect"
+                  aria-label="Seleccionar periodo de gastos"
+                ></select>
+              </label>
+              <button
+                class="secondary period-sync-button"
+                id="syncGmailButton"
+                hidden
+              >
+                Sincronizar
+              </button>
+            </div>
+            <div class="view-switch" role="group" aria-label="Vista de gastos">
+              <span class="view-switch-label">Vista</span>
+              <div class="view-switch-options">
+                <button
+                  class="view-switch-option"
+                  id="dashboardViewButton"
+                  type="button"
+                >
+                  Dashboard
+                </button>
+                <button
+                  class="view-switch-option view-switch-option-active"
+                  id="tableViewButton"
+                  type="button"
+                >
+                  Tabla
+                </button>
+              </div>
+            </div>
+            <button id="newExpenseButton">Ingresar nuevo gasto</button>
+            <button class="secondary" id="refreshButton">Actualizar</button>
+          </div>
+        </div>
+        <div id="dashboard" class="dashboard" aria-live="polite" hidden></div>
+        <div id="transactions" class="transactions-table-wrap"></div>
+      </section>
+    </main>
+
+    <template id="transactionRowTemplate">
+      <tr>
+        <td data-field="date"></td>
+        <td data-field="amount"></td>
+        <td data-field="counterparty"></td>
+        <td data-field="category"></td>
+        <td><button class="secondary" data-action="view">Ver</button></td>
+      </tr>
+    </template>
+
+    <dialog id="detailModal" class="modal">
+      <form method="dialog" class="modal-inner">
+        <button
+          id="detailModalClose"
+          class="modal-close"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
+        <button
+          id="modalBackToCounterparty"
+          class="secondary modal-back"
+          type="button"
+          hidden
+        >
+          ← Atrás
+        </button>
+        <h3 class="modal-title">Detalle del gasto</h3>
+        <div class="modal-grid">
+          <label>
+            Fecha y hora
+            <input
+              id="modalOccurredAt"
+              name="occurredAt"
+              type="datetime-local"
+              required
+            />
+          </label>
+          <label>
+            Monto CLP
+            <input
+              id="modalAmount"
+              name="amount"
+              type="text"
+              inputmode="numeric"
+              required
+              placeholder="12500"
+            />
+          </label>
+          <label>
+            Tipo
+            <select id="modalKind" name="kind" required>
+              <option value="purchase">Compra</option>
+              <option value="transfer">Transferencia</option>
+              <option value="payment">Pago</option>
+              <option value="income">Abono</option>
+              <option value="unknown">Desconocido</option>
+            </select>
+          </label>
+          <label>
+            Dirección
+            <select id="modalDirection" name="direction" required>
+              <option value="outflow">Salida</option>
+              <option value="inflow">Entrada</option>
+            </select>
+          </label>
+          <label>
+            Categoría
+            <select id="modalCategory" name="category"></select>
+          </label>
+          <label>
+            Contraparte / comercio
+            <input
+              id="modalCounterparty"
+              name="counterparty"
+              placeholder="Supermercado, persona o comercio"
+            />
+          </label>
+          <label class="modal-grid-full">
+            Descripción
+            <input
+              id="modalDescription"
+              name="description"
+              placeholder="Detalle breve"
+            />
+          </label>
+        </div>
+        <p id="modalStatus" class="modal-status"></p>
+        <div class="modal-actions">
+          <button type="button" id="modalDelete" class="danger">
+            Eliminar
+          </button>
+          <button type="button" id="modalSave">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="counterpartyDetailModal" class="modal">
+      <div class="modal-inner">
+        <button
+          class="modal-close"
+          id="counterpartyDetailClose"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
+        <h3 id="counterpartyDetailTitle" class="modal-title">
+          Gastos por comercio
+        </h3>
+        <p id="counterpartyDetailSummary" class="modal-status"></p>
+        <div id="counterpartyDetailList" class="counterparty-detail-list"></div>
+        <div class="modal-actions">
+          <button type="button" id="counterpartyDetailDone" class="secondary">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog
+      id="gmailConsentModal"
+      class="modal"
+      aria-labelledby="gmailConsentTitle"
+      aria-describedby="gmailConsentDescription"
+    >
+      <form method="dialog" class="modal-inner">
+        <button
+          class="modal-close"
+          id="gmailConsentClose"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
+        <h3 id="gmailConsentTitle" class="modal-title">
+          Cómo se usan tus correos y gastos
+        </h3>
+        <div id="gmailConsentDescription" class="terms-copy">
+          <p>
+            Para detectar tus gastos automáticamente, la app necesita acceso de
+            solo lectura a Gmail. Ese permiso se usa únicamente para buscar
+            correos relacionados con el banco configurado actualmente, Banco de
+            Chile, dentro del periodo que estés revisando.
+          </p>
+          <p>
+            Los correos se leen para extraer movimientos, montos, fechas y
+            comercios, y así mostrarte métricas, tablas, gráficos y agrupaciones
+            de gasto. La app no envía correos, no modifica tu cuenta de Gmail y
+            no usa tus mensajes para otros fines.
+          </p>
+          <p>
+            Los gastos importados desde Gmail se procesan para construir la
+            vista del periodo seleccionado. No se guardan como una base
+            histórica permanente de movimientos. Si vuelves a revisar o
+            sincronizar un periodo, la app puede volver a leer los correos
+            autorizados para reconstruir esa información.
+          </p>
+          <p>
+            Lo que sí puede guardarse localmente son las configuraciones y datos
+            que tú decides aplicar, por ejemplo: categorías por comercio, reglas
+            de categorización, correcciones a movimientos específicos, gastos
+            ingresados manualmente, preferencias de vista, presupuesto mensual y
+            ajustes similares.
+          </p>
+          <p>
+            Esto permite que la app recuerde tus decisiones sin almacenar todos
+            tus gastos importados desde Gmail como historial permanente.
+          </p>
+        </div>
+        <label class="terms-check">
+          <input id="gmailConsentCheck" type="checkbox" />
+          <span>
+            Entiendo que mis gastos importados desde Gmail no se guardan como
+            historial permanente y que solo se almacenan localmente las
+            configuraciones, correcciones o datos que yo aplique.
+          </span>
+        </label>
+        <div class="modal-actions">
+          <button type="button" id="gmailConsentCancel" class="secondary">
+            Cancelar
+          </button>
+          <button type="button" id="gmailConsentAccept" disabled>
+            Aceptar y conectar Gmail
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="settingsModal" class="modal">
+      <div class="modal-inner">
+        <button
+          id="settingsClose"
+          class="modal-close"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
+        <h3 class="modal-title">Configuración</h3>
+
+        <section class="settings-section">
+          <h4>Cuenta</h4>
+          <p id="settingsProfile" class="profile-email">Sin cuenta conectada</p>
+        </section>
+
+        <section class="settings-section">
+          <h4>Categorías</h4>
+          <div id="categorySettingsList" class="category-settings-list"></div>
+
+          <form id="categoryForm" class="category-form">
+            <label>
+              Nombre
+              <input id="categoryName" type="text" maxlength="40" />
+            </label>
+            <label>
+              Color
+              <input id="categoryColor" type="color" value="#22c55e" />
+            </label>
+            <button type="submit">Guardar categoría</button>
+          </form>
+
+          <p id="categoryFormStatus" class="modal-status"></p>
+        </section>
+      </div>
+    </dialog>
+
+    <dialog id="newExpenseModal" class="modal">
+      <form method="dialog" class="modal-inner">
+        <button class="modal-close" type="button" aria-label="Cerrar">✕</button>
+        <h3 class="modal-title">Nuevo gasto</h3>
+        <div class="modal-grid">
+          <label>
+            Fecha y hora
+            <input
+              id="newOccurredAt"
+              name="occurredAt"
+              type="datetime-local"
+              required
+            />
+          </label>
+          <label>
+            Monto CLP
+            <input
+              id="newAmount"
+              name="amount"
+              type="text"
+              inputmode="numeric"
+              required
+              placeholder="12500"
+            />
+          </label>
+          <label>
+            Tipo
+            <select id="newKind" name="kind" required>
+              <option value="purchase">Compra</option>
+              <option value="transfer">Transferencia</option>
+              <option value="payment">Pago</option>
+              <option value="income">Abono</option>
+              <option value="unknown">Desconocido</option>
+            </select>
+          </label>
+          <label>
+            Dirección
+            <select id="newDirection" name="direction" required>
+              <option value="outflow">Salida</option>
+              <option value="inflow">Entrada</option>
+            </select>
+          </label>
+          <label>
+            Categoría
+            <input id="newCategory" name="category" placeholder="Comida" />
+          </label>
+          <label>
+            Contraparte / comercio
+            <input
+              id="newCounterparty"
+              name="counterparty"
+              placeholder="Supermercado, persona o comercio"
+            />
+          </label>
+          <label class="modal-grid-full">
+            Descripción
+            <input
+              id="newDescription"
+              name="description"
+              placeholder="Detalle breve"
+            />
+          </label>
+        </div>
+        <p id="newFormStatus" class="modal-status"></p>
+        <div class="modal-actions">
+          <button type="button" id="newCancel" class="secondary">
+            Cancelar
+          </button>
+          <button type="button" id="newSave">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

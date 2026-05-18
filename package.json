@@ -1,0 +1,17 @@
+{
+  "name": "orderexpenses",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "googleapis": "^171.4.0"
+  }
+}
