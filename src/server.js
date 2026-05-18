@@ -76,7 +76,7 @@ const mimeTypes = {
 	".json": "application/json; charset=utf-8",
 };
 
-export async function handleRequest(req, res) {
+export default async function handleRequest(req, res) {
 	try {
 		const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
 		if (isStaticRequest(url.pathname, req.method)) {
@@ -307,9 +307,8 @@ export async function handleRequest(req, res) {
 	}
 }
 
-const server = createServer(handleRequest);
-
 if (process.env.VERCEL !== "1") {
+	const server = createServer(handleRequest);
 	server.listen(PORT, HOST, () => {
 		console.log(`Finance MVP running at http://${HOST}:${PORT}`);
 	});
@@ -558,7 +557,11 @@ function vercelUrl() {
 }
 
 function isStaticRequest(pathname, method) {
-	return method === "GET" && !pathname.startsWith("/api/") && !pathname.startsWith("/auth/");
+	return (
+		method === "GET" &&
+		!pathname.startsWith("/api/") &&
+		!pathname.startsWith("/auth/")
+	);
 }
 
 function isAuthPath(pathname, suffix) {
