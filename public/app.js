@@ -2173,6 +2173,13 @@ function groupTotals(transactions, labelForTransaction) {
 		.sort((a, b) => b.total - a.total);
 }
 
+function updateDonutHighlight(chart) {
+	chart.dispatchAction({ type: "downplay", seriesIndex: 0 });
+	if (state.activeCategory) {
+		chart.dispatchAction({ type: "highlight", seriesIndex: 0, name: state.activeCategory });
+	}
+}
+
 function darkenColor(hex, amount = 25) {
 	const num = parseInt(hex.replace("#", ""), 16);
 	const r = Math.max(0, ((num >> 16) & 0xFF) - amount);
@@ -2301,12 +2308,14 @@ function renderCategoryDistribution(transactions) {
 		} else {
 			state.activeCategory = params.name;
 		}
+		updateDonutHighlight(chart);
 		renderCategoryDetail(legend, rows, transactions);
 	});
 
 	chart.getZr().on("click", (params) => {
 		if (!params.target) {
 			state.activeCategory = null;
+			updateDonutHighlight(chart);
 			renderCategoryDetail(legend, rows, transactions);
 		}
 	});
@@ -2475,6 +2484,7 @@ function renderCategoryDetail(legendEl, rows, expenses) {
 	back.textContent = "← Todas las categorías";
 	back.addEventListener("click", () => {
 		state.activeCategory = null;
+		updateDonutHighlight(chartInstances.get("category-donut"));
 		renderCategoryDetail(legendEl, rows, expenses);
 	});
 
