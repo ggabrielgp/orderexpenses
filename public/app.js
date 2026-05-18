@@ -1261,12 +1261,14 @@ function renderIncomeDetection() {
 		}
 		saveBudgetPreferences();
 		await loadIncomeCandidates();
+		updateHeroKpis();
 	});
 	timingSelect.addEventListener("change", async () => {
 		state.budget.payTiming = timingSelect.value;
 		state.budget.confirmedIncomeId = state.budget.salary ? "manual" : "";
 		saveBudgetPreferences();
 		await loadIncomeCandidates();
+		updateHeroKpis();
 	});
 
 	box.append(toggleLabel, timingLabel);
@@ -1442,6 +1444,7 @@ function wireBudgetInput(input, key, totalSpent, card) {
 		if (key === "salary") state.budget.confirmedIncomeId = "manual";
 		saveBudgetPreferences();
 		updateBudgetResults(card, totalSpent);
+		updateHeroKpis();
 	});
 	input.addEventListener("blur", () => {
 		input.value = sanitizeBudgetInput(input.value);
@@ -1451,6 +1454,7 @@ function wireBudgetInput(input, key, totalSpent, card) {
 		if (key === "salary") state.budget.confirmedIncomeId = "manual";
 		saveBudgetPreferences();
 		updateBudgetResults(card, totalSpent);
+		updateHeroKpis();
 	});
 }
 
@@ -2960,14 +2964,33 @@ function renderTableSummary(transactions) {
 	return box;
 }
 
-function renderHeroKpis(knownExpenses, allMonthTransactions) {
-	const container = document.getElementById("heroKpis");
-	if (!container) return;
-	container.replaceChildren();
-
+function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 	const totalSpent = sumAmounts(knownExpenses);
-	const inflows = (allMonthTransactions || knownExpenses).filter((tx) => tx.direction === "inflow");
-	const income = sumAmounts(inflows.filter(hasKnownAmount));
+	const inflows = (allMonthTransactions || knownExpenses).filter(
+		(tx) => tx.direction === "inflow",
+	);
+	const detectedIncome = sumAmounts(inflows.filter(hasKnownAmount));
+
+	let income = detectedIncome;
+	let incomeSource = inflows.length > 0 ? "detected" : "none";
+
+	if (state.budgetEnabled) {
+		const budgetIncome = confirmedBudgetIncome();
+		if (budgetIncome.amount !== null) {
+			income = budgetIncome.amount;
+			incomeSource = "budget";
+		} else if (detectedIncome === 0) {
+			incomeSource = "none";
+		}
+	}
+
+	const incomeDetail =
+		incomeSource === "budget"
+			? "Del presupuesto"
+			: incomeSource === "detected"
+				? "Detectado automáticamente"
+				: "Sin ingreso detectado";
+
 	const remaining = income - totalSpent;
 	const remainingPercent = income > 0 ? Math.round((remaining / income) * 100) : 0;
 
@@ -2975,16 +2998,25 @@ function renderHeroKpis(knownExpenses, allMonthTransactions) {
 	const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
 	const daysRemaining = Math.max(0, daysInMonth - today.getDate());
 
-	const kpis = [
-		{ label: "Total gastado", value: formatCLP(totalSpent), detail: `${knownExpenses.length} transacciones`, type: "expense" },
-		{ label: "Ingreso", value: income > 0 ? formatCLP(income) : "\u2014", detail: inflows.length > 0 ? "Detectado autom\u00e1ticamente" : "Sin ingreso detectado", type: "income" },
-		{ label: "Saldo restante", value: remaining >= 0 ? formatCLP(remaining) : `-${formatCLP(Math.abs(remaining))}`, detail: income > 0 ? `${remainingPercent}% disponible` : "Ingresa un sueldo para calcularlo", type: remaining >= 0 ? "neutral" : "negative" },
-		{ label: "D\u00edas restantes", value: String(daysRemaining), detail: `de ${daysInMonth} d\u00edas`, type: "neutral" },
+	return [
+		{ key: "expense", label: "Total gastado", value: formatCLP(totalSpent), detail: `${knownExpenses.length} transacciones` },
+		{ key: "income", label: "Ingreso", value: income > 0 ? formatCLP(income) : "\u2014", detail: incomeDetail },
+		{ key: "remaining", label: "Saldo restante", value: remaining >= 0 ? formatCLP(remaining) : `-${formatCLP(Math.abs(remaining))}`, detail: income > 0 ? `${remainingPercent}% disponible` : "Ingresa un sueldo para calcularlo" },
+		{ key: "days", label: "D\u00edas restantes", value: String(daysRemaining), detail: `de ${daysInMonth} d\u00edas` },
 	];
+}
+
+function renderHeroKpis(knownExpenses, allMonthTransactions) {
+	const container = document.getElementById("heroKpis");
+	if (!container) return;
+	container.replaceChildren();
+
+	const kpis = computeHeroKpiData(knownExpenses, allMonthTransactions);
 
 	for (const kpi of kpis) {
 		const card = document.createElement("div");
 		card.className = "kp-card";
+		card.dataset.kpi = kpi.key;
 		card.innerHTML = `
 			<div class="kp-card-inner">
 				<span class="metric-label">${kpi.label}</span>
@@ -2993,6 +3025,23 @@ function renderHeroKpis(knownExpenses, allMonthTransactions) {
 			</div>
 		`;
 		container.append(card);
+	}
+}
+
+function updateHeroKpis() {
+	const container = document.getElementById("heroKpis");
+	if (!container || !container.children.length) return;
+
+	const visibleTransactions = selectedMonthExpenseTransactions(state.transactions);
+	const knownExpenses = visibleTransactions.filter(hasKnownAmount);
+	const allMonthTransactions = selectedMonthTransactions(state.transactions);
+	const kpis = computeHeroKpiData(knownExpenses, allMonthTransactions);
+
+	for (const kpi of kpis) {
+		const card = container.querySelector(`[data-kpi="${kpi.key}"]`);
+		if (!card) continue;
+		card.querySelector(".metric-value").textContent = kpi.value;
+		card.querySelector(".metric-detail").textContent = kpi.detail;
 	}
 }
 
