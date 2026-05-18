@@ -17,6 +17,7 @@ import {
 	deleteCounterpartyCategoryRule,
 	deleteManualMovement,
 	deleteUserCategory,
+	ensureDbInitialized,
 	getSession,
 	hideMovement,
 	insertManualMovement,
@@ -78,6 +79,11 @@ const mimeTypes = {
 export async function handleRequest(req, res) {
 	try {
 		const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
+		if (isStaticRequest(url.pathname, req.method)) {
+			return await serveStatic(url.pathname, res);
+		}
+
+		await ensureDbInitialized();
 		guardMutationRequest(req);
 		const session = await getOrCreateSession(req, res);
 
@@ -549,6 +555,10 @@ function configuredAllowedOrigins() {
 
 function vercelUrl() {
 	return process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
+}
+
+function isStaticRequest(pathname, method) {
+	return method === "GET" && !pathname.startsWith("/api/") && !pathname.startsWith("/auth/");
 }
 
 function isAuthPath(pathname, suffix) {

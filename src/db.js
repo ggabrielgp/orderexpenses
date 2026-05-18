@@ -23,7 +23,12 @@ export const db = createClient({
 	authToken: dbAuthToken,
 });
 
-await initDb();
+let initPromise = null;
+
+export async function ensureDbInitialized() {
+	initPromise ??= initDb();
+	return initPromise;
+}
 
 export async function initDb() {
 	await db.execute(`
