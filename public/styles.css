@@ -1345,6 +1345,8 @@ select:focus {
 	display: grid;
 	gap: 6px;
 	width: min(100%, 640px);
+	max-height: 340px;
+	overflow-y: auto;
 }
 
 .category-legend-item {

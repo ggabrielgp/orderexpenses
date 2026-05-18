@@ -2185,7 +2185,7 @@ function renderCategoryDistribution(transactions) {
 
 	section.append(title, copy);
 
-	const rows = compactCategoryBreakdown(buildCategoryBreakdown(transactions));
+	const rows = buildCategoryBreakdown(transactions);
 
 	if (!rows.length) {
 		const empty = document.createElement("p");
@@ -2362,25 +2362,6 @@ function buildCategoryBreakdown(transactions) {
 			color: categoryVisualColor(group.category),
 		}))
 		.sort((a, b) => b.total - a.total);
-}
-
-function compactCategoryBreakdown(rows, maxItems = 6) {
-	if (rows.length <= maxItems) return rows;
-	const visible = rows.slice(0, maxItems - 1);
-	const hidden = rows.slice(maxItems - 1);
-	const total = rows.reduce((sum, row) => sum + row.total, 0);
-	const otherTotal = hidden.reduce((sum, row) => sum + row.total, 0);
-	const otherCount = hidden.reduce((sum, row) => sum + row.count, 0);
-	return [
-		...visible,
-		{
-			category: "Otros",
-			total: otherTotal,
-			count: otherCount,
-			percent: total ? Math.round((otherTotal / total) * 100) : 0,
-			color: "#64748b",
-		},
-	];
 }
 
 
