@@ -26,7 +26,7 @@ export async function loadMovementsForMonthResult(
 	userEmail,
 	{ month, payTiming = "varies", limit = 200 } = {},
 ) {
-	const manualMovements = listManualMovements(userEmail, month);
+	const manualMovements = await listManualMovements(userEmail, month);
 	const { movements: gmailMovements, warning } = await safeLoadGmailMovements(
 		userEmail,
 		{
@@ -38,12 +38,12 @@ export async function loadMovementsForMonthResult(
 	const selectedMonthMovements = gmailMovements.filter((movement) =>
 		isInMonth(movement.occurredAt, month),
 	);
-	const movements = applyStoredCounterpartyRules(userEmail, [
+	const movements = await applyStoredCounterpartyRules(userEmail, [
 		...selectedMonthMovements,
 		...manualMovements,
 	]);
 	return {
-		movements: applyStoredOverrides(userEmail, movements),
+		movements: await applyStoredOverrides(userEmail, movements),
 		warning,
 	};
 }
@@ -60,9 +60,11 @@ export async function loadIncomeCandidateMovements(
 			limit,
 		},
 	);
-	const candidates = applyStoredOverrides(
-		userEmail,
-		applyStoredCounterpartyRules(userEmail, gmailMovements),
+	const candidates = (
+		await applyStoredOverrides(
+			userEmail,
+			await applyStoredCounterpartyRules(userEmail, gmailMovements),
+		)
 	)
 		.filter(
 			(movement) =>
@@ -91,10 +93,10 @@ export async function syncRuntimeMovements(
 	const selectedMonthMovements = gmailMovements.filter((movement) =>
 		isInMonth(movement.occurredAt, month),
 	);
-	const manualMovements = listManualMovements(userEmail, month);
-	const movements = applyStoredOverrides(
+	const manualMovements = await listManualMovements(userEmail, month);
+	const movements = await applyStoredOverrides(
 		userEmail,
-		applyStoredCounterpartyRules(userEmail, [
+		await applyStoredCounterpartyRules(userEmail, [
 			...selectedMonthMovements,
 			...manualMovements,
 		]),
@@ -211,12 +213,12 @@ export function saveMovementOverride(userEmail, movementKey, patch) {
 	return upsertMovementOverride(userEmail, movementKey, patch, false);
 }
 
-function applyStoredOverrides(userEmail, movements) {
-	return applyMovementOverrides(movements, getOverrides(userEmail));
+async function applyStoredOverrides(userEmail, movements) {
+	return applyMovementOverrides(movements, await getOverrides(userEmail));
 }
 
-function applyStoredCounterpartyRules(userEmail, movements) {
-	const rules = listCounterpartyCategoryRules(userEmail);
+async function applyStoredCounterpartyRules(userEmail, movements) {
+	const rules = await listCounterpartyCategoryRules(userEmail);
 	return applyCounterpartyCategoryRules(movements, rules);
 }
 

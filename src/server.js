@@ -75,11 +75,11 @@ const mimeTypes = {
 	".json": "application/json; charset=utf-8",
 };
 
-const server = createServer(async (req, res) => {
+export async function handleRequest(req, res) {
 	try {
 		const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
 		guardMutationRequest(req);
-		const session = getOrCreateSession(req, res);
+		const session = await getOrCreateSession(req, res);
 
 		if (url.pathname === "/api/transactions" && req.method === "GET") {
 			const user = await getSessionUserProfile(session);
@@ -109,7 +109,7 @@ const server = createServer(async (req, res) => {
 		if (url.pathname === "/api/transactions" && req.method === "POST") {
 			const user = await requireActiveUser(session);
 			const body = await readJson(req);
-			const transaction = insertManualMovement(
+			const transaction = await insertManualMovement(
 				createManualTransaction(body),
 				user.email,
 			);
@@ -119,7 +119,7 @@ const server = createServer(async (req, res) => {
 		if (url.pathname === "/api/categories" && req.method === "GET") {
 			const user = await requireActiveUser(session);
 			return sendJson(res, {
-				categories: mergeCategories(listUserCategories(user.email)),
+				categories: mergeCategories(await listUserCategories(user.email)),
 			});
 		}
 
@@ -130,7 +130,7 @@ const server = createServer(async (req, res) => {
 			if (!name) throw httpError(400, "name es obligatorio");
 			const color = normalizeCategoryColor(body.color);
 			if (!color) throw httpError(400, "color inválido");
-			const category = upsertUserCategory(user.email, { name, color });
+			const category = await upsertUserCategory(user.email, { name, color });
 			return sendJson(res, { category });
 		}
 
@@ -139,7 +139,7 @@ const server = createServer(async (req, res) => {
 			const user = await requireActiveUser(session);
 			const name = normalizeCategoryName(decodeURIComponent(categoryMatch[1]));
 			if (!name) throw httpError(400, "name inválido");
-			const deleted = deleteUserCategory(user.email, name);
+			const deleted = await deleteUserCategory(user.email, name);
 			if (!deleted) return sendJson(res, { error: "Category not found" }, 404);
 			return sendJson(res, { ok: true });
 		}
@@ -147,7 +147,7 @@ const server = createServer(async (req, res) => {
 		if (url.pathname === "/api/counterparty-rules" && req.method === "GET") {
 			const user = await requireActiveUser(session);
 			return sendJson(res, {
-				rules: listCounterpartyCategoryRules(user.email),
+				rules: await listCounterpartyCategoryRules(user.email),
 			});
 		}
 
@@ -160,12 +160,12 @@ const server = createServer(async (req, res) => {
 			}
 			const category = String(body.category ?? "").trim();
 			if (!category) {
-				deleteCounterpartyCategoryRule(user.email, counterpartyKey);
+				await deleteCounterpartyCategoryRule(user.email, counterpartyKey);
 				return sendJson(res, { ok: true, deleted: true });
 			}
 			const displayName =
 				String(body.displayName ?? "").trim() || counterpartyKey;
-			const rule = upsertCounterpartyCategoryRule(user.email, {
+			const rule = await upsertCounterpartyCategoryRule(user.email, {
 				counterpartyKey,
 				displayName,
 				category,
@@ -183,7 +183,7 @@ const server = createServer(async (req, res) => {
 			);
 			if (!counterpartyKey)
 				return sendJson(res, { error: "counterpartyKey inválido" }, 400);
-			const deleted = deleteCounterpartyCategoryRule(
+			const deleted = await deleteCounterpartyCategoryRule(
 				user.email,
 				counterpartyKey,
 			);
@@ -196,7 +196,7 @@ const server = createServer(async (req, res) => {
 			return sendJson(res, {
 				hasCredentials: hasGoogleCredentials(),
 				connected: Boolean(
-					session.userEmail && hasGoogleToken(session.userEmail),
+					session.userEmail && (await hasGoogleToken(session.userEmail)),
 				),
 				activeEmail: profile?.email ?? session.userEmail ?? null,
 			});
@@ -211,17 +211,17 @@ const server = createServer(async (req, res) => {
 			if (req.method !== "POST") {
 				return sendJson(res, { error: "Use POST to disconnect Gmail" }, 405);
 			}
-			if (session.userEmail) disconnectGoogle(session.userEmail);
-			clearSessionUser(session.sessionId);
+			if (session.userEmail) await disconnectGoogle(session.userEmail);
+			await clearSessionUser(session.sessionId);
 			return sendJson(res, { ok: true });
 		}
 
-		if (url.pathname === "/auth/google" && req.method === "GET") {
-			res.writeHead(302, { location: getAuthUrl(session.sessionId) });
+		if (isAuthPath(url.pathname, "/google") && req.method === "GET") {
+			res.writeHead(302, { location: await getAuthUrl(session.sessionId) });
 			return res.end();
 		}
 
-		if (url.pathname === "/auth/google/callback" && req.method === "GET") {
+		if (isAuthPath(url.pathname, "/google/callback") && req.method === "GET") {
 			const oauthError = url.searchParams.get("error");
 			if (oauthError) throw httpError(400, `Google OAuth error: ${oauthError}`);
 			const code = url.searchParams.get("code");
@@ -263,7 +263,7 @@ const server = createServer(async (req, res) => {
 			const movementId = decodeURIComponent(updateMatch[1]);
 			const patch = sanitizePatch(body);
 			const transaction = movementId.startsWith("manual_")
-				? updateManualMovement(movementId, patch, user.email)
+				? await updateManualMovement(movementId, patch, user.email)
 				: await saveExistingMovementOverride(user.email, movementId, patch, {
 						month: normalizeMonthParam(
 							url.searchParams.get("month") ?? body.month,
@@ -280,7 +280,7 @@ const server = createServer(async (req, res) => {
 			const body = await readOptionalJson(req);
 			const movementId = decodeURIComponent(updateMatch[1]);
 			const deleted = movementId.startsWith("manual_")
-				? deleteManualMovement(movementId, user.email)
+				? await deleteManualMovement(movementId, user.email)
 				: await hideExistingMovement(user.email, movementId, {
 						month: normalizeMonthParam(
 							url.searchParams.get("month") ?? body.month,
@@ -299,11 +299,15 @@ const server = createServer(async (req, res) => {
 		console.error(error);
 		return sendJson(res, { error: "Internal server error" }, 500);
 	}
-});
+}
 
-server.listen(PORT, HOST, () => {
-	console.log(`Finance MVP running at http://${HOST}:${PORT}`);
-});
+const server = createServer(handleRequest);
+
+if (process.env.VERCEL !== "1") {
+	server.listen(PORT, HOST, () => {
+		console.log(`Finance MVP running at http://${HOST}:${PORT}`);
+	});
+}
 
 async function readJson(req) {
 	if (!String(req.headers["content-type"] ?? "").includes("application/json")) {
@@ -356,13 +360,13 @@ async function saveExistingMovementOverride(
 ) {
 	if (!(await runtimeMovementExists(userEmail, movementId, options)))
 		return null;
-	return saveMovementOverride(userEmail, movementId, patch);
+	return await saveMovementOverride(userEmail, movementId, patch);
 }
 
 async function hideExistingMovement(userEmail, movementId, options) {
 	if (!(await runtimeMovementExists(userEmail, movementId, options)))
 		return false;
-	hideMovement(userEmail, movementId);
+	await hideMovement(userEmail, movementId);
 	return true;
 }
 
@@ -477,9 +481,9 @@ function guardMutationRequest(req) {
 	const origin = req.headers.origin;
 	if (!origin) return;
 	const parsed = new URL(origin);
-	if (APP_BASE_URL) {
-		const allowedOrigin = new URL(APP_BASE_URL).origin;
-		if (parsed.origin !== allowedOrigin) {
+	if (APP_BASE_URL || process.env.VERCEL_URL) {
+		const allowedOrigins = configuredAllowedOrigins();
+		if (!allowedOrigins.has(parsed.origin)) {
 			throw httpError(403, "Cross-origin requests are not allowed");
 		}
 		return;
@@ -535,18 +539,34 @@ function isLoopbackHost(host) {
 	return host === "127.0.0.1" || host === "localhost" || host === "::1";
 }
 
+function configuredAllowedOrigins() {
+	return new Set(
+		[APP_BASE_URL, vercelUrl()]
+			.filter(Boolean)
+			.map((value) => new URL(value).origin),
+	);
+}
+
+function vercelUrl() {
+	return process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
+}
+
+function isAuthPath(pathname, suffix) {
+	return pathname === `/auth${suffix}` || pathname === `/api/auth${suffix}`;
+}
+
 function sendJson(res, payload, status = 200) {
 	res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
 	res.end(JSON.stringify(payload));
 }
 
-function getOrCreateSession(req, res) {
+async function getOrCreateSession(req, res) {
 	const cookies = parseCookies(req.headers.cookie ?? "");
 	const fromCookie = cookies[SESSION_COOKIE_NAME];
 	if (fromCookie) {
-		const existing = getSession(fromCookie);
+		const existing = await getSession(fromCookie);
 		if (existing) {
-			touchSession(fromCookie);
+			await touchSession(fromCookie);
 			refreshSessionCookie(res, fromCookie);
 			return { ...existing, sessionId: fromCookie };
 		}
@@ -556,7 +576,7 @@ function getOrCreateSession(req, res) {
 	const expiresAt = new Date(
 		Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
 	).toISOString();
-	const created = createSession(sessionId, expiresAt);
+	const created = await createSession(sessionId, expiresAt);
 	refreshSessionCookie(res, sessionId);
 	return { ...created, sessionId };
 }

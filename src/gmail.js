@@ -34,40 +34,23 @@ const credentialsPath =
 	join(process.cwd(), "data", "google-credentials.json");
 
 export function hasGoogleCredentials() {
-	return existsSync(credentialsPath);
+	return hasGoogleCredentialsEnv() || existsSync(credentialsPath);
 }
 
-export function hasGoogleToken(userEmail) {
+export async function hasGoogleToken(userEmail) {
 	if (!userEmail) return false;
-	const token = getGoogleToken(userEmail);
+	const token = await getGoogleToken(userEmail);
 	return Boolean(token?.access_token || token?.refresh_token);
 }
 
-export function disconnectGoogle(userEmail) {
+export async function disconnectGoogle(userEmail) {
 	if (!userEmail) return;
-	deleteGoogleToken(userEmail);
-	deleteGoogleProfile(userEmail);
+	await deleteGoogleToken(userEmail);
+	await deleteGoogleProfile(userEmail);
 }
 
-export function createOAuthClient(userEmail = null) {
-	if (!hasGoogleCredentials()) {
-		const error = new Error(
-			`Missing Google OAuth credentials at ${credentialsPath}`,
-		);
-		error.status = 400;
-		throw error;
-	}
-
-	const credentials = JSON.parse(readFileSync(credentialsPath, "utf8"));
-	const clientConfig = credentials.installed ?? credentials.web;
-	if (!clientConfig) {
-		const error = new Error(
-			"Invalid Google credentials file: expected installed or web OAuth client",
-		);
-		error.status = 400;
-		throw error;
-	}
-
+export async function createOAuthClient(userEmail = null) {
+	const clientConfig = loadGoogleClientConfig();
 	const redirectUri = pickRedirectUri(clientConfig.redirect_uris ?? []);
 	const client = new google.auth.OAuth2(
 		clientConfig.client_id,
@@ -76,7 +59,7 @@ export function createOAuthClient(userEmail = null) {
 	);
 
 	if (userEmail) {
-		const token = getGoogleToken(userEmail);
+		const token = await getGoogleToken(userEmail);
 		if (token && (token.access_token || token.refresh_token)) {
 			client.setCredentials(token);
 		}
@@ -84,22 +67,24 @@ export function createOAuthClient(userEmail = null) {
 
 	if (userEmail) {
 		client.on("tokens", (tokens) => {
-			saveTokenForUser(userEmail, tokens);
+			saveTokenForUser(userEmail, tokens).catch((error) => {
+				console.error("Failed to persist refreshed OAuth token", error);
+			});
 		});
 	}
 
 	return client;
 }
 
-export function getAuthUrl(sessionId) {
+export async function getAuthUrl(sessionId) {
 	if (!sessionId) {
 		const error = new Error("Session is required for OAuth flow");
 		error.status = 400;
 		throw error;
 	}
-	const client = createOAuthClient();
+	const client = await createOAuthClient();
 	const state = randomBytes(32).toString("hex");
-	saveOAuthState(state, sessionId, Date.now());
+	await saveOAuthState(state, sessionId, Date.now());
 	return client.generateAuthUrl({
 		access_type: "offline",
 		prompt: "consent",
@@ -109,44 +94,44 @@ export function getAuthUrl(sessionId) {
 }
 
 export async function saveTokenFromCode(code, state) {
-	const oauthState = verifyOAuthState(state);
-	const client = createOAuthClient();
+	const oauthState = await verifyOAuthState(state);
+	const client = await createOAuthClient();
 	const { tokens } = await client.getToken(code);
 	client.setCredentials(tokens);
 	const profile = await fetchUserProfileFromClient(client);
-	saveTokenForUser(profile.email, tokens);
-	upsertGoogleProfile(profile.email, profile);
-	linkSessionToUser(oauthState.sessionId, profile.email);
+	await saveTokenForUser(profile.email, tokens);
+	await upsertGoogleProfile(profile.email, profile);
+	await linkSessionToUser(oauthState.sessionId, profile.email);
 	return { profile, sessionId: oauthState.sessionId };
 }
 
-export function getProfile(userEmail) {
+export async function getProfile(userEmail) {
 	if (!userEmail) return null;
 	return getGoogleProfile(userEmail);
 }
 
 export async function fetchUserProfile(userEmail) {
-	if (!userEmail || !hasGoogleToken(userEmail)) return null;
-	const client = createOAuthClient(userEmail);
+	if (!userEmail || !(await hasGoogleToken(userEmail))) return null;
+	const client = await createOAuthClient(userEmail);
 	const profile = await fetchUserProfileFromClient(client);
-	upsertGoogleProfile(userEmail, profile);
+	await upsertGoogleProfile(userEmail, profile);
 	if (profile.email && profile.email !== userEmail) {
-		const token = getGoogleToken(userEmail);
+		const token = await getGoogleToken(userEmail);
 		if (token) {
-			upsertGoogleToken(profile.email, token);
-			deleteGoogleToken(userEmail);
+			await upsertGoogleToken(profile.email, token);
+			await deleteGoogleToken(userEmail);
 		}
-		upsertGoogleProfile(profile.email, profile);
-		deleteGoogleProfile(userEmail);
+		await upsertGoogleProfile(profile.email, profile);
+		await deleteGoogleProfile(userEmail);
 	}
 	return profile;
 }
 
 export async function getSessionUserProfile(session) {
 	if (!session?.userEmail) return null;
-	const saved = getProfile(session.userEmail);
+	const saved = await getProfile(session.userEmail);
 	if (saved?.email) return saved;
-	if (!hasGoogleToken(session.userEmail)) return null;
+	if (!(await hasGoogleToken(session.userEmail))) return null;
 	return fetchUserProfile(session.userEmail);
 }
 
@@ -154,8 +139,8 @@ export async function listBancoChileEmails(
 	userEmail,
 	{ limit = DEFAULT_LIMIT, month, payTiming = "varies" } = {},
 ) {
-	const client = createOAuthClient(userEmail);
-	if (!hasGoogleToken(userEmail)) {
+	const client = await createOAuthClient(userEmail);
+	if (!(await hasGoogleToken(userEmail))) {
 		const error = new Error("Gmail is not connected yet");
 		error.status = 401;
 		throw error;
@@ -205,13 +190,13 @@ async function listMessagesForQuery(gmail, query, limit) {
 	return messages;
 }
 
-function verifyOAuthState(receivedState) {
+async function verifyOAuthState(receivedState) {
 	if (!receivedState) {
 		const error = new Error("Invalid OAuth state");
 		error.status = 400;
 		throw error;
 	}
-	const saved = consumeOAuthState(receivedState);
+	const saved = await consumeOAuthState(receivedState);
 	if (!saved) {
 		const error = new Error("Invalid OAuth state");
 		error.status = 400;
@@ -227,13 +212,13 @@ function verifyOAuthState(receivedState) {
 	return saved;
 }
 
-function saveTokenForUser(userEmail, tokens) {
-	const current = getGoogleToken(userEmail) || {};
+async function saveTokenForUser(userEmail, tokens) {
+	const current = (await getGoogleToken(userEmail)) || {};
 	const merged = { ...current, ...tokens };
 	if (!merged.refresh_token && current.refresh_token) {
 		merged.refresh_token = current.refresh_token;
 	}
-	upsertGoogleToken(userEmail, merged);
+	await upsertGoogleToken(userEmail, merged);
 }
 
 async function fetchUserProfileFromClient(client) {
@@ -347,6 +332,41 @@ function decodeBody(data) {
 		data.replace(/-/g, "+").replace(/_/g, "/"),
 		"base64",
 	).toString("utf8");
+}
+
+function loadGoogleClientConfig() {
+	if (hasGoogleCredentialsEnv()) {
+		return {
+			client_id: process.env.GOOGLE_CLIENT_ID,
+			client_secret: process.env.GOOGLE_CLIENT_SECRET,
+			redirect_uris: [process.env.GOOGLE_REDIRECT_URI].filter(Boolean),
+		};
+	}
+
+	if (!existsSync(credentialsPath)) {
+		const error = new Error(
+			`Missing Google OAuth credentials. Set GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET or save credentials at ${credentialsPath}`,
+		);
+		error.status = 400;
+		throw error;
+	}
+
+	const credentials = JSON.parse(readFileSync(credentialsPath, "utf8"));
+	const clientConfig = credentials.installed ?? credentials.web;
+	if (!clientConfig) {
+		const error = new Error(
+			"Invalid Google credentials file: expected installed or web OAuth client",
+		);
+		error.status = 400;
+		throw error;
+	}
+	return clientConfig;
+}
+
+function hasGoogleCredentialsEnv() {
+	return Boolean(
+		process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
+	);
 }
 
 function pickRedirectUri(uris) {

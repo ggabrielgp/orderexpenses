@@ -12,6 +12,7 @@
     "node": ">=24"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.15",
     "googleapis": "^171.4.0"
   }
 }
