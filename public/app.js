@@ -2173,6 +2173,14 @@ function groupTotals(transactions, labelForTransaction) {
 		.sort((a, b) => b.total - a.total);
 }
 
+function darkenColor(hex, amount = 25) {
+	const num = parseInt(hex.replace("#", ""), 16);
+	const r = Math.max(0, ((num >> 16) & 0xFF) - amount);
+	const g = Math.max(0, ((num >> 8) & 0xFF) - amount);
+	const b = Math.max(0, (num & 0xFF) - amount);
+	return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 function renderCategoryDistribution(transactions) {
 	const section = document.createElement("section");
 	section.className = "category-distribution-card";
@@ -2237,11 +2245,6 @@ function renderCategoryDistribution(transactions) {
 			center: ["50%", "50%"],
 			avoidLabelOverlap: false,
 			padAngle: 3,
-			itemStyle: {
-				borderRadius: 8,
-				borderColor: "#fff",
-				borderWidth: 3,
-			},
 			emphasis: {
 				scale: true,
 				scaleSize: 8,
@@ -2255,7 +2258,12 @@ function renderCategoryDistribution(transactions) {
 				value: r.total,
 				name: r.category,
 				count: r.count,
-				itemStyle: { color: r.color },
+				itemStyle: {
+					color: r.color,
+					borderColor: darkenColor(r.color, 30),
+					borderWidth: 2,
+					borderRadius: 6,
+				},
 			})),
 		}],
 		graphic: [
@@ -2683,7 +2691,7 @@ function categoryColor(name) {
 
 function categoryVisualColor(category) {
 	const normalized = normalizeCategoryName(category || "");
-	if (!normalized || normalized === "Sin categoría" || normalized === "Otros") {
+	if (!normalized || normalized === "Sin categoría") {
 		return "#64748b";
 	}
 	return categoryColor(normalized);
