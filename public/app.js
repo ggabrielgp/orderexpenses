@@ -1013,6 +1013,17 @@ function renderTableModeSwitch() {
 	return wrapper;
 }
 
+function updateChartOnly() {
+	const existingChart = dashboardEl.querySelector(".chart-card");
+	if (!existingChart) return;
+	const transactions = selectedMonthExpenseTransactions(state.transactions);
+	const expenses = transactions.filter((tx) => tx.direction === "outflow");
+	const knownExpenses = expenses.filter(hasKnownAmount);
+	const dailySpending = buildMonthlyDailySpending(knownExpenses);
+	const newChart = renderMonthlyDailyChart(dailySpending, knownExpenses);
+	existingChart.replaceWith(newChart);
+}
+
 function renderDashboard(transactions) {
 	const expenses = transactions.filter((tx) => tx.direction === "outflow");
 	const knownExpenses = expenses.filter(hasKnownAmount);
@@ -1763,11 +1774,9 @@ function renderMonthlyDailyChart(series, expenses) {
 		tab.setAttribute("aria-pressed", String(option.id === selected.id));
 		tab.setAttribute("aria-controls", "weeklySpendingChart");
 		tab.addEventListener("click", () => {
-			preserveScrollDuringRender(() => {
-				state.chartTab = option.id;
-				state.chartDayKey = null;
-				render();
-			});
+			state.chartTab = option.id;
+			state.chartDayKey = null;
+			updateChartOnly();
 		});
 		tabs.append(tab);
 	}
@@ -1790,10 +1799,8 @@ function renderMonthlyDailyChart(series, expenses) {
 		bar.setAttribute("aria-label", chartBarLabel(selected, day, isOutOfMonth));
 		if (isSelected) bar.classList.add("weekly-bar-selected");
 		bar.addEventListener("click", () => {
-			preserveScrollDuringRender(() => {
-				state.chartDayKey = day.key;
-				render();
-			});
+			state.chartDayKey = day.key;
+			updateChartOnly();
 		});
 		const value = document.createElement("span");
 		value.className = "weekly-value";
