@@ -17,6 +17,104 @@ const DEFAULT_CATEGORIES = [
 ];
 const CREATE_CATEGORY_VALUE = "__create_category__";
 
+// Modo demo: cargar datos ficticios sin backend
+const DEMO_MODE = false;
+let demoData = [];
+
+function adjustDemoDates(data) {
+	const now = new Date();
+	const year = now.getFullYear();
+	const month = String(now.getMonth() + 1).padStart(2, "0");
+	const day = now.getDate();
+	return data.map((tx, index) => {
+		const originalDate = new Date(tx.occurredAt);
+		const dayOfMonth = Math.min(originalDate.getDate(), day);
+		const adjustedDate = `${year}-${month}-${String(dayOfMonth).padStart(2, "0")}T${String(originalDate.getHours()).padStart(2, "0")}:${String(originalDate.getMinutes()).padStart(2, "0")}:00`;
+		return { ...tx, occurredAt: adjustedDate };
+	});
+}
+
+async function loadDemoData() {
+	if (!DEMO_MODE) return;
+	if (demoData.length > 0) return;
+	try {
+		const response = await fetch("/demo-data.json");
+		const raw = await response.json();
+		demoData = adjustDemoDates(raw);
+	} catch (error) {
+		console.error("Error cargando datos de demo:", error);
+		demoData = [];
+	}
+}
+
+// Simular respuestas de API en modo demo
+function mockApiResponse(endpoint, options = {}) {
+	if (!DEMO_MODE) return null;
+
+	if (endpoint === "/api/gmail/status") {
+		return {
+			hasCredentials: true,
+			connected: true,
+			activeEmail: "usuario@ejemplo.com",
+		};
+	}
+
+	if (endpoint === "/api/gmail/profile") {
+		return {
+			connected: true,
+			email: "usuario@ejemplo.com",
+			name: "Usuario Demo",
+			picture: null,
+		};
+	}
+
+	if (endpoint === "/api/transactions") {
+		if (demoData.length > 0) {
+			return { transactions: demoData };
+		}
+		return { transactions: [] };
+	}
+
+	if (endpoint === "/api/income-candidates") {
+		const candidates = demoData.filter(
+			(tx) => tx.direction === "inflow" && tx.amount && Number(tx.amount) > 0,
+		);
+		return { candidates: candidates.slice(0, 2) };
+	}
+
+	if (endpoint === "/api/categories") {
+		return { categories: DEFAULT_CATEGORIES };
+	}
+
+	if (endpoint === "/api/gmail/sync") {
+		return { scanned: demoData.length, transactions: demoData };
+	}
+
+	return null;
+}
+
+const chartInstances = new Map();
+
+function disposeChart(id) {
+	const instance = chartInstances.get(id);
+	if (instance) {
+		instance.dispose();
+		chartInstances.delete(id);
+	}
+}
+
+function initChart(dom, option, id) {
+	disposeChart(id);
+	const chart = echarts.init(dom, null, { renderer: "svg" });
+	chart.setOption(option);
+	chartInstances.set(id, chart);
+	return chart;
+}
+
+window.addEventListener("resize", () => {
+	chartInstances.forEach((chart) => chart.resize());
+});
+
 const viewPreferences = loadViewPreferences();
 
 const state = {
@@ -37,6 +135,7 @@ const state = {
 	profile: null,
 	activeCounterpartyDetailKey: null,
 	returnToCounterpartyKey: null,
+	activeCategory: null,
 };
 
 const currency = new Intl.NumberFormat("es-CL", {
@@ -274,8 +373,13 @@ async function autoSyncAfterGmailConnect() {
 
 async function loadProfile() {
 	try {
-		const response = await fetch("/api/gmail/profile");
-		const profile = await response.json();
+		let profile;
+		if (DEMO_MODE) {
+			profile = mockApiResponse("/api/gmail/profile");
+		} else {
+			const response = await fetch("/api/gmail/profile");
+			profile = await response.json();
+		}
 		renderProfile(profile);
 	} catch {
 		profileEl.hidden = true;
@@ -284,17 +388,22 @@ async function loadProfile() {
 }
 
 async function loadCategories() {
-	if (!state.profile?.email) {
+	if (!state.profile?.email && !DEMO_MODE) {
 		state.categories = defaultCategoryCatalog();
 		return;
 	}
 	try {
-		const response = await fetch("/api/categories");
-		if (!response.ok) {
-			state.categories = defaultCategoryCatalog();
-			return;
+		let payload;
+		if (DEMO_MODE) {
+			payload = mockApiResponse("/api/categories");
+		} else {
+			const response = await fetch("/api/categories");
+			if (!response.ok) {
+				state.categories = defaultCategoryCatalog();
+				return;
+			}
+			payload = await response.json();
 		}
-		const payload = await response.json();
 		state.categories = mergeCategoryCatalog(payload.categories || []);
 	} catch {
 		state.categories = defaultCategoryCatalog();
@@ -436,9 +545,14 @@ async function deleteCategoryFromSettings(name) {
 
 async function loadGmailStatus(options = {}) {
 	try {
-		const response = await fetch("/api/gmail/status");
-		const status = await response.json();
-		if (!status.hasCredentials) {
+		let status;
+		if (DEMO_MODE) {
+			status = mockApiResponse("/api/gmail/status");
+		} else {
+			const response = await fetch("/api/gmail/status");
+			status = await response.json();
+		}
+		if (!status.hasCredentials && !DEMO_MODE) {
 			updatePageTitle(false);
 			if (!options.preserveMessage) {
 				gmailStatus.textContent =
@@ -450,18 +564,22 @@ async function loadGmailStatus(options = {}) {
 			connectGmailLink.removeAttribute("aria-disabled");
 			return;
 		}
-		updatePageTitle(status.connected);
+		updatePageTitle(status.connected || DEMO_MODE);
 		if (!options.preserveMessage) {
-			gmailStatus.textContent = status.connected
-				? `Gmail conectado${status.activeEmail ? `: ${status.activeEmail}` : ""}. Puedes sincronizar gastos de ${selectedMonthLabel()} detectados desde Banco de Chile.`
-				: "Gmail no conectado. Presiona Conectar Gmail para autorizar lectura.";
+			if (DEMO_MODE) {
+				gmailStatus.textContent = `Modo demostraci\u00f3n activado. Mostrando datos ficticios de ${selectedMonthLabel()}.`;
+			} else {
+				gmailStatus.textContent = status.connected
+					? `Gmail conectado${status.activeEmail ? `: ${status.activeEmail}` : ""}. Puedes sincronizar gastos de ${selectedMonthLabel()} detectados desde Banco de Chile.`
+					: "Gmail no conectado. Presiona Conectar Gmail para autorizar lectura.";
+			}
 		}
-		disconnectGmailButton.hidden = !status.connected;
-		syncGmailButton.hidden = !status.connected;
-		syncGmailButton.disabled = !status.connected || state.isGmailSyncing;
+		disconnectGmailButton.hidden = !status.connected || DEMO_MODE;
+		syncGmailButton.hidden = !status.connected || DEMO_MODE;
+		syncGmailButton.disabled = !status.connected || state.isGmailSyncing || DEMO_MODE;
 		connectGmailLink.setAttribute(
 			"aria-disabled",
-			status.connected ? "true" : "false",
+			status.connected || DEMO_MODE ? "true" : "false",
 		);
 	} catch (error) {
 		updatePageTitle(false);
@@ -499,6 +617,10 @@ async function disconnectGmail() {
 }
 
 async function syncGmail() {
+	if (DEMO_MODE) {
+		gmailStatus.textContent = "Modo demostraci\u00f3n: los datos ya est\u00e1n cargados.";
+		return;
+	}
 	startGmailSyncProgress();
 	gmailStatus.textContent = `Buscando gastos de ${selectedMonthLabel()} en Gmail...`;
 	try {
@@ -514,7 +636,7 @@ async function syncGmail() {
 		const payload = await response.json();
 		if (!response.ok)
 			throw new Error(payload.error || "Error sincronizando Gmail");
-		gmailStatus.textContent = `Sincronización lista: ${payload.scanned} mensajes de ${selectedMonthLabel()} procesados.`;
+		gmailStatus.textContent = `Sincronizaci\u00f3n lista: ${payload.scanned} mensajes de ${selectedMonthLabel()} procesados.`;
 		state.transactions = payload.transactions || [];
 		await loadIncomeCandidates({ renderAfter: false });
 	} catch (error) {
@@ -566,14 +688,22 @@ async function loadIncomeCandidates({ renderAfter = true } = {}) {
 		return;
 	}
 	try {
-		const params = new URLSearchParams({
-			month: state.selectedMonth,
-			payTiming: state.budget.payTiming || "varies",
-		});
-		const response = await fetch(`/api/income-candidates?${params}`);
-		const payload = await response.json();
-		if (!response.ok)
-			throw new Error(payload.error || "Error cargando ingresos detectados");
+		let payload;
+		if (DEMO_MODE) {
+			payload = mockApiResponse("/api/income-candidates", {
+				month: state.selectedMonth,
+				payTiming: state.budget.payTiming || "varies",
+			});
+		} else {
+			const params = new URLSearchParams({
+				month: state.selectedMonth,
+				payTiming: state.budget.payTiming || "varies",
+			});
+			const response = await fetch(`/api/income-candidates?${params}`);
+			payload = await response.json();
+			if (!response.ok)
+				throw new Error(payload.error || "Error cargando ingresos detectados");
+		}
 		state.incomeCandidates = payload.candidates || [];
 	} catch {
 		state.incomeCandidates = [];
@@ -589,10 +719,16 @@ async function loadTransactions() {
 		showTableMessage("Cargando gastos...");
 	}
 	try {
-		const params = new URLSearchParams({ month: state.selectedMonth });
-		const response = await fetch(`/api/transactions?${params}`);
-		const payload = await response.json();
-		if (!response.ok) throw new Error(payload.error || "Error cargando gastos");
+		let payload;
+		if (DEMO_MODE) {
+			await loadDemoData();
+			payload = mockApiResponse("/api/transactions", { month: state.selectedMonth });
+		} else {
+			const params = new URLSearchParams({ month: state.selectedMonth });
+			const response = await fetch(`/api/transactions?${params}`);
+			payload = await response.json();
+			if (!response.ok) throw new Error(payload.error || "Error cargando gastos");
+		}
 		state.transactions = payload.transactions || [];
 		await loadIncomeCandidates({ renderAfter: false });
 		render();
@@ -615,6 +751,10 @@ function sortTransactions(transactions) {
 			cmp = (a.occurredAt || "").localeCompare(b.occurredAt || "");
 		} else if (state.sortKey === "amount") {
 			cmp = (Number(a.amount) || 0) - (Number(b.amount) || 0);
+		} else if (state.sortKey === "counterparty") {
+			cmp = (a.counterparty || "").localeCompare(b.counterparty || "", "es");
+		} else if (state.sortKey === "category") {
+			cmp = (a.category || "Sin categoría").localeCompare(b.category || "Sin categoría", "es");
 		}
 		return state.sortDir === "desc" ? -cmp : cmp;
 	});
@@ -693,17 +833,66 @@ function selectableMonthOptions() {
 }
 
 function setView(view) {
-	state.view = view;
-	render();
+	if (state.view === view) return;
+	const outgoing = state.view === "dashboard" ? dashboardEl : transactionsEl;
+	const incoming = view === "dashboard" ? dashboardEl : transactionsEl;
+
+	outgoing.style.transition = "opacity 200ms var(--ease-out-expo), transform 200ms var(--ease-out-expo)";
+	outgoing.style.opacity = "0";
+	outgoing.style.transform = "translateY(-4px)";
+
+	setTimeout(() => {
+		outgoing.hidden = true;
+		outgoing.style.transform = "";
+		outgoing.style.opacity = "";
+		outgoing.style.transition = "";
+
+		state.view = view;
+		render();
+
+		incoming.hidden = false;
+		incoming.style.opacity = "0";
+		incoming.style.transform = "translateY(4px)";
+
+		requestAnimationFrame(() => {
+			incoming.style.transition = "opacity 250ms var(--ease-out-expo), transform 250ms var(--ease-spring)";
+			incoming.style.opacity = "1";
+			incoming.style.transform = "translateY(0)";
+
+			setTimeout(() => {
+				incoming.style.transition = "";
+				incoming.style.opacity = "";
+				incoming.style.transform = "";
+			}, 300);
+		});
+	}, 200);
+}
+
+function animateEntry(element, index = 0) {
+	element.style.opacity = "0";
+	element.style.transform = "translateY(16px)";
+	element.style.filter = "blur(6px)";
+
+	requestAnimationFrame(() => {
+		element.style.transition = `opacity 600ms var(--ease-out-expo) ${index * 80}ms, transform 600ms var(--ease-spring) ${index * 80}ms, filter 400ms var(--ease-out-expo) ${index * 80}ms`;
+		element.style.opacity = "1";
+		element.style.transform = "translateY(0)";
+		element.style.filter = "blur(0)";
+	});
 }
 
 function updatePageTitle(isConnected) {
-	const title = isConnected ? "Gastos capturados" : "Captura tus gastos";
-	heroTitle.textContent = title;
-	document.title = title;
-	heroSubtitle.textContent = isConnected
-		? "Revisa, corrige y entiende tus gastos importados automáticamente."
-		: "Conecta Gmail para detectar movimientos automáticamente. Agrega solo los gastos que falten y corrige directamente en la tabla.";
+	if (isConnected) {
+		heroTitle.textContent = selectedMonthLabel();
+		document.title = `${selectedMonthLabel()} · Resumen`;
+		heroSubtitle.textContent =
+			"Revisa, corrige y entiende tus gastos importados automáticamente.";
+	} else {
+		heroTitle.textContent = "Tu mes en un vistazo";
+		document.title = "Resumen · Finanzas Personales";
+		heroSubtitle.textContent =
+			"Conecta tu cuenta para ver el análisis automático de tus gastos.";
+	}
 }
 
 function render() {
@@ -712,6 +901,7 @@ function render() {
 		state.transactions,
 	);
 	renderViewToggle();
+	renderHeroKpis(visibleTransactions.filter(hasKnownAmount), selectedMonthTransactions(state.transactions));
 	dashboardEl.hidden = state.view !== "dashboard";
 	transactionsEl.hidden = state.view !== "table";
 	dashboardEl.replaceChildren();
@@ -923,7 +1113,7 @@ function renderDashboard(transactions) {
 		}
 	}
 
-	dashboardEl.append(
+	const cards = [
 		budgetToggle,
 		...(budgetCard ? [budgetCard] : []),
 		metrics,
@@ -931,7 +1121,11 @@ function renderDashboard(transactions) {
 		categoryDistribution,
 		insights,
 		breakdown,
-	);
+	];
+	cards.forEach((card, index) => {
+		dashboardEl.append(card);
+		animateEntry(card, index);
+	});
 }
 
 function renderBudgetToggle() {
@@ -1971,85 +2165,165 @@ function groupTotals(transactions, labelForTransaction) {
 function renderCategoryDistribution(transactions) {
 	const section = document.createElement("section");
 	section.className = "category-distribution-card";
+
 	const title = document.createElement("h3");
-	title.textContent = "Distribución por categoría";
+	title.textContent = "\u00bfD\u00f3nde se va tu dinero?";
+
 	const copy = document.createElement("p");
-	copy.textContent =
-		"Agrupa tus gastos del periodo según la categoría asignada.";
+	copy.textContent = "Agrupa tus gastos del periodo seg\u00fan la categor\u00eda asignada.";
+
 	section.append(title, copy);
 
 	const rows = compactCategoryBreakdown(buildCategoryBreakdown(transactions));
+
 	if (!rows.length) {
 		const empty = document.createElement("p");
 		empty.className = "category-distribution-empty";
-		empty.textContent =
-			"Aún no hay gastos con monto suficiente para distribuir por categoría.";
+		empty.textContent = "A\u00fan no hay gastos con monto suficiente para distribuir por categor\u00eda.";
 		section.append(empty);
 		return section;
 	}
 
 	section.append(renderCategoryDistributionInsight(rows));
 
-	const segments = buildCategoryDonutSegments(rows);
 	const body = document.createElement("div");
 	body.className = "category-distribution-body";
 
 	const donutWrap = document.createElement("div");
 	donutWrap.className = "category-donut-wrap";
-	const donut = document.createElement("div");
-	donut.className = "category-donut";
-	donut.style.setProperty(
-		"--category-donut-gradient",
-		buildCategoryDonutGradient(segments),
-	);
+
+	const donutDom = document.createElement("div");
+	donutDom.style.width = "260px";
+	donutDom.style.height = "260px";
+
 	const total = rows.reduce((sum, row) => sum + row.total, 0);
-	donut.title = `Total gastado: ${formatCLP(total)} · ${rows.length} categorías`;
 
-	const tooltip = document.createElement("div");
-	tooltip.className = "category-donut-tooltip";
-	tooltip.hidden = true;
+	const chart = initChart(donutDom, {
+		animation: true,
+		animationDuration: 800,
+		animationEasing: "cubicOut",
+		tooltip: {
+			trigger: "item",
+			backgroundColor: "#0F172A",
+			borderColor: "#334155",
+			borderWidth: 1,
+			padding: [10, 14],
+			textStyle: {
+				color: "#F8FAFC",
+				fontFamily: "Plus Jakarta Sans, sans-serif",
+				fontSize: 13,
+			},
+			formatter: (params) => {
+				return `<strong style="font-size:14px">${params.name}</strong><br/>
+						<span style="font-size:16px;font-weight:600">${formatCLP(params.value)}</span>
+						<span style="opacity:0.6"> \u00b7 ${params.percent}%</span><br/>
+						<span style="opacity:0.5;font-size:12px">${params.data.count} movimiento${params.data.count === 1 ? "" : "s"}</span>`;
+			},
+		},
+		series: [{
+			type: "pie",
+			radius: ["48%", "74%"],
+			center: ["50%", "50%"],
+			avoidLabelOverlap: false,
+			padAngle: 3,
+			itemStyle: {
+				borderRadius: 8,
+				borderColor: "#fff",
+				borderWidth: 3,
+			},
+			emphasis: {
+				scale: true,
+				scaleSize: 8,
+				itemStyle: {
+					shadowBlur: 20,
+					shadowColor: "rgba(0,0,0,0.12)",
+				},
+			},
+			label: { show: false },
+			data: rows.map((r) => ({
+				value: r.total,
+				name: r.category,
+				count: r.count,
+				itemStyle: { color: r.color },
+			})),
+		}],
+		graphic: [
+			{
+				type: "text",
+				left: "center",
+				top: "40%",
+				style: {
+					text: "Total",
+					fontSize: 12,
+					fill: "#94A3B8",
+					fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
+					textAlign: "center",
+				},
+			},
+			{
+				type: "text",
+				left: "center",
+				top: "54%",
+				style: {
+					text: formatCLP(total),
+					fontSize: 20,
+					fill: "#0F172A",
+					fontWeight: 700,
+					fontFamily: "Plus Jakarta Sans, sans-serif",
+					textAlign: "center",
+				},
+			},
+		],
+	}, "category-donut");
 
-	donut.addEventListener("mousemove", (event) => {
-		const segment = categorySegmentAtPoint(event, donut, segments);
-		if (!segment) {
-			hideCategoryDonutTooltip(tooltip);
-			return;
+	chart.on("click", (params) => {
+		if (state.activeCategory === params.name) {
+			state.activeCategory = null;
+		} else {
+			state.activeCategory = params.name;
 		}
-		showCategoryDonutTooltip(tooltip, segment, event);
-	});
-	donut.addEventListener("mouseleave", () => {
-		hideCategoryDonutTooltip(tooltip);
-	});
-	donut.addEventListener("touchstart", (event) => {
-		const touch = event.touches[0];
-		if (!touch) return;
-		const segment = categorySegmentAtPoint(touch, donut, segments);
-		if (!segment) {
-			hideCategoryDonutTooltip(tooltip);
-			return;
-		}
-		showCategoryDonutTooltip(tooltip, segment, touch);
+		renderCategoryDetail(legend, rows, transactions);
 	});
 
-	const donutCenter = document.createElement("div");
-	donutCenter.className = "category-donut-center";
-	const donutLabel = document.createElement("span");
-	donutLabel.textContent = "Total";
-	const donutAmount = document.createElement("strong");
-	donutAmount.textContent = formatCLP(total);
-	donutCenter.append(donutLabel, donutAmount);
-	donut.append(donutCenter);
-	donutWrap.append(donut);
+	chart.getZr().on("click", (params) => {
+		if (!params.target) {
+			state.activeCategory = null;
+			renderCategoryDetail(legend, rows, transactions);
+		}
+	});
+
+	donutWrap.append(donutDom);
 
 	const legend = document.createElement("div");
 	legend.className = "category-distribution-legend";
-	for (const row of rows) {
-		legend.append(renderCategoryLegendItem(row));
-	}
+	renderCategoryDetail(legend, rows, transactions);
 
 	body.append(donutWrap, legend);
-	section.append(body, tooltip);
+	section.append(body);
+
 	return section;
+}
+
+function highlightTableByCategory(category) {
+	const rows = document.querySelectorAll(".transactions-table tbody tr");
+	for (const row of rows) {
+		const cell = row.querySelector('[data-field="category"]');
+		if (cell && cell.textContent.trim() === category) {
+			row.style.background = "var(--accent-soft)";
+			row.style.borderLeftColor = "var(--accent)";
+		} else {
+			row.style.background = "";
+			row.style.borderLeftColor = "";
+		}
+	}
+}
+
+function clearTableHighlight() {
+	const rows = document.querySelectorAll(".transactions-table tbody tr");
+	for (const row of rows) {
+		row.style.background = "";
+		row.style.borderLeftColor = "";
+	}
 }
 
 function buildCategoryBreakdown(transactions) {
@@ -2098,75 +2372,6 @@ function compactCategoryBreakdown(rows, maxItems = 6) {
 	];
 }
 
-function buildCategoryDonutSegments(rows) {
-	let cursor = 0;
-	const total = rows.reduce((sum, row) => sum + row.total, 0);
-	if (!total) return [];
-	return rows.map((row, index) => {
-		const degrees =
-			index === rows.length - 1
-				? 360 - cursor
-				: Math.max((row.total / total) * 360, 1);
-		const startDeg = cursor;
-		const endDeg = Math.min(cursor + degrees, 360);
-		cursor = endDeg;
-		return {
-			...row,
-			startDeg,
-			endDeg,
-		};
-	});
-}
-
-function buildCategoryDonutGradient(segments) {
-	if (!segments.length) return "var(--soft) 0deg 360deg";
-	return `conic-gradient(${segments
-		.map(
-			(segment) =>
-				`${segment.color} ${segment.startDeg.toFixed(2)}deg ${segment.endDeg.toFixed(2)}deg`,
-		)
-		.join(", ")})`;
-}
-
-function categorySegmentAtPoint(pointer, donut, segments) {
-	const rect = donut.getBoundingClientRect();
-	const centerX = rect.left + rect.width / 2;
-	const centerY = rect.top + rect.height / 2;
-	const x = pointer.clientX - centerX;
-	const y = pointer.clientY - centerY;
-	const radius = rect.width / 2;
-	const distance = Math.sqrt(x * x + y * y);
-	const innerRadius = radius * 0.36;
-	if (distance < innerRadius || distance > radius) return null;
-
-	let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
-	if (angle < 0) angle += 360;
-
-	return (
-		segments.find(
-			(segment) => angle >= segment.startDeg && angle < segment.endDeg,
-		) || segments[segments.length - 1]
-	);
-}
-
-function showCategoryDonutTooltip(tooltip, segment, pointer) {
-	tooltip.hidden = false;
-	tooltip.replaceChildren();
-	const title = document.createElement("strong");
-	title.textContent = segment.category;
-	const detail = document.createElement("span");
-	detail.textContent = `${formatCLP(segment.total)} · ${segment.percent}% · ${segment.count} movimiento${
-		segment.count === 1 ? "" : "s"
-	}`;
-	tooltip.append(title, detail);
-	const offset = 14;
-	tooltip.style.left = `${pointer.clientX + offset}px`;
-	tooltip.style.top = `${pointer.clientY + offset}px`;
-}
-
-function hideCategoryDonutTooltip(tooltip) {
-	tooltip.hidden = true;
-}
 
 function renderCategoryLegendItem(row) {
 	const item = document.createElement("article");
@@ -2186,6 +2391,95 @@ function renderCategoryLegendItem(row) {
 
 	item.append(marker, name, detail);
 	return item;
+}
+
+function renderCategoryDetail(legendEl, rows, expenses) {
+	legendEl.replaceChildren();
+
+	if (!state.activeCategory) {
+		for (const row of rows) {
+			legendEl.append(renderCategoryLegendItem(row));
+		}
+		return;
+	}
+
+	const activeRow = rows.find(
+		(row) => categoryKey(row.category) === categoryKey(state.activeCategory),
+	);
+	if (!activeRow) {
+		state.activeCategory = null;
+		for (const row of rows) {
+			legendEl.append(renderCategoryLegendItem(row));
+		}
+		return;
+	}
+
+	const panel = document.createElement("div");
+	panel.className = "category-detail-panel";
+
+	const header = document.createElement("div");
+	header.className = "category-detail-header";
+
+	const marker = document.createElement("span");
+	marker.className = "category-legend-marker";
+	marker.style.setProperty("--category-color", activeRow.color);
+	marker.setAttribute("aria-hidden", "true");
+
+	const name = document.createElement("strong");
+	name.textContent = activeRow.category;
+
+	const detail = document.createElement("small");
+	detail.textContent = `${formatCLP(activeRow.total)} · ${activeRow.percent}% · ${activeRow.count} movimiento${activeRow.count === 1 ? "" : "s"}`;
+
+	header.append(marker, name, detail);
+
+	const merchantList = document.createElement("div");
+	merchantList.className = "category-detail-merchants";
+
+	const activeCategoryKey = categoryKey(state.activeCategory);
+	const groups = new Map();
+	for (const tx of expenses) {
+		const txCat = normalizeCategoryName(tx.category || "") || "Sin categoría";
+		if (categoryKey(txCat) !== activeCategoryKey) continue;
+
+		const displayName = tx.counterparty || "Sin contraparte";
+		const key =
+			tx.counterpartyKey ||
+			normalizeCounterpartyForUI(tx.counterparty || displayName);
+		if (!groups.has(key)) {
+			groups.set(key, { displayName, total: 0, count: 0 });
+		}
+		const group = groups.get(key);
+		group.total += Number(tx.amount || 0);
+		group.count += 1;
+	}
+
+	const merchantRows = [...groups.values()].sort((a, b) => b.total - a.total);
+	for (const mr of merchantRows) {
+		const item = document.createElement("article");
+		item.className = "category-detail-merchant";
+
+		const mName = document.createElement("strong");
+		mName.textContent = mr.displayName;
+
+		const mDetail = document.createElement("small");
+		mDetail.textContent = `${formatCLP(mr.total)} · ${mr.count} movimiento${mr.count === 1 ? "" : "s"}`;
+
+		item.append(mName, mDetail);
+		merchantList.append(item);
+	}
+
+	const back = document.createElement("button");
+	back.type = "button";
+	back.className = "category-detail-back";
+	back.textContent = "← Todas las categorías";
+	back.addEventListener("click", () => {
+		state.activeCategory = null;
+		renderCategoryDetail(legendEl, rows, expenses);
+	});
+
+	panel.append(header, merchantList, back);
+	legendEl.append(panel);
 }
 
 function renderCategoryDistributionInsight(rows) {
@@ -2575,8 +2869,8 @@ function renderTableHead() {
 	const columns = [
 		{ key: "date", label: "Fecha", sortable: true },
 		{ key: "amount", label: "Monto", sortable: true },
-		{ key: "counterparty", label: "Contraparte", sortable: false },
-		{ key: null, label: "Categoría", sortable: false },
+		{ key: "counterparty", label: "Contraparte", sortable: true },
+		{ key: "category", label: "Categoría", sortable: true },
 		{ key: null, label: "", sortable: false },
 	];
 	for (const col of columns) {
@@ -2659,7 +2953,44 @@ function renderTableSummary(transactions) {
 	return box;
 }
 
+function renderHeroKpis(knownExpenses, allMonthTransactions) {
+	const container = document.getElementById("heroKpis");
+	if (!container) return;
+	container.replaceChildren();
+
+	const totalSpent = sumAmounts(knownExpenses);
+	const inflows = (allMonthTransactions || knownExpenses).filter((tx) => tx.direction === "inflow");
+	const income = sumAmounts(inflows.filter(hasKnownAmount));
+	const remaining = income - totalSpent;
+	const remainingPercent = income > 0 ? Math.round((remaining / income) * 100) : 0;
+
+	const today = new Date();
+	const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+	const daysRemaining = Math.max(0, daysInMonth - today.getDate());
+
+	const kpis = [
+		{ label: "Total gastado", value: formatCLP(totalSpent), detail: `${knownExpenses.length} transacciones`, type: "expense" },
+		{ label: "Ingreso", value: income > 0 ? formatCLP(income) : "\u2014", detail: inflows.length > 0 ? "Detectado autom\u00e1ticamente" : "Sin ingreso detectado", type: "income" },
+		{ label: "Saldo restante", value: remaining >= 0 ? formatCLP(remaining) : `-${formatCLP(Math.abs(remaining))}`, detail: income > 0 ? `${remainingPercent}% disponible` : "Ingresa un sueldo para calcularlo", type: remaining >= 0 ? "neutral" : "negative" },
+		{ label: "D\u00edas restantes", value: String(daysRemaining), detail: `de ${daysInMonth} d\u00edas`, type: "neutral" },
+	];
+
+	for (const kpi of kpis) {
+		const card = document.createElement("div");
+		card.className = "kp-card";
+		card.innerHTML = `
+			<div class="kp-card-inner">
+				<span class="metric-label">${kpi.label}</span>
+				<strong class="metric-value">${kpi.value}</strong>
+				<small class="metric-detail">${kpi.detail}</small>
+			</div>
+		`;
+		container.append(card);
+	}
+}
+
 function renderSyncingSummary() {
+	if (!summaryEl) return;
 	summaryEl.replaceChildren();
 	const label = document.createElement("span");
 	label.textContent = "Sincronizando Gmail";
@@ -2671,6 +3002,7 @@ function renderSyncingSummary() {
 }
 
 function renderSummary(transactions) {
+	if (!summaryEl) return;
 	const outflow = transactions
 		.filter((tx) => tx.direction === "outflow" && hasKnownAmount(tx))
 		.reduce((total, tx) => total + Number(tx.amount || 0), 0);
@@ -2693,9 +3025,13 @@ function renderTransactionRow(transaction) {
 	row.querySelector('[data-field="date"]').textContent = formatDate(
 		transaction.occurredAt,
 	);
-	row.querySelector('[data-field="amount"]').textContent = formatCLP(
-		transaction.amount,
-	);
+	const amountCell = row.querySelector('[data-field="amount"]');
+	amountCell.textContent = formatCLP(transaction.amount);
+	if (transaction.direction === "outflow") {
+		amountCell.classList.add("is-outflow");
+	} else if (transaction.direction === "inflow") {
+		amountCell.classList.add("is-inflow");
+	}
 	row.querySelector('[data-field="counterparty"]').textContent =
 		transaction.counterparty || "—";
 	row.querySelector('[data-field="counterparty"]').title =

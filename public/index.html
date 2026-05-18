@@ -3,23 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Finanzas personales MVP</title>
+    <title>Resumen · Finanzas Personales</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main class="shell">
       <section class="hero">
-        <div>
-          <h1 id="heroTitle">Captura tus gastos</h1>
-          <p class="subtitle" id="heroSubtitle">
-            Conecta Gmail para detectar movimientos automáticamente. Agrega solo
-            los gastos que falten y corrige directamente en la tabla.
-          </p>
+        <div class="hero-headline">
+          <h1 id="heroTitle">Tu mes en un vistazo</h1>
+          <p class="subtitle" id="heroSubtitle">Conecta tu cuenta para ver el análisis automático de tus gastos.</p>
         </div>
-        <div class="hero-aside">
-          <div id="profile" class="profile" hidden></div>
-          <div class="summary" id="summary">Cargando...</div>
-        </div>
+        <div class="hero-kpis" id="heroKpis"></div>
       </section>
 
       <section class="panel">
@@ -110,6 +107,8 @@
         <div id="transactions" class="transactions-table-wrap"></div>
       </section>
     </main>
+
+    <div id="profile" class="profile" hidden></div>
 
     <template id="transactionRowTemplate">
       <tr>
@@ -412,6 +411,7 @@
       </form>
     </dialog>
 
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script type="module" src="/app.js"></script>
   </body>
 </html>
