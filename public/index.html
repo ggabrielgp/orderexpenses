@@ -4,9 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Resumen · Finanzas Personales</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -14,7 +17,9 @@
       <section class="hero">
         <div class="hero-headline">
           <h1 id="heroTitle">Tu mes en un vistazo</h1>
-          <p class="subtitle" id="heroSubtitle">Conecta tu cuenta para ver el análisis automático de tus gastos.</p>
+          <p class="subtitle" id="heroSubtitle">
+            Conecta tu cuenta para ver el análisis automático de tus gastos.
+          </p>
         </div>
         <div class="hero-kpis" id="heroKpis"></div>
       </section>
@@ -103,6 +108,7 @@
             <button class="secondary" id="refreshButton">Actualizar</button>
           </div>
         </div>
+        <div id="budgetPanel" class="budget-panel" aria-live="polite"></div>
         <div id="dashboard" class="dashboard" aria-live="polite" hidden></div>
         <div id="transactions" class="transactions-table-wrap"></div>
       </section>

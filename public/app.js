@@ -26,7 +26,7 @@ function adjustDemoDates(data) {
 	const year = now.getFullYear();
 	const month = String(now.getMonth() + 1).padStart(2, "0");
 	const day = now.getDate();
-	return data.map((tx, index) => {
+	return data.map((tx) => {
 		const originalDate = new Date(tx.occurredAt);
 		const dayOfMonth = Math.min(originalDate.getDate(), day);
 		const adjustedDate = `${year}-${month}-${String(dayOfMonth).padStart(2, "0")}T${String(originalDate.getHours()).padStart(2, "0")}:${String(originalDate.getMinutes()).padStart(2, "0")}:00`;
@@ -48,7 +48,7 @@ async function loadDemoData() {
 }
 
 // Simular respuestas de API en modo demo
-function mockApiResponse(endpoint, options = {}) {
+function mockApiResponse(endpoint) {
 	if (!DEMO_MODE) return null;
 
 	if (endpoint === "/api/gmail/status") {
@@ -196,6 +196,7 @@ const tableViewButton = document.querySelector("#tableViewButton");
 const monthSelect = document.querySelector("#monthSelect");
 const dashboardEl = document.querySelector("#dashboard");
 const transactionsEl = document.querySelector("#transactions");
+const budgetPanelEl = document.querySelector("#budgetPanel");
 const summaryEl = document.querySelector("#summary");
 const rowTemplate = document.querySelector("#transactionRowTemplate");
 
@@ -576,7 +577,8 @@ async function loadGmailStatus(options = {}) {
 		}
 		disconnectGmailButton.hidden = !status.connected || DEMO_MODE;
 		syncGmailButton.hidden = !status.connected || DEMO_MODE;
-		syncGmailButton.disabled = !status.connected || state.isGmailSyncing || DEMO_MODE;
+		syncGmailButton.disabled =
+			!status.connected || state.isGmailSyncing || DEMO_MODE;
 		connectGmailLink.setAttribute(
 			"aria-disabled",
 			status.connected || DEMO_MODE ? "true" : "false",
@@ -618,7 +620,8 @@ async function disconnectGmail() {
 
 async function syncGmail() {
 	if (DEMO_MODE) {
-		gmailStatus.textContent = "Modo demostraci\u00f3n: los datos ya est\u00e1n cargados.";
+		gmailStatus.textContent =
+			"Modo demostraci\u00f3n: los datos ya est\u00e1n cargados.";
 		return;
 	}
 	startGmailSyncProgress();
@@ -722,12 +725,15 @@ async function loadTransactions() {
 		let payload;
 		if (DEMO_MODE) {
 			await loadDemoData();
-			payload = mockApiResponse("/api/transactions", { month: state.selectedMonth });
+			payload = mockApiResponse("/api/transactions", {
+				month: state.selectedMonth,
+			});
 		} else {
 			const params = new URLSearchParams({ month: state.selectedMonth });
 			const response = await fetch(`/api/transactions?${params}`);
 			payload = await response.json();
-			if (!response.ok) throw new Error(payload.error || "Error cargando gastos");
+			if (!response.ok)
+				throw new Error(payload.error || "Error cargando gastos");
 		}
 		state.transactions = payload.transactions || [];
 		await loadIncomeCandidates({ renderAfter: false });
@@ -754,7 +760,10 @@ function sortTransactions(transactions) {
 		} else if (state.sortKey === "counterparty") {
 			cmp = (a.counterparty || "").localeCompare(b.counterparty || "", "es");
 		} else if (state.sortKey === "category") {
-			cmp = (a.category || "Sin categoría").localeCompare(b.category || "Sin categoría", "es");
+			cmp = (a.category || "Sin categoría").localeCompare(
+				b.category || "Sin categoría",
+				"es",
+			);
 		}
 		return state.sortDir === "desc" ? -cmp : cmp;
 	});
@@ -837,7 +846,8 @@ function setView(view) {
 	const outgoing = state.view === "dashboard" ? dashboardEl : transactionsEl;
 	const incoming = view === "dashboard" ? dashboardEl : transactionsEl;
 
-	outgoing.style.transition = "opacity 200ms var(--ease-out-expo), transform 200ms var(--ease-out-expo)";
+	outgoing.style.transition =
+		"opacity 200ms var(--ease-out-expo), transform 200ms var(--ease-out-expo)";
 	outgoing.style.opacity = "0";
 	outgoing.style.transform = "translateY(-4px)";
 
@@ -855,7 +865,8 @@ function setView(view) {
 		incoming.style.transform = "translateY(4px)";
 
 		requestAnimationFrame(() => {
-			incoming.style.transition = "opacity 250ms var(--ease-out-expo), transform 250ms var(--ease-spring)";
+			incoming.style.transition =
+				"opacity 250ms var(--ease-out-expo), transform 250ms var(--ease-spring)";
 			incoming.style.opacity = "1";
 			incoming.style.transform = "translateY(0)";
 
@@ -897,15 +908,19 @@ function updatePageTitle(isConnected) {
 
 function render() {
 	renderMonthSelect();
-	const visibleTransactions = selectedMonthExpenseTransactions(
-		state.transactions,
+	const allMonthTransactions = selectedMonthTransactions(state.transactions);
+	const visibleExpenses = allMonthTransactions.filter(
+		(tx) => tx.direction === "outflow",
 	);
 	renderViewToggle();
-	renderHeroKpis(visibleTransactions.filter(hasKnownAmount), selectedMonthTransactions(state.transactions));
+	renderHeroKpis(visibleExpenses.filter(hasKnownAmount), allMonthTransactions);
 	dashboardEl.hidden = state.view !== "dashboard";
 	transactionsEl.hidden = state.view !== "table";
+	budgetPanelEl.replaceChildren();
 	dashboardEl.replaceChildren();
 	transactionsEl.replaceChildren();
+
+	renderBudgetPanel(visibleExpenses.filter(hasKnownAmount));
 
 	if (state.isGmailSyncing) {
 		renderSyncingSummary();
@@ -913,17 +928,15 @@ function render() {
 		return;
 	}
 
-	renderSummary(visibleTransactions);
+	renderSummary(allMonthTransactions);
 
-	if (visibleTransactions.length === 0) {
+	if (allMonthTransactions.length === 0) {
 		const empty = createEmptyState(
-			`Todavía no hay gastos en ${selectedMonthLabel()}`,
-			"Sincroniza Gmail o ingresa un gasto manual para este periodo para empezar a ver el resumen.",
+			`Todavía no hay movimientos en ${selectedMonthLabel()}`,
+			"Sincroniza Gmail o ingresa un movimiento manual para este periodo para empezar a ver el resumen.",
 			{ actionLabel: "Ingresar gasto", onAction: openNewExpenseModal },
 		);
 		if (state.view === "dashboard") {
-			dashboardEl.append(renderBudgetToggle());
-			if (state.budgetEnabled) dashboardEl.append(renderBudgetCard(0));
 			dashboardEl.append(empty);
 		} else {
 			transactionsEl.append(renderTableModeSwitch());
@@ -939,11 +952,11 @@ function render() {
 	}
 
 	if (state.view === "dashboard") {
-		renderDashboard(visibleTransactions);
+		renderDashboard(visibleExpenses);
 		return;
 	}
 
-	renderTableView(visibleTransactions);
+	renderTableView(allMonthTransactions);
 }
 
 function renderViewToggle() {
@@ -1104,8 +1117,6 @@ function renderDashboard(transactions) {
 		),
 	);
 
-	const budgetToggle = renderBudgetToggle();
-	const budgetCard = state.budgetEnabled ? renderBudgetCard(totalSpent) : null;
 	const weeklyChart = renderMonthlyDailyChart(dailySpending, knownExpenses);
 	const categoryDistribution = renderCategoryDistribution(knownExpenses);
 
@@ -1125,8 +1136,6 @@ function renderDashboard(transactions) {
 	}
 
 	const cards = [
-		budgetToggle,
-		...(budgetCard ? [budgetCard] : []),
 		metrics,
 		weeklyChart,
 		categoryDistribution,
@@ -1139,6 +1148,13 @@ function renderDashboard(transactions) {
 	});
 }
 
+function renderBudgetPanel(knownExpenses) {
+	if (!budgetPanelEl) return;
+	const totalSpent = sumAmounts(knownExpenses);
+	budgetPanelEl.append(renderBudgetToggle());
+	if (state.budgetEnabled) budgetPanelEl.append(renderBudgetCard(totalSpent));
+}
+
 function renderBudgetToggle() {
 	const section = document.createElement("section");
 	section.className = "budget-toggle-card";
@@ -1147,7 +1163,7 @@ function renderBudgetToggle() {
 	title.textContent = "Calcular presupuesto del mes";
 	const description = document.createElement("p");
 	description.textContent =
-		"Compara tu ingreso mensual con los gastos capturados y muestra diferencias por revisar.";
+		"Siempre disponible: ingresa tu sueldo manualmente o activa detección para usar la entrada mayor como ingreso principal.";
 	copy.append(title, description);
 
 	const button = document.createElement("button");
@@ -1179,7 +1195,7 @@ function renderBudgetCard(totalSpent) {
 	title.textContent = "Presupuesto del mes";
 	const copy = document.createElement("p");
 	copy.textContent =
-		"Compara tu ingreso principal confirmado con los gastos capturados y revisa diferencias no explicadas.";
+		"Los ingresos importados se muestran en la tabla, pero solo afectan el restante cuando ingresas un sueldo o activas la detección automática.";
 	header.append(title, copy);
 
 	const detection = renderIncomeDetection(totalSpent);
@@ -1209,7 +1225,7 @@ function renderBudgetCard(totalSpent) {
 		budgetResult(
 			"Restante estimado",
 			"—",
-			"Confirma o ingresa un ingreso para calcularlo.",
+			"Ingresa un sueldo o activa detección automática para calcularlo.",
 		),
 		budgetResult(
 			"Diferencia no rastreada",
@@ -1256,8 +1272,13 @@ function renderIncomeDetection() {
 	toggle.addEventListener("change", async () => {
 		state.budget.autoDetectIncome = toggle.checked;
 		if (!toggle.checked) {
-			state.budget.confirmedIncomeId = "manual";
+			state.budget.confirmedIncomeId = state.budget.salary ? "manual" : "";
 			state.incomeCandidates = [];
+		} else if (
+			state.budget.confirmedIncomeId === "manual" &&
+			!state.budget.salary
+		) {
+			state.budget.confirmedIncomeId = "";
 		}
 		saveBudgetPreferences();
 		await loadIncomeCandidates();
@@ -1297,7 +1318,7 @@ function renderIncomeSuggestion() {
 
 	const copy = document.createElement("p");
 	copy.textContent =
-		"Elige cuál de estas entradas quieres usar como ingreso mensual. No usaremos ninguna automáticamente.";
+		"Con la detección activa usamos la entrada mayor como ingreso principal. Si no es tu sueldo, elige otra entrada o ingrésalo manualmente.";
 	const list = document.createElement("div");
 	list.className = "income-candidate-list";
 	for (const candidate of candidates) {
@@ -1311,7 +1332,12 @@ function renderIncomeSuggestion() {
 function renderIncomeCandidateOption(candidate) {
 	const option = document.createElement("article");
 	option.className = "income-candidate-option";
-	const isConfirmed = state.budget.confirmedIncomeId === String(candidate.id);
+	const isAutoPick =
+		state.budget.autoDetectIncome &&
+		!state.budget.confirmedIncomeId &&
+		String(autoDetectedIncomeCandidate()?.id) === String(candidate.id);
+	const isConfirmed =
+		state.budget.confirmedIncomeId === String(candidate.id) || isAutoPick;
 	if (isConfirmed) option.classList.add("income-candidate-option-active");
 
 	const content = document.createElement("div");
@@ -1323,7 +1349,11 @@ function renderIncomeCandidateOption(candidate) {
 
 	const button = document.createElement("button");
 	button.type = "button";
-	button.textContent = isConfirmed ? "Seleccionada" : "Usar como ingreso";
+	button.textContent = isAutoPick
+		? "Usando mayor"
+		: isConfirmed
+			? "Seleccionada"
+			: "Usar como ingreso";
 	button.className = isConfirmed ? "" : "secondary";
 	button.addEventListener("click", () => useIncomeCandidate(candidate));
 
@@ -1384,6 +1414,10 @@ function incomeCandidatesWithConfidence(candidates) {
 		...candidate,
 		confidenceLabel: incomeConfidence(candidate, sorted[index + 1]),
 	}));
+}
+
+function autoDetectedIncomeCandidate() {
+	return incomeCandidatesWithConfidence(state.incomeCandidates)[0] || null;
 }
 
 function incomeConfidence(candidate, nextCandidate) {
@@ -1484,7 +1518,7 @@ function updateBudgetResults(card, totalSpent) {
 			results[1],
 			"—",
 			income.reason ||
-				"Confirma una sugerencia o ingresa tu sueldo manualmente para calcularlo.",
+				"Ingresa un sueldo o activa detección automática para calcularlo.",
 		);
 		setBudgetResult(
 			results[2],
@@ -1530,26 +1564,38 @@ function setBudgetResult(item, valueText, detailText) {
 
 function confirmedBudgetIncome() {
 	const salary = parseCLP(state.budget.salary);
-	if (salary === "") {
-		return {
-			amount: null,
-			reason:
-				"Confirma una sugerencia o ingresa tu sueldo manualmente para calcularlo.",
-		};
+	if (state.budget.confirmedIncomeId === "manual" && salary !== "") {
+		return { amount: salary, reason: "Ingreso manual confirmado." };
 	}
-	if (state.budget.confirmedIncomeId === "manual") {
-		return { amount: salary, reason: "" };
+
+	if (state.budget.autoDetectIncome) {
+		const confirmedCandidate = state.incomeCandidates.find(
+			(candidate) => String(candidate.id) === state.budget.confirmedIncomeId,
+		);
+		if (confirmedCandidate) {
+			return {
+				amount: Number(confirmedCandidate.amount),
+				reason: "Entrada detectada seleccionada como ingreso principal.",
+			};
+		}
+
+		const automaticCandidate = autoDetectedIncomeCandidate();
+		if (automaticCandidate) {
+			return {
+				amount: Number(automaticCandidate.amount),
+				reason: "Usando la entrada mayor detectada como ingreso principal.",
+			};
+		}
 	}
-	const confirmedCandidate = state.incomeCandidates.find(
-		(candidate) => String(candidate.id) === state.budget.confirmedIncomeId,
-	);
-	if (confirmedCandidate && Number(confirmedCandidate.amount) === salary) {
-		return { amount: salary, reason: "" };
+
+	if (salary !== "") {
+		return { amount: salary, reason: "Ingreso manual." };
 	}
+
 	return {
 		amount: null,
 		reason:
-			"Confirma nuevamente la entrada detectada o ingresa el ingreso manualmente para evitar usar una sugerencia vencida.",
+			"Activa la detección automática o ingresa tu sueldo manualmente para calcular el restante.",
 	};
 }
 
@@ -2177,15 +2223,19 @@ function updateDonutHighlight(chart) {
 	if (!chart) return;
 	chart.dispatchAction({ type: "downplay", seriesIndex: 0 });
 	if (state.activeCategory) {
-		chart.dispatchAction({ type: "highlight", seriesIndex: 0, name: state.activeCategory });
+		chart.dispatchAction({
+			type: "highlight",
+			seriesIndex: 0,
+			name: state.activeCategory,
+		});
 	}
 }
 
 function darkenColor(hex, amount = 25) {
 	const num = parseInt(hex.replace("#", ""), 16);
-	const r = Math.max(0, ((num >> 16) & 0xFF) - amount);
-	const g = Math.max(0, ((num >> 8) & 0xFF) - amount);
-	const b = Math.max(0, (num & 0xFF) - amount);
+	const r = Math.max(0, ((num >> 16) & 0xff) - amount);
+	const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+	const b = Math.max(0, (num & 0xff) - amount);
 	return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
@@ -2197,7 +2247,8 @@ function renderCategoryDistribution(transactions) {
 	title.textContent = "\u00bfD\u00f3nde se va tu dinero?";
 
 	const copy = document.createElement("p");
-	copy.textContent = "Agrupa tus gastos del periodo seg\u00fan la categor\u00eda asignada.";
+	copy.textContent =
+		"Agrupa tus gastos del periodo seg\u00fan la categor\u00eda asignada.";
 
 	section.append(title, copy);
 
@@ -2206,7 +2257,8 @@ function renderCategoryDistribution(transactions) {
 	if (!rows.length) {
 		const empty = document.createElement("p");
 		empty.className = "category-distribution-empty";
-		empty.textContent = "A\u00fan no hay gastos con monto suficiente para distribuir por categor\u00eda.";
+		empty.textContent =
+			"A\u00fan no hay gastos con monto suficiente para distribuir por categor\u00eda.";
 		section.append(empty);
 		return section;
 	}
@@ -2225,83 +2277,89 @@ function renderCategoryDistribution(transactions) {
 
 	const total = rows.reduce((sum, row) => sum + row.total, 0);
 
-	const chart = initChart(donutDom, {
-		animation: true,
-		animationDuration: 800,
-		animationEasing: "cubicOut",
-		tooltip: {
-			trigger: "item",
-			backgroundColor: "#0F172A",
-			borderColor: "#334155",
-			borderWidth: 1,
-			padding: [10, 14],
-			textStyle: {
-				color: "#F8FAFC",
-				fontFamily: "Plus Jakarta Sans, sans-serif",
-				fontSize: 13,
-			},
-			formatter: (params) => {
-				return `<strong style="font-size:14px">${params.name}</strong><br/>
+	const chart = initChart(
+		donutDom,
+		{
+			animation: true,
+			animationDuration: 800,
+			animationEasing: "cubicOut",
+			tooltip: {
+				trigger: "item",
+				backgroundColor: "#0F172A",
+				borderColor: "#334155",
+				borderWidth: 1,
+				padding: [10, 14],
+				textStyle: {
+					color: "#F8FAFC",
+					fontFamily: "Plus Jakarta Sans, sans-serif",
+					fontSize: 13,
+				},
+				formatter: (params) => {
+					return `<strong style="font-size:14px">${params.name}</strong><br/>
 						<span style="font-size:16px;font-weight:600">${formatCLP(params.value)}</span>
 						<span style="opacity:0.6"> \u00b7 ${params.percent}%</span><br/>
 						<span style="opacity:0.5;font-size:12px">${params.data.count} movimiento${params.data.count === 1 ? "" : "s"}</span>`;
+				},
 			},
+			series: [
+				{
+					type: "pie",
+					radius: ["48%", "74%"],
+					center: ["50%", "50%"],
+					avoidLabelOverlap: false,
+					padAngle: 3,
+					emphasis: {
+						scale: true,
+						scaleSize: 8,
+						itemStyle: {
+							shadowBlur: 20,
+							shadowColor: "rgba(0,0,0,0.12)",
+						},
+					},
+					label: { show: false },
+					data: rows.map((r) => ({
+						value: r.total,
+						name: r.category,
+						count: r.count,
+						itemStyle: {
+							color: r.color,
+							borderColor: darkenColor(r.color, 30),
+							borderWidth: 2,
+							borderRadius: 6,
+						},
+					})),
+				},
+			],
+			graphic: [
+				{
+					type: "text",
+					left: "center",
+					top: "40%",
+					style: {
+						text: "Total",
+						fontSize: 12,
+						fill: "#94A3B8",
+						fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
+						textAlign: "center",
+					},
+				},
+				{
+					type: "text",
+					left: "center",
+					top: "54%",
+					style: {
+						text: formatCLP(total),
+						fontSize: 20,
+						fill: "#0F172A",
+						fontWeight: 700,
+						fontFamily: "Plus Jakarta Sans, sans-serif",
+						textAlign: "center",
+					},
+				},
+			],
 		},
-		series: [{
-			type: "pie",
-			radius: ["48%", "74%"],
-			center: ["50%", "50%"],
-			avoidLabelOverlap: false,
-			padAngle: 3,
-			emphasis: {
-				scale: true,
-				scaleSize: 8,
-				itemStyle: {
-					shadowBlur: 20,
-					shadowColor: "rgba(0,0,0,0.12)",
-				},
-			},
-			label: { show: false },
-			data: rows.map((r) => ({
-				value: r.total,
-				name: r.category,
-				count: r.count,
-				itemStyle: {
-					color: r.color,
-					borderColor: darkenColor(r.color, 30),
-					borderWidth: 2,
-					borderRadius: 6,
-				},
-			})),
-		}],
-		graphic: [
-			{
-				type: "text",
-				left: "center",
-				top: "40%",
-				style: {
-					text: "Total",
-					fontSize: 12,
-					fill: "#94A3B8",
-					fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
-					textAlign: "center",
-				},
-			},
-			{
-				type: "text",
-				left: "center",
-				top: "54%",
-				style: {
-					text: formatCLP(total),
-					fontSize: 20,
-					fill: "#0F172A",
-					fontWeight: 700,
-					fontFamily: "Plus Jakarta Sans, sans-serif",
-					textAlign: "center",
-				},
-			},
-		],
-	}, "category-donut");
+		"category-donut",
+	);
 
 	chart.on("click", (params) => {
 		if (state.activeCategory === params.name) {
@@ -2381,7 +2439,6 @@ function buildCategoryBreakdown(transactions) {
 		}))
 		.sort((a, b) => b.total - a.total);
 }
-
 
 function renderCategoryLegendItem(row) {
 	const item = document.createElement("article");
@@ -2948,61 +3005,87 @@ function renderTableSummary(transactions) {
 	const expenses = transactions.filter(
 		(tx) => tx.direction === "outflow" && hasKnownAmount(tx),
 	);
+	const incomes = transactions.filter(
+		(tx) => tx.direction === "inflow" && hasKnownAmount(tx),
+	);
 	const total = sumAmounts(expenses);
+	const incomeTotal = sumAmounts(incomes);
 	const pending = transactions.filter(
 		(tx) => tx.status === "needs_review",
 	).length;
 	const box = document.createElement("div");
 	box.className = "table-summary";
 	const label = document.createElement("span");
-	label.textContent = `Total gastado en ${selectedMonthLabel()}`;
+	label.textContent = `Movimientos de ${selectedMonthLabel()}`;
 	const value = document.createElement("strong");
 	value.textContent = formatCLP(total);
 	const detail = document.createElement("small");
-	detail.textContent = `${expenses.length} salidas con monto${pending ? ` · ${pending} por revisar` : ""}`;
+	detail.textContent = `${expenses.length} salidas · ${incomes.length} ingresos${incomeTotal ? ` (${formatCLP(incomeTotal)})` : ""}${pending ? ` · ${pending} por revisar` : ""}`;
 	box.append(label, value, detail);
 	return box;
 }
 
 function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 	const totalSpent = sumAmounts(knownExpenses);
-	const inflows = (allMonthTransactions || knownExpenses).filter(
-		(tx) => tx.direction === "inflow",
-	);
-	const detectedIncome = sumAmounts(inflows.filter(hasKnownAmount));
-
-	let income = detectedIncome;
-	let incomeSource = inflows.length > 0 ? "detected" : "none";
-
-	if (state.budgetEnabled) {
-		const budgetIncome = confirmedBudgetIncome();
-		if (budgetIncome.amount !== null) {
-			income = budgetIncome.amount;
-			incomeSource = "budget";
-		} else if (detectedIncome === 0) {
-			incomeSource = "none";
-		}
-	}
-
+	const visibleIncomeCount = (allMonthTransactions || []).filter(
+		(tx) => tx.direction === "inflow" && hasKnownAmount(tx),
+	).length;
+	const budgetIncome = state.budgetEnabled
+		? confirmedBudgetIncome()
+		: { amount: null, reason: "" };
+	const income = budgetIncome.amount ?? 0;
 	const incomeDetail =
-		incomeSource === "budget"
-			? "Del presupuesto"
-			: incomeSource === "detected"
-				? "Detectado automáticamente"
-				: "Sin ingreso detectado";
+		budgetIncome.amount !== null
+			? budgetIncome.reason || "Del presupuesto"
+			: visibleIncomeCount > 0
+				? `${visibleIncomeCount} ingreso${visibleIncomeCount === 1 ? "" : "s"} en tabla; no usado para presupuesto`
+				: "Activa presupuesto para calcular";
 
 	const remaining = income - totalSpent;
-	const remainingPercent = income > 0 ? Math.round((remaining / income) * 100) : 0;
+	const remainingPercent =
+		income > 0 ? Math.round((remaining / income) * 100) : 0;
 
 	const today = new Date();
-	const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+	const daysInMonth = new Date(
+		today.getFullYear(),
+		today.getMonth() + 1,
+		0,
+	).getDate();
 	const daysRemaining = Math.max(0, daysInMonth - today.getDate());
 
 	return [
-		{ key: "expense", label: "Total gastado", value: formatCLP(totalSpent), detail: `${knownExpenses.length} transacciones` },
-		{ key: "income", label: "Ingreso", value: income > 0 ? formatCLP(income) : "\u2014", detail: incomeDetail },
-		{ key: "remaining", label: "Saldo restante", value: remaining >= 0 ? formatCLP(remaining) : `-${formatCLP(Math.abs(remaining))}`, detail: income > 0 ? `${remainingPercent}% disponible` : "Ingresa un sueldo para calcularlo" },
-		{ key: "days", label: "D\u00edas restantes", value: String(daysRemaining), detail: `de ${daysInMonth} d\u00edas` },
+		{
+			key: "expense",
+			label: "Total gastado",
+			value: formatCLP(totalSpent),
+			detail: `${knownExpenses.length} transacciones`,
+		},
+		{
+			key: "income",
+			label: "Ingreso presupuesto",
+			value: income > 0 ? formatCLP(income) : "\u2014",
+			detail: incomeDetail,
+		},
+		{
+			key: "remaining",
+			label: "Saldo restante",
+			value:
+				income > 0
+					? remaining >= 0
+						? formatCLP(remaining)
+						: `-${formatCLP(Math.abs(remaining))}`
+					: "\u2014",
+			detail:
+				income > 0
+					? `${remainingPercent}% disponible`
+					: "No se calcula sin presupuesto",
+		},
+		{
+			key: "days",
+			label: "D\u00edas restantes",
+			value: String(daysRemaining),
+			detail: `de ${daysInMonth} d\u00edas`,
+		},
 	];
 }
 
@@ -3017,13 +3100,19 @@ function renderHeroKpis(knownExpenses, allMonthTransactions) {
 		const card = document.createElement("div");
 		card.className = "kp-card";
 		card.dataset.kpi = kpi.key;
-		card.innerHTML = `
-			<div class="kp-card-inner">
-				<span class="metric-label">${kpi.label}</span>
-				<strong class="metric-value">${kpi.value}</strong>
-				<small class="metric-detail">${kpi.detail}</small>
-			</div>
-		`;
+		const inner = document.createElement("div");
+		inner.className = "kp-card-inner";
+		const label = document.createElement("span");
+		label.className = "metric-label";
+		label.textContent = kpi.label;
+		const value = document.createElement("strong");
+		value.className = "metric-value";
+		value.textContent = kpi.value;
+		const detail = document.createElement("small");
+		detail.className = "metric-detail";
+		detail.textContent = kpi.detail;
+		inner.append(label, value, detail);
+		card.append(inner);
 		container.append(card);
 	}
 }
@@ -3032,9 +3121,10 @@ function updateHeroKpis() {
 	const container = document.getElementById("heroKpis");
 	if (!container || !container.children.length) return;
 
-	const visibleTransactions = selectedMonthExpenseTransactions(state.transactions);
-	const knownExpenses = visibleTransactions.filter(hasKnownAmount);
 	const allMonthTransactions = selectedMonthTransactions(state.transactions);
+	const knownExpenses = allMonthTransactions
+		.filter((tx) => tx.direction === "outflow")
+		.filter(hasKnownAmount);
 	const kpis = computeHeroKpiData(knownExpenses, allMonthTransactions);
 
 	for (const kpi of kpis) {
@@ -3059,9 +3149,13 @@ function renderSyncingSummary() {
 
 function renderSummary(transactions) {
 	if (!summaryEl) return;
-	const outflow = transactions
-		.filter((tx) => tx.direction === "outflow" && hasKnownAmount(tx))
-		.reduce((total, tx) => total + Number(tx.amount || 0), 0);
+	const outflows = transactions.filter(
+		(tx) => tx.direction === "outflow" && hasKnownAmount(tx),
+	);
+	const inflows = transactions.filter(
+		(tx) => tx.direction === "inflow" && hasKnownAmount(tx),
+	);
+	const outflow = sumAmounts(outflows);
 	const pending = transactions.filter(
 		(tx) => tx.status === "needs_review",
 	).length;
@@ -3071,7 +3165,7 @@ function renderSummary(transactions) {
 	const amount = document.createElement("strong");
 	amount.textContent = currency.format(outflow);
 	const detail = document.createElement("small");
-	detail.textContent = `${transactions.length} movimientos · ${pending} por revisar`;
+	detail.textContent = `${transactions.length} movimientos · ${inflows.length} ingresos visibles${pending ? ` · ${pending} por revisar` : ""}`;
 	summaryEl.append(label, amount, detail);
 }
 
