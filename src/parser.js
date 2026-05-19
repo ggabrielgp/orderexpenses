@@ -220,18 +220,18 @@ function inferKind(text, subject = "") {
 		)
 	)
 		return "purchase";
-	if (isExplicitOutgoingTransfer(combined)) return "transfer";
 	if (isExplicitIncomingTransfer(combined)) return "income";
+	if (isExplicitOutgoingTransfer(combined)) return "transfer";
 	if (/transferencia/i.test(combined)) return "transfer";
 	if (/pago/i.test(combined)) return "payment";
 	return "unknown";
 }
 
 function inferDirection(text, kind) {
+	if (isExplicitIncomingTransfer(text)) return "inflow";
 	if (isExplicitOutgoingTransfer(text)) return "outflow";
 	if (kind === "income") return "inflow";
 	if (kind === "purchase" || kind === "payment") return "outflow";
-	if (isExplicitIncomingTransfer(text)) return "inflow";
 	return "outflow";
 }
 
@@ -242,7 +242,7 @@ function isExplicitOutgoingTransfer(text) {
 }
 
 function isExplicitIncomingTransfer(text) {
-	return /transferencia recibida|recibiste|has recibido|abono recibido|dep[oó]sito|dep[oó]sito recibido|abono en tu cuenta|abono a tu cuenta/i.test(
+	return /nuestro\(a\) cliente\s+.+?\s+ha efectuado una transferencia[\s\S]*?a tu cuenta|ha efectuado una transferencia[\s\S]*?a tu cuenta|transferencia de fondos a tu cuenta|transferencia recibida|recibiste|has recibido|abono recibido|dep[oó]sito|dep[oó]sito recibido|abono en tu cuenta|abono a tu cuenta/i.test(
 		text,
 	);
 }
@@ -329,6 +329,9 @@ function extractOutgoingTransferCounterparty(text) {
 
 function extractIncomingTransferCounterparty(text) {
 	if (!isExplicitIncomingTransfer(text)) return null;
+	const senderName = extractIncomingTransferSender(text);
+	if (senderName && !isInvalidCounterparty(senderName)) return senderName;
+
 	const originName = getSectionFieldValue(
 		text,
 		["Origen"],
@@ -336,6 +339,13 @@ function extractIncomingTransferCounterparty(text) {
 	);
 	if (!originName || isInvalidCounterparty(originName)) return null;
 	return cleanValue(originName);
+}
+
+function extractIncomingTransferSender(text) {
+	const match = text.match(
+		/nuestro\(a\) cliente\s+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ .'-]{3,80})\s+ha efectuado una transferencia/i,
+	);
+	return match ? cleanValue(match[1]) : null;
 }
 
 function labelForKind(kind) {
@@ -464,7 +474,13 @@ function getSectionFieldValue(text, sectionLabels, fieldLabels) {
 }
 
 function extractTransactionId(text) {
-	const value = getFieldValue(text, ["Transacción", "Transaccion", "ID"]);
+	const value = getFieldValue(text, [
+		"Transacción",
+		"Transaccion",
+		"ID",
+		"Número de comprobante",
+		"Numero de comprobante",
+	]);
 	if (!value) return null;
 	const match = value.match(/[A-Z0-9_]{10,}/i);
 	const id = match ? match[0] : null;

@@ -225,3 +225,44 @@ test("parses Banco de Chile transfer with Datos del Destinatario format", () => 
 	assert.match(parsed.rawPreview, /\[email\]/);
 	assert.match(parsed.rawPreview, /\[rut\]/);
 });
+
+test("parses Banco de Chile incoming transfer to observed account", () => {
+	const parsed = parseBancoChileEmail(`
+		<td>Comprobante de transferencia electrónica de fondos</td>
+		<td>Estimado(a): <b>Gabriel Gomez</b></td>
+		<td>Te informamos que nuestro(a) cliente <b>Esteban Fabian Gomez</b> ha efectuado una transferencia de fondos a tu cuenta con el siguiente detalle:</td>
+
+		<td>Datos de cuenta</td>
+		<td>Fecha</td><td>05/05/2026</td>
+		<td>Asunto</td><td></td>
+
+		<td>Datos de destinatario</td>
+		<td>Nombre y Apellido</td><td>Gabriel Gomez</td>
+		<td>Rut</td><td>19176843-4</td>
+		<td>Email</td><td>gaabriel.gomezp@gmail.com</td>
+		<td>Banco</td><td>Banco Chile/Edwards</td>
+		<td>Cuenta destino</td><td>Cuenta Corriente<br>00-160-22209-05</td>
+
+		<td>Monto</td><td>$33.000</td>
+
+		<td>Número de comprobante</td>
+		<td>TEFMBCO2605052318304807034210</td>
+
+		<td>Fecha y Hora:</td>
+		<td>martes 05 de mayo de 2026 23:19</td>
+	`);
+
+	assert.equal(parsed.amount, 33000);
+	assert.equal(parsed.occurredAt, "2026-05-05T23:19:00");
+	assert.equal(parsed.kind, "income");
+	assert.equal(parsed.direction, "inflow");
+	assert.equal(parsed.counterparty, "Esteban Fabian Gomez");
+	assert.equal(
+		parsed.sourceId,
+		"banco-chile:TEFMBCO2605052318304807034210",
+	);
+	assert.equal(parsed.status, "detected");
+	assert.match(parsed.rawPreview, /\[email\]/);
+	assert.match(parsed.rawPreview, /\[rut\]/);
+	assert.match(parsed.rawPreview, /\[cuenta\]/);
+});
