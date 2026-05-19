@@ -2174,6 +2174,7 @@ function groupTotals(transactions, labelForTransaction) {
 }
 
 function updateDonutHighlight(chart) {
+	if (!chart) return;
 	chart.dispatchAction({ type: "downplay", seriesIndex: 0 });
 	if (state.activeCategory) {
 		chart.dispatchAction({ type: "highlight", seriesIndex: 0, name: state.activeCategory });

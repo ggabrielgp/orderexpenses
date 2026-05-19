@@ -236,7 +236,7 @@ function inferDirection(text, kind) {
 }
 
 function isExplicitOutgoingTransfer(text) {
-	return /has realizado una transferencia|transferencia a terceros|comprobante de transferencia a terceros|cargo en cuenta/i.test(
+	return /has realizado una transferencia|ha efectuado una transferencia|transferencia a terceros|comprobante de transferencia|cargo en cuenta/i.test(
 		text,
 	);
 }
@@ -261,6 +261,7 @@ function extractCounterparty(text) {
 
 	const fieldValue = getFieldValue(text, [
 		"Nombre y Apellido",
+		"Nombre",
 		"Destinatario",
 		"Beneficiario",
 		"Desde",
@@ -319,8 +320,8 @@ function extractOutgoingTransferCounterparty(text) {
 	if (!isExplicitOutgoingTransfer(text)) return null;
 	const destinationName = getSectionFieldValue(
 		text,
-		["Destino"],
-		["Nombre y Apellido", "Destinatario", "Beneficiario"],
+		["Destino", "Datos del Destinatario"],
+		["Nombre y Apellido", "Destinatario", "Beneficiario", "Nombre"],
 	);
 	if (!destinationName || isInvalidCounterparty(destinationName)) return null;
 	return cleanValue(destinationName);
@@ -406,11 +407,14 @@ function getSectionFieldValue(text, sectionLabels, fieldLabels) {
 	const sectionStops = new Set([
 		"origen",
 		"destino",
+		"datos del destinatario",
+		"datos de la transferencia",
 		"monto",
 		"mensaje",
 		"fecha y hora",
 		"transaccion",
 		"transacción",
+		"id",
 	]);
 
 	for (let index = 0; index < lines.length; index += 1) {
@@ -460,9 +464,9 @@ function getSectionFieldValue(text, sectionLabels, fieldLabels) {
 }
 
 function extractTransactionId(text) {
-	const value = getFieldValue(text, ["Transacción", "Transaccion"]);
+	const value = getFieldValue(text, ["Transacción", "Transaccion", "ID"]);
 	if (!value) return null;
-	const match = value.match(/[A-Z0-9]{10,}/i);
+	const match = value.match(/[A-Z0-9_]{10,}/i);
 	const id = match ? match[0] : null;
 	return id ? `banco-chile:${id}` : null;
 }
@@ -481,15 +485,20 @@ function isLikelyLabelLine(line) {
 	return [
 		"origen",
 		"destino",
+		"datos del destinatario",
+		"datos de la transferencia",
 		"tipo de cuenta",
 		"n de cuenta",
 		"rut",
 		"banco",
 		"email",
+		"mail",
 		"monto",
 		"mensaje",
 		"fecha y hora",
 		"transaccion",
+		"transacción",
+		"id",
 	].includes(normalized);
 }
 
@@ -503,11 +512,13 @@ function isInvalidCounterparty(value) {
 		"rut",
 		"banco",
 		"email",
+		"mail",
 		"monto",
 		"mensaje",
 		"fecha y hora",
 		"transaccion",
 		"transacción",
+		"id",
 		"cuenta corriente",
 		"cuenta vista",
 	].includes(normalized);

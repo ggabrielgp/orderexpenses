@@ -198,3 +198,30 @@ test("parses outgoing transfer destination name from HTML sections", () => {
 	assert.equal(parsed.sourceId, "banco-chile:TEFMBCO2605020953304705556760");
 	assert.equal(parsed.status, "detected");
 });
+
+test("parses Banco de Chile transfer with Datos del Destinatario format", () => {
+	const parsed = parseBancoChileEmail(`
+		<p>Le informamos que usted ha efectuado una transferencia de fondos a Punto Pagos, el día 19 de mayo de 2026, desde su Cuenta Corriente.</p>
+		<td>Datos del Destinatario</td>
+		<td>Nombre</td><td>Punto Pagos</td>
+		<td>Rut</td><td>76.079.181-4</td>
+		<td>Cuenta</td><td>1401335</td>
+		<td>Banco</td><td>Banco Bice</td>
+		<td>Mail</td><td>transferencias@fintoc.com</td>
+		<td>Datos de la Transferencia</td>
+		<td>Fecha</td><td>19/05/2026</td>
+		<td>Cuenta</td><td>1602220905</td>
+		<td>Monto</td><td>$50.000</td>
+		<td>ID</td><td>TEF_IPE2605191211124548211890</td>
+	`);
+
+	assert.equal(parsed.amount, 50000);
+	assert.equal(parsed.occurredAt, "2026-05-19T00:00:00");
+	assert.equal(parsed.kind, "transfer");
+	assert.equal(parsed.direction, "outflow");
+	assert.equal(parsed.counterparty, "Punto Pagos");
+	assert.equal(parsed.sourceId, "banco-chile:TEF_IPE2605191211124548211890");
+	assert.equal(parsed.status, "detected");
+	assert.match(parsed.rawPreview, /\[email\]/);
+	assert.match(parsed.rawPreview, /\[rut\]/);
+});
