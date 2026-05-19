@@ -228,21 +228,21 @@ function inferKind(text, subject = "") {
 }
 
 function inferDirection(text, kind) {
+	if (kind === "purchase" || kind === "payment") return "outflow";
 	if (isExplicitIncomingTransfer(text)) return "inflow";
 	if (isExplicitOutgoingTransfer(text)) return "outflow";
 	if (kind === "income") return "inflow";
-	if (kind === "purchase" || kind === "payment") return "outflow";
 	return "outflow";
 }
 
 function isExplicitOutgoingTransfer(text) {
-	return /has realizado una transferencia|ha efectuado una transferencia|transferencia a terceros|comprobante de transferencia|cargo en cuenta/i.test(
+	return /has realizado una transferencia|usted ha efectuado una transferencia|ha efectuado una transferencia de fondos a (?!tu cuenta)|transferencia a terceros|comprobante de transferencia|cargo en cuenta/i.test(
 		text,
 	);
 }
 
 function isExplicitIncomingTransfer(text) {
-	return /nuestro\(a\) cliente\s+.+?\s+ha efectuado una transferencia[\s\S]*?a tu cuenta|ha efectuado una transferencia[\s\S]*?a tu cuenta|transferencia de fondos a tu cuenta|transferencia recibida|recibiste|has recibido|abono recibido|dep[oó]sito|dep[oó]sito recibido|abono en tu cuenta|abono a tu cuenta/i.test(
+	return /nuestro\(a\) cliente\s+.+?\s+ha efectuado una transferencia[\s\S]*?a tu cuenta|transferencia de fondos a tu cuenta|transferencia recibida|has recibido[\s\S]*?transferencia|recibiste[\s\S]*?transferencia|abono recibido|dep[oó]sito recibido/i.test(
 		text,
 	);
 }

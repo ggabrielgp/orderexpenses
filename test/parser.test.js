@@ -119,6 +119,7 @@ test("keeps purchase charges as expenses even with generic footer copy", () => {
 		`
 		Te informamos que se ha realizado una compra por $30.000 con cargo a Cuenta ****0905 en ORTOFUNCION SPA el 15/05/2026 19:15.
 		Mensaje recibido por clientes del banco.
+		Abono a tu cuenta.
 	`,
 		{ subject: "Cargo en Cuenta" },
 	);
@@ -213,6 +214,7 @@ test("parses Banco de Chile transfer with Datos del Destinatario format", () => 
 		<td>Cuenta</td><td>1602220905</td>
 		<td>Monto</td><td>$50.000</td>
 		<td>ID</td><td>TEF_IPE2605191211124548211890</td>
+		<td>Abono a tu cuenta</td>
 	`);
 
 	assert.equal(parsed.amount, 50000);
@@ -257,10 +259,7 @@ test("parses Banco de Chile incoming transfer to observed account", () => {
 	assert.equal(parsed.kind, "income");
 	assert.equal(parsed.direction, "inflow");
 	assert.equal(parsed.counterparty, "Esteban Fabian Gomez");
-	assert.equal(
-		parsed.sourceId,
-		"banco-chile:TEFMBCO2605052318304807034210",
-	);
+	assert.equal(parsed.sourceId, "banco-chile:TEFMBCO2605052318304807034210");
 	assert.equal(parsed.status, "detected");
 	assert.match(parsed.rawPreview, /\[email\]/);
 	assert.match(parsed.rawPreview, /\[rut\]/);
