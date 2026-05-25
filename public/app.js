@@ -138,6 +138,7 @@ const state = {
 	returnToCounterpartyKey: null,
 	activeCategory: null,
 	selectedTransactionIds: new Set(),
+	pendingCounterpartySelection: null,
 	bulkCategory: "",
 	bulkStatus: "",
 	isBulkAssigning: false,
@@ -988,11 +989,21 @@ function renderTableView(transactions) {
 	pruneSelectedTransactions(sorted);
 	const tableSummary = renderTableSummary(sorted);
 	const bulkBar = renderBulkCategoryBar(sorted);
+	const counterpartyPrompt = renderCounterpartySelectionPrompt(sorted);
 	const tableFeedback = renderTableFeedback();
+	const tableScroll = document.createElement("div");
+	tableScroll.className = "transactions-table-scroll";
 	const table = document.createElement("table");
 	table.className = "transactions-table";
 	table.append(renderTableHead(sorted), renderTableBody(sorted));
-	transactionsEl.append(tableSummary, bulkBar, tableFeedback, table);
+	tableScroll.append(table);
+	transactionsEl.append(
+		tableSummary,
+		bulkBar,
+		counterpartyPrompt,
+		tableFeedback,
+		tableScroll,
+	);
 }
 
 function updateChartOnly() {
@@ -2850,11 +2861,13 @@ function renderCounterpartySpendSection(expenses, options = {}) {
 		selectButton.className = "secondary counterparty-detail-button";
 		selectButton.textContent = "Seleccionar similares";
 		selectButton.addEventListener("click", () => {
-			setView("table");
-			selectVisibleCounterpartyTransactions(
-				sortTransactions(selectedMonthExpenseTransactions(state.transactions)),
+			requestCounterpartySelection(
 				row.counterpartyKey,
+				row.displayName,
+				expenses,
 			);
+			setView("table");
+			if (state.view === "table") render();
 		});
 
 		const actions = document.createElement("div");
@@ -3290,9 +3303,7 @@ function renderBulkCategoryBar(transactions) {
 	label.className = "bulk-category-field";
 	label.textContent = "Categoría";
 	const select = document.createElement("select");
-	for (const option of categoryOptions(transactions).filter(
-		(item) => item.value !== CREATE_CATEGORY_VALUE,
-	)) {
+	for (const option of categoryOptions(transactions)) {
 		const node = document.createElement("option");
 		node.value = option.value;
 		node.textContent = option.value ? option.label : "Seleccionar categoría";
@@ -3300,6 +3311,13 @@ function renderBulkCategoryBar(transactions) {
 		select.append(node);
 	}
 	select.addEventListener("change", () => {
+		if (select.value === CREATE_CATEGORY_VALUE) {
+			state.bulkCategory = "";
+			state.bulkStatus = "";
+			openSettingsModal({ focusCategoryForm: true });
+			render();
+			return;
+		}
 		state.bulkCategory = select.value;
 		state.bulkStatus = "";
 		render();
@@ -3316,21 +3334,6 @@ function renderBulkCategoryBar(transactions) {
 		applyBulkCategoryAssignment(transactions),
 	);
 
-	const selectCounterparty = document.createElement("button");
-	selectCounterparty.type = "button";
-	selectCounterparty.className = "secondary bulk-counterparty-button";
-	selectCounterparty.textContent = selectionSummary
-		? `Seleccionar ${selectionSummary.visibleCount} de ${selectionSummary.label}`
-		: "Seleccionar similares";
-	selectCounterparty.hidden =
-		!selectionSummary ||
-		selectionSummary.visibleCount === selectionSummary.selectedCount;
-	selectCounterparty.disabled = state.isBulkAssigning;
-	selectCounterparty.addEventListener("click", () => {
-		if (!selectionSummary) return;
-		selectVisibleCounterpartyTransactions(transactions, selectionSummary.key);
-	});
-
 	const clear = document.createElement("button");
 	clear.type = "button";
 	clear.className = "secondary";
@@ -3338,8 +3341,90 @@ function renderBulkCategoryBar(transactions) {
 	clear.disabled = state.isBulkAssigning;
 	clear.addEventListener("click", clearTransactionSelection);
 
-	bar.append(copy, label, selectCounterparty, assign, clear);
+	bar.append(copy, label, assign, clear);
 	return bar;
+}
+
+function renderCounterpartySelectionPrompt(transactions) {
+	const prompt = document.createElement("div");
+	prompt.className = "counterparty-selection-prompt";
+	prompt.setAttribute("aria-live", "polite");
+	prompt.hidden = !state.pendingCounterpartySelection;
+	if (!state.pendingCounterpartySelection) return prompt;
+
+	const { key, label, ids } = state.pendingCounterpartySelection;
+	const allowedIds = ids ? new Set(ids) : null;
+	const matches = transactions.filter(
+		(transaction) =>
+			counterpartySelectionKey(transaction) === key &&
+			(!allowedIds || allowedIds.has(String(transaction.id))),
+	);
+	if (matches.length === 0) {
+		state.pendingCounterpartySelection = null;
+		prompt.hidden = true;
+		return prompt;
+	}
+
+	const selectedMatches = matches.filter((transaction) =>
+		state.selectedTransactionIds.has(String(transaction.id)),
+	).length;
+	const copy = document.createElement("div");
+	copy.className = "counterparty-selection-copy";
+	const title = document.createElement("strong");
+	title.textContent = `Encontré ${matches.length} ${matches.length === 1 ? "movimiento" : "movimientos"} de ${label}.`;
+	const detail = document.createElement("span");
+	detail.textContent =
+		selectedMatches === matches.length
+			? "Estos movimientos ya están seleccionados."
+			: selectedMatches
+				? `${selectedMatches} ya ${selectedMatches === 1 ? "está seleccionado" : "están seleccionados"}. Podés seleccionar el resto o cancelar.`
+				: "¿Querés seleccionarlos todos para asignarles categoría juntos?";
+	copy.append(title, detail);
+
+	const actions = document.createElement("div");
+	actions.className = "counterparty-selection-actions";
+	const confirm = document.createElement("button");
+	confirm.type = "button";
+	confirm.textContent =
+		selectedMatches === matches.length
+			? "Ya seleccionados"
+			: `Seleccionar ${matches.length}`;
+	confirm.disabled = selectedMatches === matches.length;
+	confirm.addEventListener("click", () => {
+		confirmCounterpartySelection(matches, key, label);
+	});
+	const cancel = document.createElement("button");
+	cancel.type = "button";
+	cancel.className = "secondary";
+	cancel.textContent = "Cancelar";
+	cancel.addEventListener("click", () => {
+		state.pendingCounterpartySelection = null;
+		render();
+	});
+	actions.append(confirm, cancel);
+	prompt.append(copy, actions);
+	return prompt;
+}
+
+function requestCounterpartySelection(
+	counterpartyKey,
+	label,
+	scopeTransactions = null,
+) {
+	state.pendingCounterpartySelection = {
+		key: counterpartyKey,
+		label: label || "sin comercio o persona",
+		ids: scopeTransactions
+			? scopeTransactions.map((transaction) => String(transaction.id))
+			: null,
+	};
+	state.bulkStatus = "";
+}
+
+function confirmCounterpartySelection(transactions, counterpartyKey, label) {
+	selectVisibleCounterpartyTransactions(transactions, counterpartyKey, {
+		label,
+	});
 }
 
 function selectedCounterpartySummary(transactions, selectedIds) {
@@ -3406,6 +3491,7 @@ function toggleVisibleTransactionsSelection(transactions, checked) {
 			state.selectedTransactionIds.delete(id);
 		}
 	}
+	state.pendingCounterpartySelection = null;
 	state.bulkStatus = "";
 	render();
 }
@@ -3417,22 +3503,33 @@ function toggleTransactionSelection(id, checked) {
 	} else {
 		state.selectedTransactionIds.delete(key);
 	}
+	state.pendingCounterpartySelection = null;
 	state.bulkStatus = "";
 	render();
 }
 
-function selectVisibleCounterpartyTransactions(transactions, counterpartyKey) {
+function selectVisibleCounterpartyTransactions(
+	transactions,
+	counterpartyKey,
+	options = {},
+) {
+	let selectedCount = 0;
 	for (const transaction of transactions) {
 		if (counterpartySelectionKey(transaction) === counterpartyKey) {
 			state.selectedTransactionIds.add(String(transaction.id));
+			selectedCount += 1;
 		}
 	}
-	state.bulkStatus = "";
+	state.pendingCounterpartySelection = null;
+	state.bulkStatus = options.status
+		? `${selectedCount} ${selectedCount === 1 ? "movimiento" : "movimientos"} de ${options.label || "este comercio"} seleccionados.`
+		: "";
 	render();
 }
 
 function clearTransactionSelection() {
 	state.selectedTransactionIds.clear();
+	state.pendingCounterpartySelection = null;
 	state.bulkCategory = "";
 	state.bulkStatus = "";
 	render();
@@ -3446,14 +3543,26 @@ async function applyBulkCategoryAssignment(transactions) {
 	state.bulkStatus = `Asignando categoría a ${selectedIds.length} movimientos...`;
 	render();
 	try {
-		await Promise.all(
+		const results = await Promise.allSettled(
 			selectedIds.map((id) => patchTransactionCategory(id, state.bulkCategory)),
 		);
-		const assignedCount = selectedIds.length;
-		state.selectedTransactionIds.clear();
-		state.bulkCategory = "";
-		state.bulkStatus = `Categoría asignada a ${assignedCount} ${assignedCount === 1 ? "movimiento" : "movimientos"}.`;
-		if (!DEMO_MODE) await loadTransactions();
+		const updates = results
+			.filter((result) => result.status === "fulfilled")
+			.map((result) => result.value);
+		applyTransactionUpdatesLocally(updates);
+		const assignedCount = updates.length;
+		const failedCount = results.length - assignedCount;
+		for (const update of updates) {
+			state.selectedTransactionIds.delete(String(update.id));
+		}
+		if (failedCount === 0) {
+			state.selectedTransactionIds.clear();
+			state.pendingCounterpartySelection = null;
+			state.bulkCategory = "";
+			state.bulkStatus = `Categoría asignada a ${assignedCount} ${assignedCount === 1 ? "movimiento" : "movimientos"}.`;
+		} else {
+			state.bulkStatus = `${assignedCount} ${assignedCount === 1 ? "movimiento actualizado" : "movimientos actualizados"}; ${failedCount} ${failedCount === 1 ? "falló" : "fallaron"}. Intenta nuevamente con los pendientes.`;
+		}
 		render();
 	} catch (error) {
 		state.bulkStatus = `Error: ${error.message}`;
@@ -3470,18 +3579,12 @@ async function patchTransactionCategory(id, category) {
 	);
 	if (!transaction) throw new Error("Movimiento no encontrado");
 	const patch = {
+		id,
 		category,
 		status: transaction.status === "manual" ? "manual" : "edited",
 	};
-	if (DEMO_MODE) {
-		state.transactions = state.transactions.map((tx) =>
-			String(tx.id) === String(id) ? { ...tx, ...patch } : tx,
-		);
-		demoData = demoData.map((tx) =>
-			String(tx.id) === String(id) ? { ...tx, ...patch } : tx,
-		);
-		return;
-	}
+	if (DEMO_MODE) return patch;
+
 	const params = new URLSearchParams({ month: state.selectedMonth });
 	const response = await fetch(
 		`/api/transactions/${encodeURIComponent(id)}?${params}`,
@@ -3495,7 +3598,23 @@ async function patchTransactionCategory(id, category) {
 			}),
 		},
 	);
-	if (!response.ok) throw new Error("No se pudo asignar la categoría");
+	const payload = await response.json();
+	if (!response.ok)
+		throw new Error(payload.error || "No se pudo asignar la categoría");
+	return payload.transaction || patch;
+}
+
+function applyTransactionUpdatesLocally(updates) {
+	const updateMap = new Map(
+		updates.filter(Boolean).map((update) => [String(update.id), update]),
+	);
+	if (updateMap.size === 0) return;
+	const apply = (tx) => {
+		const update = updateMap.get(String(tx.id));
+		return update ? { ...tx, ...update } : tx;
+	};
+	state.transactions = state.transactions.map(apply);
+	if (DEMO_MODE) demoData = demoData.map(apply);
 }
 
 function computeHeroKpiData(knownExpenses, allMonthTransactions) {
@@ -3697,17 +3816,29 @@ function renderCounterpartyCell(transaction, visibleTransactions) {
 		(tx) => counterpartySelectionKey(tx) === key,
 	);
 	if (sameCounterparty.length > 1) {
+		const allSameSelected = sameCounterparty.every((tx) =>
+			state.selectedTransactionIds.has(String(tx.id)),
+		);
 		const button = document.createElement("button");
 		button.type = "button";
 		button.className = "counterparty-select-chip";
-		button.textContent = `${sameCounterparty.length} similares`;
+		button.textContent = allSameSelected
+			? `${sameCounterparty.length} seleccionados`
+			: `${sameCounterparty.length} similares`;
+		button.disabled = allSameSelected;
 		button.setAttribute(
 			"aria-label",
-			`Seleccionar ${sameCounterparty.length} movimientos visibles de ${transaction.counterparty || "sin comercio o persona"}`,
+			allSameSelected
+				? `${sameCounterparty.length} movimientos visibles de ${transaction.counterparty || "sin comercio o persona"} ya seleccionados`
+				: `Preparar selección de ${sameCounterparty.length} movimientos visibles de ${transaction.counterparty || "sin comercio o persona"}`,
 		);
 		button.addEventListener("click", (event) => {
 			event.stopPropagation();
-			selectVisibleCounterpartyTransactions(visibleTransactions, key);
+			requestCounterpartySelection(
+				key,
+				transaction.counterparty || "sin comercio o persona",
+			);
+			render();
 		});
 		wrapper.append(button);
 	}
@@ -3805,27 +3936,35 @@ async function saveFromModal() {
 	};
 
 	try {
-		const params = new URLSearchParams({ month: state.selectedMonth });
-		const response = await fetch(
-			`/api/transactions/${encodeURIComponent(state.activeId)}?${params}`,
-			{
-				method: "PATCH",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({
-					...patch,
-					month: state.selectedMonth,
-					payTiming: state.budget.payTiming,
-				}),
-			},
-		);
-		if (!response.ok) {
-			modalStatus.textContent = "No se pudo guardar.";
-			return;
+		let update;
+		if (DEMO_MODE) {
+			update = { id: state.activeId, ...patch };
+		} else {
+			const params = new URLSearchParams({ month: state.selectedMonth });
+			const response = await fetch(
+				`/api/transactions/${encodeURIComponent(state.activeId)}?${params}`,
+				{
+					method: "PATCH",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						...patch,
+						month: state.selectedMonth,
+						payTiming: state.budget.payTiming,
+					}),
+				},
+			);
+			const payload = await response.json();
+			if (!response.ok) {
+				modalStatus.textContent = payload.error || "No se pudo guardar.";
+				return;
+			}
+			update = payload.transaction || { id: state.activeId, ...patch };
 		}
 		modalStatus.textContent = "Guardado ✓";
+		applyTransactionUpdatesLocally([update]);
 		const returnKey = state.returnToCounterpartyKey;
-		await loadTransactions();
 		closeModal({ preserveCounterpartyReturn: Boolean(returnKey) });
+		render();
 		if (returnKey) {
 			state.returnToCounterpartyKey = null;
 			openCounterpartyDetailModal(returnKey);

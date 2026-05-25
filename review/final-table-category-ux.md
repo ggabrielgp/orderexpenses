@@ -1,0 +1,10 @@
+## Review
+- Correct: Similar-commerce selection now uses an explicit confirmation prompt instead of immediately selecting rows. The chip/detail flows set `state.pendingCounterpartySelection` (`public/app.js:3404`, `public/app.js:3830`) and render confirm/cancel UI before selection (`public/app.js:3343`).
+- Correct: Selecting similar records no longer produces the redundant table-feedback/status message. `confirmCounterpartySelection()` calls `selectVisibleCounterpartyTransactions()` with no `status` flag (`public/app.js:3419`), and `selectVisibleCounterpartyTransactions()` only writes `state.bulkStatus` when `options.status` is truthy (`public/app.js:3518`).
+- Correct: Bulk actions and the similar-selection prompt live outside the scroll container, while only the table area scrolls (`public/app.js:990-1005`). The scroll body is capped with `.transactions-table-scroll { max-height: ...; overflow: auto; }` (`public/styles.css:1919`), and table headers stay visible via sticky `<th>` styling (`public/styles.css:2067`).
+- Correct: Successful bulk category assignment no longer calls `loadTransactions()`. It uses `Promise.allSettled()`, applies fulfilled updates locally, leaves failed rows selected, and reports partial failure counts (`public/app.js:3541-3560`).
+- Correct: Successful manual modal saves no longer call `loadTransactions()`. The code applies the returned/demo update locally, closes/renders, and preserves the counterparty return flow (`public/app.js:3933-3965`).
+- Correct: Demo-mode category/modal edits are covered by the same local update path: `patchTransactionCategory()` returns a patch in demo mode (`public/app.js:3581`), and `applyTransactionUpdatesLocally()` updates `demoData` when `DEMO_MODE` is active (`public/app.js:3602-3612`).
+- Correct: Validation re-run during review passed: `npm test` 18/18 and `git diff --check -- public/app.js public/styles.css` clean.
+- Blocker: None found.
+- Note: `selectVisibleCounterpartyTransactions()` contains an optional `options.status` message path (`public/app.js:3519-3521`), but no current caller sets `status`; this is harmless dead/latent code, not a blocker.

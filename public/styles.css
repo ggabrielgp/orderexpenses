@@ -1908,12 +1908,17 @@ select:focus {
 }
 
 .transactions-table-wrap {
-	overflow-x: auto;
+	overflow: hidden;
 	border: 1px solid var(--line);
 	border-radius: var(--radius-lg);
 	background: var(--surface);
 	backdrop-filter: blur(12px);
 	box-shadow: var(--shadow-lg);
+}
+
+.transactions-table-scroll {
+	overflow-x: auto;
+	overflow-y: hidden;
 }
 
 .table-summary {
@@ -1939,7 +1944,42 @@ select:focus {
 	);
 }
 
+.counterparty-selection-prompt {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	border-bottom: 1px solid var(--line);
+	background: rgba(255, 255, 255, 0.72);
+}
+
+.counterparty-selection-copy {
+	display: grid;
+	gap: 3px;
+	min-width: 0;
+}
+
+.counterparty-selection-copy strong {
+	color: var(--ink);
+	font-size: var(--text-sm);
+}
+
+.counterparty-selection-copy span {
+	color: var(--ink-muted);
+	font-size: var(--text-xs);
+	font-weight: 600;
+	line-height: 1.35;
+}
+
+.counterparty-selection-actions {
+	display: flex;
+	gap: var(--space-2);
+	flex: 0 0 auto;
+}
+
 .bulk-action-bar[hidden],
+.counterparty-selection-prompt[hidden],
 .table-feedback[hidden] {
 	display: none;
 }
@@ -1986,12 +2026,6 @@ select:focus {
 	padding-inline: var(--space-3);
 }
 
-.bulk-counterparty-button {
-	max-width: 240px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
 .table-feedback {
 	padding: 0 var(--space-4) var(--space-4);
 	border-bottom: 1px solid var(--line);
@@ -2000,11 +2034,29 @@ select:focus {
 
 .transactions-table {
 	width: 100%;
+	min-width: 860px;
 	border-collapse: separate;
 	border-spacing: 0;
 	background: transparent;
 	border-radius: var(--radius-md);
-	overflow: hidden;
+	overflow: visible;
+	table-layout: fixed;
+}
+
+.transactions-table thead,
+.transactions-table tbody tr {
+	display: table;
+	width: 100%;
+	table-layout: fixed;
+}
+
+.transactions-table tbody {
+	display: block;
+	max-height: min(560px, calc(100vh - 340px));
+	overflow-x: hidden;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
 }
 
 .transactions-table th,
@@ -2022,6 +2074,26 @@ select:focus {
 	text-align: center;
 }
 
+.transactions-table th:nth-child(2),
+.transactions-table td:nth-child(2) {
+	width: 120px;
+}
+
+.transactions-table th:nth-child(3),
+.transactions-table td:nth-child(3) {
+	width: 150px;
+}
+
+.transactions-table th:nth-child(5),
+.transactions-table td:nth-child(5) {
+	width: 170px;
+}
+
+.transactions-table th:nth-child(6),
+.transactions-table td:nth-child(6) {
+	width: 104px;
+}
+
 .transactions-table input[type="checkbox"] {
 	width: 18px;
 	height: 18px;
@@ -2030,13 +2102,18 @@ select:focus {
 }
 
 .transactions-table th {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	box-shadow: 0 1px 0 var(--line);
 	color: var(--ink-muted);
 	font-family: var(--font-display);
 	font-weight: 700;
 	font-size: var(--text-xs);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	background: rgba(255, 255, 255, 0.66);
+	background: rgba(255, 255, 255, 0.94);
+	backdrop-filter: blur(10px);
 }
 
 .sort-button {
@@ -2550,9 +2627,26 @@ dialog.modal[open] {
 		display: grid;
 	}
 
-	.bulk-action-bar {
+	.transactions-table {
+		min-width: 820px;
+	}
+
+	.transactions-table tbody {
+		max-height: min(540px, calc(100vh - 360px));
+	}
+
+	.bulk-action-bar,
+	.counterparty-selection-prompt {
 		align-items: stretch;
 		flex-direction: column;
+	}
+
+	.counterparty-selection-actions {
+		flex-direction: column;
+	}
+
+	.counterparty-selection-actions button {
+		width: 100%;
 	}
 
 	.bulk-selection-copy {
