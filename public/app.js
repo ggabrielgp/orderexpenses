@@ -1,3 +1,5 @@
+const echarts = window.echarts;
+
 const BUDGET_STORAGE_KEY = "financeMonthlyBudget";
 const VIEW_PREFERENCES_STORAGE_KEY = "financeViewPreferences";
 
@@ -26,7 +28,7 @@ function adjustDemoDates(data) {
 	const year = now.getFullYear();
 	const month = String(now.getMonth() + 1).padStart(2, "0");
 	const day = now.getDate();
-	return data.map((tx, index) => {
+	return data.map((tx) => {
 		const originalDate = new Date(tx.occurredAt);
 		const dayOfMonth = Math.min(originalDate.getDate(), day);
 		const adjustedDate = `${year}-${month}-${String(dayOfMonth).padStart(2, "0")}T${String(originalDate.getHours()).padStart(2, "0")}:${String(originalDate.getMinutes()).padStart(2, "0")}:00`;
@@ -48,7 +50,7 @@ async function loadDemoData() {
 }
 
 // Simular respuestas de API en modo demo
-function mockApiResponse(endpoint, options = {}) {
+function mockApiResponse(endpoint) {
 	if (!DEMO_MODE) return null;
 
 	if (endpoint === "/api/gmail/status") {
@@ -123,7 +125,6 @@ const state = {
 	sortKey: null,
 	sortDir: null,
 	view: "dashboard",
-	tableMode: viewPreferences.tableMode,
 	chartTab: "month",
 	chartDayKey: null,
 	isGmailSyncing: false,
@@ -580,7 +581,8 @@ async function loadGmailStatus(options = {}) {
 		}
 		disconnectGmailButton.hidden = !status.connected || DEMO_MODE;
 		syncGmailButton.hidden = !status.connected || DEMO_MODE;
-		syncGmailButton.disabled = !status.connected || state.isGmailSyncing || DEMO_MODE;
+		syncGmailButton.disabled =
+			!status.connected || state.isGmailSyncing || DEMO_MODE;
 		connectGmailLink.setAttribute(
 			"aria-disabled",
 			status.connected || DEMO_MODE ? "true" : "false",
@@ -622,7 +624,8 @@ async function disconnectGmail() {
 
 async function syncGmail() {
 	if (DEMO_MODE) {
-		gmailStatus.textContent = "Modo demostraci\u00f3n: los datos ya est\u00e1n cargados.";
+		gmailStatus.textContent =
+			"Modo demostraci\u00f3n: los datos ya est\u00e1n cargados.";
 		return;
 	}
 	startGmailSyncProgress();
@@ -726,12 +729,15 @@ async function loadTransactions() {
 		let payload;
 		if (DEMO_MODE) {
 			await loadDemoData();
-			payload = mockApiResponse("/api/transactions", { month: state.selectedMonth });
+			payload = mockApiResponse("/api/transactions", {
+				month: state.selectedMonth,
+			});
 		} else {
 			const params = new URLSearchParams({ month: state.selectedMonth });
 			const response = await fetch(`/api/transactions?${params}`);
 			payload = await response.json();
-			if (!response.ok) throw new Error(payload.error || "Error cargando gastos");
+			if (!response.ok)
+				throw new Error(payload.error || "Error cargando gastos");
 		}
 		state.transactions = payload.transactions || [];
 		pruneSelectedTransactions();
@@ -759,7 +765,10 @@ function sortTransactions(transactions) {
 		} else if (state.sortKey === "counterparty") {
 			cmp = (a.counterparty || "").localeCompare(b.counterparty || "", "es");
 		} else if (state.sortKey === "category") {
-			cmp = (a.category || "Sin categoría").localeCompare(b.category || "Sin categoría", "es");
+			cmp = (a.category || "Sin categoría").localeCompare(
+				b.category || "Sin categoría",
+				"es",
+			);
 		}
 		return state.sortDir === "desc" ? -cmp : cmp;
 	});
@@ -850,7 +859,8 @@ function setView(view) {
 		return;
 	}
 
-	outgoing.style.transition = "opacity 200ms var(--ease-out-expo), transform 200ms var(--ease-out-expo)";
+	outgoing.style.transition =
+		"opacity 200ms var(--ease-out-expo), transform 200ms var(--ease-out-expo)";
 	outgoing.style.opacity = "0";
 	outgoing.style.transform = "translateY(-4px)";
 
@@ -868,7 +878,8 @@ function setView(view) {
 		incoming.style.transform = "translateY(4px)";
 
 		requestAnimationFrame(() => {
-			incoming.style.transition = "opacity 250ms var(--ease-out-expo), transform 250ms var(--ease-spring)";
+			incoming.style.transition =
+				"opacity 250ms var(--ease-out-expo), transform 250ms var(--ease-spring)";
 			incoming.style.opacity = "1";
 			incoming.style.transform = "translateY(0)";
 
@@ -920,7 +931,10 @@ function render() {
 		state.transactions,
 	);
 	renderViewToggle();
-	renderHeroKpis(visibleTransactions.filter(hasKnownAmount), selectedMonthTransactions(state.transactions));
+	renderHeroKpis(
+		visibleTransactions.filter(hasKnownAmount),
+		selectedMonthTransactions(state.transactions),
+	);
 	dashboardEl.hidden = state.view !== "dashboard";
 	transactionsEl.hidden = state.view !== "table";
 	dashboardEl.replaceChildren();
@@ -937,22 +951,15 @@ function render() {
 	if (visibleTransactions.length === 0) {
 		const empty = createEmptyState(
 			`Todavía no hay gastos en ${selectedMonthLabel()}`,
-			"Sincroniza Gmail o ingresa un gasto manual para este periodo para empezar a ver el resumen.",
-			{ actionLabel: "Ingresar gasto", onAction: openNewExpenseModal },
+			"Sincroniza Gmail o agrega un gasto manual para este periodo para empezar a ver el resumen.",
+			{ actionLabel: "Agregar gasto", onAction: openNewExpenseModal },
 		);
 		if (state.view === "dashboard") {
 			dashboardEl.append(renderBudgetToggle());
 			if (state.budgetEnabled) dashboardEl.append(renderBudgetCard(0));
 			dashboardEl.append(empty);
 		} else {
-			transactionsEl.append(renderTableModeSwitch());
-			if (state.tableMode === "counterparties") {
-				transactionsEl.append(
-					renderCounterpartySpendSection([], { limit: null }),
-				);
-			} else {
-				transactionsEl.append(empty);
-			}
+			transactionsEl.append(empty);
 		}
 		return;
 	}
@@ -979,16 +986,6 @@ function renderViewToggle() {
 }
 
 function renderTableView(transactions) {
-	transactionsEl.append(renderTableModeSwitch());
-	if (state.tableMode === "counterparties") {
-		const expenses = transactions.filter((tx) => tx.direction === "outflow");
-		const knownExpenses = expenses.filter(hasKnownAmount);
-		transactionsEl.append(
-			renderCounterpartySpendSection(knownExpenses, { limit: null }),
-		);
-		return;
-	}
-
 	const sorted = sortTransactions(transactions);
 	pruneSelectedTransactions(sorted);
 	const tableSummary = renderTableSummary(sorted);
@@ -998,41 +995,6 @@ function renderTableView(transactions) {
 	table.className = "transactions-table";
 	table.append(renderTableHead(sorted), renderTableBody(sorted));
 	transactionsEl.append(tableSummary, bulkBar, tableFeedback, table);
-}
-
-function renderTableModeSwitch() {
-	const wrapper = document.createElement("section");
-	wrapper.className = "table-mode-switch";
-	const label = document.createElement("span");
-	label.className = "table-mode-switch-label";
-	label.textContent = "Ver como";
-	const options = document.createElement("div");
-	options.className = "table-mode-options";
-	options.setAttribute("role", "group");
-	options.setAttribute("aria-label", "Modo de tabla");
-
-	for (const option of [
-		{ value: "movements", label: "Movimientos" },
-		{ value: "counterparties", label: "Contrapartes" },
-	]) {
-		const button = document.createElement("button");
-		button.type = "button";
-		button.className = "table-mode-option";
-		button.textContent = option.label;
-		const isActive = state.tableMode === option.value;
-		button.classList.toggle("table-mode-option-active", isActive);
-		button.setAttribute("aria-pressed", String(isActive));
-		button.addEventListener("click", () => {
-			if (state.tableMode === option.value) return;
-			state.tableMode = option.value;
-			saveViewPreferences();
-			render();
-		});
-		options.append(button);
-	}
-
-	wrapper.append(label, options);
-	return wrapper;
 }
 
 function updateChartOnly() {
@@ -1068,7 +1030,7 @@ function renderDashboard(transactions) {
 	);
 	const topCounterparty = topGroup(
 		knownExpenses,
-		(tx) => tx.counterparty || "Sin contraparte",
+		(tx) => tx.counterparty || "Sin comercio o persona",
 	);
 	const kindBreakdown = groupTotals(knownExpenses, (tx) =>
 		labelForKind(tx.kind),
@@ -1126,6 +1088,14 @@ function renderDashboard(transactions) {
 		),
 	);
 
+	const monthStory = renderMonthStoryCard(transactions, knownExpenses, {
+		totalSpent,
+		averageExpense,
+		unknownExpenseCount,
+		topCategory,
+		topCounterparty,
+		largestExpense,
+	});
 	const budgetToggle = renderBudgetToggle();
 	const budgetCard = state.budgetEnabled ? renderBudgetCard(totalSpent) : null;
 	const weeklyChart = renderMonthlyDailyChart(dailySpending, knownExpenses);
@@ -1147,6 +1117,7 @@ function renderDashboard(transactions) {
 	}
 
 	const cards = [
+		monthStory,
 		budgetToggle,
 		...(budgetCard ? [budgetCard] : []),
 		metrics,
@@ -1161,15 +1132,147 @@ function renderDashboard(transactions) {
 	});
 }
 
+function renderMonthStoryCard(transactions, knownExpenses, context) {
+	const card = document.createElement("section");
+	card.className = "month-story-card";
+
+	const header = document.createElement("div");
+	header.className = "month-story-header";
+	const kicker = document.createElement("span");
+	kicker.textContent = "Lectura simple";
+	const title = document.createElement("h3");
+	title.textContent = "Qué pasó este mes";
+	const copy = document.createElement("p");
+	copy.textContent = monthStorySummary(knownExpenses, context);
+	header.append(kicker, title, copy);
+
+	const list = document.createElement("ul");
+	list.className = "month-story-list";
+	for (const item of buildMonthStoryItems(
+		transactions,
+		knownExpenses,
+		context,
+	)) {
+		const row = document.createElement("li");
+		row.textContent = item;
+		list.append(row);
+	}
+
+	card.append(
+		header,
+		list,
+		renderNextBestAction(transactions, knownExpenses, context),
+	);
+	return card;
+}
+
+function monthStorySummary(knownExpenses, context) {
+	if (knownExpenses.length === 0) {
+		return "Todavía no hay suficiente información para contarte el mes.";
+	}
+	const topLabel =
+		context.topCategory.label !== "—"
+			? context.topCategory.label
+			: "varias categorías";
+	return `Llevas ${formatCLP(context.totalSpent)} en gastos detectados. La historia principal está en ${topLabel}.`;
+}
+
+function buildMonthStoryItems(transactions, knownExpenses, context) {
+	const items = [];
+	if (context.topCategory.label !== "—") {
+		items.push(
+			`${context.topCategory.label} concentra ${formatCLP(context.topCategory.total)} del periodo.`,
+		);
+	}
+	if (context.topCounterparty.label !== "—") {
+		items.push(
+			`${context.topCounterparty.label} es donde más se repite el gasto.`,
+		);
+	}
+	if (context.largestExpense) {
+		items.push(
+			`El gasto más alto fue ${formatCLP(context.largestExpense.amount)} en ${context.largestExpense.counterparty || context.largestExpense.description || "un movimiento sin nombre"}.`,
+		);
+	}
+	const pending = reviewableTransactions(transactions).length;
+	if (pending > 0) {
+		items.push(
+			`${pending} ${pending === 1 ? "gasto necesita" : "gastos necesitan"} una revisión rápida.`,
+		);
+	}
+	if (items.length === 0 && knownExpenses.length > 0) {
+		items.push("Tus gastos ya están listos para explorarse en el detalle.");
+	}
+	return items.slice(0, 4);
+}
+
+function renderNextBestAction(transactions, knownExpenses) {
+	const action = document.createElement("aside");
+	action.className = "next-action-card";
+	const label = document.createElement("span");
+	label.textContent = "Próxima acción";
+	const title = document.createElement("strong");
+	const detail = document.createElement("p");
+	const button = document.createElement("button");
+	button.type = "button";
+	button.className = "review-now-button";
+
+	const pending = reviewableTransactions(transactions);
+	if (pending.length > 0) {
+		title.textContent = "Revisar gastos dudosos";
+		detail.textContent = `${pending.length} ${pending.length === 1 ? "movimiento necesita" : "movimientos necesitan"} tu confirmación.`;
+		button.textContent = "Revisar ahora";
+		button.addEventListener("click", openFirstReviewItem);
+	} else if (state.budgetEnabled) {
+		title.textContent = "Seguir el ritmo del mes";
+		detail.textContent =
+			"Ya podés mirar cuánto te queda y ajustar si algo no calza.";
+		button.textContent = "Ver detalle";
+		button.addEventListener("click", () => setView("table"));
+	} else if (knownExpenses.length > 0) {
+		title.textContent = "Responder la pregunta clave";
+		detail.textContent =
+			"Activa el cálculo para saber cuánto te queda este mes.";
+		button.textContent = "Calcular cuánto queda";
+		button.addEventListener("click", () => {
+			state.budgetEnabled = true;
+			saveViewPreferences();
+			render();
+		});
+	} else {
+		title.textContent = "Traer gastos al mes";
+		detail.textContent =
+			"Sincroniza Gmail o agrega un gasto para empezar el resumen.";
+		button.textContent = "Agregar gasto";
+		button.addEventListener("click", openNewExpenseModal);
+	}
+
+	action.append(label, title, detail, button);
+	return action;
+}
+
+function reviewableTransactions(transactions) {
+	return transactions
+		.filter((tx) => tx.status === "needs_review")
+		.sort((a, b) => new Date(b.occurredAt || 0) - new Date(a.occurredAt || 0));
+}
+
+function openFirstReviewItem() {
+	const [transaction] = reviewableTransactions(
+		selectedMonthExpenseTransactions(state.transactions),
+	);
+	if (transaction) openModal(transaction.id);
+}
+
 function renderBudgetToggle() {
 	const section = document.createElement("section");
 	section.className = "budget-toggle-card";
 	const copy = document.createElement("div");
 	const title = document.createElement("strong");
-	title.textContent = "Calcular presupuesto del mes";
+	title.textContent = "¿Cuánto me queda este mes?";
 	const description = document.createElement("p");
 	description.textContent =
-		"Compara tu ingreso mensual con los gastos capturados y muestra diferencias por revisar.";
+		"Transforma ingresos y gastos en una respuesta simple para decidir mejor.";
 	copy.append(title, description);
 
 	const button = document.createElement("button");
@@ -1177,7 +1280,7 @@ function renderBudgetToggle() {
 	button.className = "switch-control";
 	button.setAttribute("role", "switch");
 	button.setAttribute("aria-checked", String(state.budgetEnabled));
-	button.setAttribute("aria-label", "Calcular presupuesto del mes");
+	button.setAttribute("aria-label", "Calcular cuánto queda este mes");
 	button.addEventListener("click", () => {
 		state.budgetEnabled = !state.budgetEnabled;
 		saveViewPreferences();
@@ -1198,10 +1301,10 @@ function renderBudgetCard(totalSpent) {
 	const header = document.createElement("div");
 	header.className = "budget-header";
 	const title = document.createElement("h3");
-	title.textContent = "Presupuesto del mes";
+	title.textContent = "Cuánto te queda";
 	const copy = document.createElement("p");
 	copy.textContent =
-		"Compara tu ingreso principal confirmado con los gastos capturados y revisa diferencias no explicadas.";
+		"Una respuesta simple: ingreso confirmado menos gastos capturados, con diferencias por aclarar si algo no calza.";
 	header.append(title, copy);
 
 	const detection = renderIncomeDetection(totalSpent);
@@ -1229,12 +1332,12 @@ function renderBudgetCard(totalSpent) {
 			selectedMonthLabel(),
 		),
 		budgetResult(
-			"Restante estimado",
+			"Te queda aprox.",
 			"—",
 			"Confirma o ingresa un ingreso para calcularlo.",
 		),
 		budgetResult(
-			"Diferencia no rastreada",
+			"No explicado todavía",
 			"—",
 			"Opcional: compáralo con tu restante real.",
 		),
@@ -1635,11 +1738,9 @@ function loadViewPreferences() {
 		);
 		return {
 			budgetEnabled: Boolean(parsed.budgetEnabled),
-			tableMode:
-				parsed.tableMode === "counterparties" ? "counterparties" : "movements",
 		};
 	} catch {
-		return { budgetEnabled: false, tableMode: "movements" };
+		return { budgetEnabled: false };
 	}
 }
 
@@ -1649,8 +1750,6 @@ function saveViewPreferences() {
 			VIEW_PREFERENCES_STORAGE_KEY,
 			JSON.stringify({
 				budgetEnabled: Boolean(state.budgetEnabled),
-				tableMode:
-					state.tableMode === "counterparties" ? "counterparties" : "movements",
 			}),
 		);
 	} catch {
@@ -1992,7 +2091,7 @@ function chartDetailList(transactions) {
 
 		const info = document.createElement("span");
 		const name = document.createElement("strong");
-		name.textContent = `${formatTime(tx.occurredAt)} · ${tx.counterparty || tx.description || "Sin contraparte"}`;
+		name.textContent = `${formatTime(tx.occurredAt)} · ${tx.counterparty || tx.description || "Sin comercio o persona"}`;
 		const meta = document.createElement("small");
 		meta.textContent = labelForKind(tx.kind);
 		info.append(name, meta);
@@ -2199,15 +2298,19 @@ function updateDonutHighlight(chart) {
 	if (!chart) return;
 	chart.dispatchAction({ type: "downplay", seriesIndex: 0 });
 	if (state.activeCategory) {
-		chart.dispatchAction({ type: "highlight", seriesIndex: 0, name: state.activeCategory });
+		chart.dispatchAction({
+			type: "highlight",
+			seriesIndex: 0,
+			name: state.activeCategory,
+		});
 	}
 }
 
 function darkenColor(hex, amount = 25) {
 	const num = parseInt(hex.replace("#", ""), 16);
-	const r = Math.max(0, ((num >> 16) & 0xFF) - amount);
-	const g = Math.max(0, ((num >> 8) & 0xFF) - amount);
-	const b = Math.max(0, (num & 0xFF) - amount);
+	const r = Math.max(0, ((num >> 16) & 0xff) - amount);
+	const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+	const b = Math.max(0, (num & 0xff) - amount);
 	return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
@@ -2216,10 +2319,11 @@ function renderCategoryDistribution(transactions) {
 	section.className = "category-distribution-card";
 
 	const title = document.createElement("h3");
-	title.textContent = "\u00bfD\u00f3nde se va tu dinero?";
+	title.textContent = "Dónde se fue tu plata";
 
 	const copy = document.createElement("p");
-	copy.textContent = "Agrupa tus gastos del periodo seg\u00fan la categor\u00eda asignada.";
+	copy.textContent =
+		"La app interpreta la distribución por vos: concentración, ahorro posible y detalles útiles.";
 
 	section.append(title, copy);
 
@@ -2228,12 +2332,17 @@ function renderCategoryDistribution(transactions) {
 	if (!rows.length) {
 		const empty = document.createElement("p");
 		empty.className = "category-distribution-empty";
-		empty.textContent = "A\u00fan no hay gastos con monto suficiente para distribuir por categor\u00eda.";
+		empty.textContent =
+			"A\u00fan no hay gastos con monto suficiente para distribuir por categor\u00eda.";
 		section.append(empty);
 		return section;
 	}
 
-	section.append(renderCategoryDistributionInsight(rows));
+	section.append(
+		renderCategoryDistributionInsight(rows),
+		renderCategorySavingsHint(rows),
+	);
+	const displayRows = buildCategoryDisplayRows(rows);
 
 	const body = document.createElement("div");
 	body.className = "category-distribution-body";
@@ -2247,83 +2356,89 @@ function renderCategoryDistribution(transactions) {
 
 	const total = rows.reduce((sum, row) => sum + row.total, 0);
 
-	const chart = initChart(donutDom, {
-		animation: true,
-		animationDuration: 800,
-		animationEasing: "cubicOut",
-		tooltip: {
-			trigger: "item",
-			backgroundColor: "#0F172A",
-			borderColor: "#334155",
-			borderWidth: 1,
-			padding: [10, 14],
-			textStyle: {
-				color: "#F8FAFC",
-				fontFamily: "Plus Jakarta Sans, sans-serif",
-				fontSize: 13,
-			},
-			formatter: (params) => {
-				return `<strong style="font-size:14px">${params.name}</strong><br/>
+	const chart = initChart(
+		donutDom,
+		{
+			animation: true,
+			animationDuration: 800,
+			animationEasing: "cubicOut",
+			tooltip: {
+				trigger: "item",
+				backgroundColor: "#0F172A",
+				borderColor: "#334155",
+				borderWidth: 1,
+				padding: [10, 14],
+				textStyle: {
+					color: "#F8FAFC",
+					fontFamily: "Plus Jakarta Sans, sans-serif",
+					fontSize: 13,
+				},
+				formatter: (params) => {
+					return `<strong style="font-size:14px">${params.name}</strong><br/>
 						<span style="font-size:16px;font-weight:600">${formatCLP(params.value)}</span>
 						<span style="opacity:0.6"> \u00b7 ${params.percent}%</span><br/>
 						<span style="opacity:0.5;font-size:12px">${params.data.count} movimiento${params.data.count === 1 ? "" : "s"}</span>`;
+				},
 			},
+			series: [
+				{
+					type: "pie",
+					radius: ["48%", "74%"],
+					center: ["50%", "50%"],
+					avoidLabelOverlap: false,
+					padAngle: 3,
+					emphasis: {
+						scale: true,
+						scaleSize: 8,
+						itemStyle: {
+							shadowBlur: 20,
+							shadowColor: "rgba(0,0,0,0.12)",
+						},
+					},
+					label: { show: false },
+					data: displayRows.map((r) => ({
+						value: r.total,
+						name: r.category,
+						count: r.count,
+						itemStyle: {
+							color: r.color,
+							borderColor: darkenColor(r.color, 30),
+							borderWidth: 2,
+							borderRadius: 6,
+						},
+					})),
+				},
+			],
+			graphic: [
+				{
+					type: "text",
+					left: "center",
+					top: "40%",
+					style: {
+						text: "Total",
+						fontSize: 12,
+						fill: "#94A3B8",
+						fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
+						textAlign: "center",
+					},
+				},
+				{
+					type: "text",
+					left: "center",
+					top: "54%",
+					style: {
+						text: formatCLP(total),
+						fontSize: 20,
+						fill: "#0F172A",
+						fontWeight: 700,
+						fontFamily: "Plus Jakarta Sans, sans-serif",
+						textAlign: "center",
+					},
+				},
+			],
 		},
-		series: [{
-			type: "pie",
-			radius: ["48%", "74%"],
-			center: ["50%", "50%"],
-			avoidLabelOverlap: false,
-			padAngle: 3,
-			emphasis: {
-				scale: true,
-				scaleSize: 8,
-				itemStyle: {
-					shadowBlur: 20,
-					shadowColor: "rgba(0,0,0,0.12)",
-				},
-			},
-			label: { show: false },
-			data: rows.map((r) => ({
-				value: r.total,
-				name: r.category,
-				count: r.count,
-				itemStyle: {
-					color: r.color,
-					borderColor: darkenColor(r.color, 30),
-					borderWidth: 2,
-					borderRadius: 6,
-				},
-			})),
-		}],
-		graphic: [
-			{
-				type: "text",
-				left: "center",
-				top: "40%",
-				style: {
-					text: "Total",
-					fontSize: 12,
-					fill: "#94A3B8",
-					fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
-					textAlign: "center",
-				},
-			},
-			{
-				type: "text",
-				left: "center",
-				top: "54%",
-				style: {
-					text: formatCLP(total),
-					fontSize: 20,
-					fill: "#0F172A",
-					fontWeight: 700,
-					fontFamily: "Plus Jakarta Sans, sans-serif",
-					textAlign: "center",
-				},
-			},
-		],
-	}, "category-donut");
+		"category-donut",
+	);
 
 	chart.on("click", (params) => {
 		if (state.activeCategory === params.name) {
@@ -2332,14 +2447,14 @@ function renderCategoryDistribution(transactions) {
 			state.activeCategory = params.name;
 		}
 		updateDonutHighlight(chart);
-		renderCategoryDetail(legend, rows, transactions);
+		renderCategoryDetail(legend, displayRows, transactions);
 	});
 
 	chart.getZr().on("click", (params) => {
 		if (!params.target) {
 			state.activeCategory = null;
 			updateDonutHighlight(chart);
-			renderCategoryDetail(legend, rows, transactions);
+			renderCategoryDetail(legend, displayRows, transactions);
 		}
 	});
 
@@ -2347,12 +2462,21 @@ function renderCategoryDistribution(transactions) {
 
 	const legend = document.createElement("div");
 	legend.className = "category-distribution-legend";
-	renderCategoryDetail(legend, rows, transactions);
+	renderCategoryDetail(legend, displayRows, transactions);
 
 	body.append(donutWrap, legend);
 	section.append(body);
 
 	return section;
+}
+
+function showCategoryInTable(category) {
+	if (state.view === "table") {
+		highlightTableByCategory(category);
+		return;
+	}
+	setView("table");
+	setTimeout(() => highlightTableByCategory(category), prefersReducedMotion() ? 0 : 240);
 }
 
 function highlightTableByCategory(category) {
@@ -2404,12 +2528,44 @@ function buildCategoryBreakdown(transactions) {
 		.sort((a, b) => b.total - a.total);
 }
 
+function buildCategoryDisplayRows(rows) {
+	if (rows.length <= 3) return rows;
+	const visible = rows.slice(0, 3);
+	const rest = rows.slice(3);
+	const total = rows.reduce((sum, row) => sum + row.total, 0);
+	const otherTotal = rest.reduce((sum, row) => sum + row.total, 0);
+	const otherCount = rest.reduce((sum, row) => sum + row.count, 0);
+	return [
+		...visible,
+		{
+			category: "Otras categorías",
+			total: otherTotal,
+			count: otherCount,
+			percent: total ? Math.round((otherTotal / total) * 100) : 0,
+			color: "#94a3b8",
+			children: rest,
+		},
+	];
+}
 
 function renderCategoryLegendItem(row) {
-	const item = document.createElement("article");
+	const item = document.createElement("button");
+	item.type = "button";
 	item.className = "category-legend-item";
 	item.style.setProperty("--category-color", row.color);
 	item.title = `${row.category}: ${formatCLP(row.total)} · ${row.percent}% · ${row.count} movimientos`;
+	item.addEventListener("click", () => {
+		state.activeCategory =
+			categoryKey(state.activeCategory) === categoryKey(row.category)
+				? null
+				: row.category;
+		updateDonutHighlight(chartInstances.get("category-donut"));
+		renderCategoryDetail(
+			item.parentElement,
+			item.parentElement.__categoryRows,
+			item.parentElement.__categoryExpenses,
+		);
+	});
 
 	const marker = document.createElement("span");
 	marker.className = "category-legend-marker";
@@ -2426,6 +2582,8 @@ function renderCategoryLegendItem(row) {
 }
 
 function renderCategoryDetail(legendEl, rows, expenses) {
+	legendEl.__categoryRows = rows;
+	legendEl.__categoryExpenses = expenses;
 	legendEl.replaceChildren();
 
 	if (!state.activeCategory) {
@@ -2470,20 +2628,30 @@ function renderCategoryDetail(legendEl, rows, expenses) {
 
 	const activeCategoryKey = categoryKey(state.activeCategory);
 	const groups = new Map();
-	for (const tx of expenses) {
-		const txCat = normalizeCategoryName(tx.category || "") || "Sin categoría";
-		if (categoryKey(txCat) !== activeCategoryKey) continue;
-
-		const displayName = tx.counterparty || "Sin contraparte";
-		const key =
-			tx.counterpartyKey ||
-			normalizeCounterpartyForUI(tx.counterparty || displayName);
-		if (!groups.has(key)) {
-			groups.set(key, { displayName, total: 0, count: 0 });
+	if (activeRow.children) {
+		for (const child of activeRow.children) {
+			groups.set(categoryKey(child.category), {
+				displayName: child.category,
+				total: child.total,
+				count: child.count,
+			});
 		}
-		const group = groups.get(key);
-		group.total += Number(tx.amount || 0);
-		group.count += 1;
+	} else {
+		for (const tx of expenses) {
+			const txCat = normalizeCategoryName(tx.category || "") || "Sin categoría";
+			if (categoryKey(txCat) !== activeCategoryKey) continue;
+
+			const displayName = tx.counterparty || "Sin comercio o persona";
+			const key =
+				tx.counterpartyKey ||
+				normalizeCounterpartyForUI(tx.counterparty || displayName);
+			if (!groups.has(key)) {
+				groups.set(key, { displayName, total: 0, count: 0 });
+			}
+			const group = groups.get(key);
+			group.total += Number(tx.amount || 0);
+			group.count += 1;
+		}
 	}
 
 	const merchantRows = [...groups.values()].sort((a, b) => b.total - a.total);
@@ -2501,6 +2669,18 @@ function renderCategoryDetail(legendEl, rows, expenses) {
 		merchantList.append(item);
 	}
 
+	const actions = document.createElement("div");
+	actions.className = "category-detail-actions";
+
+	const view = document.createElement("button");
+	view.type = "button";
+	view.className = "category-detail-back";
+	view.textContent = "Ver gastos de esta categoría";
+	view.hidden = Boolean(activeRow.children);
+	view.addEventListener("click", () => {
+		showCategoryInTable(activeRow.category);
+	});
+
 	const back = document.createElement("button");
 	back.type = "button";
 	back.className = "category-detail-back";
@@ -2511,7 +2691,8 @@ function renderCategoryDetail(legendEl, rows, expenses) {
 		renderCategoryDetail(legendEl, rows, expenses);
 	});
 
-	panel.append(header, merchantList, back);
+	actions.append(view, back);
+	panel.append(header, merchantList, actions);
 	legendEl.append(panel);
 }
 
@@ -2525,15 +2706,33 @@ function renderCategoryDistributionInsight(rows) {
 		return insight;
 	}
 
-	const top = rows[0];
+	const [top, second] = rows;
+	if (top && second && top.percent + second.percent >= 50) {
+		insight.textContent = `${top.category} y ${second.category} explican el ${top.percent + second.percent}% de tus gastos.`;
+		return insight;
+	}
 	if (top && top.percent >= 40) {
 		insight.textContent = `${top.category} concentra el ${top.percent}% del gasto del periodo.`;
 		return insight;
 	}
 
 	insight.textContent =
-		"Tus gastos están distribuidos entre varias categorías.";
+		"Tus gastos están distribuidos entre varias categorías; mirá el top 3 antes que todos los detalles.";
 	return insight;
+}
+
+function renderCategorySavingsHint(rows) {
+	const hint = document.createElement("p");
+	hint.className = "category-savings-hint";
+	const top = rows.find((row) => row.category !== "Sin categoría") || rows[0];
+	if (!top) {
+		hint.textContent =
+			"Cuando haya categorías, te mostraremos dónde un pequeño ajuste mueve la aguja.";
+		return hint;
+	}
+	const saving = Math.round(top.total * 0.1);
+	hint.textContent = `Si bajaras ${top.category} un 10%, liberarías cerca de ${formatCLP(saving)} este mes.`;
+	return hint;
 }
 
 function renderCounterpartySpendSection(expenses, options = {}) {
@@ -2541,21 +2740,21 @@ function renderCounterpartySpendSection(expenses, options = {}) {
 	const section = document.createElement("section");
 	section.className = "counterparty-spend-card";
 	const title = document.createElement("h3");
-	title.textContent = "Resumen por contraparte";
+	title.textContent = "Comercios y personas frecuentes";
 	const copy = document.createElement("p");
 	copy.textContent =
-		"Identifica contrapartes repetidas y vuelve a Movimientos para seleccionar iguales y asignar categorías en bloque.";
+		"Identifica gastos repetidos, revisa su detalle y asígnales categoría sin salir del flujo principal.";
 	const allRows = buildCounterpartyRows(expenses);
 	const rows = limit ? allRows.slice(0, limit) : allRows;
 	const count = document.createElement("small");
 	count.className = "counterparty-spend-count";
-	count.textContent = `${rows.length} contrapartes · ${expenses.length} movimientos`;
+	count.textContent = `${rows.length} comercios o personas · ${expenses.length} movimientos`;
 	section.append(title, copy, count);
 	if (!rows.length) {
 		const empty = document.createElement("p");
 		empty.className = "counterparty-spend-empty";
 		empty.textContent =
-			"Aún no hay gastos suficientes para agrupar por contraparte.";
+			"Aún no hay gastos suficientes para agrupar por comercio o persona.";
 		section.append(empty);
 		return section;
 	}
@@ -2589,10 +2788,9 @@ function renderCounterpartySpendSection(expenses, options = {}) {
 		const selectButton = document.createElement("button");
 		selectButton.type = "button";
 		selectButton.className = "secondary counterparty-detail-button";
-		selectButton.textContent = "Seleccionar en movimientos";
+		selectButton.textContent = "Seleccionar similares";
 		selectButton.addEventListener("click", () => {
-			state.tableMode = "movements";
-			saveViewPreferences();
+			setView("table");
 			selectVisibleCounterpartyTransactions(
 				sortTransactions(selectedMonthExpenseTransactions(state.transactions)),
 				row.counterpartyKey,
@@ -2614,7 +2812,7 @@ function renderCounterpartySpendSection(expenses, options = {}) {
 function buildCounterpartyRows(expenses) {
 	const groups = new Map();
 	for (const tx of expenses) {
-		const displayName = tx.counterparty || "Sin contraparte";
+		const displayName = tx.counterparty || "Sin comercio o persona";
 		const key =
 			tx.counterpartyKey ||
 			normalizeCounterpartyForUI(tx.counterparty || displayName);
@@ -2750,7 +2948,7 @@ async function saveCounterpartyCategoryRule(row, category) {
 	state.transactions = state.transactions.map((tx) => {
 		const key =
 			tx.counterpartyKey ||
-			normalizeCounterpartyForUI(tx.counterparty || "Sin contraparte");
+			normalizeCounterpartyForUI(tx.counterparty || "Sin comercio o persona");
 		if (key !== row.counterpartyKey) return tx;
 		return { ...tx, category: category || null };
 	});
@@ -2763,7 +2961,7 @@ function openCounterpartyDetailModal(counterpartyKey) {
 		.filter((tx) => {
 			const key =
 				tx.counterpartyKey ||
-				normalizeCounterpartyForUI(tx.counterparty || "Sin contraparte");
+				normalizeCounterpartyForUI(tx.counterparty || "Sin comercio o persona");
 			return key === counterpartyKey && hasKnownAmount(tx);
 		})
 		.sort((a, b) =>
@@ -2771,7 +2969,7 @@ function openCounterpartyDetailModal(counterpartyKey) {
 		);
 
 	if (!movements.length) return;
-	const displayName = movements[0].counterparty || "Sin contraparte";
+	const displayName = movements[0].counterparty || "Sin comercio o persona";
 	const total = sumAmounts(movements);
 	counterpartyDetailTitle.textContent = `Gastos en ${displayName}`;
 	counterpartyDetailSummary.textContent = `${formatCLP(total)} · ${movements.length} movimientos · ${selectedMonthLabel()}`;
@@ -2882,7 +3080,7 @@ function labelForKind(kind) {
 		purchase: "Compras",
 		transfer: "Transferencias",
 		payment: "Pagos",
-		income: "Abonos",
+		income: "Ingresos",
 		unknown: "Sin clasificar",
 	};
 	return labels[kind] || "Sin clasificar";
@@ -2891,13 +3089,14 @@ function labelForKind(kind) {
 function renderTableHead(transactions = []) {
 	const thead = document.createElement("thead");
 	const row = document.createElement("tr");
-	const selectedVisibleCount = selectedVisibleTransactionIds(transactions).length;
+	const selectedVisibleCount =
+		selectedVisibleTransactionIds(transactions).length;
 	const selectableCount = transactions.length;
 	const columns = [
 		{ key: "select", label: "Seleccionar", sortable: false },
 		{ key: "date", label: "Fecha", sortable: true },
 		{ key: "amount", label: "Monto", sortable: true },
-		{ key: "counterparty", label: "Contraparte", sortable: true },
+		{ key: "counterparty", label: "Comercio o persona", sortable: true },
 		{ key: "category", label: "Categoría", sortable: true },
 		{ key: null, label: "", sortable: false },
 	];
@@ -2908,8 +3107,10 @@ function renderTableHead(transactions = []) {
 			th.className = "selection-column";
 			const checkbox = document.createElement("input");
 			checkbox.type = "checkbox";
-			checkbox.checked = selectableCount > 0 && selectedVisibleCount === selectableCount;
-			checkbox.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < selectableCount;
+			checkbox.checked =
+				selectableCount > 0 && selectedVisibleCount === selectableCount;
+			checkbox.indeterminate =
+				selectedVisibleCount > 0 && selectedVisibleCount < selectableCount;
 			checkbox.disabled = selectableCount === 0;
 			checkbox.setAttribute("aria-label", "Seleccionar movimientos visibles");
 			checkbox.addEventListener("change", () => {
@@ -3003,7 +3204,10 @@ function renderBulkCategoryBar(transactions) {
 	bar.hidden = selectedIds.length === 0;
 	if (selectedIds.length === 0) return bar;
 
-	const selectionSummary = selectedCounterpartySummary(transactions, selectedIds);
+	const selectionSummary = selectedCounterpartySummary(
+		transactions,
+		selectedIds,
+	);
 	const copy = document.createElement("div");
 	copy.className = "bulk-selection-copy";
 	const count = document.createElement("strong");
@@ -3011,7 +3215,10 @@ function renderBulkCategoryBar(transactions) {
 	copy.append(count);
 	if (selectionSummary) {
 		const detail = document.createElement("span");
-		detail.textContent = bulkSelectionDetail(selectionSummary, selectedIds.length);
+		detail.textContent = bulkSelectionDetail(
+			selectionSummary,
+			selectedIds.length,
+		);
 		copy.append(detail);
 	}
 
@@ -3037,18 +3244,23 @@ function renderBulkCategoryBar(transactions) {
 
 	const assign = document.createElement("button");
 	assign.type = "button";
-	assign.textContent = state.isBulkAssigning ? "Asignando..." : "Asignar categoría";
+	assign.textContent = state.isBulkAssigning
+		? "Asignando..."
+		: "Asignar categoría";
 	assign.disabled = state.isBulkAssigning || !state.bulkCategory;
-	assign.addEventListener("click", () => applyBulkCategoryAssignment(transactions));
+	assign.addEventListener("click", () =>
+		applyBulkCategoryAssignment(transactions),
+	);
 
 	const selectCounterparty = document.createElement("button");
 	selectCounterparty.type = "button";
 	selectCounterparty.className = "secondary bulk-counterparty-button";
 	selectCounterparty.textContent = selectionSummary
 		? `Seleccionar ${selectionSummary.visibleCount} de ${selectionSummary.label}`
-		: "Seleccionar contraparte";
+		: "Seleccionar similares";
 	selectCounterparty.hidden =
-		!selectionSummary || selectionSummary.visibleCount === selectionSummary.selectedCount;
+		!selectionSummary ||
+		selectionSummary.visibleCount === selectionSummary.selectedCount;
 	selectCounterparty.disabled = state.isBulkAssigning;
 	selectCounterparty.addEventListener("click", () => {
 		if (!selectionSummary) return;
@@ -3075,7 +3287,7 @@ function selectedCounterpartySummary(transactions, selectedIds) {
 		if (!groups.has(key)) {
 			groups.set(key, {
 				key,
-				label: transaction.counterparty || "Sin contraparte",
+				label: transaction.counterparty || "Sin comercio o persona",
 				selectedCount: 0,
 				visibleCount: 0,
 			});
@@ -3086,7 +3298,10 @@ function selectedCounterpartySummary(transactions, selectedIds) {
 		const group = groups.get(counterpartySelectionKey(transaction));
 		if (group) group.visibleCount += 1;
 	}
-	return [...groups.values()].sort((a, b) => b.selectedCount - a.selectedCount)[0] || null;
+	return (
+		[...groups.values()].sort((a, b) => b.selectedCount - a.selectedCount)[0] ||
+		null
+	);
 }
 
 function bulkSelectionDetail(summary, selectedCount) {
@@ -3161,7 +3376,8 @@ function clearTransactionSelection() {
 
 async function applyBulkCategoryAssignment(transactions) {
 	const selectedIds = selectedVisibleTransactionIds(transactions);
-	if (selectedIds.length === 0 || !state.bulkCategory || state.isBulkAssigning) return;
+	if (selectedIds.length === 0 || !state.bulkCategory || state.isBulkAssigning)
+		return;
 	state.isBulkAssigning = true;
 	state.bulkStatus = `Asignando categoría a ${selectedIds.length} movimientos...`;
 	render();
@@ -3185,7 +3401,9 @@ async function applyBulkCategoryAssignment(transactions) {
 }
 
 async function patchTransactionCategory(id, category) {
-	const transaction = state.transactions.find((tx) => String(tx.id) === String(id));
+	const transaction = state.transactions.find(
+		(tx) => String(tx.id) === String(id),
+	);
 	if (!transaction) throw new Error("Movimiento no encontrado");
 	const patch = {
 		category,
@@ -3244,17 +3462,48 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 				: "Sin ingreso detectado";
 
 	const remaining = income - totalSpent;
-	const remainingPercent = income > 0 ? Math.round((remaining / income) * 100) : 0;
+	const remainingPercent =
+		income > 0 ? Math.round((remaining / income) * 100) : 0;
 
 	const today = new Date();
-	const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+	const daysInMonth = new Date(
+		today.getFullYear(),
+		today.getMonth() + 1,
+		0,
+	).getDate();
 	const daysRemaining = Math.max(0, daysInMonth - today.getDate());
 
 	return [
-		{ key: "expense", label: "Total gastado", value: formatCLP(totalSpent), detail: `${knownExpenses.length} transacciones` },
-		{ key: "income", label: "Ingreso", value: income > 0 ? formatCLP(income) : "\u2014", detail: incomeDetail },
-		{ key: "remaining", label: "Saldo restante", value: remaining >= 0 ? formatCLP(remaining) : `-${formatCLP(Math.abs(remaining))}`, detail: income > 0 ? `${remainingPercent}% disponible` : "Ingresa un sueldo para calcularlo" },
-		{ key: "days", label: "D\u00edas restantes", value: String(daysRemaining), detail: `de ${daysInMonth} d\u00edas` },
+		{
+			key: "expense",
+			label: "Total gastado",
+			value: formatCLP(totalSpent),
+			detail: `${knownExpenses.length} transacciones`,
+		},
+		{
+			key: "income",
+			label: "Ingreso",
+			value: income > 0 ? formatCLP(income) : "\u2014",
+			detail: incomeDetail,
+		},
+		{
+			key: "remaining",
+			label: "Saldo restante",
+			value:
+				remaining >= 0
+					? formatCLP(remaining)
+					: `-${formatCLP(Math.abs(remaining))}`,
+			detail:
+				income > 0
+					? `${remainingPercent}% disponible`
+					: "Agrega tu ingreso para estimarlo",
+		},
+		{
+			key: "days",
+			label: "D\u00edas restantes",
+			value: String(daysRemaining),
+			detail: `de ${daysInMonth} d\u00edas`,
+		},
 	];
 }
 
@@ -3269,13 +3518,19 @@ function renderHeroKpis(knownExpenses, allMonthTransactions) {
 		const card = document.createElement("div");
 		card.className = "kp-card";
 		card.dataset.kpi = kpi.key;
-		card.innerHTML = `
-			<div class="kp-card-inner">
-				<span class="metric-label">${kpi.label}</span>
-				<strong class="metric-value">${kpi.value}</strong>
-				<small class="metric-detail">${kpi.detail}</small>
-			</div>
-		`;
+		const inner = document.createElement("div");
+		inner.className = "kp-card-inner";
+		const label = document.createElement("span");
+		label.className = "metric-label";
+		label.textContent = kpi.label;
+		const value = document.createElement("strong");
+		value.className = "metric-value";
+		value.textContent = kpi.value;
+		const detail = document.createElement("small");
+		detail.className = "metric-detail";
+		detail.textContent = kpi.detail;
+		inner.append(label, value, detail);
+		card.append(inner);
 		container.append(card);
 	}
 }
@@ -3284,7 +3539,9 @@ function updateHeroKpis() {
 	const container = document.getElementById("heroKpis");
 	if (!container || !container.children.length) return;
 
-	const visibleTransactions = selectedMonthExpenseTransactions(state.transactions);
+	const visibleTransactions = selectedMonthExpenseTransactions(
+		state.transactions,
+	);
 	const knownExpenses = visibleTransactions.filter(hasKnownAmount);
 	const allMonthTransactions = selectedMonthTransactions(state.transactions);
 	const kpis = computeHeroKpiData(knownExpenses, allMonthTransactions);
@@ -3385,10 +3642,10 @@ function renderCounterpartyCell(transaction, visibleTransactions) {
 		const button = document.createElement("button");
 		button.type = "button";
 		button.className = "counterparty-select-chip";
-		button.textContent = "Misma contraparte";
+		button.textContent = `${sameCounterparty.length} similares`;
 		button.setAttribute(
 			"aria-label",
-			`Seleccionar ${sameCounterparty.length} movimientos visibles de ${transaction.counterparty || "sin contraparte"}`,
+			`Seleccionar ${sameCounterparty.length} movimientos visibles de ${transaction.counterparty || "sin comercio o persona"}`,
 		);
 		button.addEventListener("click", (event) => {
 			event.stopPropagation();
@@ -3403,7 +3660,9 @@ function renderCounterpartyCell(transaction, visibleTransactions) {
 function counterpartySelectionKey(transaction) {
 	return (
 		transaction.counterpartyKey ||
-		normalizeCounterpartyForUI(transaction.counterparty || "Sin contraparte")
+		normalizeCounterpartyForUI(
+			transaction.counterparty || "Sin comercio o persona",
+		)
 	);
 }
 

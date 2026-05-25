@@ -4,9 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Resumen · Finanzas Personales</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -21,7 +24,9 @@
       <section class="hero">
         <div class="hero-headline">
           <h1 id="heroTitle">Tu mes en un vistazo</h1>
-          <p class="subtitle" id="heroSubtitle">Conecta tu cuenta para ver el análisis automático de tus gastos.</p>
+          <p class="subtitle" id="heroSubtitle">
+            Conecta tu cuenta para ver el análisis automático de tus gastos.
+          </p>
         </div>
         <div class="hero-kpis" id="heroKpis"></div>
       </section>
@@ -31,7 +36,8 @@
           <div>
             <h2>Gastos</h2>
             <p>
-              Primero entiende el mes. Si necesitas corregir algo, cambia a la tabla.
+              Primero entiende el mes. Si necesitas corregir algo, abre el
+              detalle.
             </p>
           </div>
           <div class="button-row">
@@ -66,12 +72,14 @@
                   id="tableViewButton"
                   type="button"
                 >
-                  Movimientos
+                  Detalle
                 </button>
               </div>
             </div>
-            <button id="newExpenseButton">Ingresar nuevo gasto</button>
-            <button class="secondary" id="refreshButton">Actualizar</button>
+            <button id="newExpenseButton">Agregar gasto</button>
+            <button class="secondary" id="refreshButton" hidden>
+              Actualizar
+            </button>
           </div>
         </div>
         <div id="dashboard" class="dashboard" aria-live="polite" hidden></div>
@@ -174,7 +182,7 @@
               <option value="purchase">Compra</option>
               <option value="transfer">Transferencia</option>
               <option value="payment">Pago</option>
-              <option value="income">Abono</option>
+              <option value="income">Ingreso</option>
               <option value="unknown">Desconocido</option>
             </select>
           </label>
@@ -190,7 +198,7 @@
             <select id="modalCategory" name="category"></select>
           </label>
           <label>
-            Contraparte / comercio
+            Comercio o persona
             <input
               id="modalCounterparty"
               name="counterparty"
@@ -377,7 +385,7 @@
               <option value="purchase">Compra</option>
               <option value="transfer">Transferencia</option>
               <option value="payment">Pago</option>
-              <option value="income">Abono</option>
+              <option value="income">Ingreso</option>
               <option value="unknown">Desconocido</option>
             </select>
           </label>
@@ -393,7 +401,7 @@
             <input id="newCategory" name="category" placeholder="Comida" />
           </label>
           <label>
-            Contraparte / comercio
+            Comercio o persona
             <input
               id="newCounterparty"
               name="counterparty"
