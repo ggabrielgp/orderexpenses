@@ -1,3 +1,5 @@
+const echarts = window.echarts;
+
 const BUDGET_STORAGE_KEY = "financeMonthlyBudget";
 const VIEW_PREFERENCES_STORAGE_KEY = "financeViewPreferences";
 
@@ -18,7 +20,7 @@ const DEFAULT_CATEGORIES = [
 const CREATE_CATEGORY_VALUE = "__create_category__";
 
 // Modo demo: cargar datos ficticios sin backend
-const DEMO_MODE = false;
+const DEMO_MODE = true;
 let demoData = [];
 
 function adjustDemoDates(data) {
@@ -122,8 +124,7 @@ const state = {
 	activeId: null,
 	sortKey: null,
 	sortDir: null,
-	view: "table",
-	tableMode: viewPreferences.tableMode,
+	view: "dashboard",
 	chartTab: "month",
 	chartDayKey: null,
 	isGmailSyncing: false,
@@ -136,6 +137,10 @@ const state = {
 	activeCounterpartyDetailKey: null,
 	returnToCounterpartyKey: null,
 	activeCategory: null,
+	selectedTransactionIds: new Set(),
+	bulkCategory: "",
+	bulkStatus: "",
+	isBulkAssigning: false,
 };
 
 const currency = new Intl.NumberFormat("es-CL", {
@@ -736,6 +741,7 @@ async function loadTransactions() {
 				throw new Error(payload.error || "Error cargando gastos");
 		}
 		state.transactions = payload.transactions || [];
+		pruneSelectedTransactions();
 		await loadIncomeCandidates({ renderAfter: false });
 		render();
 	} catch (error) {
@@ -846,6 +852,14 @@ function setView(view) {
 	const outgoing = state.view === "dashboard" ? dashboardEl : transactionsEl;
 	const incoming = view === "dashboard" ? dashboardEl : transactionsEl;
 
+	if (prefersReducedMotion()) {
+		outgoing.hidden = true;
+		state.view = view;
+		render();
+		incoming.hidden = false;
+		return;
+	}
+
 	outgoing.style.transition =
 		"opacity 200ms var(--ease-out-expo), transform 200ms var(--ease-out-expo)";
 	outgoing.style.opacity = "0";
@@ -880,6 +894,8 @@ function setView(view) {
 }
 
 function animateEntry(element, index = 0) {
+	if (prefersReducedMotion()) return;
+
 	element.style.opacity = "0";
 	element.style.transform = "translateY(16px)";
 	element.style.filter = "blur(6px)";
@@ -890,6 +906,10 @@ function animateEntry(element, index = 0) {
 		element.style.transform = "translateY(0)";
 		element.style.filter = "blur(0)";
 	});
+}
+
+function prefersReducedMotion() {
+	return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 function updatePageTitle(isConnected) {
@@ -913,7 +933,10 @@ function render() {
 		(tx) => tx.direction === "outflow",
 	);
 	renderViewToggle();
-	renderHeroKpis(visibleExpenses.filter(hasKnownAmount), allMonthTransactions);
+	renderHeroKpis(
+		visibleTransactions.filter(hasKnownAmount),
+		selectedMonthTransactions(state.transactions),
+	);
 	dashboardEl.hidden = state.view !== "dashboard";
 	transactionsEl.hidden = state.view !== "table";
 	budgetPanelEl.replaceChildren();
@@ -932,21 +955,14 @@ function render() {
 
 	if (allMonthTransactions.length === 0) {
 		const empty = createEmptyState(
-			`Todavía no hay movimientos en ${selectedMonthLabel()}`,
-			"Sincroniza Gmail o ingresa un movimiento manual para este periodo para empezar a ver el resumen.",
-			{ actionLabel: "Ingresar gasto", onAction: openNewExpenseModal },
+			`Todavía no hay gastos en ${selectedMonthLabel()}`,
+			"Sincroniza Gmail o agrega un gasto manual para este periodo para empezar a ver el resumen.",
+			{ actionLabel: "Agregar gasto", onAction: openNewExpenseModal },
 		);
 		if (state.view === "dashboard") {
 			dashboardEl.append(empty);
 		} else {
-			transactionsEl.append(renderTableModeSwitch());
-			if (state.tableMode === "counterparties") {
-				transactionsEl.append(
-					renderCounterpartySpendSection([], { limit: null }),
-				);
-			} else {
-				transactionsEl.append(empty);
-			}
+			transactionsEl.append(empty);
 		}
 		return;
 	}
@@ -973,57 +989,15 @@ function renderViewToggle() {
 }
 
 function renderTableView(transactions) {
-	transactionsEl.append(renderTableModeSwitch());
-	if (state.tableMode === "counterparties") {
-		const expenses = transactions.filter((tx) => tx.direction === "outflow");
-		const knownExpenses = expenses.filter(hasKnownAmount);
-		transactionsEl.append(
-			renderCounterpartySpendSection(knownExpenses, { limit: null }),
-		);
-		return;
-	}
-
 	const sorted = sortTransactions(transactions);
+	pruneSelectedTransactions(sorted);
 	const tableSummary = renderTableSummary(sorted);
+	const bulkBar = renderBulkCategoryBar(sorted);
+	const tableFeedback = renderTableFeedback();
 	const table = document.createElement("table");
 	table.className = "transactions-table";
-	table.append(renderTableHead(), renderTableBody(sorted));
-	transactionsEl.append(tableSummary, table);
-}
-
-function renderTableModeSwitch() {
-	const wrapper = document.createElement("section");
-	wrapper.className = "table-mode-switch";
-	const label = document.createElement("span");
-	label.className = "table-mode-switch-label";
-	label.textContent = "Ver como";
-	const options = document.createElement("div");
-	options.className = "table-mode-options";
-	options.setAttribute("role", "group");
-	options.setAttribute("aria-label", "Modo de tabla");
-
-	for (const option of [
-		{ value: "movements", label: "Movimientos" },
-		{ value: "counterparties", label: "Comercios" },
-	]) {
-		const button = document.createElement("button");
-		button.type = "button";
-		button.className = "table-mode-option";
-		button.textContent = option.label;
-		const isActive = state.tableMode === option.value;
-		button.classList.toggle("table-mode-option-active", isActive);
-		button.setAttribute("aria-pressed", String(isActive));
-		button.addEventListener("click", () => {
-			if (state.tableMode === option.value) return;
-			state.tableMode = option.value;
-			saveViewPreferences();
-			render();
-		});
-		options.append(button);
-	}
-
-	wrapper.append(label, options);
-	return wrapper;
+	table.append(renderTableHead(sorted), renderTableBody(sorted));
+	transactionsEl.append(tableSummary, bulkBar, tableFeedback, table);
 }
 
 function updateChartOnly() {
@@ -1059,7 +1033,7 @@ function renderDashboard(transactions) {
 	);
 	const topCounterparty = topGroup(
 		knownExpenses,
-		(tx) => tx.counterparty || "Sin contraparte",
+		(tx) => tx.counterparty || "Sin comercio o persona",
 	);
 	const kindBreakdown = groupTotals(knownExpenses, (tx) =>
 		labelForKind(tx.kind),
@@ -1117,6 +1091,16 @@ function renderDashboard(transactions) {
 		),
 	);
 
+	const monthStory = renderMonthStoryCard(transactions, knownExpenses, {
+		totalSpent,
+		averageExpense,
+		unknownExpenseCount,
+		topCategory,
+		topCounterparty,
+		largestExpense,
+	});
+	const budgetToggle = renderBudgetToggle();
+	const budgetCard = state.budgetEnabled ? renderBudgetCard(totalSpent) : null;
 	const weeklyChart = renderMonthlyDailyChart(dailySpending, knownExpenses);
 	const categoryDistribution = renderCategoryDistribution(knownExpenses);
 
@@ -1136,6 +1120,9 @@ function renderDashboard(transactions) {
 	}
 
 	const cards = [
+		monthStory,
+		budgetToggle,
+		...(budgetCard ? [budgetCard] : []),
 		metrics,
 		weeklyChart,
 		categoryDistribution,
@@ -1148,11 +1135,136 @@ function renderDashboard(transactions) {
 	});
 }
 
-function renderBudgetPanel(knownExpenses) {
-	if (!budgetPanelEl) return;
-	const totalSpent = sumAmounts(knownExpenses);
-	budgetPanelEl.append(renderBudgetToggle());
-	if (state.budgetEnabled) budgetPanelEl.append(renderBudgetCard(totalSpent));
+function renderMonthStoryCard(transactions, knownExpenses, context) {
+	const card = document.createElement("section");
+	card.className = "month-story-card";
+
+	const header = document.createElement("div");
+	header.className = "month-story-header";
+	const kicker = document.createElement("span");
+	kicker.textContent = "Lectura simple";
+	const title = document.createElement("h3");
+	title.textContent = "Qué pasó este mes";
+	const copy = document.createElement("p");
+	copy.textContent = monthStorySummary(knownExpenses, context);
+	header.append(kicker, title, copy);
+
+	const list = document.createElement("ul");
+	list.className = "month-story-list";
+	for (const item of buildMonthStoryItems(
+		transactions,
+		knownExpenses,
+		context,
+	)) {
+		const row = document.createElement("li");
+		row.textContent = item;
+		list.append(row);
+	}
+
+	card.append(
+		header,
+		list,
+		renderNextBestAction(transactions, knownExpenses, context),
+	);
+	return card;
+}
+
+function monthStorySummary(knownExpenses, context) {
+	if (knownExpenses.length === 0) {
+		return "Todavía no hay suficiente información para contarte el mes.";
+	}
+	const topLabel =
+		context.topCategory.label !== "—"
+			? context.topCategory.label
+			: "varias categorías";
+	return `Llevas ${formatCLP(context.totalSpent)} en gastos detectados. La historia principal está en ${topLabel}.`;
+}
+
+function buildMonthStoryItems(transactions, knownExpenses, context) {
+	const items = [];
+	if (context.topCategory.label !== "—") {
+		items.push(
+			`${context.topCategory.label} concentra ${formatCLP(context.topCategory.total)} del periodo.`,
+		);
+	}
+	if (context.topCounterparty.label !== "—") {
+		items.push(
+			`${context.topCounterparty.label} es donde más se repite el gasto.`,
+		);
+	}
+	if (context.largestExpense) {
+		items.push(
+			`El gasto más alto fue ${formatCLP(context.largestExpense.amount)} en ${context.largestExpense.counterparty || context.largestExpense.description || "un movimiento sin nombre"}.`,
+		);
+	}
+	const pending = reviewableTransactions(transactions).length;
+	if (pending > 0) {
+		items.push(
+			`${pending} ${pending === 1 ? "gasto necesita" : "gastos necesitan"} una revisión rápida.`,
+		);
+	}
+	if (items.length === 0 && knownExpenses.length > 0) {
+		items.push("Tus gastos ya están listos para explorarse en el detalle.");
+	}
+	return items.slice(0, 4);
+}
+
+function renderNextBestAction(transactions, knownExpenses) {
+	const action = document.createElement("aside");
+	action.className = "next-action-card";
+	const label = document.createElement("span");
+	label.textContent = "Próxima acción";
+	const title = document.createElement("strong");
+	const detail = document.createElement("p");
+	const button = document.createElement("button");
+	button.type = "button";
+	button.className = "review-now-button";
+
+	const pending = reviewableTransactions(transactions);
+	if (pending.length > 0) {
+		title.textContent = "Revisar gastos dudosos";
+		detail.textContent = `${pending.length} ${pending.length === 1 ? "movimiento necesita" : "movimientos necesitan"} tu confirmación.`;
+		button.textContent = "Revisar ahora";
+		button.addEventListener("click", openFirstReviewItem);
+	} else if (state.budgetEnabled) {
+		title.textContent = "Seguir el ritmo del mes";
+		detail.textContent =
+			"Ya podés mirar cuánto te queda y ajustar si algo no calza.";
+		button.textContent = "Ver detalle";
+		button.addEventListener("click", () => setView("table"));
+	} else if (knownExpenses.length > 0) {
+		title.textContent = "Responder la pregunta clave";
+		detail.textContent =
+			"Activa el cálculo para saber cuánto te queda este mes.";
+		button.textContent = "Calcular cuánto queda";
+		button.addEventListener("click", () => {
+			state.budgetEnabled = true;
+			saveViewPreferences();
+			render();
+		});
+	} else {
+		title.textContent = "Traer gastos al mes";
+		detail.textContent =
+			"Sincroniza Gmail o agrega un gasto para empezar el resumen.";
+		button.textContent = "Agregar gasto";
+		button.addEventListener("click", openNewExpenseModal);
+	}
+
+	action.append(label, title, detail, button);
+	return action;
+}
+
+function reviewableTransactions(transactions) {
+	return transactions
+		.filter((tx) => tx.status === "needs_review")
+		.sort((a, b) => new Date(b.occurredAt || 0) - new Date(a.occurredAt || 0));
+}
+
+function openFirstReviewItem() {
+	const [transaction] = reviewableTransactions(
+		selectedMonthExpenseTransactions(state.transactions),
+	);
+	if (transaction) openModal(transaction.id);
 }
 
 function renderBudgetToggle() {
@@ -1160,10 +1272,10 @@ function renderBudgetToggle() {
 	section.className = "budget-toggle-card";
 	const copy = document.createElement("div");
 	const title = document.createElement("strong");
-	title.textContent = "Calcular presupuesto del mes";
+	title.textContent = "¿Cuánto me queda este mes?";
 	const description = document.createElement("p");
 	description.textContent =
-		"Siempre disponible: ingresa tu sueldo manualmente o activa detección para usar la entrada mayor como ingreso principal.";
+		"Transforma ingresos y gastos en una respuesta simple para decidir mejor.";
 	copy.append(title, description);
 
 	const button = document.createElement("button");
@@ -1171,7 +1283,7 @@ function renderBudgetToggle() {
 	button.className = "switch-control";
 	button.setAttribute("role", "switch");
 	button.setAttribute("aria-checked", String(state.budgetEnabled));
-	button.setAttribute("aria-label", "Calcular presupuesto del mes");
+	button.setAttribute("aria-label", "Calcular cuánto queda este mes");
 	button.addEventListener("click", () => {
 		state.budgetEnabled = !state.budgetEnabled;
 		saveViewPreferences();
@@ -1192,10 +1304,10 @@ function renderBudgetCard(totalSpent) {
 	const header = document.createElement("div");
 	header.className = "budget-header";
 	const title = document.createElement("h3");
-	title.textContent = "Presupuesto del mes";
+	title.textContent = "Cuánto te queda";
 	const copy = document.createElement("p");
 	copy.textContent =
-		"Los ingresos importados se muestran en la tabla, pero solo afectan el restante cuando ingresas un sueldo o activas la detección automática.";
+		"Una respuesta simple: ingreso confirmado menos gastos capturados, con diferencias por aclarar si algo no calza.";
 	header.append(title, copy);
 
 	const detection = renderIncomeDetection(totalSpent);
@@ -1223,12 +1335,12 @@ function renderBudgetCard(totalSpent) {
 			selectedMonthLabel(),
 		),
 		budgetResult(
-			"Restante estimado",
+			"Te queda aprox.",
 			"—",
 			"Ingresa un sueldo o activa detección automática para calcularlo.",
 		),
 		budgetResult(
-			"Diferencia no rastreada",
+			"No explicado todavía",
 			"—",
 			"Opcional: compáralo con tu restante real.",
 		),
@@ -1659,11 +1771,9 @@ function loadViewPreferences() {
 		);
 		return {
 			budgetEnabled: Boolean(parsed.budgetEnabled),
-			tableMode:
-				parsed.tableMode === "counterparties" ? "counterparties" : "movements",
 		};
 	} catch {
-		return { budgetEnabled: false, tableMode: "movements" };
+		return { budgetEnabled: false };
 	}
 }
 
@@ -1673,8 +1783,6 @@ function saveViewPreferences() {
 			VIEW_PREFERENCES_STORAGE_KEY,
 			JSON.stringify({
 				budgetEnabled: Boolean(state.budgetEnabled),
-				tableMode:
-					state.tableMode === "counterparties" ? "counterparties" : "movements",
 			}),
 		);
 	} catch {
@@ -2016,7 +2124,7 @@ function chartDetailList(transactions) {
 
 		const info = document.createElement("span");
 		const name = document.createElement("strong");
-		name.textContent = `${formatTime(tx.occurredAt)} · ${tx.counterparty || tx.description || "Sin contraparte"}`;
+		name.textContent = `${formatTime(tx.occurredAt)} · ${tx.counterparty || tx.description || "Sin comercio o persona"}`;
 		const meta = document.createElement("small");
 		meta.textContent = labelForKind(tx.kind);
 		info.append(name, meta);
@@ -2244,11 +2352,11 @@ function renderCategoryDistribution(transactions) {
 	section.className = "category-distribution-card";
 
 	const title = document.createElement("h3");
-	title.textContent = "\u00bfD\u00f3nde se va tu dinero?";
+	title.textContent = "Dónde se fue tu plata";
 
 	const copy = document.createElement("p");
 	copy.textContent =
-		"Agrupa tus gastos del periodo seg\u00fan la categor\u00eda asignada.";
+		"La app interpreta la distribución por vos: concentración, ahorro posible y detalles útiles.";
 
 	section.append(title, copy);
 
@@ -2263,7 +2371,11 @@ function renderCategoryDistribution(transactions) {
 		return section;
 	}
 
-	section.append(renderCategoryDistributionInsight(rows));
+	section.append(
+		renderCategoryDistributionInsight(rows),
+		renderCategorySavingsHint(rows),
+	);
+	const displayRows = buildCategoryDisplayRows(rows);
 
 	const body = document.createElement("div");
 	body.className = "category-distribution-body";
@@ -2317,7 +2429,7 @@ function renderCategoryDistribution(transactions) {
 						},
 					},
 					label: { show: false },
-					data: rows.map((r) => ({
+					data: displayRows.map((r) => ({
 						value: r.total,
 						name: r.category,
 						count: r.count,
@@ -2368,14 +2480,14 @@ function renderCategoryDistribution(transactions) {
 			state.activeCategory = params.name;
 		}
 		updateDonutHighlight(chart);
-		renderCategoryDetail(legend, rows, transactions);
+		renderCategoryDetail(legend, displayRows, transactions);
 	});
 
 	chart.getZr().on("click", (params) => {
 		if (!params.target) {
 			state.activeCategory = null;
 			updateDonutHighlight(chart);
-			renderCategoryDetail(legend, rows, transactions);
+			renderCategoryDetail(legend, displayRows, transactions);
 		}
 	});
 
@@ -2383,12 +2495,21 @@ function renderCategoryDistribution(transactions) {
 
 	const legend = document.createElement("div");
 	legend.className = "category-distribution-legend";
-	renderCategoryDetail(legend, rows, transactions);
+	renderCategoryDetail(legend, displayRows, transactions);
 
 	body.append(donutWrap, legend);
 	section.append(body);
 
 	return section;
+}
+
+function showCategoryInTable(category) {
+	if (state.view === "table") {
+		highlightTableByCategory(category);
+		return;
+	}
+	setView("table");
+	setTimeout(() => highlightTableByCategory(category), prefersReducedMotion() ? 0 : 240);
 }
 
 function highlightTableByCategory(category) {
@@ -2440,11 +2561,44 @@ function buildCategoryBreakdown(transactions) {
 		.sort((a, b) => b.total - a.total);
 }
 
+function buildCategoryDisplayRows(rows) {
+	if (rows.length <= 3) return rows;
+	const visible = rows.slice(0, 3);
+	const rest = rows.slice(3);
+	const total = rows.reduce((sum, row) => sum + row.total, 0);
+	const otherTotal = rest.reduce((sum, row) => sum + row.total, 0);
+	const otherCount = rest.reduce((sum, row) => sum + row.count, 0);
+	return [
+		...visible,
+		{
+			category: "Otras categorías",
+			total: otherTotal,
+			count: otherCount,
+			percent: total ? Math.round((otherTotal / total) * 100) : 0,
+			color: "#94a3b8",
+			children: rest,
+		},
+	];
+}
+
 function renderCategoryLegendItem(row) {
-	const item = document.createElement("article");
+	const item = document.createElement("button");
+	item.type = "button";
 	item.className = "category-legend-item";
 	item.style.setProperty("--category-color", row.color);
 	item.title = `${row.category}: ${formatCLP(row.total)} · ${row.percent}% · ${row.count} movimientos`;
+	item.addEventListener("click", () => {
+		state.activeCategory =
+			categoryKey(state.activeCategory) === categoryKey(row.category)
+				? null
+				: row.category;
+		updateDonutHighlight(chartInstances.get("category-donut"));
+		renderCategoryDetail(
+			item.parentElement,
+			item.parentElement.__categoryRows,
+			item.parentElement.__categoryExpenses,
+		);
+	});
 
 	const marker = document.createElement("span");
 	marker.className = "category-legend-marker";
@@ -2461,6 +2615,8 @@ function renderCategoryLegendItem(row) {
 }
 
 function renderCategoryDetail(legendEl, rows, expenses) {
+	legendEl.__categoryRows = rows;
+	legendEl.__categoryExpenses = expenses;
 	legendEl.replaceChildren();
 
 	if (!state.activeCategory) {
@@ -2505,20 +2661,30 @@ function renderCategoryDetail(legendEl, rows, expenses) {
 
 	const activeCategoryKey = categoryKey(state.activeCategory);
 	const groups = new Map();
-	for (const tx of expenses) {
-		const txCat = normalizeCategoryName(tx.category || "") || "Sin categoría";
-		if (categoryKey(txCat) !== activeCategoryKey) continue;
-
-		const displayName = tx.counterparty || "Sin contraparte";
-		const key =
-			tx.counterpartyKey ||
-			normalizeCounterpartyForUI(tx.counterparty || displayName);
-		if (!groups.has(key)) {
-			groups.set(key, { displayName, total: 0, count: 0 });
+	if (activeRow.children) {
+		for (const child of activeRow.children) {
+			groups.set(categoryKey(child.category), {
+				displayName: child.category,
+				total: child.total,
+				count: child.count,
+			});
 		}
-		const group = groups.get(key);
-		group.total += Number(tx.amount || 0);
-		group.count += 1;
+	} else {
+		for (const tx of expenses) {
+			const txCat = normalizeCategoryName(tx.category || "") || "Sin categoría";
+			if (categoryKey(txCat) !== activeCategoryKey) continue;
+
+			const displayName = tx.counterparty || "Sin comercio o persona";
+			const key =
+				tx.counterpartyKey ||
+				normalizeCounterpartyForUI(tx.counterparty || displayName);
+			if (!groups.has(key)) {
+				groups.set(key, { displayName, total: 0, count: 0 });
+			}
+			const group = groups.get(key);
+			group.total += Number(tx.amount || 0);
+			group.count += 1;
+		}
 	}
 
 	const merchantRows = [...groups.values()].sort((a, b) => b.total - a.total);
@@ -2536,6 +2702,18 @@ function renderCategoryDetail(legendEl, rows, expenses) {
 		merchantList.append(item);
 	}
 
+	const actions = document.createElement("div");
+	actions.className = "category-detail-actions";
+
+	const view = document.createElement("button");
+	view.type = "button";
+	view.className = "category-detail-back";
+	view.textContent = "Ver gastos de esta categoría";
+	view.hidden = Boolean(activeRow.children);
+	view.addEventListener("click", () => {
+		showCategoryInTable(activeRow.category);
+	});
+
 	const back = document.createElement("button");
 	back.type = "button";
 	back.className = "category-detail-back";
@@ -2546,7 +2724,8 @@ function renderCategoryDetail(legendEl, rows, expenses) {
 		renderCategoryDetail(legendEl, rows, expenses);
 	});
 
-	panel.append(header, merchantList, back);
+	actions.append(view, back);
+	panel.append(header, merchantList, actions);
 	legendEl.append(panel);
 }
 
@@ -2560,15 +2739,33 @@ function renderCategoryDistributionInsight(rows) {
 		return insight;
 	}
 
-	const top = rows[0];
+	const [top, second] = rows;
+	if (top && second && top.percent + second.percent >= 50) {
+		insight.textContent = `${top.category} y ${second.category} explican el ${top.percent + second.percent}% de tus gastos.`;
+		return insight;
+	}
 	if (top && top.percent >= 40) {
 		insight.textContent = `${top.category} concentra el ${top.percent}% del gasto del periodo.`;
 		return insight;
 	}
 
 	insight.textContent =
-		"Tus gastos están distribuidos entre varias categorías.";
+		"Tus gastos están distribuidos entre varias categorías; mirá el top 3 antes que todos los detalles.";
 	return insight;
+}
+
+function renderCategorySavingsHint(rows) {
+	const hint = document.createElement("p");
+	hint.className = "category-savings-hint";
+	const top = rows.find((row) => row.category !== "Sin categoría") || rows[0];
+	if (!top) {
+		hint.textContent =
+			"Cuando haya categorías, te mostraremos dónde un pequeño ajuste mueve la aguja.";
+		return hint;
+	}
+	const saving = Math.round(top.total * 0.1);
+	hint.textContent = `Si bajaras ${top.category} un 10%, liberarías cerca de ${formatCLP(saving)} este mes.`;
+	return hint;
 }
 
 function renderCounterpartySpendSection(expenses, options = {}) {
@@ -2576,21 +2773,21 @@ function renderCounterpartySpendSection(expenses, options = {}) {
 	const section = document.createElement("section");
 	section.className = "counterparty-spend-card";
 	const title = document.createElement("h3");
-	title.textContent = "Gasto por comercio";
+	title.textContent = "Comercios y personas frecuentes";
 	const copy = document.createElement("p");
 	copy.textContent =
-		"Agrupa gastos por comercio o contraparte para detectar dónde se concentra tu gasto y asignar categorías en bloque.";
+		"Identifica gastos repetidos, revisa su detalle y asígnales categoría sin salir del flujo principal.";
 	const allRows = buildCounterpartyRows(expenses);
 	const rows = limit ? allRows.slice(0, limit) : allRows;
 	const count = document.createElement("small");
 	count.className = "counterparty-spend-count";
-	count.textContent = `${rows.length} comercios · ${expenses.length} movimientos`;
+	count.textContent = `${rows.length} comercios o personas · ${expenses.length} movimientos`;
 	section.append(title, copy, count);
 	if (!rows.length) {
 		const empty = document.createElement("p");
 		empty.className = "counterparty-spend-empty";
 		empty.textContent =
-			"Aún no hay gastos suficientes para agrupar por comercio.";
+			"Aún no hay gastos suficientes para agrupar por comercio o persona.";
 		section.append(empty);
 		return section;
 	}
@@ -2607,32 +2804,11 @@ function renderCounterpartySpendSection(expenses, options = {}) {
 		detail.textContent = `${formatCLP(row.total)} · ${row.count} movimientos`;
 		meta.append(name, detail);
 
-		const categoryLabel = document.createElement("label");
-		categoryLabel.className = "counterparty-category-label";
-		categoryLabel.textContent = "Categoría";
-		const select = document.createElement("select");
-		select.className = "counterparty-category-select";
-		for (const option of counterpartyCategoryOptions(expenses)) {
-			const node = document.createElement("option");
-			node.value = option.value;
-			node.textContent = option.label;
-			node.selected = option.value === (row.category || "");
-			select.append(node);
-		}
-		select.addEventListener("change", async () => {
-			if (select.value === CREATE_CATEGORY_VALUE) {
-				select.value = row.category || "";
-				openSettingsModal({ focusCategoryForm: true });
-				return;
-			}
-			try {
-				await saveCounterpartyCategoryRule(row, select.value);
-			} catch (error) {
-				console.error(error);
-				await loadTransactions();
-			}
-		});
-		categoryLabel.append(select);
+		const category = document.createElement("span");
+		category.className = "counterparty-current-category";
+		category.textContent = row.category
+			? `Categoría frecuente: ${row.category}`
+			: "Sin categoría frecuente";
 
 		const detailButton = document.createElement("button");
 		detailButton.type = "button";
@@ -2642,9 +2818,21 @@ function renderCounterpartySpendSection(expenses, options = {}) {
 			openCounterpartyDetailModal(row.counterpartyKey);
 		});
 
+		const selectButton = document.createElement("button");
+		selectButton.type = "button";
+		selectButton.className = "secondary counterparty-detail-button";
+		selectButton.textContent = "Seleccionar similares";
+		selectButton.addEventListener("click", () => {
+			setView("table");
+			selectVisibleCounterpartyTransactions(
+				sortTransactions(selectedMonthExpenseTransactions(state.transactions)),
+				row.counterpartyKey,
+			);
+		});
+
 		const actions = document.createElement("div");
 		actions.className = "counterparty-actions";
-		actions.append(categoryLabel, detailButton);
+		actions.append(category, selectButton, detailButton);
 
 		item.append(meta, actions);
 		list.append(item);
@@ -2657,7 +2845,7 @@ function renderCounterpartySpendSection(expenses, options = {}) {
 function buildCounterpartyRows(expenses) {
 	const groups = new Map();
 	for (const tx of expenses) {
-		const displayName = tx.counterparty || "Sin contraparte";
+		const displayName = tx.counterparty || "Sin comercio o persona";
 		const key =
 			tx.counterpartyKey ||
 			normalizeCounterpartyForUI(tx.counterparty || displayName);
@@ -2793,7 +2981,7 @@ async function saveCounterpartyCategoryRule(row, category) {
 	state.transactions = state.transactions.map((tx) => {
 		const key =
 			tx.counterpartyKey ||
-			normalizeCounterpartyForUI(tx.counterparty || "Sin contraparte");
+			normalizeCounterpartyForUI(tx.counterparty || "Sin comercio o persona");
 		if (key !== row.counterpartyKey) return tx;
 		return { ...tx, category: category || null };
 	});
@@ -2806,7 +2994,7 @@ function openCounterpartyDetailModal(counterpartyKey) {
 		.filter((tx) => {
 			const key =
 				tx.counterpartyKey ||
-				normalizeCounterpartyForUI(tx.counterparty || "Sin contraparte");
+				normalizeCounterpartyForUI(tx.counterparty || "Sin comercio o persona");
 			return key === counterpartyKey && hasKnownAmount(tx);
 		})
 		.sort((a, b) =>
@@ -2814,7 +3002,7 @@ function openCounterpartyDetailModal(counterpartyKey) {
 		);
 
 	if (!movements.length) return;
-	const displayName = movements[0].counterparty || "Sin contraparte";
+	const displayName = movements[0].counterparty || "Sin comercio o persona";
 	const total = sumAmounts(movements);
 	counterpartyDetailTitle.textContent = `Gastos en ${displayName}`;
 	counterpartyDetailSummary.textContent = `${formatCLP(total)} · ${movements.length} movimientos · ${selectedMonthLabel()}`;
@@ -2925,25 +3113,46 @@ function labelForKind(kind) {
 		purchase: "Compras",
 		transfer: "Transferencias",
 		payment: "Pagos",
-		income: "Abonos",
+		income: "Ingresos",
 		unknown: "Sin clasificar",
 	};
 	return labels[kind] || "Sin clasificar";
 }
 
-function renderTableHead() {
+function renderTableHead(transactions = []) {
 	const thead = document.createElement("thead");
 	const row = document.createElement("tr");
+	const selectedVisibleCount =
+		selectedVisibleTransactionIds(transactions).length;
+	const selectableCount = transactions.length;
 	const columns = [
+		{ key: "select", label: "Seleccionar", sortable: false },
 		{ key: "date", label: "Fecha", sortable: true },
 		{ key: "amount", label: "Monto", sortable: true },
-		{ key: "counterparty", label: "Contraparte", sortable: true },
+		{ key: "counterparty", label: "Comercio o persona", sortable: true },
 		{ key: "category", label: "Categoría", sortable: true },
 		{ key: null, label: "", sortable: false },
 	];
 	for (const col of columns) {
 		const th = document.createElement("th");
 		th.scope = "col";
+		if (col.key === "select") {
+			th.className = "selection-column";
+			const checkbox = document.createElement("input");
+			checkbox.type = "checkbox";
+			checkbox.checked =
+				selectableCount > 0 && selectedVisibleCount === selectableCount;
+			checkbox.indeterminate =
+				selectedVisibleCount > 0 && selectedVisibleCount < selectableCount;
+			checkbox.disabled = selectableCount === 0;
+			checkbox.setAttribute("aria-label", "Seleccionar movimientos visibles");
+			checkbox.addEventListener("change", () => {
+				toggleVisibleTransactionsSelection(transactions, checkbox.checked);
+			});
+			th.append(checkbox);
+			row.append(th);
+			continue;
+		}
 		if (!col.sortable) {
 			th.textContent = col.label;
 			row.append(th);
@@ -2996,7 +3205,7 @@ function cycleSort(key) {
 function renderTableBody(sorted) {
 	const tbody = document.createElement("tbody");
 	for (const transaction of sorted) {
-		tbody.append(renderTransactionRow(transaction));
+		tbody.append(renderTransactionRow(transaction, sorted));
 	}
 	return tbody;
 }
@@ -3025,15 +3234,263 @@ function renderTableSummary(transactions) {
 	return box;
 }
 
+function renderBulkCategoryBar(transactions) {
+	const selectedIds = selectedVisibleTransactionIds(transactions);
+	const bar = document.createElement("div");
+	bar.className = "bulk-action-bar";
+	bar.hidden = selectedIds.length === 0;
+	if (selectedIds.length === 0) return bar;
+
+	const selectionSummary = selectedCounterpartySummary(
+		transactions,
+		selectedIds,
+	);
+	const copy = document.createElement("div");
+	copy.className = "bulk-selection-copy";
+	const count = document.createElement("strong");
+	count.textContent = `${selectedIds.length} ${selectedIds.length === 1 ? "movimiento seleccionado" : "movimientos seleccionados"}`;
+	copy.append(count);
+	if (selectionSummary) {
+		const detail = document.createElement("span");
+		detail.textContent = bulkSelectionDetail(
+			selectionSummary,
+			selectedIds.length,
+		);
+		copy.append(detail);
+	}
+
+	const label = document.createElement("label");
+	label.className = "bulk-category-field";
+	label.textContent = "Categoría";
+	const select = document.createElement("select");
+	for (const option of categoryOptions(transactions).filter(
+		(item) => item.value !== CREATE_CATEGORY_VALUE,
+	)) {
+		const node = document.createElement("option");
+		node.value = option.value;
+		node.textContent = option.value ? option.label : "Seleccionar categoría";
+		node.selected = option.value === state.bulkCategory;
+		select.append(node);
+	}
+	select.addEventListener("change", () => {
+		state.bulkCategory = select.value;
+		state.bulkStatus = "";
+		render();
+	});
+	label.append(select);
+
+	const assign = document.createElement("button");
+	assign.type = "button";
+	assign.textContent = state.isBulkAssigning
+		? "Asignando..."
+		: "Asignar categoría";
+	assign.disabled = state.isBulkAssigning || !state.bulkCategory;
+	assign.addEventListener("click", () =>
+		applyBulkCategoryAssignment(transactions),
+	);
+
+	const selectCounterparty = document.createElement("button");
+	selectCounterparty.type = "button";
+	selectCounterparty.className = "secondary bulk-counterparty-button";
+	selectCounterparty.textContent = selectionSummary
+		? `Seleccionar ${selectionSummary.visibleCount} de ${selectionSummary.label}`
+		: "Seleccionar similares";
+	selectCounterparty.hidden =
+		!selectionSummary ||
+		selectionSummary.visibleCount === selectionSummary.selectedCount;
+	selectCounterparty.disabled = state.isBulkAssigning;
+	selectCounterparty.addEventListener("click", () => {
+		if (!selectionSummary) return;
+		selectVisibleCounterpartyTransactions(transactions, selectionSummary.key);
+	});
+
+	const clear = document.createElement("button");
+	clear.type = "button";
+	clear.className = "secondary";
+	clear.textContent = "Limpiar selección";
+	clear.disabled = state.isBulkAssigning;
+	clear.addEventListener("click", clearTransactionSelection);
+
+	bar.append(copy, label, selectCounterparty, assign, clear);
+	return bar;
+}
+
+function selectedCounterpartySummary(transactions, selectedIds) {
+	const selectedSet = new Set(selectedIds.map(String));
+	const groups = new Map();
+	for (const transaction of transactions) {
+		if (!selectedSet.has(String(transaction.id))) continue;
+		const key = counterpartySelectionKey(transaction);
+		if (!groups.has(key)) {
+			groups.set(key, {
+				key,
+				label: transaction.counterparty || "Sin comercio o persona",
+				selectedCount: 0,
+				visibleCount: 0,
+			});
+		}
+		groups.get(key).selectedCount += 1;
+	}
+	for (const transaction of transactions) {
+		const group = groups.get(counterpartySelectionKey(transaction));
+		if (group) group.visibleCount += 1;
+	}
+	return (
+		[...groups.values()].sort((a, b) => b.selectedCount - a.selectedCount)[0] ||
+		null
+	);
+}
+
+function bulkSelectionDetail(summary, selectedCount) {
+	if (summary.selectedCount === selectedCount) {
+		return `Selección concentrada en ${summary.label}: ${summary.selectedCount} de ${summary.visibleCount} movimientos visibles.`;
+	}
+	return `${summary.label} domina la selección: ${summary.selectedCount} de ${selectedCount} movimientos seleccionados.`;
+}
+
+function renderTableFeedback() {
+	const feedback = document.createElement("div");
+	feedback.className = "table-feedback";
+	feedback.setAttribute("aria-live", "polite");
+	feedback.hidden = !state.bulkStatus;
+	feedback.textContent = state.bulkStatus;
+	return feedback;
+}
+
+function selectedVisibleTransactionIds(transactions) {
+	return transactions
+		.map((tx) => String(tx.id))
+		.filter((id) => state.selectedTransactionIds.has(id));
+}
+
+function pruneSelectedTransactions(transactions = state.transactions) {
+	const availableIds = new Set(transactions.map((tx) => String(tx.id)));
+	for (const id of state.selectedTransactionIds) {
+		if (!availableIds.has(id)) state.selectedTransactionIds.delete(id);
+	}
+}
+
+function toggleVisibleTransactionsSelection(transactions, checked) {
+	for (const transaction of transactions) {
+		const id = String(transaction.id);
+		if (checked) {
+			state.selectedTransactionIds.add(id);
+		} else {
+			state.selectedTransactionIds.delete(id);
+		}
+	}
+	state.bulkStatus = "";
+	render();
+}
+
+function toggleTransactionSelection(id, checked) {
+	const key = String(id);
+	if (checked) {
+		state.selectedTransactionIds.add(key);
+	} else {
+		state.selectedTransactionIds.delete(key);
+	}
+	state.bulkStatus = "";
+	render();
+}
+
+function selectVisibleCounterpartyTransactions(transactions, counterpartyKey) {
+	for (const transaction of transactions) {
+		if (counterpartySelectionKey(transaction) === counterpartyKey) {
+			state.selectedTransactionIds.add(String(transaction.id));
+		}
+	}
+	state.bulkStatus = "";
+	render();
+}
+
+function clearTransactionSelection() {
+	state.selectedTransactionIds.clear();
+	state.bulkCategory = "";
+	state.bulkStatus = "";
+	render();
+}
+
+async function applyBulkCategoryAssignment(transactions) {
+	const selectedIds = selectedVisibleTransactionIds(transactions);
+	if (selectedIds.length === 0 || !state.bulkCategory || state.isBulkAssigning)
+		return;
+	state.isBulkAssigning = true;
+	state.bulkStatus = `Asignando categoría a ${selectedIds.length} movimientos...`;
+	render();
+	try {
+		await Promise.all(
+			selectedIds.map((id) => patchTransactionCategory(id, state.bulkCategory)),
+		);
+		const assignedCount = selectedIds.length;
+		state.selectedTransactionIds.clear();
+		state.bulkCategory = "";
+		state.bulkStatus = `Categoría asignada a ${assignedCount} ${assignedCount === 1 ? "movimiento" : "movimientos"}.`;
+		if (!DEMO_MODE) await loadTransactions();
+		render();
+	} catch (error) {
+		state.bulkStatus = `Error: ${error.message}`;
+		render();
+	} finally {
+		state.isBulkAssigning = false;
+		render();
+	}
+}
+
+async function patchTransactionCategory(id, category) {
+	const transaction = state.transactions.find(
+		(tx) => String(tx.id) === String(id),
+	);
+	if (!transaction) throw new Error("Movimiento no encontrado");
+	const patch = {
+		category,
+		status: transaction.status === "manual" ? "manual" : "edited",
+	};
+	if (DEMO_MODE) {
+		state.transactions = state.transactions.map((tx) =>
+			String(tx.id) === String(id) ? { ...tx, ...patch } : tx,
+		);
+		demoData = demoData.map((tx) =>
+			String(tx.id) === String(id) ? { ...tx, ...patch } : tx,
+		);
+		return;
+	}
+	const params = new URLSearchParams({ month: state.selectedMonth });
+	const response = await fetch(
+		`/api/transactions/${encodeURIComponent(id)}?${params}`,
+		{
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				...patch,
+				month: state.selectedMonth,
+				payTiming: state.budget.payTiming,
+			}),
+		},
+	);
+	if (!response.ok) throw new Error("No se pudo asignar la categoría");
+}
+
 function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 	const totalSpent = sumAmounts(knownExpenses);
-	const visibleIncomeCount = (allMonthTransactions || []).filter(
-		(tx) => tx.direction === "inflow" && hasKnownAmount(tx),
-	).length;
-	const budgetIncome = state.budgetEnabled
-		? confirmedBudgetIncome()
-		: { amount: null, reason: "" };
-	const income = budgetIncome.amount ?? 0;
+	const inflows = (allMonthTransactions || knownExpenses).filter(
+		(tx) => tx.direction === "inflow",
+	);
+	const detectedIncome = sumAmounts(inflows.filter(hasKnownAmount));
+
+	let income = detectedIncome;
+	let incomeSource = inflows.length > 0 ? "detected" : "none";
+
+	if (state.budgetEnabled) {
+		const budgetIncome = confirmedBudgetIncome();
+		if (budgetIncome.amount !== null) {
+			income = budgetIncome.amount;
+			incomeSource = "budget";
+		} else if (detectedIncome === 0) {
+			incomeSource = "none";
+		}
+	}
+
 	const incomeDetail =
 		budgetIncome.amount !== null
 			? budgetIncome.reason || "Del presupuesto"
@@ -3062,7 +3519,7 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 		},
 		{
 			key: "income",
-			label: "Ingreso presupuesto",
+			label: "Ingreso",
 			value: income > 0 ? formatCLP(income) : "\u2014",
 			detail: incomeDetail,
 		},
@@ -3070,15 +3527,13 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 			key: "remaining",
 			label: "Saldo restante",
 			value:
-				income > 0
-					? remaining >= 0
-						? formatCLP(remaining)
-						: `-${formatCLP(Math.abs(remaining))}`
-					: "\u2014",
+				remaining >= 0
+					? formatCLP(remaining)
+					: `-${formatCLP(Math.abs(remaining))}`,
 			detail:
 				income > 0
 					? `${remainingPercent}% disponible`
-					: "No se calcula sin presupuesto",
+					: "Agrega tu ingreso para estimarlo",
 		},
 		{
 			key: "days",
@@ -3121,6 +3576,10 @@ function updateHeroKpis() {
 	const container = document.getElementById("heroKpis");
 	if (!container || !container.children.length) return;
 
+	const visibleTransactions = selectedMonthExpenseTransactions(
+		state.transactions,
+	);
+	const knownExpenses = visibleTransactions.filter(hasKnownAmount);
 	const allMonthTransactions = selectedMonthTransactions(state.transactions);
 	const knownExpenses = allMonthTransactions
 		.filter((tx) => tx.direction === "outflow")
@@ -3169,8 +3628,22 @@ function renderSummary(transactions) {
 	summaryEl.append(label, amount, detail);
 }
 
-function renderTransactionRow(transaction) {
+function renderTransactionRow(transaction, visibleTransactions = []) {
 	const row = rowTemplate.content.firstElementChild.cloneNode(true);
+	const selected = state.selectedTransactionIds.has(String(transaction.id));
+	row.classList.toggle("is-selected", selected);
+	const selectCell = row.querySelector('[data-field="select"]');
+	const checkbox = document.createElement("input");
+	checkbox.type = "checkbox";
+	checkbox.checked = selected;
+	checkbox.setAttribute(
+		"aria-label",
+		`Seleccionar ${transaction.counterparty || transaction.description || "movimiento"}`,
+	);
+	checkbox.addEventListener("change", () => {
+		toggleTransactionSelection(transaction.id, checkbox.checked);
+	});
+	selectCell.append(checkbox);
 
 	row.querySelector('[data-field="date"]').textContent = formatDate(
 		transaction.occurredAt,
@@ -3182,10 +3655,11 @@ function renderTransactionRow(transaction) {
 	} else if (transaction.direction === "inflow") {
 		amountCell.classList.add("is-inflow");
 	}
-	row.querySelector('[data-field="counterparty"]').textContent =
-		transaction.counterparty || "—";
-	row.querySelector('[data-field="counterparty"]').title =
-		transaction.counterparty || "";
+	const counterpartyCell = row.querySelector('[data-field="counterparty"]');
+	counterpartyCell.replaceChildren(
+		renderCounterpartyCell(transaction, visibleTransactions),
+	);
+	counterpartyCell.title = transaction.counterparty || "";
 	row
 		.querySelector('[data-field="category"]')
 		.replaceChildren(renderCategoryBadge(transaction));
@@ -3194,6 +3668,46 @@ function renderTransactionRow(transaction) {
 		.addEventListener("click", () => openModal(transaction.id));
 
 	return row;
+}
+
+function renderCounterpartyCell(transaction, visibleTransactions) {
+	const wrapper = document.createElement("div");
+	wrapper.className = "counterparty-cell";
+	const name = document.createElement("span");
+	name.className = "counterparty-name";
+	name.textContent = transaction.counterparty || "—";
+	wrapper.append(name);
+
+	const key = counterpartySelectionKey(transaction);
+	const sameCounterparty = visibleTransactions.filter(
+		(tx) => counterpartySelectionKey(tx) === key,
+	);
+	if (sameCounterparty.length > 1) {
+		const button = document.createElement("button");
+		button.type = "button";
+		button.className = "counterparty-select-chip";
+		button.textContent = `${sameCounterparty.length} similares`;
+		button.setAttribute(
+			"aria-label",
+			`Seleccionar ${sameCounterparty.length} movimientos visibles de ${transaction.counterparty || "sin comercio o persona"}`,
+		);
+		button.addEventListener("click", (event) => {
+			event.stopPropagation();
+			selectVisibleCounterpartyTransactions(visibleTransactions, key);
+		});
+		wrapper.append(button);
+	}
+
+	return wrapper;
+}
+
+function counterpartySelectionKey(transaction) {
+	return (
+		transaction.counterpartyKey ||
+		normalizeCounterpartyForUI(
+			transaction.counterparty || "Sin comercio o persona",
+		)
+	);
 }
 
 function renderCategoryBadge(transaction) {

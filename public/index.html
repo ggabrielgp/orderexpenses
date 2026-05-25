@@ -7,12 +7,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
+    <!-- Fondo atmosférico, mantenido detrás del contenido para no competir con los datos. -->
+    <div class="mesh-gradient-container" aria-hidden="true">
+      <div class="mesh-sphere sphere-1"></div>
+      <div class="mesh-sphere sphere-2"></div>
+      <div class="mesh-sphere sphere-3"></div>
+      <div class="mesh-grain"></div>
+    </div>
     <main class="shell">
       <section class="hero">
         <div class="hero-headline">
@@ -24,13 +31,69 @@
         <div class="hero-kpis" id="heroKpis"></div>
       </section>
 
-      <section class="panel">
+      <section class="panel product-panel">
         <div class="panel-header">
           <div>
-            <h2>Gmail</h2>
+            <h2>Gastos</h2>
             <p>
-              Conecta Gmail con permiso de solo lectura y sincroniza gastos del
-              periodo seleccionado detectados desde Banco de Chile.
+              Primero entiende el mes. Si necesitas corregir algo, abre el
+              detalle.
+            </p>
+          </div>
+          <div class="button-row">
+            <div class="period-controls">
+              <label class="month-picker">
+                Periodo
+                <select
+                  id="monthSelect"
+                  aria-label="Seleccionar periodo de gastos"
+                ></select>
+              </label>
+              <button
+                class="secondary period-sync-button"
+                id="syncGmailButton"
+                hidden
+              >
+                Sincronizar
+              </button>
+            </div>
+            <div class="view-switch" role="group" aria-label="Vista de gastos">
+              <span class="view-switch-label">Vista</span>
+              <div class="view-switch-options">
+                <button
+                  class="view-switch-option view-switch-option-active"
+                  id="dashboardViewButton"
+                  type="button"
+                >
+                  Resumen
+                </button>
+                <button
+                  class="view-switch-option"
+                  id="tableViewButton"
+                  type="button"
+                >
+                  Detalle
+                </button>
+              </div>
+            </div>
+            <button id="newExpenseButton">Agregar gasto</button>
+            <button class="secondary" id="refreshButton" hidden>
+              Actualizar
+            </button>
+          </div>
+        </div>
+        <div id="dashboard" class="dashboard" aria-live="polite" hidden></div>
+        <div id="transactions" class="transactions-table-wrap"></div>
+      </section>
+
+      <section class="panel setup-panel" aria-labelledby="gmailSetupTitle">
+        <div class="panel-header">
+          <div>
+            <span class="section-kicker">Configuración</span>
+            <h2 id="gmailSetupTitle">Conexión de Gmail</h2>
+            <p>
+              Autoriza lectura de Gmail solo cuando quieras importar gastos del
+              periodo seleccionado desde Banco de Chile.
             </p>
           </div>
           <div class="button-row">
@@ -58,66 +121,13 @@
           </div>
         </div>
       </section>
-
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <h2>Gastos</h2>
-            <p>
-              Revisa métricas clave del periodo seleccionado o cambia a la tabla
-              para editar movimientos.
-            </p>
-          </div>
-          <div class="button-row">
-            <div class="period-controls">
-              <label class="month-picker">
-                Periodo
-                <select
-                  id="monthSelect"
-                  aria-label="Seleccionar periodo de gastos"
-                ></select>
-              </label>
-              <button
-                class="secondary period-sync-button"
-                id="syncGmailButton"
-                hidden
-              >
-                Sincronizar
-              </button>
-            </div>
-            <div class="view-switch" role="group" aria-label="Vista de gastos">
-              <span class="view-switch-label">Vista</span>
-              <div class="view-switch-options">
-                <button
-                  class="view-switch-option"
-                  id="dashboardViewButton"
-                  type="button"
-                >
-                  Dashboard
-                </button>
-                <button
-                  class="view-switch-option view-switch-option-active"
-                  id="tableViewButton"
-                  type="button"
-                >
-                  Tabla
-                </button>
-              </div>
-            </div>
-            <button id="newExpenseButton">Ingresar nuevo gasto</button>
-            <button class="secondary" id="refreshButton">Actualizar</button>
-          </div>
-        </div>
-        <div id="budgetPanel" class="budget-panel" aria-live="polite"></div>
-        <div id="dashboard" class="dashboard" aria-live="polite" hidden></div>
-        <div id="transactions" class="transactions-table-wrap"></div>
-      </section>
     </main>
 
     <div id="profile" class="profile" hidden></div>
 
     <template id="transactionRowTemplate">
       <tr>
+        <td data-field="select"></td>
         <td data-field="date"></td>
         <td data-field="amount"></td>
         <td data-field="counterparty"></td>
@@ -172,7 +182,7 @@
               <option value="purchase">Compra</option>
               <option value="transfer">Transferencia</option>
               <option value="payment">Pago</option>
-              <option value="income">Abono</option>
+              <option value="income">Ingreso</option>
               <option value="unknown">Desconocido</option>
             </select>
           </label>
@@ -188,7 +198,7 @@
             <select id="modalCategory" name="category"></select>
           </label>
           <label>
-            Contraparte / comercio
+            Comercio o persona
             <input
               id="modalCounterparty"
               name="counterparty"
@@ -375,7 +385,7 @@
               <option value="purchase">Compra</option>
               <option value="transfer">Transferencia</option>
               <option value="payment">Pago</option>
-              <option value="income">Abono</option>
+              <option value="income">Ingreso</option>
               <option value="unknown">Desconocido</option>
             </select>
           </label>
@@ -391,7 +401,7 @@
             <input id="newCategory" name="category" placeholder="Comida" />
           </label>
           <label>
-            Contraparte / comercio
+            Comercio o persona
             <input
               id="newCounterparty"
               name="counterparty"
