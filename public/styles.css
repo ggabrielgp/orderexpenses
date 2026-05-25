@@ -1623,6 +1623,30 @@ select:focus {
 	place-items: center;
 }
 
+.category-chart-fallback {
+	display: grid;
+	place-items: center;
+	gap: var(--space-1);
+	width: 232px;
+	aspect-ratio: 1;
+	border: 1px solid var(--line);
+	border-radius: 50%;
+	background: var(--surface-raised);
+	text-align: center;
+}
+
+.category-chart-fallback span,
+.category-chart-fallback small {
+	color: var(--ink-muted);
+	font-size: var(--text-xs);
+}
+
+.category-chart-fallback strong {
+	color: var(--ink);
+	font-size: 1.2rem;
+	letter-spacing: -0.04em;
+}
+
 .category-donut {
 	position: relative;
 	display: grid;

@@ -19,8 +19,8 @@ const DEFAULT_CATEGORIES = [
 ];
 const CREATE_CATEGORY_VALUE = "__create_category__";
 
-// Modo demo: cargar datos ficticios sin backend
-const DEMO_MODE = true;
+// Modo demo: cargar datos ficticios sin backend solo si se pide explícitamente.
+const DEMO_MODE = new URLSearchParams(window.location.search).has("demo");
 let demoData = [];
 
 function adjustDemoDates(data) {
@@ -934,8 +934,8 @@ function render() {
 	);
 	renderViewToggle();
 	renderHeroKpis(
-		visibleTransactions.filter(hasKnownAmount),
-		selectedMonthTransactions(state.transactions),
+		visibleExpenses.filter(hasKnownAmount),
+		allMonthTransactions,
 	);
 	dashboardEl.hidden = state.view !== "dashboard";
 	transactionsEl.hidden = state.view !== "table";
@@ -2389,6 +2389,17 @@ function renderCategoryDistribution(transactions) {
 
 	const total = rows.reduce((sum, row) => sum + row.total, 0);
 
+	const legend = document.createElement("div");
+	legend.className = "category-distribution-legend";
+
+	if (!echarts) {
+		donutWrap.append(renderCategoryChartFallback(total));
+		renderCategoryDetail(legend, displayRows, transactions);
+		body.append(donutWrap, legend);
+		section.append(body);
+		return section;
+	}
+
 	const chart = initChart(
 		donutDom,
 		{
@@ -2492,9 +2503,6 @@ function renderCategoryDistribution(transactions) {
 	});
 
 	donutWrap.append(donutDom);
-
-	const legend = document.createElement("div");
-	legend.className = "category-distribution-legend";
 	renderCategoryDetail(legend, displayRows, transactions);
 
 	body.append(donutWrap, legend);
@@ -2503,13 +2511,29 @@ function renderCategoryDistribution(transactions) {
 	return section;
 }
 
+function renderCategoryChartFallback(total) {
+	const fallback = document.createElement("div");
+	fallback.className = "category-chart-fallback";
+	const label = document.createElement("span");
+	label.textContent = "Total";
+	const value = document.createElement("strong");
+	value.textContent = formatCLP(total);
+	const detail = document.createElement("small");
+	detail.textContent = "Gráfico no disponible, detalle listo abajo";
+	fallback.append(label, value, detail);
+	return fallback;
+}
+
 function showCategoryInTable(category) {
 	if (state.view === "table") {
 		highlightTableByCategory(category);
 		return;
 	}
 	setView("table");
-	setTimeout(() => highlightTableByCategory(category), prefersReducedMotion() ? 0 : 240);
+	setTimeout(
+		() => highlightTableByCategory(category),
+		prefersReducedMotion() ? 0 : 240,
+	);
 }
 
 function highlightTableByCategory(category) {
@@ -3476,20 +3500,11 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 	const inflows = (allMonthTransactions || knownExpenses).filter(
 		(tx) => tx.direction === "inflow",
 	);
-	const detectedIncome = sumAmounts(inflows.filter(hasKnownAmount));
-
-	let income = detectedIncome;
-	let incomeSource = inflows.length > 0 ? "detected" : "none";
-
-	if (state.budgetEnabled) {
-		const budgetIncome = confirmedBudgetIncome();
-		if (budgetIncome.amount !== null) {
-			income = budgetIncome.amount;
-			incomeSource = "budget";
-		} else if (detectedIncome === 0) {
-			incomeSource = "none";
-		}
-	}
+	const visibleIncomeCount = inflows.filter(hasKnownAmount).length;
+	const budgetIncome = state.budgetEnabled
+		? confirmedBudgetIncome()
+		: { amount: null, reason: "" };
+	const income = budgetIncome.amount ?? 0;
 
 	const incomeDetail =
 		budgetIncome.amount !== null
@@ -3576,10 +3591,6 @@ function updateHeroKpis() {
 	const container = document.getElementById("heroKpis");
 	if (!container || !container.children.length) return;
 
-	const visibleTransactions = selectedMonthExpenseTransactions(
-		state.transactions,
-	);
-	const knownExpenses = visibleTransactions.filter(hasKnownAmount);
 	const allMonthTransactions = selectedMonthTransactions(state.transactions);
 	const knownExpenses = allMonthTransactions
 		.filter((tx) => tx.direction === "outflow")
