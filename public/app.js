@@ -2637,6 +2637,10 @@ function renderCategoryDetail(legendEl, rows, expenses) {
 	legendEl.__categoryRows = rows;
 	legendEl.__categoryExpenses = expenses;
 	legendEl.replaceChildren();
+	legendEl.classList.toggle(
+		"category-distribution-legend-detail",
+		Boolean(state.activeCategory),
+	);
 
 	if (!state.activeCategory) {
 		for (const row of rows) {
@@ -2650,6 +2654,7 @@ function renderCategoryDetail(legendEl, rows, expenses) {
 	);
 	if (!activeRow) {
 		state.activeCategory = null;
+		legendEl.classList.remove("category-distribution-legend-detail");
 		for (const row of rows) {
 			legendEl.append(renderCategoryLegendItem(row));
 		}

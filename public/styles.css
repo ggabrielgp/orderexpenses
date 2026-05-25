@@ -1696,7 +1696,12 @@ select:focus {
 	gap: 6px;
 	width: min(100%, 640px);
 	max-height: 340px;
+	min-height: 0;
 	overflow-y: auto;
+}
+
+.category-distribution-legend-detail {
+	overflow: hidden;
 }
 
 .category-legend-item {
@@ -1772,8 +1777,11 @@ select:focus {
 /* Category detail capsule */
 .category-detail-panel {
 	display: grid;
+	grid-template-rows: auto minmax(0, 1fr) auto;
 	gap: var(--space-3);
 	width: min(100%, 640px);
+	max-height: 340px;
+	min-height: 0;
 	animation: detail-fade-in 0.25s ease;
 }
 
@@ -1819,8 +1827,10 @@ select:focus {
 .category-detail-merchants {
 	display: grid;
 	gap: 2px;
-	max-height: 400px;
+	min-height: 0;
 	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding-right: 4px;
 }
 
 .category-detail-merchant {

@@ -169,6 +169,18 @@ function extractDate(text) {
 		if (mm) return toIsoLocal(yyyy, mm, dd, hh, min);
 	}
 
+	const separateDate = getFieldValue(text, ["Fecha"]);
+	const separateTime = getFieldValue(text, ["Hora"]);
+	const separateDateMatch = separateDate?.match(
+		/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/,
+	);
+	const separateTimeMatch = separateTime?.match(/(\d{1,2}):(\d{2})/);
+	if (separateDateMatch) {
+		const [, dd, mm, yyyy] = separateDateMatch;
+		const [, hh = "00", min = "00"] = separateTimeMatch || [];
+		return toIsoLocal(yyyy, mm, dd, hh, min);
+	}
+
 	const patterns = [
 		/(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?/,
 		/(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?/,
@@ -242,7 +254,7 @@ function isExplicitOutgoingTransfer(text) {
 }
 
 function isExplicitIncomingTransfer(text) {
-	return /nuestro\(a\) cliente\s+.+?\s+ha efectuado una transferencia[\s\S]*?a tu cuenta|transferencia de fondos a tu cuenta|transferencia recibida|has recibido[\s\S]*?transferencia|recibiste[\s\S]*?transferencia|abono recibido|dep[oó]sito recibido/i.test(
+	return /nuestro\(a\) cliente\s+.+?\s+ha (?:efectuado|instru[ií]do|instruido) una transferencia[\s\S]*?a (?:tu|su) cuenta|transferencia de fondos (?:a (?:tu|su) cuenta|recibida)|transferencia recibida|has recibido[\s\S]*?transferencia|recibiste[\s\S]*?transferencia|abono recibido|dep[oó]sito recibido/i.test(
 		text,
 	);
 }
@@ -343,7 +355,7 @@ function extractIncomingTransferCounterparty(text) {
 
 function extractIncomingTransferSender(text) {
 	const match = text.match(
-		/nuestro\(a\) cliente\s+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ .'-]{3,80})\s+ha efectuado una transferencia/i,
+		/nuestro\(a\) cliente\s+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ .'-]{3,80})\s+ha (?:efectuado|instru[ií]do|instruido) una transferencia/i,
 	);
 	return match ? cleanValue(match[1]) : null;
 }
@@ -480,6 +492,10 @@ function extractTransactionId(text) {
 		"ID",
 		"Número de comprobante",
 		"Numero de comprobante",
+		"Nº de operación",
+		"N° de operación",
+		"Numero de operación",
+		"Número de operación",
 	]);
 	if (!value) return null;
 	const match = value.match(/[A-Z0-9_]{10,}/i);
@@ -493,7 +509,8 @@ function redactSensitive(text) {
 		.replace(/\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b/g, "[rut]")
 		.replace(/\b\d{7,8}-[\dkK]\b/g, "[rut]")
 		.replace(/\b\d{2}-\d{3}-\d{5}-\d{2}\b/g, "[cuenta]")
-		.replace(/Cuenta\s+\*+\d+/gi, "Cuenta [cuenta]");
+		.replace(/Cuenta\s+\*+\d+/gi, "Cuenta [cuenta]")
+		.replace(/\b\d{10,14}\b/g, "[cuenta]");
 }
 
 function isLikelyLabelLine(line) {
@@ -503,6 +520,21 @@ function isLikelyLabelLine(line) {
 		"destino",
 		"datos del destinatario",
 		"datos de la transferencia",
+		"detalle de transferencia",
+		"datos transaccion",
+		"datos transacción",
+		"banco de destino",
+		"cuenta de destino",
+		"rut destinatario",
+		"monto transferencia",
+		"nº de operacion",
+		"nº de operación",
+		"n° de operacion",
+		"n° de operación",
+		"numero de operacion",
+		"numero de operación",
+		"número de operacion",
+		"número de operación",
 		"tipo de cuenta",
 		"n de cuenta",
 		"rut",
@@ -537,6 +569,13 @@ function isInvalidCounterparty(value) {
 		"id",
 		"cuenta corriente",
 		"cuenta vista",
+		"banco de destino",
+		"cuenta de destino",
+		"rut destinatario",
+		"monto transferencia",
+		"detalle de transferencia",
+		"datos transaccion",
+		"datos transacción",
 	].includes(normalized);
 }
 
