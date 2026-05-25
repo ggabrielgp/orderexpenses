@@ -933,17 +933,12 @@ function render() {
 		(tx) => tx.direction === "outflow",
 	);
 	renderViewToggle();
-	renderHeroKpis(
-		visibleExpenses.filter(hasKnownAmount),
-		allMonthTransactions,
-	);
+	renderHeroKpis(visibleExpenses.filter(hasKnownAmount), allMonthTransactions);
 	dashboardEl.hidden = state.view !== "dashboard";
 	transactionsEl.hidden = state.view !== "table";
-	budgetPanelEl.replaceChildren();
+	budgetPanelEl?.replaceChildren();
 	dashboardEl.replaceChildren();
 	transactionsEl.replaceChildren();
-
-	renderBudgetPanel(visibleExpenses.filter(hasKnownAmount));
 
 	if (state.isGmailSyncing) {
 		renderSyncingSummary();
