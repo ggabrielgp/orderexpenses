@@ -2024,9 +2024,12 @@ function renderChartDayDetail(selected, selectedDay, expenses) {
 	panel.className = "chart-detail";
 	panel.setAttribute("aria-live", "polite");
 
+	const header = document.createElement("div");
+	header.className = "chart-detail-header";
 	const title = document.createElement("h4");
 	const amount = document.createElement("strong");
 	amount.className = "chart-detail-total";
+	header.append(title, amount);
 
 	if (!selectedDay) {
 		title.textContent = "Selecciona una barra";
@@ -2034,14 +2037,14 @@ function renderChartDayDetail(selected, selectedDay, expenses) {
 		const empty = document.createElement("p");
 		empty.textContent =
 			"Elige un día del gráfico para ver qué gastos forman ese total.";
-		panel.append(title, amount, empty);
+		panel.append(header, empty);
 		return panel;
 	}
 
 	const matches = chartDayTransactions(selected, selectedDay, expenses);
 	title.textContent = chartDetailTitle(selected, selectedDay);
 	amount.textContent = formatCLP(sumAmounts(matches));
-	panel.append(title, amount);
+	panel.append(header);
 
 	if (matches.length === 0) {
 		const empty = document.createElement("p");

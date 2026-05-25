@@ -1196,6 +1196,19 @@ select:focus {
 	overscroll-behavior: contain;
 }
 
+.chart-detail-header {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	display: grid;
+	gap: var(--space-1);
+	margin: calc(var(--space-3) * -1) calc(var(--space-3) * -1) 0;
+	padding: var(--space-3) var(--space-3) var(--space-2);
+	border-bottom: 1px solid var(--line);
+	background: rgba(255, 252, 246, 0.96);
+	backdrop-filter: blur(12px);
+}
+
 .chart-detail h4,
 .chart-summary h4 {
 	margin: 0 0 var(--space-1);
@@ -2424,6 +2437,35 @@ dialog.modal[open] {
 	}
 }
 
+@media (max-width: 1149px) {
+	.chart-body {
+		grid-template-columns: 1fr;
+	}
+
+	.weekly-chart {
+		justify-content: flex-start;
+		gap: var(--space-3);
+		min-height: 220px;
+		overflow-x: auto;
+		padding-bottom: var(--space-2);
+		scrollbar-gutter: stable;
+	}
+
+	.weekly-bar {
+		flex: 0 0 76px;
+		min-height: 210px;
+	}
+
+	.weekly-track {
+		width: 42px;
+		height: 140px;
+	}
+
+	.chart-detail {
+		max-height: 260px;
+	}
+}
+
 @media (max-width: 800px) {
 	.shell {
 		width: min(100% - 24px, 1180px);
@@ -2527,13 +2569,22 @@ dialog.modal[open] {
 
 	.weekly-chart {
 		gap: var(--space-2);
-		overflow-x: auto;
-		padding-bottom: var(--space-2);
+	}
+
+	.weekly-bar {
+		flex-basis: 66px;
+		min-height: 190px;
+	}
+
+	.weekly-track {
+		width: 36px;
+		height: 120px;
 	}
 
 	.weekly-value {
-		writing-mode: vertical-rl;
 		justify-self: center;
+		font-size: 0.66rem;
+		white-space: nowrap;
 	}
 
 	.metric-card {
