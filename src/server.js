@@ -235,9 +235,7 @@ export default async function handleRequest(req, res) {
 			const state = url.searchParams.get("state");
 			if (!code) throw httpError(400, "Missing OAuth code");
 			const result = await saveTokenFromCode(code, state);
-			if (result.sessionId === session.sessionId) {
-				refreshSessionCookie(res, session.sessionId);
-			}
+			refreshSessionCookie(res, result.sessionId);
 			res.writeHead(302, { location: "/?gmail=connected" });
 			return res.end();
 		}

@@ -137,6 +137,7 @@ const state = {
 	activeCounterpartyDetailKey: null,
 	returnToCounterpartyKey: null,
 	activeCategory: null,
+	tableCategoryFilter: "",
 	selectedTransactionIds: new Set(),
 	bulkCategory: "",
 	bulkStatus: "",
@@ -819,6 +820,7 @@ async function changeSelectedMonth() {
 	state.incomeCandidates = [];
 	state.chartTab = "month";
 	state.chartDayKey = null;
+	state.tableCategoryFilter = "";
 	await loadGmailStatus();
 	await loadTransactions();
 }
@@ -925,7 +927,7 @@ function updatePageTitle(isConnected) {
 	}
 }
 
-function render() {
+function render(options = {}) {
 	renderMonthSelect();
 	const visibleTransactions = selectedMonthExpenseTransactions(
 		state.transactions,
@@ -955,8 +957,9 @@ function render() {
 			{ actionLabel: "Agregar gasto", onAction: openNewExpenseModal },
 		);
 		if (state.view === "dashboard") {
-			dashboardEl.append(renderBudgetToggle());
-			if (state.budgetEnabled) dashboardEl.append(renderBudgetCard(0));
+			dashboardEl.append(
+				state.budgetEnabled ? renderBudgetPanel(0) : renderBudgetToggle(),
+			);
 			dashboardEl.append(empty);
 		} else {
 			transactionsEl.append(empty);
@@ -965,7 +968,7 @@ function render() {
 	}
 
 	if (state.view === "dashboard") {
-		renderDashboard(visibleTransactions);
+		renderDashboard(visibleTransactions, options);
 		return;
 	}
 
@@ -986,15 +989,39 @@ function renderViewToggle() {
 }
 
 function renderTableView(transactions) {
-	const sorted = sortTransactions(transactions);
+	const categoryFilter = activeTableCategoryFilter(transactions);
+	const filtered = filterTransactionsByTableCategory(transactions, categoryFilter);
+	const sorted = sortTransactions(filtered);
 	pruneSelectedTransactions(sorted);
-	const tableSummary = renderTableSummary(sorted);
+	const tableSummary = renderTableSummary(sorted, transactions, categoryFilter);
+	const categoryFilters = renderTableCategoryFilters(transactions, categoryFilter);
 	const bulkBar = renderBulkCategoryBar(sorted);
 	const tableFeedback = renderTableFeedback();
 	const table = document.createElement("table");
 	table.className = "transactions-table";
 	table.append(renderTableHead(sorted), renderTableBody(sorted));
-	transactionsEl.append(tableSummary, bulkBar, tableFeedback, table);
+	transactionsEl.append(tableSummary, categoryFilters, bulkBar, tableFeedback, table);
+}
+
+function activeTableCategoryFilter(transactions) {
+	const normalized = normalizeCategoryName(state.tableCategoryFilter || "");
+	if (!normalized) return "";
+	const hasCategory = transactions.some(
+		(tx) => categoryKey(categoryLabelForTransaction(tx)) === categoryKey(normalized),
+	);
+	if (!hasCategory) {
+		state.tableCategoryFilter = "";
+		return "";
+	}
+	return normalized;
+}
+
+function filterTransactionsByTableCategory(transactions, category) {
+	if (!category) return transactions;
+	const selectedKey = categoryKey(category);
+	return transactions.filter(
+		(tx) => categoryKey(categoryLabelForTransaction(tx)) === selectedKey,
+	);
 }
 
 function updateChartOnly() {
@@ -1008,10 +1035,11 @@ function updateChartOnly() {
 	existingChart.replaceWith(newChart);
 }
 
-function renderDashboard(transactions) {
+function renderDashboard(transactions, options = {}) {
 	const expenses = transactions.filter((tx) => tx.direction === "outflow");
 	const knownExpenses = expenses.filter(hasKnownAmount);
 	const unknownExpenseCount = expenses.length - knownExpenses.length;
+	const pendingReviewCount = reviewableTransactions(transactions).length;
 	const totalSpent = sumAmounts(knownExpenses);
 	const averageExpense = knownExpenses.length
 		? Math.round(totalSpent / knownExpenses.length)
@@ -1037,18 +1065,13 @@ function renderDashboard(transactions) {
 	);
 	const dailySpending = buildMonthlyDailySpending(knownExpenses);
 
-	const metrics = document.createElement("div");
-	metrics.className = "metric-grid";
-	metrics.append(
-		metricCard(
-			`Total gastado en ${selectedMonthLabel()}`,
-			formatCLP(totalSpent),
-			`${knownExpenses.length} salidas con monto${unknownExpenseCount ? ` · ${unknownExpenseCount} por revisar` : ""}`,
-		),
+	const supportMetrics = document.createElement("div");
+	supportMetrics.className = "support-metrics";
+	supportMetrics.append(
 		metricCard(
 			"Gasto promedio",
 			formatCLP(averageExpense),
-			"Promedio con montos conocidos",
+			"¿Cuánto cuesta un movimiento típico?",
 		),
 		metricCard(
 			"Mayor gasto",
@@ -1058,11 +1081,13 @@ function renderDashboard(transactions) {
 				"Sin gastos",
 		),
 		metricCard(
-			"Por revisar",
-			String(unknownExpenseCount),
-			unknownExpenseCount
-				? "Salidas sin monto conocido o pendientes de revisión"
-				: "Todas las salidas visibles tienen monto conocido",
+			"Qué revisar",
+			String(pendingReviewCount || unknownExpenseCount),
+			pendingReviewCount
+				? "Movimientos que necesitan confirmación"
+				: unknownExpenseCount
+					? "Salidas sin monto conocido"
+					: "Nada urgente por corregir",
 		),
 	);
 
@@ -1088,10 +1113,20 @@ function renderDashboard(transactions) {
 		),
 	);
 
+	const lead = renderDashboardLead(transactions, knownExpenses, {
+		totalSpent,
+		averageExpense,
+		unknownExpenseCount,
+		pendingReviewCount,
+		topCategory,
+		topCounterparty,
+		largestExpense,
+	});
 	const monthStory = renderMonthStoryCard(transactions, knownExpenses, {
 		totalSpent,
 		averageExpense,
 		unknownExpenseCount,
+		pendingReviewCount,
 		topCategory,
 		topCounterparty,
 		largestExpense,
@@ -1100,7 +1135,6 @@ function renderDashboard(transactions) {
 	const budgetCard = state.budgetEnabled ? renderBudgetCard(totalSpent) : null;
 	const weeklyChart = renderMonthlyDailyChart(dailySpending, knownExpenses);
 	const categoryDistribution = renderCategoryDistribution(knownExpenses);
-
 	const breakdown = document.createElement("section");
 	breakdown.className = "breakdown-card";
 	const title = document.createElement("h3");
@@ -1117,19 +1151,98 @@ function renderDashboard(transactions) {
 	}
 
 	const cards = [
-		monthStory,
-		budgetToggle,
-		...(budgetCard ? [budgetCard] : []),
-		metrics,
-		weeklyChart,
+		lead,
+		state.budgetEnabled ? renderBudgetPanel(totalSpent, budgetCard) : budgetToggle,
 		categoryDistribution,
+		weeklyChart,
+		monthStory,
+		supportMetrics,
 		insights,
 		breakdown,
 	];
 	cards.forEach((card, index) => {
 		dashboardEl.append(card);
-		animateEntry(card, index);
+		if (options.animate !== false) animateEntry(card, index);
 	});
+}
+
+function renderDashboardLead(transactions, knownExpenses, context) {
+	const section = document.createElement("section");
+	section.className = "dashboard-lead";
+	section.setAttribute("aria-label", "Resumen principal del mes");
+
+	const primary = document.createElement("article");
+	primary.className = "primary-money-card";
+	const question = document.createElement("span");
+	question.textContent = "¿Cuánto gasté?";
+	const amount = document.createElement("strong");
+	amount.textContent = formatCLP(context.totalSpent);
+	const detail = document.createElement("p");
+	detail.textContent = `${selectedMonthLabel()} · ${knownExpenses.length} gastos con monto${context.unknownExpenseCount ? ` · ${context.unknownExpenseCount} sin monto claro` : ""}`;
+	primary.append(question, amount, detail);
+
+	const remaining = dashboardRemainingSummary(context.totalSpent);
+	const side = document.createElement("div");
+	side.className = "lead-answer-stack";
+	side.append(
+		leadAnswerCard("remaining", "¿Cuánto me queda?", remaining.value, remaining.detail),
+		leadAnswerCard(
+			"top-category",
+			"¿Dónde se fue la plata?",
+			context.topCategory.label,
+			context.topCategory.label === "—"
+				? "Todavía no hay categoría dominante."
+				: `${formatCLP(context.topCategory.total)} concentrados ahí.`,
+		),
+		leadAnswerCard(
+			"review",
+			"¿Qué tengo que revisar?",
+			String(context.pendingReviewCount || context.unknownExpenseCount),
+			context.pendingReviewCount || context.unknownExpenseCount
+				? "Abrí el detalle sólo para corregir esos movimientos."
+				: "No hay alertas urgentes en este periodo.",
+		),
+	);
+
+	section.append(primary, side);
+	return section;
+}
+
+function dashboardRemainingSummary(totalSpent) {
+	const income = confirmedBudgetIncome();
+	if (!state.budgetEnabled || income.amount === null) {
+		return {
+			value: "—",
+			detail: "Activa el cálculo de presupuesto para estimarlo.",
+		};
+	}
+	const remaining = income.amount - totalSpent;
+	return {
+		value: remaining >= 0 ? formatCLP(remaining) : `-${formatCLP(Math.abs(remaining))}`,
+		detail: `${formatCLP(income.amount)} ingreso - ${formatCLP(totalSpent)} gastos`,
+	};
+}
+
+function leadAnswerCard(key, label, value, detail) {
+	const card = document.createElement("article");
+	card.className = "lead-answer-card";
+	card.dataset.answer = key;
+	const labelEl = document.createElement("span");
+	labelEl.textContent = label;
+	const valueEl = document.createElement("strong");
+	valueEl.textContent = value;
+	const detailEl = document.createElement("small");
+	detailEl.textContent = detail;
+	card.append(labelEl, valueEl, detailEl);
+	return card;
+}
+
+function updateDashboardRemainingSummary(totalSpent) {
+	const card = dashboardEl.querySelector('[data-answer="remaining"]');
+	if (!card) return;
+	const remaining = dashboardRemainingSummary(totalSpent);
+	card.querySelector("strong").textContent = remaining.value;
+	card.querySelector("small").textContent = remaining.detail;
 }
 
 function renderMonthStoryCard(transactions, knownExpenses, context) {
@@ -1158,11 +1271,7 @@ function renderMonthStoryCard(transactions, knownExpenses, context) {
 		list.append(row);
 	}
 
-	card.append(
-		header,
-		list,
-		renderNextBestAction(transactions, knownExpenses, context),
-	);
+	card.append(header, list);
 	return card;
 }
 
@@ -1284,7 +1393,7 @@ function renderBudgetToggle() {
 	button.addEventListener("click", () => {
 		state.budgetEnabled = !state.budgetEnabled;
 		saveViewPreferences();
-		render();
+		preserveScrollDuringRender(() => render({ animate: false }));
 	});
 	const knob = document.createElement("span");
 	knob.setAttribute("aria-hidden", "true");
@@ -1294,18 +1403,19 @@ function renderBudgetToggle() {
 	return section;
 }
 
+function renderBudgetPanel(totalSpent, budgetCard = renderBudgetCard(totalSpent)) {
+	const panel = renderBudgetToggle();
+	panel.classList.add("budget-toggle-card-expanded");
+	const content = document.createElement("div");
+	content.className = "budget-expansion";
+	content.append(budgetCard);
+	panel.append(content);
+	return panel;
+}
+
 function renderBudgetCard(totalSpent) {
 	const card = document.createElement("section");
 	card.className = "budget-card";
-
-	const header = document.createElement("div");
-	header.className = "budget-header";
-	const title = document.createElement("h3");
-	title.textContent = "Cuánto te queda";
-	const copy = document.createElement("p");
-	copy.textContent =
-		"Una respuesta simple: ingreso confirmado menos gastos capturados, con diferencias por aclarar si algo no calza.";
-	header.append(title, copy);
 
 	const detection = renderIncomeDetection(totalSpent);
 	const form = document.createElement("div");
@@ -1343,7 +1453,7 @@ function renderBudgetCard(totalSpent) {
 		),
 	);
 
-	card.append(header, detection, form, results);
+	card.append(detection, form, results);
 	wireBudgetInput(salaryInput.input, "salary", totalSpent, card);
 	wireBudgetInput(remainingInput.input, "actualRemaining", totalSpent, card);
 	updateBudgetResults(card, totalSpent);
@@ -1570,6 +1680,7 @@ function wireBudgetInput(input, key, totalSpent, card) {
 		saveBudgetPreferences();
 		updateBudgetResults(card, totalSpent);
 		updateHeroKpis();
+		updateDashboardRemainingSummary(totalSpent);
 	});
 	input.addEventListener("blur", () => {
 		input.value = sanitizeBudgetInput(input.value);
@@ -1580,6 +1691,7 @@ function wireBudgetInput(input, key, totalSpent, card) {
 		saveBudgetPreferences();
 		updateBudgetResults(card, totalSpent);
 		updateHeroKpis();
+		updateDashboardRemainingSummary(totalSpent);
 	});
 }
 
@@ -2364,12 +2476,12 @@ function renderCategoryDistribution(transactions) {
 			animationEasing: "cubicOut",
 			tooltip: {
 				trigger: "item",
-				backgroundColor: "#0F172A",
-				borderColor: "#334155",
+				backgroundColor: "#fffcf6",
+				borderColor: "rgba(57, 48, 35, 0.18)",
 				borderWidth: 1,
 				padding: [10, 14],
 				textStyle: {
-					color: "#F8FAFC",
+					color: "#17211d",
 					fontFamily: "Plus Jakarta Sans, sans-serif",
 					fontSize: 13,
 				},
@@ -2417,7 +2529,7 @@ function renderCategoryDistribution(transactions) {
 					style: {
 						text: "Total",
 						fontSize: 12,
-						fill: "#94A3B8",
+						fill: "#7a827b",
 						fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
 						textAlign: "center",
 					},
@@ -2429,7 +2541,7 @@ function renderCategoryDistribution(transactions) {
 					style: {
 						text: formatCLP(total),
 						fontSize: 20,
-						fill: "#0F172A",
+						fill: "#17211d",
 						fontWeight: 700,
 						fontFamily: "Plus Jakarta Sans, sans-serif",
 						textAlign: "center",
@@ -2471,12 +2583,12 @@ function renderCategoryDistribution(transactions) {
 }
 
 function showCategoryInTable(category) {
+	state.tableCategoryFilter = normalizeCategoryName(category || "");
 	if (state.view === "table") {
-		highlightTableByCategory(category);
+		render();
 		return;
 	}
 	setView("table");
-	setTimeout(() => highlightTableByCategory(category), prefersReducedMotion() ? 0 : 240);
 }
 
 function highlightTableByCategory(category) {
@@ -2526,6 +2638,10 @@ function buildCategoryBreakdown(transactions) {
 			color: categoryVisualColor(group.category),
 		}))
 		.sort((a, b) => b.total - a.total);
+}
+
+function categoryLabelForTransaction(transaction) {
+	return normalizeCategoryName(transaction.category || "") || "Sin categoría";
 }
 
 function buildCategoryDisplayRows(rows) {
@@ -3094,9 +3210,9 @@ function renderTableHead(transactions = []) {
 	const selectableCount = transactions.length;
 	const columns = [
 		{ key: "select", label: "Seleccionar", sortable: false },
-		{ key: "date", label: "Fecha", sortable: true },
-		{ key: "amount", label: "Monto", sortable: true },
 		{ key: "counterparty", label: "Comercio o persona", sortable: true },
+		{ key: "amount", label: "Monto", sortable: true },
+		{ key: "date", label: "Fecha", sortable: true },
 		{ key: "category", label: "Categoría", sortable: true },
 		{ key: null, label: "", sortable: false },
 	];
@@ -3177,7 +3293,7 @@ function renderTableBody(sorted) {
 	return tbody;
 }
 
-function renderTableSummary(transactions) {
+function renderTableSummary(transactions, allTransactions = transactions, categoryFilter = "") {
 	const expenses = transactions.filter(
 		(tx) => tx.direction === "outflow" && hasKnownAmount(tx),
 	);
@@ -3188,13 +3304,76 @@ function renderTableSummary(transactions) {
 	const box = document.createElement("div");
 	box.className = "table-summary";
 	const label = document.createElement("span");
-	label.textContent = `Total gastado en ${selectedMonthLabel()}`;
+	label.textContent = categoryFilter
+		? `${categoryFilter} en ${selectedMonthLabel()}`
+		: `Total gastado en ${selectedMonthLabel()}`;
 	const value = document.createElement("strong");
 	value.textContent = formatCLP(total);
 	const detail = document.createElement("small");
-	detail.textContent = `${expenses.length} salidas con monto${pending ? ` · ${pending} por revisar` : ""}`;
+	const totalExpenses = allTransactions.filter(
+		(tx) => tx.direction === "outflow" && hasKnownAmount(tx),
+	).length;
+	detail.textContent = categoryFilter
+		? `${expenses.length} de ${totalExpenses} salidas con monto${pending ? ` · ${pending} por revisar` : ""}`
+		: `${expenses.length} salidas con monto${pending ? ` · ${pending} por revisar` : ""}`;
 	box.append(label, value, detail);
 	return box;
+}
+
+function renderTableCategoryFilters(transactions, activeCategory) {
+	const expenses = transactions.filter(
+		(tx) => tx.direction === "outflow" && hasKnownAmount(tx),
+	);
+	const rows = buildCategoryBreakdown(expenses);
+	const bar = document.createElement("div");
+	bar.className = "table-category-filters";
+	bar.setAttribute("role", "group");
+	bar.setAttribute("aria-label", "Filtrar tabla por categoría");
+
+	const intro = document.createElement("div");
+	intro.className = "table-category-filter-intro";
+	const title = document.createElement("strong");
+	title.textContent = "Filtrar detalle";
+	const copy = document.createElement("span");
+	copy.textContent = activeCategory
+		? "Estás viendo sólo una categoría."
+		: "Elegí una categoría para limpiar el ruido.";
+	intro.append(title, copy);
+	bar.append(intro);
+
+	const field = document.createElement("label");
+	field.className = "table-category-filter-field";
+	const fieldLabel = document.createElement("span");
+	fieldLabel.textContent = "Categoría";
+	const select = document.createElement("select");
+	select.append(
+		renderTableCategoryFilterOption({
+			category: "",
+			total: sumAmounts(expenses),
+			count: expenses.length,
+			label: "Todas las categorías",
+		}),
+	);
+	for (const row of rows) {
+		select.append(renderTableCategoryFilterOption(row));
+	}
+	select.value = activeCategory;
+	select.addEventListener("change", () => {
+		state.tableCategoryFilter = select.value;
+		state.bulkStatus = "";
+		clearTransactionSelection();
+	});
+	field.append(fieldLabel, select);
+
+	bar.append(field);
+	return bar;
+}
+
+function renderTableCategoryFilterOption(row) {
+	const option = document.createElement("option");
+	option.value = row.category;
+	option.textContent = `${row.label || row.category} · ${formatCLP(row.total)} · ${row.count}`;
+	return option;
 }
 
 function renderBulkCategoryBar(transactions) {
