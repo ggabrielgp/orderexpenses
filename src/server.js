@@ -13,6 +13,7 @@ import {
 } from "./gmail.js";
 import {
 	clearSessionUser,
+	configureOAuthTokenEncryption,
 	createSession,
 	deleteCounterpartyCategoryRule,
 	deleteManualMovement,
@@ -52,6 +53,8 @@ const SESSION_TTL_DAYS = normalizeSessionTtlDays(
 	process.env.SESSION_TTL_DAYS ?? 30,
 );
 const APP_BASE_URL = process.env.APP_BASE_URL ?? null;
+
+configureOAuthTokenEncryption(process.env);
 
 const DEFAULT_CATEGORIES = [
 	{ name: "Supermercado", color: "#16a34a", builtin: true },

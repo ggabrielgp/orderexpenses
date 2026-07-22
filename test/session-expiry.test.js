@@ -7,6 +7,8 @@ import { tmpdir } from "node:os";
 const tmpDir = mkdtempSync(resolve(tmpdir(), "orderexpenses-session-test-"));
 process.env.VERCEL = "1";
 process.env.TURSO_DATABASE_URL = `file:${resolve(tmpDir, "test.db")}`;
+process.env.OAUTH_TOKEN_ENCRYPTION_ACTIVE_KEY_ID = "session-test";
+process.env.OAUTH_TOKEN_ENCRYPTION_ACTIVE_KEY = Buffer.alloc(32, 9).toString("base64url");
 
 const server = await import("../src/server.js");
 const {

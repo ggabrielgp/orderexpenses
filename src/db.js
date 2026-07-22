@@ -2,6 +2,12 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { createClient } from "@libsql/client";
+import {
+	OAuthTokenStorageError,
+	createTokenKeyring,
+	decryptOAuthToken,
+	encryptOAuthToken,
+} from "./oauth-token-crypto.js";
 
 const dbPath = process.env.DB_PATH ?? "data/finance.db";
 const localDbPath = resolve(dbPath);
@@ -24,6 +30,19 @@ export const db = createClient({
 });
 
 let initPromise = null;
+let oauthTokenKeyring = null;
+
+export function configureOAuthTokenEncryption(env = process.env) {
+	oauthTokenKeyring = createTokenKeyring(env);
+	return oauthTokenKeyring;
+}
+
+function requireOAuthTokenKeyring() {
+	if (!oauthTokenKeyring) {
+		throw new OAuthTokenStorageError("TOKEN_CONFIG_INVALID");
+	}
+	return oauthTokenKeyring;
+}
 
 export async function ensureDbInitialized() {
 	initPromise ??= initDb();
@@ -524,13 +543,18 @@ export async function consumeOAuthState(state) {
 }
 
 export async function upsertGoogleToken(userEmail, token) {
+	const tokenJson = encryptOAuthToken({
+		token,
+		userEmail,
+		keyring: requireOAuthTokenKeyring(),
+	});
 	await db.execute({
 		sql: `INSERT INTO google_tokens (user_email, token_json)
 		 VALUES (?, ?)
 		 ON CONFLICT(user_email) DO UPDATE SET
 		   token_json = excluded.token_json,
 		   updated_at = CURRENT_TIMESTAMP`,
-		args: [userEmail, JSON.stringify(token)],
+		args: [userEmail, tokenJson],
 	});
 }
 
@@ -540,7 +564,12 @@ export async function getGoogleToken(userEmail) {
 		args: [userEmail],
 	});
 	const row = result.rows[0];
-	return row ? safeJson(row.tokenJson) : null;
+	if (!row) return null;
+	return decryptOAuthToken({
+		tokenJson: row.tokenJson,
+		userEmail,
+		keyring: requireOAuthTokenKeyring(),
+	}).token;
 }
 
 export async function deleteGoogleToken(userEmail) {
@@ -553,16 +582,12 @@ export async function deleteGoogleToken(userEmail) {
 
 export async function upsertGoogleProfile(userEmail, profile) {
 	await db.execute({
-		sql: `INSERT INTO google_tokens (user_email, token_json, profile_json)
-		 VALUES (?, ?, ?)
+		sql: `INSERT INTO google_tokens (user_email, profile_json)
+		 VALUES (?, ?)
 		 ON CONFLICT(user_email) DO UPDATE SET
 		   profile_json = excluded.profile_json,
 		   updated_at = CURRENT_TIMESTAMP`,
-		args: [
-			userEmail,
-			JSON.stringify((await getGoogleToken(userEmail)) || {}),
-			JSON.stringify(profile),
-		],
+		args: [userEmail, JSON.stringify(profile)],
 	});
 }
 

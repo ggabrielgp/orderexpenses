@@ -68,7 +68,8 @@ export async function createOAuthClient(userEmail = null) {
 	if (userEmail) {
 		client.on("tokens", (tokens) => {
 			saveTokenForUser(userEmail, tokens).catch((error) => {
-				console.error("Failed to persist refreshed OAuth token", error);
+				const code = error?.code ?? "TOKEN_PERSISTENCE_FAILED";
+				process.stderr.write(`oauth_token_persistence_failed code=${code}\n`);
 			});
 		});
 	}
@@ -212,13 +213,17 @@ async function verifyOAuthState(receivedState) {
 	return saved;
 }
 
-async function saveTokenForUser(userEmail, tokens) {
-	const current = (await getGoogleToken(userEmail)) || {};
+export function mergeOAuthTokens(current, tokens) {
 	const merged = { ...current, ...tokens };
 	if (!merged.refresh_token && current.refresh_token) {
 		merged.refresh_token = current.refresh_token;
 	}
-	await upsertGoogleToken(userEmail, merged);
+	return merged;
+}
+
+async function saveTokenForUser(userEmail, tokens) {
+	const current = (await getGoogleToken(userEmail)) || {};
+	await upsertGoogleToken(userEmail, mergeOAuthTokens(current, tokens));
 }
 
 async function fetchUserProfileFromClient(client) {
@@ -351,7 +356,14 @@ function loadGoogleClientConfig() {
 		throw error;
 	}
 
-	const credentials = JSON.parse(readFileSync(credentialsPath, "utf8"));
+	let credentials;
+	try {
+		credentials = JSON.parse(readFileSync(credentialsPath, "utf8"));
+	} catch {
+		const error = new Error("Invalid Google credentials file: malformed JSON");
+		error.status = 400;
+		throw error;
+	}
 	const clientConfig = credentials.installed ?? credentials.web;
 	if (!clientConfig) {
 		const error = new Error(
