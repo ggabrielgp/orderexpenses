@@ -48,9 +48,8 @@ const MAX_BODY_BYTES = 256 * 1024;
 const PUBLIC_DIR = join(process.cwd(), "public");
 const SESSION_COOKIE_NAME =
 	process.env.SESSION_COOKIE_NAME ?? "finance_session";
-const SESSION_TTL_DAYS = Math.max(
-	Number(process.env.SESSION_TTL_DAYS ?? 30),
-	1,
+const SESSION_TTL_DAYS = normalizeSessionTtlDays(
+	process.env.SESSION_TTL_DAYS ?? 30,
 );
 const APP_BASE_URL = process.env.APP_BASE_URL ?? null;
 
@@ -235,7 +234,12 @@ export default async function handleRequest(req, res) {
 			if (!code) throw httpError(400, "Missing OAuth code");
 			const result = await saveTokenFromCode(code, state);
 			if (result.sessionId === session.sessionId) {
-				refreshSessionCookie(res, session.sessionId);
+				refreshSessionCookie(
+					res,
+					session.sessionId,
+					session.expiresAt,
+					new Date(),
+				);
 			}
 			res.writeHead(302, { location: "/?gmail=connected" });
 			return res.end();
@@ -310,7 +314,7 @@ export default async function handleRequest(req, res) {
 if (process.env.VERCEL !== "1") {
 	const server = createServer(handleRequest);
 	server.listen(PORT, HOST, () => {
-		console.log(`Finance MVP running at http://${HOST}:${PORT}`);
+		process.stdout.write(`Finance MVP running at http://${HOST}:${PORT}\n`);
 	});
 }
 
@@ -419,7 +423,11 @@ function sanitizePatch(body) {
 			patch[key] = body[key] === "" ? null : body[key];
 	}
 	if (Object.hasOwn(body, "amount")) {
-		if (body.amount === "" || body.amount == null) {
+		if (
+			body.amount === "" ||
+			body.amount === null ||
+			body.amount === undefined
+		) {
 			patch.amount = null;
 		} else {
 			const amount = Number(body.amount);
@@ -438,7 +446,8 @@ async function requireActiveUser(session) {
 }
 
 function normalizeMonthParam(value) {
-	if (value == null || value === "") return currentMonthKey();
+	if (value === null || value === undefined || value === "")
+		return currentMonthKey();
 	const month = String(value);
 	const match = month.match(/^(\d{4})-(\d{2})$/);
 	if (!match) throw httpError(400, "Invalid month. Use YYYY-MM.");
@@ -485,7 +494,8 @@ function guardMutationRequest(req) {
 
 	const origin = req.headers.origin;
 	if (!origin) return;
-	const parsed = new URL(origin);
+	const parsed = parseUrl(origin);
+	if (!parsed) throw httpError(403, "Cross-origin requests are not allowed");
 	if (APP_BASE_URL || process.env.VERCEL_URL) {
 		const allowedOrigins = configuredAllowedOrigins();
 		if (!allowedOrigins.has(parsed.origin)) {
@@ -548,8 +558,18 @@ function configuredAllowedOrigins() {
 	return new Set(
 		[APP_BASE_URL, vercelUrl()]
 			.filter(Boolean)
-			.map((value) => new URL(value).origin),
+			.map(parseUrl)
+			.filter(Boolean)
+			.map((url) => url.origin),
 	);
+}
+
+function parseUrl(value) {
+	try {
+		return new URL(value);
+	} catch {
+		return null;
+	}
 }
 
 function vercelUrl() {
@@ -573,34 +593,80 @@ function sendJson(res, payload, status = 200) {
 	res.end(JSON.stringify(payload));
 }
 
-async function getOrCreateSession(req, res) {
+export function normalizeSessionTtlDays(value) {
+	const days = Number(value);
+	if (!Number.isFinite(days) || days < 1 || days > 3650) {
+		throw new Error(
+			"SESSION_TTL_DAYS must be a finite number between 1 and 3650",
+		);
+	}
+	return days;
+}
+
+export function classifySessionExpiry(session, now = new Date()) {
+	const expiresAt = session?.expiresAt;
+	if (typeof expiresAt !== "string" || expiresAt.trim() === "") {
+		return "indeterminate";
+	}
+	const expiryMs = Date.parse(expiresAt);
+	const nowMs = now instanceof Date ? now.getTime() : Number.NaN;
+	if (
+		!Number.isFinite(expiryMs) ||
+		new Date(expiryMs).toISOString() !== expiresAt ||
+		!Number.isFinite(nowMs)
+	) {
+		return "indeterminate";
+	}
+	return expiryMs > nowMs ? "valid" : "expired";
+}
+
+export function sessionCookieMaxAge(expiresAt, now = new Date()) {
+	const expiryMs = Date.parse(expiresAt);
+	const nowMs = now instanceof Date ? now.getTime() : Number.NaN;
+	if (!Number.isFinite(expiryMs) || !Number.isFinite(nowMs)) return 0;
+	return Math.max(Math.floor((expiryMs - nowMs) / 1000), 0);
+}
+
+export async function getOrCreateSession(req, res, now = new Date()) {
 	const cookies = parseCookies(req.headers.cookie ?? "");
 	const fromCookie = cookies[SESSION_COOKIE_NAME];
 	if (fromCookie) {
 		const existing = await getSession(fromCookie);
-		if (existing) {
+		if (existing && classifySessionExpiry(existing, now) === "valid") {
 			await touchSession(fromCookie);
-			refreshSessionCookie(res, fromCookie);
+			refreshSessionCookie(res, fromCookie, existing.expiresAt, now);
 			return { ...existing, sessionId: fromCookie };
 		}
+		clearSessionCookie(res);
 	}
 
 	const sessionId = randomUUID();
 	const expiresAt = new Date(
-		Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+		now.getTime() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
 	).toISOString();
-	const created = await createSession(sessionId, expiresAt);
-	refreshSessionCookie(res, sessionId);
+	const created = await createSession(sessionId, expiresAt, now.toISOString());
+	refreshSessionCookie(res, sessionId, expiresAt, now);
 	return { ...created, sessionId };
 }
 
-function refreshSessionCookie(res, sessionId) {
+function refreshSessionCookie(res, sessionId, expiresAt, now) {
+	setSessionCookie(
+		res,
+		`${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
+		sessionCookieMaxAge(expiresAt, now),
+	);
+}
+
+function clearSessionCookie(res) {
+	setSessionCookie(res, `${SESSION_COOKIE_NAME}=`, 0);
+}
+
+function setSessionCookie(res, nameValue, maxAgeSeconds) {
 	const secure =
 		process.env.COOKIE_SECURE === "true" ||
 		process.env.NODE_ENV === "production";
-	const maxAgeSeconds = SESSION_TTL_DAYS * 24 * 60 * 60;
 	const cookie = [
-		`${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
+		nameValue,
 		"Path=/",
 		"HttpOnly",
 		"SameSite=Lax",
@@ -609,7 +675,11 @@ function refreshSessionCookie(res, sessionId) {
 	]
 		.filter(Boolean)
 		.join("; ");
-	res.setHeader("Set-Cookie", cookie);
+	const existing = res.getHeader?.("Set-Cookie");
+	res.setHeader(
+		"Set-Cookie",
+		existing ? [...[].concat(existing), cookie] : cookie,
+	);
 }
 
 function parseCookies(cookieHeader) {

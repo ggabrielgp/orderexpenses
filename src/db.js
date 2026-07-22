@@ -428,14 +428,19 @@ export async function deleteUserCategory(userEmail, name) {
 	return Number(result.rowsAffected || 0) > 0;
 }
 
-export async function createSession(sessionId, expiresAt = null) {
+export async function createSession(
+	sessionId,
+	expiresAt = null,
+	createdAt = new Date().toISOString(),
+) {
 	await db.execute({
-		sql: `INSERT INTO sessions (session_id, expires_at)
-		 VALUES (?, ?)
+		sql: `INSERT INTO sessions (
+			session_id, created_at, updated_at, expires_at
+		 ) VALUES (?, ?, ?, ?)
 		 ON CONFLICT(session_id) DO UPDATE SET
-		   updated_at = CURRENT_TIMESTAMP,
+		   updated_at = excluded.updated_at,
 		   expires_at = COALESCE(excluded.expires_at, sessions.expires_at)`,
-		args: [sessionId, expiresAt],
+		args: [sessionId, createdAt, createdAt, expiresAt],
 	});
 	return getSession(sessionId);
 }
