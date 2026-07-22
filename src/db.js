@@ -313,7 +313,7 @@ export async function upsertMovementOverride(
 			nextHidden ? 1 : 0,
 		],
 	});
-	return { movementKey, patch: nextPatch, hidden: nextHidden };
+	return { id: movementKey, movementKey, patch: nextPatch, hidden: nextHidden };
 }
 
 export async function hideMovement(userEmail, movementKey) {
