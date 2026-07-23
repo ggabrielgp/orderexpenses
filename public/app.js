@@ -6,6 +6,16 @@ import {
 	settleAsync,
 } from "./async-state-coordinator.js";
 import {
+	CREATE_CATEGORY_VALUE,
+	DEFAULT_CATEGORIES,
+	categoryKey,
+	defaultCategoryCatalog,
+	mergeCategoryCatalog,
+	normalizeCategoryColor,
+	normalizeCategoryName,
+	normalizeCounterpartyForUI,
+} from "./category-catalog.js";
+import {
 	FINANCE_PREFERENCE_KEYS,
 	parseFinancePreferences,
 	readFinancePreferences,
@@ -26,22 +36,6 @@ const echarts = window.echarts;
 
 const BUDGET_STORAGE_KEY = FINANCE_PREFERENCE_KEYS.budget;
 const VIEW_PREFERENCES_STORAGE_KEY = FINANCE_PREFERENCE_KEYS.view;
-
-const DEFAULT_CATEGORIES = [
-	{ name: "Supermercado", color: "#16a34a", builtin: true },
-	{ name: "Comida", color: "#f97316", builtin: true },
-	{ name: "Transporte", color: "#2563eb", builtin: true },
-	{ name: "Salud", color: "#dc2626", builtin: true },
-	{ name: "Educación", color: "#7c3aed", builtin: true },
-	{ name: "Servicios", color: "#0891b2", builtin: true },
-	{ name: "Entretenimiento", color: "#db2777", builtin: true },
-	{ name: "Ocio", color: "#a855f7", builtin: true },
-	{ name: "Hogar", color: "#65a30d", builtin: true },
-	{ name: "Transferencias", color: "#64748b", builtin: true },
-	{ name: "Suscripciones", color: "#9333ea", builtin: true },
-	{ name: "Otros", color: "#475569", builtin: true },
-];
-const CREATE_CATEGORY_VALUE = "__create_category__";
 
 // Modo demo: cargar datos ficticios sin backend solo si se pide explícitamente.
 const DEMO_MODE = new URLSearchParams(window.location.search).has("demo");
@@ -458,7 +452,7 @@ function closeGmailConsentModal() {
 
 function acceptGmailConsent() {
 	if (!gmailConsentCheck.checked) return;
-	window.location.href = connectGmailLink.href;
+	window.location.assign("/auth/google");
 }
 
 async function autoSyncAfterGmailConnect() {
@@ -2141,13 +2135,6 @@ function createWeekdayTotals(referenceDate) {
 	});
 }
 
-function preserveScrollDuringRender(callback) {
-	const scrollX = window.scrollX;
-	const scrollY = window.scrollY;
-	callback();
-	requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
-}
-
 function renderMonthlyDailyChart(series, expenses) {
 	const selected = selectedChartSeries(series);
 	const selectedDay = selectedChartDay(selected);
@@ -2798,14 +2785,6 @@ function highlightTableByCategory(category) {
 	}
 }
 
-function clearTableHighlight() {
-	const rows = document.querySelectorAll(".transactions-table tbody tr");
-	for (const row of rows) {
-		row.style.background = "";
-		row.style.borderLeftColor = "";
-	}
-}
-
 function buildCategoryBreakdown(transactions) {
 	const groups = new Map();
 	const total = sumAmounts(transactions);
@@ -3045,110 +3024,6 @@ function renderCategorySavingsHint(rows) {
 	return hint;
 }
 
-function renderCounterpartySpendSection(expenses, options = {}) {
-	const { limit = null } = options;
-	const section = document.createElement("section");
-	section.className = "counterparty-spend-card";
-	const title = document.createElement("h3");
-	title.textContent = "Comercios y personas frecuentes";
-	const copy = document.createElement("p");
-	copy.textContent =
-		"Identifica gastos repetidos, revisa su detalle y asígnales categoría sin salir del flujo principal.";
-	const allRows = buildCounterpartyRows(expenses);
-	const rows = limit ? allRows.slice(0, limit) : allRows;
-	const count = document.createElement("small");
-	count.className = "counterparty-spend-count";
-	count.textContent = `${rows.length} comercios o personas · ${expenses.length} movimientos`;
-	section.append(title, copy, count);
-	if (!rows.length) {
-		const empty = document.createElement("p");
-		empty.className = "counterparty-spend-empty";
-		empty.textContent =
-			"Aún no hay gastos suficientes para agrupar por comercio o persona.";
-		section.append(empty);
-		return section;
-	}
-
-	const list = document.createElement("div");
-	list.className = "counterparty-spend-list";
-	for (const row of rows) {
-		const item = document.createElement("article");
-		item.className = "counterparty-spend-row";
-		const meta = document.createElement("div");
-		const name = document.createElement("strong");
-		name.textContent = row.displayName;
-		const detail = document.createElement("small");
-		detail.textContent = `${formatCLP(row.total)} · ${row.count} movimientos`;
-		meta.append(name, detail);
-
-		const category = document.createElement("span");
-		category.className = "counterparty-current-category";
-		category.textContent = row.category
-			? `Categoría frecuente: ${row.category}`
-			: "Sin categoría frecuente";
-
-		const detailButton = document.createElement("button");
-		detailButton.type = "button";
-		detailButton.className = "secondary counterparty-detail-button";
-		detailButton.textContent = "Ver detalle";
-		detailButton.addEventListener("click", () => {
-			openCounterpartyDetailModal(row.counterpartyKey);
-		});
-
-		const selectButton = document.createElement("button");
-		selectButton.type = "button";
-		selectButton.className = "secondary counterparty-detail-button";
-		selectButton.textContent = "Seleccionar similares";
-		selectButton.addEventListener("click", () => {
-			requestCounterpartySelection(
-				row.counterpartyKey,
-				row.displayName,
-				expenses,
-			);
-			setView("table");
-			if (state.view === "table") render();
-		});
-
-		const actions = document.createElement("div");
-		actions.className = "counterparty-actions";
-		actions.append(category, selectButton, detailButton);
-
-		item.append(meta, actions);
-		list.append(item);
-	}
-
-	section.append(list);
-	return section;
-}
-
-function buildCounterpartyRows(expenses) {
-	const groups = new Map();
-	for (const tx of expenses) {
-		const displayName = tx.counterparty || "Sin comercio o persona";
-		const key =
-			tx.counterpartyKey ||
-			normalizeCounterpartyForUI(tx.counterparty || displayName);
-		if (!groups.has(key)) {
-			groups.set(key, {
-				counterpartyKey: key,
-				displayName,
-				total: 0,
-				count: 0,
-				category: tx.category || "",
-			});
-		}
-		const row = groups.get(key);
-		row.total += Number(tx.amount || 0);
-		row.count += 1;
-		if (!row.category && tx.category) row.category = tx.category;
-	}
-	return [...groups.values()].sort((a, b) => b.total - a.total);
-}
-
-function counterpartyCategoryOptions(expenses) {
-	return categoryOptions(expenses);
-}
-
 function categoryOptions(transactions = state.transactions) {
 	const catalog = mergeCategoryCatalog(state.categories || []);
 	const fromData = transactions
@@ -3174,45 +3049,6 @@ function categoryOptions(transactions = state.transactions) {
 		})),
 		{ value: CREATE_CATEGORY_VALUE, label: "+ Crear categoría" },
 	];
-}
-
-function mergeCategoryCatalog(categories = []) {
-	const merged = new Map(
-		defaultCategoryCatalog().map((category) => [
-			categoryKey(category.name),
-			category,
-		]),
-	);
-	for (const category of categories) {
-		const name = normalizeCategoryName(category?.name);
-		if (!name) continue;
-		merged.set(categoryKey(name), {
-			name,
-			color: normalizeCategoryColor(category?.color),
-			builtin: Boolean(category?.builtin),
-		});
-	}
-	return [...merged.values()];
-}
-
-function defaultCategoryCatalog() {
-	return DEFAULT_CATEGORIES.map((category) => ({ ...category }));
-}
-
-function normalizeCategoryName(value) {
-	return String(value || "")
-		.trim()
-		.replace(/\s+/g, " ")
-		.slice(0, 40);
-}
-
-function normalizeCategoryColor(value) {
-	const color = String(value || "").trim();
-	return /^#[0-9a-fA-F]{6}$/.test(color) ? color : "#64748b";
-}
-
-function categoryKey(value) {
-	return normalizeCounterpartyForUI(normalizeCategoryName(value));
 }
 
 function categoryColor(name) {
@@ -3241,31 +3077,6 @@ function populateCategorySelect(select, selectedValue = "") {
 		node.selected = option.value === selectedValue;
 		select.append(node);
 	}
-}
-
-async function saveCounterpartyCategoryRule(row, category) {
-	const response = await fetch("/api/counterparty-rules", {
-		method: "PUT",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify({
-			counterpartyKey: row.counterpartyKey,
-			displayName: row.displayName,
-			category,
-		}),
-	});
-	const payload = await response.json();
-	if (!response.ok) {
-		throw new Error(payload.error || "No se pudo guardar la categoría");
-	}
-	invalidateTransactionReplacement();
-	state.transactions = state.transactions.map((tx) => {
-		const key =
-			tx.counterpartyKey ||
-			normalizeCounterpartyForUI(tx.counterparty || "Sin comercio o persona");
-		if (key !== row.counterpartyKey) return tx;
-		return { ...tx, category: category || null };
-	});
-	render();
 }
 
 function openCounterpartyDetailModal(counterpartyKey) {
@@ -3323,15 +3134,6 @@ function renderCounterpartyDetailItem(transaction) {
 function closeCounterpartyDetailModal() {
 	counterpartyDetailModal.close();
 	state.activeCounterpartyDetailKey = null;
-}
-
-function normalizeCounterpartyForUI(value) {
-	return String(value || "")
-		.normalize("NFD")
-		.replace(/[\u0300-\u036f]/g, "")
-		.toLowerCase()
-		.trim()
-		.replace(/\s+/g, " ");
 }
 
 function topGroup(transactions, labelForTransaction) {
