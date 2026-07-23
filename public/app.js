@@ -121,6 +121,7 @@ const viewPreferences = loadViewPreferences();
 
 const state = {
 	transactions: [],
+	transactionsRevision: 0,
 	activeId: null,
 	sortKey: null,
 	sortDir: null,
@@ -342,8 +343,7 @@ settingsModal.addEventListener("click", (event) => {
 categoryForm.addEventListener("submit", saveCategoryFromSettings);
 
 renderMonthSelect();
-await loadGmailStatus();
-await loadProfile();
+await Promise.all([loadGmailStatus(), loadProfile()]);
 await loadCategories();
 await loadTransactions();
 await autoSyncAfterGmailConnect();
@@ -523,7 +523,9 @@ async function saveCategoryFromSettings(event) {
 			throw new Error(payload.error || "No se pudo guardar la categoría");
 		categoryFormStatus.textContent = "Categoría guardada ✓";
 		categoryName.value = "";
-		await loadCategories();
+		state.categories = mergeCategoryCatalog(
+			state.categories.concat([payload.category]),
+		);
 		renderCategorySettings();
 		render();
 	} catch (error) {
@@ -542,7 +544,10 @@ async function deleteCategoryFromSettings(name) {
 		if (!response.ok)
 			throw new Error(payload.error || "No se pudo eliminar la categoría");
 		categoryFormStatus.textContent = "Categoría eliminada.";
-		await loadCategories();
+		const deletedKey = categoryKey(name);
+		state.categories = mergeCategoryCatalog(
+			state.categories.filter((c) => categoryKey(c.name) !== deletedKey),
+		);
 		renderCategorySettings();
 		render();
 	} catch (error) {
@@ -613,8 +618,7 @@ async function disconnectGmail() {
 		gmailStatus.textContent = "Gmail desconectado.";
 		await stopGmailSyncProgress();
 		await loadProfile();
-		await loadCategories();
-		await loadGmailStatus();
+		await Promise.all([loadCategories(), loadGmailStatus()]);
 		await loadTransactions();
 	} catch (error) {
 		gmailStatus.textContent = `Error desconectando Gmail: ${error.message}`;
@@ -683,8 +687,10 @@ async function createManualExpense() {
 		const payload = await response.json();
 		if (!response.ok) throw new Error(payload.error || "Error guardando gasto");
 
-		await loadTransactions();
+		state.transactionsRevision += 1;
+		state.transactions.push(payload.transaction);
 		closeNewExpenseModal();
+		render();
 	} catch (error) {
 		newFormStatus.textContent = `Error: ${error.message}`;
 	}
@@ -721,6 +727,7 @@ async function loadIncomeCandidates({ renderAfter = true } = {}) {
 }
 
 async function loadTransactions() {
+	const revision = ++state.transactionsRevision;
 	refreshButton.disabled = true;
 	if (state.isGmailSyncing) {
 		showGmailSyncMessage();
@@ -741,6 +748,7 @@ async function loadTransactions() {
 			if (!response.ok)
 				throw new Error(payload.error || "Error cargando gastos");
 		}
+		if (revision !== state.transactionsRevision) return;
 		state.transactions = payload.transactions || [];
 		pruneSelectedTransactions();
 		await loadIncomeCandidates({ renderAfter: false });
@@ -3986,6 +3994,7 @@ function backToCounterpartyDetail() {
 async function deleteFromModal() {
 	if (!state.activeId) return;
 	const transaction = state.transactions.find((tx) => tx.id === state.activeId);
+	const transactionId = state.activeId;
 	const name =
 		(transaction && transaction.counterparty) ||
 		(transaction && transaction.description) ||
@@ -3995,7 +4004,7 @@ async function deleteFromModal() {
 	try {
 		const params = new URLSearchParams({ month: state.selectedMonth });
 		const response = await fetch(
-			`/api/transactions/${encodeURIComponent(state.activeId)}?${params}`,
+			`/api/transactions/${encodeURIComponent(transactionId)}?${params}`,
 			{
 				method: "DELETE",
 				headers: { "content-type": "application/json" },
@@ -4009,8 +4018,13 @@ async function deleteFromModal() {
 			modalStatus.textContent = "No se pudo eliminar.";
 			return;
 		}
-		await loadTransactions();
-		closeModal();
+		state.transactionsRevision += 1;
+		state.transactions = state.transactions.filter(
+			(tx) => tx.id !== transactionId,
+		);
+		pruneSelectedTransactions();
+		if (state.activeId === transactionId) closeModal();
+		render();
 	} catch (error) {
 		modalStatus.textContent = `Error: ${error.message}`;
 	}
