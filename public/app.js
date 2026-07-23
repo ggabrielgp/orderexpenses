@@ -1,4 +1,11 @@
 import {
+	beginAsync,
+	createAsyncState,
+	invalidateAsync,
+	isCurrentAsync,
+	settleAsync,
+} from "./async-state-coordinator.js";
+import {
 	calculateFinancialPosition,
 	isCountedExpense,
 	legacyConfirmationId,
@@ -129,7 +136,6 @@ const viewPreferences = loadViewPreferences();
 
 const state = {
 	transactions: [],
-	transactionsRevision: 0,
 	activeId: null,
 	sortKey: null,
 	sortDir: null,
@@ -152,6 +158,62 @@ const state = {
 	bulkStatus: "",
 	isBulkAssigning: false,
 };
+
+let asyncOwnership = createAsyncState();
+let refreshButtonOwner = null;
+let gmailSyncProgressOwner = null;
+let gmailSyncTimer = null;
+let gmailSyncFinishTimer = null;
+let gmailSyncFinishResolve = null;
+
+function beginOwnedAsync(channel, context) {
+	const started = beginAsync(asyncOwnership, channel, context);
+	asyncOwnership = started.state;
+	return started.invocation;
+}
+
+function invalidateOwnedAsync(channel) {
+	const invalidated = invalidateAsync(asyncOwnership, channel);
+	asyncOwnership = invalidated.state;
+	return invalidated.invalidatedInvocation;
+}
+
+function isCurrentOwner(invocation) {
+	return isCurrentAsync(asyncOwnership, invocation);
+}
+
+function settleOwnedAsync(invocation) {
+	asyncOwnership = settleAsync(asyncOwnership, invocation);
+}
+
+function beginTransactionReplacement(context) {
+	const invocation = beginOwnedAsync("transactions", context);
+	refreshButtonOwner = invocation;
+	refreshButton.disabled = true;
+	return invocation;
+}
+
+function invalidateTransactionReplacement() {
+	const invocation = invalidateOwnedAsync("transactions");
+	releaseRefreshButton(invocation);
+	return invocation;
+}
+
+function releaseRefreshButton(invocation) {
+	if (refreshButtonOwner !== invocation) return;
+	refreshButtonOwner = null;
+	refreshButton.disabled = false;
+}
+
+function isCurrentCandidate(invocation) {
+	const context = invocation.context;
+	return (
+		isCurrentOwner(invocation) &&
+		state.selectedMonth === context.month &&
+		(state.budget.payTiming || "varies") === context.payTiming &&
+		Boolean(state.budget.autoDetectIncome) === context.autoDetectIncome
+	);
+}
 
 const currency = new Intl.NumberFormat("es-CL", {
 	style: "currency",
@@ -564,6 +626,7 @@ async function deleteCategoryFromSettings(name) {
 }
 
 async function loadGmailStatus(options = {}) {
+	const isCurrent = options.isCurrent || (() => true);
 	try {
 		let status;
 		if (DEMO_MODE) {
@@ -572,6 +635,7 @@ async function loadGmailStatus(options = {}) {
 			const response = await fetch("/api/gmail/status");
 			status = await response.json();
 		}
+		if (!isCurrent()) return false;
 		if (!status.hasCredentials && !DEMO_MODE) {
 			updatePageTitle(false);
 			if (!options.preserveMessage) {
@@ -582,7 +646,7 @@ async function loadGmailStatus(options = {}) {
 			syncGmailButton.hidden = true;
 			syncGmailButton.disabled = true;
 			connectGmailLink.removeAttribute("aria-disabled");
-			return;
+			return true;
 		}
 		updatePageTitle(status.connected || DEMO_MODE);
 		if (!options.preserveMessage) {
@@ -602,11 +666,14 @@ async function loadGmailStatus(options = {}) {
 			"aria-disabled",
 			status.connected || DEMO_MODE ? "true" : "false",
 		);
+		return true;
 	} catch (error) {
+		if (!isCurrent()) return false;
 		updatePageTitle(false);
 		if (!options.preserveMessage) {
 			gmailStatus.textContent = `Error revisando Gmail: ${error.message}`;
 		}
+		return false;
 	}
 }
 
@@ -624,7 +691,8 @@ async function disconnectGmail() {
 		if (!response.ok)
 			throw new Error(payload.error || "Error desconectando Gmail");
 		gmailStatus.textContent = "Gmail desconectado.";
-		await stopGmailSyncProgress();
+		const oldSync = invalidateOwnedAsync("sync");
+		resetGmailSyncProgress(oldSync);
 		await loadProfile();
 		await Promise.all([loadCategories(), loadGmailStatus()]);
 		await loadTransactions();
@@ -642,30 +710,52 @@ async function syncGmail() {
 			"Modo demostraci\u00f3n: los datos ya est\u00e1n cargados.";
 		return;
 	}
-	startGmailSyncProgress();
+	const context = {
+		month: state.selectedMonth,
+		payTiming: state.budget.payTiming || "varies",
+	};
+	const priorSync = invalidateOwnedAsync("sync");
+	resetGmailSyncProgress(priorSync);
+	const syncOwner = beginOwnedAsync("sync", context);
+	const transactionOwner = beginTransactionReplacement({
+		month: context.month,
+	});
+	startGmailSyncProgress(syncOwner);
 	gmailStatus.textContent = `Buscando gastos de ${selectedMonthLabel()} en Gmail...`;
 	try {
 		const response = await fetch("/api/gmail/sync", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({
-				limit: 200,
-				month: state.selectedMonth,
-				payTiming: state.budget.payTiming,
-			}),
+			body: JSON.stringify({ limit: 200, ...context }),
 		});
 		const payload = await response.json();
 		if (!response.ok)
 			throw new Error(payload.error || "Error sincronizando Gmail");
+		if (!isCurrentOwner(syncOwner)) return;
 		gmailStatus.textContent = `Sincronizaci\u00f3n lista: ${payload.scanned} mensajes de ${selectedMonthLabel()} procesados.`;
-		state.transactions = payload.transactions || [];
-		await loadIncomeCandidates({ renderAfter: false });
+		if (isCurrentOwner(transactionOwner)) {
+			state.transactions = payload.transactions || [];
+			await loadIncomeCandidates({ renderAfter: false });
+		}
 	} catch (error) {
+		if (!isCurrentOwner(syncOwner)) return;
 		gmailStatus.textContent = `Error sincronizando Gmail: ${error.message}`;
 	} finally {
-		await stopGmailSyncProgress();
-		await loadGmailStatus({ preserveMessage: true });
-		render();
+		if (!isCurrentOwner(syncOwner)) return;
+		await stopGmailSyncProgress(syncOwner);
+		if (!isCurrentOwner(syncOwner)) return;
+		await loadGmailStatus({
+			preserveMessage: true,
+			isCurrent: () => isCurrentOwner(syncOwner),
+		});
+		if (!isCurrentOwner(syncOwner)) return;
+		const ownsTransactions = isCurrentOwner(transactionOwner);
+		if (ownsTransactions) {
+			settleOwnedAsync(transactionOwner);
+			releaseRefreshButton(transactionOwner);
+			render();
+		}
+		settleOwnedAsync(syncOwner);
 	}
 }
 
@@ -695,7 +785,7 @@ async function createManualExpense() {
 		const payload = await response.json();
 		if (!response.ok) throw new Error(payload.error || "Error guardando gasto");
 
-		state.transactionsRevision += 1;
+		invalidateTransactionReplacement();
 		state.transactions.push(payload.transaction);
 		closeNewExpenseModal();
 		render();
@@ -705,38 +795,49 @@ async function createManualExpense() {
 }
 
 async function loadIncomeCandidates({ renderAfter = true } = {}) {
-	if (!state.budget.autoDetectIncome) {
+	const context = {
+		month: state.selectedMonth,
+		payTiming: state.budget.payTiming || "varies",
+		autoDetectIncome: Boolean(state.budget.autoDetectIncome),
+	};
+	if (!context.autoDetectIncome) {
+		invalidateOwnedAsync("candidates");
 		state.incomeCandidates = [];
 		if (renderAfter) render();
-		return;
+		return false;
 	}
+	const invocation = beginOwnedAsync("candidates", context);
+	let payload;
 	try {
-		let payload;
 		if (DEMO_MODE) {
-			payload = mockApiResponse("/api/income-candidates", {
-				month: state.selectedMonth,
-				payTiming: state.budget.payTiming || "varies",
-			});
+			payload = mockApiResponse("/api/income-candidates", context);
 		} else {
 			const params = new URLSearchParams({
-				month: state.selectedMonth,
-				payTiming: state.budget.payTiming || "varies",
+				month: context.month,
+				payTiming: context.payTiming,
 			});
 			const response = await fetch(`/api/income-candidates?${params}`);
 			payload = await response.json();
 			if (!response.ok)
 				throw new Error(payload.error || "Error cargando ingresos detectados");
 		}
+		if (!isCurrentCandidate(invocation)) return false;
 		state.incomeCandidates = payload.candidates || [];
 	} catch {
+		if (!isCurrentCandidate(invocation)) return false;
 		state.incomeCandidates = [];
 	}
+	if (!isCurrentCandidate(invocation)) return false;
+	settleOwnedAsync(invocation);
 	if (renderAfter) render();
+	return true;
 }
 
-async function loadTransactions() {
-	const revision = ++state.transactionsRevision;
-	refreshButton.disabled = true;
+async function loadTransactions({ invocation = null } = {}) {
+	const owner =
+		invocation ||
+		beginTransactionReplacement({ month: state.selectedMonth });
+	if (!isCurrentOwner(owner)) return false;
 	if (state.isGmailSyncing) {
 		showGmailSyncMessage();
 	} else {
@@ -746,28 +847,32 @@ async function loadTransactions() {
 		let payload;
 		if (DEMO_MODE) {
 			await loadDemoData();
-			payload = mockApiResponse("/api/transactions", {
-				month: state.selectedMonth,
-			});
+			payload = mockApiResponse("/api/transactions", owner.context);
 		} else {
-			const params = new URLSearchParams({ month: state.selectedMonth });
+			const params = new URLSearchParams({ month: owner.context.month });
 			const response = await fetch(`/api/transactions?${params}`);
 			payload = await response.json();
 			if (!response.ok)
 				throw new Error(payload.error || "Error cargando gastos");
 		}
-		if (revision !== state.transactionsRevision) return;
+		if (!isCurrentOwner(owner)) return false;
 		state.transactions = payload.transactions || [];
 		pruneSelectedTransactions();
 		await loadIncomeCandidates({ renderAfter: false });
-		render();
+		if (isCurrentOwner(owner)) render();
+		return true;
 	} catch (error) {
+		if (!isCurrentOwner(owner)) return false;
 		showTableMessage(`No se pudieron cargar los gastos. ${error.message}`, {
 			actionLabel: "Reintentar",
 			onAction: loadTransactions,
 		});
+		return false;
 	} finally {
-		refreshButton.disabled = false;
+		if (isCurrentOwner(owner)) {
+			settleOwnedAsync(owner);
+			releaseRefreshButton(owner);
+		}
 	}
 }
 
@@ -832,13 +937,24 @@ function createEmptyState(titleText, copyText, options = {}) {
 }
 
 async function changeSelectedMonth() {
+	const oldSync = invalidateOwnedAsync("sync");
+	resetGmailSyncProgress(oldSync);
+	invalidateOwnedAsync("candidates");
+	invalidateTransactionReplacement();
 	state.selectedMonth = monthSelect.value;
 	state.budget = loadBudgetPreferences(state.selectedMonth);
 	state.incomeCandidates = [];
 	state.chartTab = "month";
 	state.chartDayKey = null;
-	await loadGmailStatus();
-	await loadTransactions();
+	const transactionOwner = beginTransactionReplacement({
+		month: state.selectedMonth,
+	});
+	await loadGmailStatus({
+		isCurrent: () => isCurrentOwner(transactionOwner),
+	});
+	if (isCurrentOwner(transactionOwner)) {
+		await loadTransactions({ invocation: transactionOwner });
+	}
 }
 
 function renderMonthSelect() {
@@ -2995,6 +3111,7 @@ async function saveCounterpartyCategoryRule(row, category) {
 	if (!response.ok) {
 		throw new Error(payload.error || "No se pudo guardar la categoría");
 	}
+	invalidateTransactionReplacement();
 	state.transactions = state.transactions.map((tx) => {
 		const key =
 			tx.counterpartyKey ||
@@ -3585,6 +3702,7 @@ function applyTransactionUpdatesLocally(updates) {
 		const update = updateMap.get(String(tx.id));
 		return update ? { ...tx, ...update } : tx;
 	};
+	invalidateTransactionReplacement();
 	state.transactions = state.transactions.map(apply);
 	if (DEMO_MODE) demoData = demoData.map(apply);
 }
@@ -3984,7 +4102,7 @@ async function deleteFromModal() {
 			modalStatus.textContent = "No se pudo eliminar.";
 			return;
 		}
-		state.transactionsRevision += 1;
+		invalidateTransactionReplacement();
 		state.transactions = state.transactions.filter(
 			(tx) => tx.id !== transactionId,
 		);
@@ -3996,7 +4114,8 @@ async function deleteFromModal() {
 	}
 }
 
-function startGmailSyncProgress() {
+function startGmailSyncProgress(owner) {
+	gmailSyncProgressOwner = owner;
 	state.isGmailSyncing = true;
 	syncGmailButton.disabled = true;
 	gmailSyncProgress.hidden = false;
@@ -4004,26 +4123,47 @@ function startGmailSyncProgress() {
 	showGmailSyncMessage();
 
 	let progress = 8;
-	const timer = setInterval(() => {
+	gmailSyncTimer = setInterval(() => {
+		if (gmailSyncProgressOwner !== owner || !isCurrentOwner(owner)) return;
 		progress = Math.min(progress + (progress < 70 ? 12 : 4), 92);
 		gmailSyncProgressFill.style.width = `${progress}%`;
 	}, 220);
-	window.__gmailSyncTimer = timer;
 }
 
-function stopGmailSyncProgress() {
-	if (window.__gmailSyncTimer) {
-		clearInterval(window.__gmailSyncTimer);
-		window.__gmailSyncTimer = null;
+function resetGmailSyncProgress(owner) {
+	if (!owner || gmailSyncProgressOwner !== owner) return false;
+	if (gmailSyncTimer) clearInterval(gmailSyncTimer);
+	if (gmailSyncFinishTimer) clearTimeout(gmailSyncFinishTimer);
+	gmailSyncTimer = null;
+	gmailSyncFinishTimer = null;
+	gmailSyncProgressOwner = null;
+	gmailSyncProgressFill.style.width = "8%";
+	gmailSyncProgress.hidden = true;
+	state.isGmailSyncing = false;
+	syncGmailButton.disabled = syncGmailButton.hidden;
+	if (gmailSyncFinishResolve) {
+		const resolve = gmailSyncFinishResolve;
+		gmailSyncFinishResolve = null;
+		resolve(false);
 	}
+	return true;
+}
+
+function stopGmailSyncProgress(owner) {
+	if (gmailSyncProgressOwner !== owner || !isCurrentOwner(owner)) {
+		return Promise.resolve(false);
+	}
+	if (gmailSyncTimer) clearInterval(gmailSyncTimer);
+	gmailSyncTimer = null;
 	gmailSyncProgressFill.style.width = "100%";
 	return new Promise((resolve) => {
-		setTimeout(() => {
-			gmailSyncProgressFill.style.width = "8%";
-			gmailSyncProgress.hidden = true;
-			state.isGmailSyncing = false;
-			syncGmailButton.disabled = syncGmailButton.hidden;
-			resolve();
+		gmailSyncFinishResolve = resolve;
+		gmailSyncFinishTimer = setTimeout(() => {
+			if (gmailSyncProgressOwner !== owner || !isCurrentOwner(owner)) return;
+			gmailSyncFinishResolve = null;
+			gmailSyncFinishTimer = null;
+			resetGmailSyncProgress(owner);
+			resolve(true);
 		}, 250);
 	});
 }
