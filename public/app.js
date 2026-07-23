@@ -14,6 +14,7 @@ import {
 	updateFinancePreferences,
 } from "./finance-preferences.js";
 import {
+	buildReconciliation,
 	calculateFinancialPosition,
 	isCountedExpense,
 	legacyConfirmationId,
@@ -1117,7 +1118,7 @@ function render() {
 	}
 
 	if (state.view === "dashboard") {
-		renderDashboard(visibleExpenses);
+		renderDashboard(visibleExpenses, allMonthTransactions);
 		return;
 	}
 
@@ -1169,7 +1170,7 @@ function updateChartOnly() {
 	existingChart.replaceWith(newChart);
 }
 
-function renderDashboard(transactions) {
+function renderDashboard(transactions, allMonthTransactions) {
 	const expenses = transactions.filter((tx) => tx.direction === "outflow");
 	const knownExpenses = expenses.filter(isCountedExpense);
 	const unknownExpenseCount = expenses.length - knownExpenses.length;
@@ -1258,7 +1259,9 @@ function renderDashboard(transactions) {
 		largestExpense,
 	});
 	const budgetToggle = renderBudgetToggle();
-	const budgetCard = state.budgetEnabled ? renderBudgetCard(totalSpent) : null;
+	const budgetCard = state.budgetEnabled
+		? renderBudgetCard(allMonthTransactions)
+		: null;
 	const weeklyChart = renderMonthlyDailyChart(dailySpending, knownExpenses);
 	const categoryDistribution = renderCategoryDistribution(knownExpenses);
 
@@ -1460,7 +1463,8 @@ function renderBudgetToggle() {
 	return section;
 }
 
-function renderBudgetCard(totalSpent) {
+function renderBudgetCard(allMonthTransactions) {
+	const totalSpent = summarizeMovements(allMonthTransactions).expenseTotal;
 	const card = document.createElement("section");
 	card.className = "budget-card";
 
@@ -1507,26 +1511,31 @@ function renderBudgetCard(totalSpent) {
 	results.setAttribute("aria-live", "polite");
 	results.append(
 		budgetResult(
-			"Gastos capturados",
+			"Salidas consideradas",
 			formatCLP(totalSpent),
 			selectedMonthLabel(),
 		),
 		budgetResult(
-			"Te queda aprox.",
+			"Restante esperado",
 			"—",
-			"Ingresa un sueldo o elige una sugerencia para calcularlo.",
+			"Confirma un ingreso para calcularlo.",
 		),
 		budgetResult(
-			"No explicado todavía",
+			"Diferencia esperado − real",
 			"—",
-			"Opcional: compáralo con tu restante real.",
+			"Agrega tu saldo real local para compararlo.",
 		),
 	);
 
 	card.append(header, preferenceActions, detection, form, results);
-	wireBudgetInput(salaryInput.input, "salary", totalSpent, card);
-	wireBudgetInput(remainingInput.input, "actualRemaining", totalSpent, card);
-	updateBudgetResults(card, totalSpent);
+	wireBudgetInput(salaryInput.input, "salary", allMonthTransactions, card);
+	wireBudgetInput(
+		remainingInput.input,
+		"actualRemaining",
+		allMonthTransactions,
+		card,
+	);
+	updateBudgetResults(card, allMonthTransactions);
 	return card;
 }
 
@@ -1737,7 +1746,7 @@ function budgetResult(labelText, valueText, detailText) {
 	return item;
 }
 
-function wireBudgetInput(input, key, totalSpent, card) {
+function wireBudgetInput(input, key, allMonthTransactions, card) {
 	input.addEventListener("focus", () => {
 		const raw = parseCLP(input.value);
 		input.value = raw === "" ? "" : String(raw);
@@ -1750,7 +1759,7 @@ function wireBudgetInput(input, key, totalSpent, card) {
 				parseCLP(input.value) === "" ? "" : "manual";
 		}
 		saveBudgetPreferences();
-		updateBudgetResults(card, totalSpent);
+		updateBudgetResults(card, allMonthTransactions);
 		updateHeroKpis();
 	});
 	input.addEventListener("blur", () => {
@@ -1762,7 +1771,7 @@ function wireBudgetInput(input, key, totalSpent, card) {
 			state.budget.confirmedIncomeId = raw === "" ? "" : "manual";
 		}
 		saveBudgetPreferences();
-		updateBudgetResults(card, totalSpent);
+		updateBudgetResults(card, allMonthTransactions);
 		updateHeroKpis();
 	});
 }
@@ -1775,64 +1784,76 @@ function sanitizeBudgetInput(value) {
 		.join("");
 }
 
-function updateBudgetResults(card, totalSpent) {
+function updateBudgetResults(card, allMonthTransactions) {
 	const results = card.querySelectorAll(".budget-result");
 	const income = confirmedBudgetIncome();
-	const salary = income.amount;
 	const actualRemaining = parseCLP(state.budget.actualRemaining);
-	const position = calculateFinancialPosition({
+	const reconciliation = buildReconciliation({
 		confirmedIncome: income,
-		expenseTotal: totalSpent,
+		transactions: allMonthTransactions,
 		actualRemaining: actualRemaining === "" ? null : actualRemaining,
 	});
-	const estimated = position.expectedRemaining;
+	const transferDetail = reconciliation.transferOutflowCount
+		? ` · ${reconciliation.transferOutflowCount} transferencias incluidas`
+		: "";
+	const inflowDetail = reconciliation.informationalInflowCount
+		? ` · ${reconciliation.informationalInflowCount} entradas por ${formatCLP(reconciliation.informationalInflowTotal)} son solo informativas`
+		: "";
 
 	setBudgetResult(
 		results[0],
-		formatCLP(totalSpent),
-		`${selectedMonthLabel()} · gastos detectados y manuales`,
+		formatCLP(reconciliation.knownOutflowTotal),
+		`${reconciliation.knownOutflowCount} salidas con monto${transferDetail}${inflowDetail}`,
 	);
 
-	if (estimated === null) {
+	if (reconciliation.expectedRemaining === null) {
 		setBudgetResult(
 			results[1],
 			"—",
-			income.reason || "Ingresa un sueldo o elige una sugerencia.",
+			income.reason || "Confirma un ingreso para calcularlo.",
 		);
+	} else {
+		const uncertainty = [
+			reconciliation.uncertainOutflowCount
+				? `${reconciliation.uncertainOutflowCount} salidas incluidas siguen pendientes de revisión`
+				: "",
+			reconciliation.unknownOutflowCount
+				? `${reconciliation.unknownOutflowCount} salidas sin monto no fueron incluidas`
+				: "",
+		]
+			.filter(Boolean)
+			.join(" · ");
+		setBudgetResult(
+			results[1],
+			formatCLP(reconciliation.expectedRemaining),
+			`${formatCLP(income.amount)} ingreso − ${formatCLP(reconciliation.knownOutflowTotal)} salidas${uncertainty ? ` · ${uncertainty}` : ""}`,
+		);
+	}
+
+	if (reconciliation.difference === null) {
 		setBudgetResult(
 			results[2],
 			"—",
-			"Si luego agregas tu restante real, mostraremos dinero no explicado por los correos y movimientos analizados.",
+			reconciliation.actualRemaining === null
+				? "Agrega tu saldo real local para compararlo; no se enviará al servidor."
+				: "Confirma un ingreso para habilitar la comparación.",
 		);
 		return;
 	}
 
-	setBudgetResult(
-		results[1],
-		formatCLP(estimated),
-		`${formatCLP(salary)} ingreso - ${formatCLP(totalSpent)} gastos`,
-	);
-
-	if (actualRemaining === "") {
-		setBudgetResult(
-			results[2],
-			"—",
-			"Agrega tu restante real o esperado para detectar dinero no explicado.",
-		);
-		return;
+	let hypothesis = "El saldo real coincide con el restante esperado.";
+	if (reconciliation.difference > 0) {
+		hypothesis =
+			"El saldo real es menor. Como hipótesis, revisa salidas no observadas, comisiones o desfases.";
 	}
-
-	const difference = position.unexplained;
-	const direction =
-		difference === 0
-			? "Calza con lo esperado."
-			: difference > 0
-				? "Dinero no explicado por los correos analizados: podría ser pagos automáticos, tarjeta, giros, comisiones, suscripciones u otros movimientos no rastreados."
-				: "Tu restante real es mayor al estimado: revisa ingresos, ajustes o gastos duplicados.";
+	if (reconciliation.difference < 0) {
+		hypothesis =
+			"El saldo real es mayor. Como hipótesis, revisa entradas informativas, gastos duplicados, ajustes o desfases.";
+	}
 	setBudgetResult(
 		results[2],
-		formatCLP(Math.abs(difference)),
-		`${direction} Diferencia: ${formatSignedCLP(difference)}.`,
+		formatSignedCLP(reconciliation.difference),
+		hypothesis,
 	);
 }
 
