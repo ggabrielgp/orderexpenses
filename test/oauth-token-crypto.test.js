@@ -93,7 +93,9 @@ test("binds envelopes to the owning email and rejects tampering", () => {
 
 	const raw = encrypted.slice(TOKEN_ENVELOPE_PREFIX.length);
 	const envelope = parseJson(raw);
-	envelope.ct = `${envelope.ct.slice(0, -1)}${envelope.ct.endsWith("A") ? "B" : "A"}`;
+	const tamperedCiphertext = Buffer.from(envelope.ct, "base64url");
+	tamperedCiphertext[0] ^= 1;
+	envelope.ct = tamperedCiphertext.toString("base64url");
 	assertCode(
 		() => decryptOAuthToken({ tokenJson: TOKEN_ENVELOPE_PREFIX + JSON.stringify(envelope), userEmail: EMAIL, keyring }),
 		"TOKEN_AUTH_FAILED",
