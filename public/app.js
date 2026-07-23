@@ -6,6 +6,14 @@ import {
 	settleAsync,
 } from "./async-state-coordinator.js";
 import {
+	FINANCE_PREFERENCE_KEYS,
+	parseFinancePreferences,
+	readFinancePreferences,
+	resetAllFinancePreferences,
+	resetFinancePreferenceMonth,
+	updateFinancePreferences,
+} from "./finance-preferences.js";
+import {
 	calculateFinancialPosition,
 	isCountedExpense,
 	legacyConfirmationId,
@@ -15,8 +23,8 @@ import {
 
 const echarts = window.echarts;
 
-const BUDGET_STORAGE_KEY = "financeMonthlyBudget";
-const VIEW_PREFERENCES_STORAGE_KEY = "financeViewPreferences";
+const BUDGET_STORAGE_KEY = FINANCE_PREFERENCE_KEYS.budget;
+const VIEW_PREFERENCES_STORAGE_KEY = FINANCE_PREFERENCE_KEYS.view;
 
 const DEFAULT_CATEGORIES = [
 	{ name: "Supermercado", color: "#16a34a", builtin: true },
@@ -132,6 +140,19 @@ window.addEventListener("resize", () => {
 	chartInstances.forEach((chart) => chart.resize());
 });
 
+let financePreferenceNotice = "";
+const initialBudgetRead = readLocalValue(BUDGET_STORAGE_KEY);
+let financePreferenceSession = parseFinancePreferences(
+	initialBudgetRead.ok ? initialBudgetRead.value : null,
+	{ currentMonth: currentMonthKey() },
+);
+if (!initialBudgetRead.ok) {
+	financePreferenceNotice =
+		"El almacenamiento local no está disponible. Tus cambios durarán solo esta sesión.";
+} else if (["invalid", "unsupported"].includes(financePreferenceSession.kind)) {
+	financePreferenceNotice =
+		"Las preferencias guardadas no son compatibles. Puedes ingresar valores nuevos o restablecerlas.";
+}
 const viewPreferences = loadViewPreferences();
 
 const state = {
@@ -1412,8 +1433,13 @@ function renderBudgetToggle() {
 	title.textContent = "¿Cuánto me queda este mes?";
 	const description = document.createElement("p");
 	description.textContent =
-		"Transforma ingresos y gastos en una respuesta simple para decidir mejor.";
-	copy.append(title, description);
+		"Transforma ingresos y gastos en una respuesta simple. Tu sueldo, saldo real y preferencias se guardan solo en este navegador, no se sincronizan y pueden desaparecer si borras sus datos.";
+	const preferenceNotice = document.createElement("p");
+	preferenceNotice.id = "financePreferencesNotice";
+	preferenceNotice.className = "modal-status";
+	preferenceNotice.setAttribute("aria-live", "polite");
+	preferenceNotice.textContent = financePreferenceNotice;
+	copy.append(title, description, preferenceNotice);
 
 	const button = document.createElement("button");
 	button.type = "button";
@@ -1446,6 +1472,20 @@ function renderBudgetCard(totalSpent) {
 	copy.textContent =
 		"Una respuesta simple: ingreso confirmado menos gastos capturados, con diferencias por aclarar si algo no calza.";
 	header.append(title, copy);
+
+	const preferenceActions = document.createElement("div");
+	preferenceActions.className = "income-actions";
+	const resetMonthButton = document.createElement("button");
+	resetMonthButton.type = "button";
+	resetMonthButton.className = "secondary";
+	resetMonthButton.textContent = "Restablecer este mes";
+	resetMonthButton.addEventListener("click", resetSelectedMonthPreferences);
+	const resetAllButton = document.createElement("button");
+	resetAllButton.type = "button";
+	resetAllButton.className = "danger";
+	resetAllButton.textContent = "Restablecer todas";
+	resetAllButton.addEventListener("click", resetAllLocalFinancePreferences);
+	preferenceActions.append(resetMonthButton, resetAllButton);
 
 	const detection = renderIncomeDetection(totalSpent);
 	const form = document.createElement("div");
@@ -1483,7 +1523,7 @@ function renderBudgetCard(totalSpent) {
 		),
 	);
 
-	card.append(header, detection, form, results);
+	card.append(header, preferenceActions, detection, form, results);
 	wireBudgetInput(salaryInput.input, "salary", totalSpent, card);
 	wireBudgetInput(remainingInput.input, "actualRemaining", totalSpent, card);
 	updateBudgetResults(card, totalSpent);
@@ -1819,21 +1859,13 @@ function defaultBudgetPreferences() {
 }
 
 function loadBudgetPreferences(month = currentMonthKey()) {
-	const defaults = defaultBudgetPreferences();
-	try {
-		const raw = localStorage.getItem(BUDGET_STORAGE_KEY);
-		if (!raw) return defaults;
-		const parsed = JSON.parse(raw);
-		if (parsed?.months) {
-			return normalizeBudgetObject(parsed.months[month] || defaults);
-		}
-		if (month === currentMonthKey()) {
-			return normalizeBudgetObject(parsed);
-		}
-		return defaults;
-	} catch {
-		return defaults;
+	const result = readFinancePreferences(financePreferenceSession, { month });
+	if (result.notice === "recovery" && !financePreferenceNotice) {
+		setFinancePreferenceNotice(
+			"Las preferencias guardadas no son compatibles. Puedes ingresar valores nuevos o restablecerlas.",
+		);
 	}
+	return normalizeBudgetObject(result.preferences);
 }
 
 function normalizeBudgetObject(value = {}) {
@@ -1864,51 +1896,144 @@ function normalizeBudgetPreference(value) {
 }
 
 function loadViewPreferences() {
-	try {
-		const parsed = JSON.parse(
-			localStorage.getItem(VIEW_PREFERENCES_STORAGE_KEY) || "{}",
+	const stored = readLocalValue(VIEW_PREFERENCES_STORAGE_KEY);
+	if (!stored.ok) {
+		setFinancePreferenceNotice(
+			"El almacenamiento local no está disponible. Tus cambios durarán solo esta sesión.",
 		);
-		return {
-			budgetEnabled: Boolean(parsed.budgetEnabled),
-		};
+		return { budgetEnabled: false };
+	}
+	if (!stored.value) return { budgetEnabled: false };
+	try {
+		const parsed = JSON.parse(stored.value);
+		if (
+			!parsed ||
+			typeof parsed !== "object" ||
+			Array.isArray(parsed) ||
+			(Object.hasOwn(parsed, "budgetEnabled") &&
+				typeof parsed.budgetEnabled !== "boolean")
+		) {
+			throw new Error("invalid view preferences");
+		}
+		return { budgetEnabled: Boolean(parsed.budgetEnabled) };
 	} catch {
+		setFinancePreferenceNotice(
+			"La preferencia de vista guardada no es compatible y se usará el valor predeterminado.",
+		);
 		return { budgetEnabled: false };
 	}
 }
 
 function saveViewPreferences() {
-	try {
-		localStorage.setItem(
-			VIEW_PREFERENCES_STORAGE_KEY,
-			JSON.stringify({
-				budgetEnabled: Boolean(state.budgetEnabled),
-			}),
+	const saved = writeLocalValue(
+		VIEW_PREFERENCES_STORAGE_KEY,
+		JSON.stringify({ budgetEnabled: Boolean(state.budgetEnabled) }),
+	);
+	if (!saved) {
+		setFinancePreferenceNotice(
+			"No pudimos guardar tus preferencias. Seguirán activas solo durante esta sesión.",
 		);
-	} catch {
-		// Local storage is a convenience only; ignore unavailable storage.
 	}
 }
 
 function saveBudgetPreferences() {
+	state.budget = normalizeBudgetObject(state.budget);
+	const update = updateFinancePreferences(financePreferenceSession, {
+		month: state.selectedMonth,
+		preferences: state.budget,
+	});
+	financePreferenceSession = update.session;
+	const saved = writeLocalValue(BUDGET_STORAGE_KEY, update.serialized);
+	setFinancePreferenceNotice(
+		saved
+			? update.recovery
+				? "Preferencias locales recuperadas y guardadas en este navegador."
+				: ""
+			: "No pudimos guardar tus preferencias. Seguirán activas solo durante esta sesión.",
+	);
+}
+
+function readLocalValue(key) {
 	try {
-		const raw = localStorage.getItem(BUDGET_STORAGE_KEY);
-		let months = {};
-		if (raw) {
-			const parsed = JSON.parse(raw);
-			if (parsed?.months) {
-				months = parsed.months;
-			} else if (parsed && typeof parsed === "object") {
-				months[currentMonthKey()] = normalizeBudgetObject(parsed);
-			}
-		}
-		months[state.selectedMonth] = normalizeBudgetObject(state.budget);
-		localStorage.setItem(
-			BUDGET_STORAGE_KEY,
-			JSON.stringify({ version: 2, months }),
-		);
+		return { ok: true, value: localStorage.getItem(key) };
 	} catch {
-		// Local storage is a convenience only; ignore unavailable storage.
+		return { ok: false, value: null };
 	}
+}
+
+function writeLocalValue(key, value) {
+	try {
+		localStorage.setItem(key, value);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function removeLocalValue(key) {
+	try {
+		localStorage.removeItem(key);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function setFinancePreferenceNotice(message) {
+	financePreferenceNotice = message;
+	const notice = document.querySelector("#financePreferencesNotice");
+	if (notice) notice.textContent = message;
+}
+
+function resetSelectedMonthPreferences() {
+	if (
+		!confirm(
+			`¿Restablecer las preferencias de ${selectedMonthLabel()}? Los demás meses se conservarán.`,
+		)
+	) {
+		return;
+	}
+	const reset = resetFinancePreferenceMonth(financePreferenceSession, {
+		month: state.selectedMonth,
+	});
+	financePreferenceSession = reset.session;
+	const persisted =
+		reset.operation === "write"
+			? writeLocalValue(BUDGET_STORAGE_KEY, reset.serialized)
+			: removeLocalValue(BUDGET_STORAGE_KEY);
+	state.budget = normalizeBudgetObject(reset.preferences);
+	state.incomeCandidates = [];
+	setFinancePreferenceNotice(
+		persisted
+			? "Preferencias del mes restablecidas en este navegador."
+			: "El mes se restableció para esta sesión, pero no pudimos guardarlo.",
+	);
+	render();
+}
+
+function resetAllLocalFinancePreferences() {
+	if (
+		!confirm(
+			"¿Restablecer todas las preferencias financieras guardadas en este navegador? Esta acción incluye todos los meses y la vista de presupuesto.",
+		)
+	) {
+		return;
+	}
+	const reset = resetAllFinancePreferences();
+	financePreferenceSession = parseFinancePreferences(null, {
+		currentMonth: state.selectedMonth,
+	});
+	state.budget = defaultBudgetPreferences();
+	state.budgetEnabled = reset.viewPreferences.budgetEnabled;
+	state.incomeCandidates = [];
+	const budgetRemoved = removeLocalValue(reset.budgetKey);
+	const viewRemoved = removeLocalValue(reset.viewKey);
+	setFinancePreferenceNotice(
+		budgetRemoved && viewRemoved
+			? "Todas las preferencias financieras locales fueron restablecidas."
+			: "Las preferencias se restablecieron para esta sesión, pero no pudimos borrar todos los valores guardados.",
+	);
+	render();
 }
 
 function formatSignedCLP(value) {
