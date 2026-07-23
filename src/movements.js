@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { listBancoChileEmails } from "./gmail.js";
 import { parseBancoChileEmail } from "./parser.js";
+import { createIncomeCandidateCache } from "./income-candidate-cache.js";
 import {
 	getOverrides,
 	listCounterpartyCategoryRules,
@@ -9,6 +10,8 @@ import {
 	monthRange,
 	upsertMovementOverride,
 } from "./db.js";
+
+const incomeCandidateCache = createIncomeCandidateCache();
 
 export async function loadMovementsForMonth(
 	userEmail,
@@ -24,16 +27,19 @@ export async function loadMovementsForMonth(
 
 export async function loadMovementsForMonthResult(
 	userEmail,
-	{ month, payTiming = "varies", limit = 200 } = {},
+	{
+		month,
+		payTiming = "varies",
+		limit = 200,
+		scanGmail = scanGmailMovements,
+	} = {},
 ) {
 	const manualMovements = await listManualMovements(userEmail, month);
 	const { movements: gmailMovements, warning } = await safeLoadGmailMovements(
 		userEmail,
-		{
-			month,
-			payTiming,
-			limit,
-		},
+		{ month, payTiming, limit },
+		"passive",
+		scanGmail,
 	);
 	const selectedMonthMovements = gmailMovements.filter((movement) =>
 		isInMonth(movement.occurredAt, month),
@@ -50,15 +56,18 @@ export async function loadMovementsForMonthResult(
 
 export async function loadIncomeCandidateMovements(
 	userEmail,
-	{ month, payTiming = "varies", limit = 200 } = {},
+	{
+		month,
+		payTiming = "varies",
+		limit = 200,
+		scanGmail = scanGmailMovements,
+	} = {},
 ) {
 	const { movements: gmailMovements } = await safeLoadGmailMovements(
 		userEmail,
-		{
-			month,
-			payTiming,
-			limit,
-		},
+		{ month, payTiming, limit },
+		"candidates",
+		scanGmail,
 	);
 	const candidates = (
 		await applyStoredOverrides(
@@ -82,14 +91,24 @@ export async function loadIncomeCandidateMovements(
 
 export async function syncRuntimeMovements(
 	userEmail,
-	{ month, payTiming = "varies", limit = 200 } = {},
-) {
-	const { emails, query } = await listBancoChileEmails(userEmail, {
+	{
 		month,
-		payTiming,
-		limit,
-	});
-	const gmailMovements = parseEmailsToMovements(emails);
+		payTiming = "varies",
+		limit = 200,
+		scanGmail = scanGmailMovements,
+	} = {},
+) {
+	let scanMetadata = null;
+	const gmailMovements = await incomeCandidateCache.scanManualFresh(
+		{ userEmail, month, payTiming, limit },
+		{
+			scan: async () => {
+				const result = await scanGmail(userEmail, { month, payTiming, limit });
+				scanMetadata = { query: result.query, scanned: result.scanned };
+				return result.movements;
+			},
+		},
+	);
 	const selectedMonthMovements = gmailMovements.filter((movement) =>
 		isInMonth(movement.occurredAt, month),
 	);
@@ -101,17 +120,24 @@ export async function syncRuntimeMovements(
 			...manualMovements,
 		]),
 	);
-	return { query, scanned: emails.length, transactions: movements };
+	return { ...scanMetadata, transactions: movements };
 }
 
-async function safeLoadGmailMovements(userEmail, { month, payTiming, limit }) {
+async function safeLoadGmailMovements(
+	userEmail,
+	{ month, payTiming, limit },
+	mode = "passive",
+	scanGmail = scanGmailMovements,
+) {
 	try {
-		const { emails } = await listBancoChileEmails(userEmail, {
-			month,
-			payTiming,
-			limit,
-		});
-		return { movements: parseEmailsToMovements(emails), warning: null };
+		const key = { userEmail, month, payTiming, limit };
+		const scan = async () =>
+			(await scanGmail(userEmail, { month, payTiming, limit })).movements;
+		const movements =
+			mode === "candidates"
+				? await incomeCandidateCache.readCandidatesOrScan(key, { scan })
+				: await incomeCandidateCache.scanPassiveFresh(key, { scan });
+		return { movements, warning: null };
 	} catch (error) {
 		return {
 			movements: [],
@@ -121,6 +147,19 @@ async function safeLoadGmailMovements(userEmail, { month, payTiming, limit }) {
 					: "No se pudo leer Gmail; se muestran solo movimientos manuales.",
 		};
 	}
+}
+
+async function scanGmailMovements(userEmail, { month, payTiming, limit }) {
+	const { emails, query } = await listBancoChileEmails(userEmail, {
+		month,
+		payTiming,
+		limit,
+	});
+	return {
+		movements: parseEmailsToMovements(emails),
+		query,
+		scanned: emails.length,
+	};
 }
 
 export function parseEmailsToMovements(emails) {
