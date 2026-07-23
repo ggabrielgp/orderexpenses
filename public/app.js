@@ -1,3 +1,11 @@
+import {
+	calculateFinancialPosition,
+	isCountedExpense,
+	legacyConfirmationId,
+	resolveConfirmedIncome,
+	summarizeMovements,
+} from "./financial-semantics.js";
+
 const echarts = window.echarts;
 
 const BUDGET_STORAGE_KEY = "financeMonthlyBudget";
@@ -942,7 +950,7 @@ function render() {
 		(tx) => tx.direction === "outflow",
 	);
 	renderViewToggle();
-	renderHeroKpis(visibleExpenses.filter(hasKnownAmount), allMonthTransactions);
+	renderHeroKpis(visibleExpenses.filter(isCountedExpense), allMonthTransactions);
 	dashboardEl.hidden = state.view !== "dashboard";
 	transactionsEl.hidden = state.view !== "table";
 	budgetPanelEl?.replaceChildren();
@@ -1018,8 +1026,7 @@ function updateChartOnly() {
 	const existingChart = dashboardEl.querySelector(".chart-card");
 	if (!existingChart) return;
 	const transactions = selectedMonthExpenseTransactions(state.transactions);
-	const expenses = transactions.filter((tx) => tx.direction === "outflow");
-	const knownExpenses = expenses.filter(hasKnownAmount);
+	const knownExpenses = transactions.filter(isCountedExpense);
 	const dailySpending = buildMonthlyDailySpending(knownExpenses);
 	const newChart = renderMonthlyDailyChart(dailySpending, knownExpenses);
 	existingChart.replaceWith(newChart);
@@ -1027,9 +1034,9 @@ function updateChartOnly() {
 
 function renderDashboard(transactions) {
 	const expenses = transactions.filter((tx) => tx.direction === "outflow");
-	const knownExpenses = expenses.filter(hasKnownAmount);
+	const knownExpenses = expenses.filter(isCountedExpense);
 	const unknownExpenseCount = expenses.length - knownExpenses.length;
-	const totalSpent = sumAmounts(knownExpenses);
+	const totalSpent = summarizeMovements(expenses).expenseTotal;
 	const averageExpense = knownExpenses.length
 		? Math.round(totalSpent / knownExpenses.length)
 		: 0;
@@ -1351,7 +1358,7 @@ function renderBudgetCard(totalSpent) {
 		budgetResult(
 			"Te queda aprox.",
 			"—",
-			"Ingresa un sueldo o activa detección automática para calcularlo.",
+			"Ingresa un sueldo o elige una sugerencia para calcularlo.",
 		),
 		budgetResult(
 			"No explicado todavía",
@@ -1377,7 +1384,7 @@ function renderIncomeDetection() {
 	toggle.type = "checkbox";
 	toggle.checked = Boolean(state.budget.autoDetectIncome);
 	const toggleText = document.createElement("span");
-	toggleText.textContent = "Detectar ingreso automáticamente";
+	toggleText.textContent = "Sugerir ingresos desde Gmail";
 	toggleLabel.append(toggle, toggleText);
 
 	const timingLabel = document.createElement("label");
@@ -1397,22 +1404,13 @@ function renderIncomeDetection() {
 
 	toggle.addEventListener("change", async () => {
 		state.budget.autoDetectIncome = toggle.checked;
-		if (!toggle.checked) {
-			state.budget.confirmedIncomeId = state.budget.salary ? "manual" : "";
-			state.incomeCandidates = [];
-		} else if (
-			state.budget.confirmedIncomeId === "manual" &&
-			!state.budget.salary
-		) {
-			state.budget.confirmedIncomeId = "";
-		}
+		if (!toggle.checked) state.incomeCandidates = [];
 		saveBudgetPreferences();
 		await loadIncomeCandidates();
 		updateHeroKpis();
 	});
 	timingSelect.addEventListener("change", async () => {
 		state.budget.payTiming = timingSelect.value;
-		state.budget.confirmedIncomeId = state.budget.salary ? "manual" : "";
 		saveBudgetPreferences();
 		await loadIncomeCandidates();
 		updateHeroKpis();
@@ -1443,8 +1441,14 @@ function renderIncomeSuggestion() {
 	}
 
 	const copy = document.createElement("p");
+	const confirmedId = String(state.budget.confirmedIncomeId || "");
+	const confirmedCandidateVisible = candidates.some(
+		(candidate) => String(candidate.id) === confirmedId,
+	);
 	copy.textContent =
-		"Con la detección activa usamos la entrada mayor como ingreso principal. Si no es tu sueldo, elige otra entrada o ingrésalo manualmente.";
+		confirmedId && confirmedId !== "manual" && !confirmedCandidateVisible
+			? "Tu ingreso confirmado se conserva aunque esa entrada ya no aparezca. Puedes elegir otra o editarlo manualmente."
+			: "Estas entradas son sugerencias. Elige una explícitamente o ingresa tu sueldo manualmente para usarlo en los cálculos.";
 	const list = document.createElement("div");
 	list.className = "income-candidate-list";
 	for (const candidate of candidates) {
@@ -1458,12 +1462,8 @@ function renderIncomeSuggestion() {
 function renderIncomeCandidateOption(candidate) {
 	const option = document.createElement("article");
 	option.className = "income-candidate-option";
-	const isAutoPick =
-		state.budget.autoDetectIncome &&
-		!state.budget.confirmedIncomeId &&
-		String(autoDetectedIncomeCandidate()?.id) === String(candidate.id);
 	const isConfirmed =
-		state.budget.confirmedIncomeId === String(candidate.id) || isAutoPick;
+		state.budget.confirmedIncomeId === String(candidate.id);
 	if (isConfirmed) option.classList.add("income-candidate-option-active");
 
 	const content = document.createElement("div");
@@ -1475,11 +1475,7 @@ function renderIncomeCandidateOption(candidate) {
 
 	const button = document.createElement("button");
 	button.type = "button";
-	button.textContent = isAutoPick
-		? "Usando mayor"
-		: isConfirmed
-			? "Seleccionada"
-			: "Usar como ingreso";
+	button.textContent = isConfirmed ? "Seleccionada" : "Usar como ingreso";
 	button.className = isConfirmed ? "" : "secondary";
 	button.addEventListener("click", () => useIncomeCandidate(candidate));
 
@@ -1495,19 +1491,15 @@ function renderIncomeFallbackActions() {
 	manualButton.className = "secondary";
 	manualButton.textContent = "Ingresar manualmente";
 	manualButton.addEventListener("click", () => {
-		state.budget.confirmedIncomeId = "manual";
-		saveBudgetPreferences();
-		render();
 		const salaryInput = document.querySelector("#budgetSalary");
 		if (salaryInput) salaryInput.focus();
 	});
 	const disableButton = document.createElement("button");
 	disableButton.type = "button";
 	disableButton.className = "secondary";
-	disableButton.textContent = "Desactivar detección";
+	disableButton.textContent = "Desactivar sugerencias";
 	disableButton.addEventListener("click", () => {
 		state.budget.autoDetectIncome = false;
-		state.budget.confirmedIncomeId = state.budget.salary ? "manual" : "";
 		state.incomeCandidates = [];
 		saveBudgetPreferences();
 		render();
@@ -1540,10 +1532,6 @@ function incomeCandidatesWithConfidence(candidates) {
 		...candidate,
 		confidenceLabel: incomeConfidence(candidate, sorted[index + 1]),
 	}));
-}
-
-function autoDetectedIncomeCandidate() {
-	return incomeCandidatesWithConfidence(state.incomeCandidates)[0] || null;
 }
 
 function incomeConfidence(candidate, nextCandidate) {
@@ -1601,7 +1589,10 @@ function wireBudgetInput(input, key, totalSpent, card) {
 	input.addEventListener("input", () => {
 		input.value = sanitizeBudgetInput(input.value);
 		state.budget[key] = input.value;
-		if (key === "salary") state.budget.confirmedIncomeId = "manual";
+		if (key === "salary") {
+			state.budget.confirmedIncomeId =
+				parseCLP(input.value) === "" ? "" : "manual";
+		}
 		saveBudgetPreferences();
 		updateBudgetResults(card, totalSpent);
 		updateHeroKpis();
@@ -1611,7 +1602,9 @@ function wireBudgetInput(input, key, totalSpent, card) {
 		const raw = parseCLP(input.value);
 		input.value = raw === "" ? "" : formatCLP(raw);
 		state.budget[key] = input.value;
-		if (key === "salary") state.budget.confirmedIncomeId = "manual";
+		if (key === "salary") {
+			state.budget.confirmedIncomeId = raw === "" ? "" : "manual";
+		}
 		saveBudgetPreferences();
 		updateBudgetResults(card, totalSpent);
 		updateHeroKpis();
@@ -1631,7 +1624,12 @@ function updateBudgetResults(card, totalSpent) {
 	const income = confirmedBudgetIncome();
 	const salary = income.amount;
 	const actualRemaining = parseCLP(state.budget.actualRemaining);
-	const estimated = salary === null ? null : salary - totalSpent;
+	const position = calculateFinancialPosition({
+		confirmedIncome: income,
+		expenseTotal: totalSpent,
+		actualRemaining: actualRemaining === "" ? null : actualRemaining,
+	});
+	const estimated = position.expectedRemaining;
 
 	setBudgetResult(
 		results[0],
@@ -1643,8 +1641,7 @@ function updateBudgetResults(card, totalSpent) {
 		setBudgetResult(
 			results[1],
 			"—",
-			income.reason ||
-				"Ingresa un sueldo o activa detección automática para calcularlo.",
+			income.reason || "Ingresa un sueldo o elige una sugerencia.",
 		);
 		setBudgetResult(
 			results[2],
@@ -1669,7 +1666,7 @@ function updateBudgetResults(card, totalSpent) {
 		return;
 	}
 
-	const difference = estimated - actualRemaining;
+	const difference = position.unexplained;
 	const direction =
 		difference === 0
 			? "Calza con lo esperado."
@@ -1689,40 +1686,10 @@ function setBudgetResult(item, valueText, detailText) {
 }
 
 function confirmedBudgetIncome() {
-	const salary = parseCLP(state.budget.salary);
-	if (state.budget.confirmedIncomeId === "manual" && salary !== "") {
-		return { amount: salary, reason: "Ingreso manual confirmado." };
-	}
-
-	if (state.budget.autoDetectIncome) {
-		const confirmedCandidate = state.incomeCandidates.find(
-			(candidate) => String(candidate.id) === state.budget.confirmedIncomeId,
-		);
-		if (confirmedCandidate) {
-			return {
-				amount: Number(confirmedCandidate.amount),
-				reason: "Entrada detectada seleccionada como ingreso principal.",
-			};
-		}
-
-		const automaticCandidate = autoDetectedIncomeCandidate();
-		if (automaticCandidate) {
-			return {
-				amount: Number(automaticCandidate.amount),
-				reason: "Usando la entrada mayor detectada como ingreso principal.",
-			};
-		}
-	}
-
-	if (salary !== "") {
-		return { amount: salary, reason: "Ingreso manual." };
-	}
-
-	return {
-		amount: null,
-		reason:
-			"Activa la detección automática o ingresa tu sueldo manualmente para calcular el restante.",
-	};
+	return resolveConfirmedIncome({
+		salaryAmount: parseCLP(state.budget.salary),
+		confirmedIncomeId: state.budget.confirmedIncomeId,
+	});
 }
 
 function defaultBudgetPreferences() {
@@ -1755,15 +1722,17 @@ function loadBudgetPreferences(month = currentMonthKey()) {
 
 function normalizeBudgetObject(value = {}) {
 	const defaults = defaultBudgetPreferences();
+	const salary = normalizeBudgetPreference(value.salary);
 	return {
 		...defaults,
-		salary: normalizeBudgetPreference(value.salary),
+		salary,
 		actualRemaining: normalizeBudgetPreference(value.actualRemaining),
 		autoDetectIncome: Boolean(value.autoDetectIncome),
 		payTiming: normalizePayTimingPreference(value.payTiming),
-		confirmedIncomeId: value.confirmedIncomeId
-			? String(value.confirmedIncomeId)
-			: "",
+		confirmedIncomeId: legacyConfirmationId({
+			salaryAmount: parseCLP(salary),
+			confirmedIncomeId: value.confirmedIncomeId,
+		}),
 	};
 }
 
@@ -3259,14 +3228,9 @@ function renderTableBody(sorted) {
 }
 
 function renderTableSummary(transactions) {
-	const expenses = transactions.filter(
-		(tx) => tx.direction === "outflow" && hasKnownAmount(tx),
-	);
-	const incomes = transactions.filter(
-		(tx) => tx.direction === "inflow" && hasKnownAmount(tx),
-	);
-	const total = sumAmounts(expenses);
-	const incomeTotal = sumAmounts(incomes);
+	const financial = summarizeMovements(transactions);
+	const total = financial.expenseTotal;
+	const incomeTotal = financial.informationalInflowTotal;
 	const pending = transactions.filter(
 		(tx) => tx.status === "needs_review",
 	).length;
@@ -3277,7 +3241,7 @@ function renderTableSummary(transactions) {
 	const value = document.createElement("strong");
 	value.textContent = formatCLP(total);
 	const detail = document.createElement("small");
-	detail.textContent = `${expenses.length} salidas · ${incomes.length} ingresos${incomeTotal ? ` (${formatCLP(incomeTotal)})` : ""}${pending ? ` · ${pending} por revisar` : ""}`;
+	detail.textContent = `${financial.expenseCount} salidas · ${financial.informationalInflowCount} ingresos${incomeTotal ? ` (${formatCLP(incomeTotal)})` : ""}${pending ? ` · ${pending} por revisar` : ""}`;
 	box.append(label, value, detail);
 	return box;
 }
@@ -3626,7 +3590,7 @@ function applyTransactionUpdatesLocally(updates) {
 }
 
 function computeHeroKpiData(knownExpenses, allMonthTransactions) {
-	const totalSpent = sumAmounts(knownExpenses);
+	const totalSpent = summarizeMovements(knownExpenses).expenseTotal;
 	const inflows = (allMonthTransactions || knownExpenses).filter(
 		(tx) => tx.direction === "inflow",
 	);
@@ -3635,6 +3599,12 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 		? confirmedBudgetIncome()
 		: { amount: null, reason: "" };
 	const income = budgetIncome.amount ?? 0;
+	const hasConfirmedIncome = budgetIncome.amount !== null;
+	const position = calculateFinancialPosition({
+		confirmedIncome: budgetIncome,
+		expenseTotal: totalSpent,
+		actualRemaining: null,
+	});
 
 	const incomeDetail =
 		budgetIncome.amount !== null
@@ -3643,9 +3613,11 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 				? `${visibleIncomeCount} ingreso${visibleIncomeCount === 1 ? "" : "s"} en tabla; no usado para presupuesto`
 				: "Activa presupuesto para calcular";
 
-	const remaining = income - totalSpent;
+	const remaining = position.expectedRemaining;
 	const remainingPercent =
-		income > 0 ? Math.round((remaining / income) * 100) : 0;
+		income > 0 && remaining !== null
+			? Math.round((remaining / income) * 100)
+			: 0;
 
 	const today = new Date();
 	const daysInMonth = new Date(
@@ -3665,20 +3637,21 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 		{
 			key: "income",
 			label: "Ingreso",
-			value: income > 0 ? formatCLP(income) : "\u2014",
+			value: hasConfirmedIncome ? formatCLP(income) : "\u2014",
 			detail: incomeDetail,
 		},
 		{
 			key: "remaining",
 			label: "Saldo restante",
 			value:
-				remaining >= 0
-					? formatCLP(remaining)
-					: `-${formatCLP(Math.abs(remaining))}`,
-			detail:
-				income > 0
-					? `${remainingPercent}% disponible`
-					: "Agrega tu ingreso para estimarlo",
+				remaining === null
+					? "—"
+					: remaining >= 0
+						? formatCLP(remaining)
+						: `-${formatCLP(Math.abs(remaining))}`,
+			detail: hasConfirmedIncome
+				? `${remainingPercent}% disponible`
+				: "Agrega tu ingreso para estimarlo",
 		},
 		{
 			key: "days",
@@ -3722,9 +3695,7 @@ function updateHeroKpis() {
 	if (!container || !container.children.length) return;
 
 	const allMonthTransactions = selectedMonthTransactions(state.transactions);
-	const knownExpenses = allMonthTransactions
-		.filter((tx) => tx.direction === "outflow")
-		.filter(hasKnownAmount);
+	const knownExpenses = allMonthTransactions.filter(isCountedExpense);
 	const kpis = computeHeroKpiData(knownExpenses, allMonthTransactions);
 
 	for (const kpi of kpis) {
@@ -3749,13 +3720,8 @@ function renderSyncingSummary() {
 
 function renderSummary(transactions) {
 	if (!summaryEl) return;
-	const outflows = transactions.filter(
-		(tx) => tx.direction === "outflow" && hasKnownAmount(tx),
-	);
-	const inflows = transactions.filter(
-		(tx) => tx.direction === "inflow" && hasKnownAmount(tx),
-	);
-	const outflow = sumAmounts(outflows);
+	const financial = summarizeMovements(transactions);
+	const outflow = financial.expenseTotal;
 	const pending = transactions.filter(
 		(tx) => tx.status === "needs_review",
 	).length;
@@ -3765,7 +3731,7 @@ function renderSummary(transactions) {
 	const amount = document.createElement("strong");
 	amount.textContent = currency.format(outflow);
 	const detail = document.createElement("small");
-	detail.textContent = `${transactions.length} movimientos · ${inflows.length} ingresos visibles${pending ? ` · ${pending} por revisar` : ""}`;
+	detail.textContent = `${transactions.length} movimientos · ${financial.informationalInflowCount} ingresos visibles${pending ? ` · ${pending} por revisar` : ""}`;
 	summaryEl.append(label, amount, detail);
 }
 
