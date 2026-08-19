@@ -25,7 +25,7 @@ const BANCO_CHILE_SENDER_FILTER =
 const BANCO_CHILE_EXPENSE_FILTER =
 	'(subject:("Transferencia a Terceros" OR "Cargo en Cuenta" OR "Comprobante de Transferencia") OR "se ha realizado una compra" OR "Transferencia a terceros" OR "has realizado una transferencia" OR "ha efectuado una transferencia" OR "Datos de la Transferencia")';
 const BANCO_CHILE_INCOME_FILTER =
-	'(subject:("Transferencia recibida" OR "Abono recibido" OR "Depósito recibido" OR "Deposito recibido") OR ("has recibido" "transferencia") OR ("recibiste" "transferencia") OR "abono recibido" OR "abono en tu cuenta" OR "abono a tu cuenta" OR "depósito recibido" OR "deposito recibido")';
+	'(subject:("Transferencia recibida" OR "Abono recibido" OR "Depósito recibido" OR "Deposito recibido" OR "Aviso de transferencia de fondos recibida") OR ("has recibido" "transferencia") OR ("recibiste" "transferencia") OR (("ha instruído una transferencia" OR "ha instruido una transferencia") "a su cuenta") OR "abono recibido" OR "abono en tu cuenta" OR "abono a tu cuenta" OR "depósito recibido" OR "deposito recibido")';
 const DEFAULT_LIMIT = 200;
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
 
@@ -231,7 +231,7 @@ async function fetchUserProfileFromClient(client) {
 	};
 }
 
-function bancoChileQueriesForPayTiming(payTiming = "varies", month) {
+export function bancoChileQueriesForPayTiming(payTiming = "varies", month) {
 	const referenceDate = parseMonth(month);
 	const expenseRange = currentMonthRange(referenceDate);
 	const incomeRange = incomeCandidateRange(payTiming, referenceDate);

@@ -119,6 +119,7 @@ test("keeps purchase charges as expenses even with generic footer copy", () => {
 		`
 		Te informamos que se ha realizado una compra por $30.000 con cargo a Cuenta ****0905 en ORTOFUNCION SPA el 15/05/2026 19:15.
 		Mensaje recibido por clientes del banco.
+		Abono a tu cuenta.
 	`,
 		{ subject: "Cargo en Cuenta" },
 	);
@@ -213,6 +214,7 @@ test("parses Banco de Chile transfer with Datos del Destinatario format", () => 
 		<td>Cuenta</td><td>1602220905</td>
 		<td>Monto</td><td>$50.000</td>
 		<td>ID</td><td>TEF_IPE2605191211124548211890</td>
+		<td>Abono a tu cuenta</td>
 	`);
 
 	assert.equal(parsed.amount, 50000);
@@ -257,12 +259,40 @@ test("parses Banco de Chile incoming transfer to observed account", () => {
 	assert.equal(parsed.kind, "income");
 	assert.equal(parsed.direction, "inflow");
 	assert.equal(parsed.counterparty, "Esteban Fabian Gomez");
-	assert.equal(
-		parsed.sourceId,
-		"banco-chile:TEFMBCO2605052318304807034210",
-	);
+	assert.equal(parsed.sourceId, "banco-chile:TEFMBCO2605052318304807034210");
 	assert.equal(parsed.status, "detected");
 	assert.match(parsed.rawPreview, /\[email\]/);
+	assert.match(parsed.rawPreview, /\[rut\]/);
+	assert.match(parsed.rawPreview, /\[cuenta\]/);
+});
+
+test("parses sender-bank incoming transfer notice as inflow", () => {
+	const parsed = parseBancoChileEmail(
+		`
+			<strong>Aviso de transferencia de fondos recibida</strong>
+			Le informamos que hoy, 24-05-2026, nuestro(a) cliente
+			ORLANDO JAVIER PINA RETAMAL ha instruído una transferencia de fondos a su cuenta con el
+			siguiente detalle:
+			<td>Banco de destino</td><td>Banco De Chile - Edwards Citi</td>
+			<td>Cuenta de destino</td><td>Cuenta Corriente 001602220905</td>
+			<td>Rut destinatario</td><td>19.176.843-4</td>
+			<td>Asunto</td><td>Transferencia</td>
+			<td>Monto transferencia</td><td>$16.925</td>
+			<td>Fecha</td><td>24-05-2026</td>
+			<td>Hora</td><td>15:39</td>
+			<td>Nº de operación</td><td>536157325585</td>
+		`,
+		{ subject: "Aviso de transferencia de fondos recibida" },
+	);
+
+	assert.equal(parsed.amount, 16925);
+	assert.equal(parsed.occurredAt, "2026-05-24T15:39:00");
+	assert.equal(parsed.kind, "income");
+	assert.equal(parsed.direction, "inflow");
+	assert.equal(parsed.counterparty, "ORLANDO JAVIER PINA RETAMAL");
+	assert.equal(parsed.description, "Transferencia");
+	assert.equal(parsed.sourceId, "banco-chile:536157325585");
+	assert.equal(parsed.status, "detected");
 	assert.match(parsed.rawPreview, /\[rut\]/);
 	assert.match(parsed.rawPreview, /\[cuenta\]/);
 });

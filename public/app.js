@@ -2339,7 +2339,14 @@ function selectedMonthTransactions(transactions) {
 
 function selectedMonthExpenseTransactions(transactions) {
 	return selectedMonthTransactions(transactions).filter(
-		(tx) => tx.direction === "outflow",
+		isRecognizedExpense,
+	);
+}
+
+function isRecognizedExpense(transaction) {
+	return (
+		transaction.direction === "outflow" &&
+		["purchase", "transfer", "payment"].includes(transaction.kind)
 	);
 }
 
