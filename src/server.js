@@ -236,7 +236,7 @@ export default async function handleRequest(req, res) {
 			if (!code) throw httpError(400, "Missing OAuth code");
 			const result = await saveTokenFromCode(code, state);
 			refreshSessionCookie(res, result.sessionId);
-			res.writeHead(302, { location: "/?gmail=connected" });
+			res.writeHead(302, { location: "/app?gmail=connected" });
 			return res.end();
 		}
 
@@ -454,7 +454,12 @@ function currentMonthKey() {
 }
 
 async function serveStatic(pathname, res) {
-	const requested = pathname === "/" ? "/index.html" : pathname;
+	const requested =
+		pathname === "/"
+			? "/index.html"
+			: pathname === "/app" || pathname === "/app/"
+				? "/app.html"
+				: pathname;
 	const safePath = normalize(requested).replace(/^\.\.(?:\/|$)/, "");
 	const fullPath = join(PUBLIC_DIR, safePath);
 

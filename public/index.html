@@ -1,432 +1,193 @@
 <!doctype html>
-<html lang="es">
+<html class="light scroll-smooth" lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Resumen · Finanzas Personales</title>
+    <meta name="theme-color" content="#faf8ff" />
+    <meta name="description" content="Organiza tus movimientos de Banco de Chile desde Gmail y entiende tus gastos del mes." />
+    <title>Gastos Controlados - Tus gastos de Banco de Chile, organizados</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="/styles.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { canvas: "#faf8ff", primary: "#174ea6", ink: "#182033", muted: "#687086", lavender: "#f1f2fc", line: "#e3e5ef" },
+            fontFamily: { sans: ["Inter", "sans-serif"] }
+          }
+        }
+      };
+    </script>
+    <style type="text/tailwindcss">
+      @layer base {
+        * { @apply box-border; }
+        body { @apply m-0 overflow-x-hidden bg-canvas font-sans text-ink antialiased; }
+        a:focus-visible { @apply outline outline-2 outline-offset-4 outline-primary; }
+        section[id] { scroll-margin-top: 4.5rem; }
+      }
+      @layer components {
+        .shell { @apply mx-auto w-[calc(100%-32px)] max-w-[1280px] sm:w-[calc(100%-64px)]; }
+        .material-symbols-outlined { font-size: 22px; font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
+        .icon-fill { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
+        .eyebrow { @apply text-xs font-semibold uppercase tracking-[.16em] text-primary; }
+        .section-title { @apply mt-3 text-[1.8rem] font-semibold leading-tight tracking-[-.04em] text-ink sm:text-[2.45rem]; }
+        .btn-primary { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#0d3f91]; }
+        .btn-secondary { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:border-primary/30 hover:text-primary; }
+        .card { @apply rounded-2xl border border-line bg-white; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto !important; }
+        *, *::before, *::after { transition-duration: .01ms !important; }
+      }
+    </style>
   </head>
   <body>
-    <!-- Fondo atmosférico, mantenido detrás del contenido para no competir con los datos. -->
-    <div class="mesh-gradient-container" aria-hidden="true">
-      <div class="mesh-sphere sphere-1"></div>
-      <div class="mesh-sphere sphere-2"></div>
-      <div class="mesh-sphere sphere-3"></div>
-      <div class="mesh-grain"></div>
-    </div>
-    <main class="shell">
-      <section class="hero">
-        <div class="hero-headline">
-          <h1 id="heroTitle">Tu mes en un vistazo</h1>
-          <p class="subtitle" id="heroSubtitle">
-            Conecta tu cuenta para ver el análisis automático de tus gastos.
-          </p>
-        </div>
-      </section>
+    <a class="fixed left-4 top-2 z-[60] -translate-y-20 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm focus:translate-y-0" href="#contenido">Ir al contenido</a>
 
-      <section class="panel product-panel">
-        <div class="panel-header">
+    <header class="sticky top-0 z-50 border-b border-line bg-[#fbfaff]/95 backdrop-blur">
+      <div class="shell flex h-[78px] items-center justify-between gap-4">
+        <a class="flex shrink-0 items-center gap-2.5 text-base font-semibold tracking-[-.025em] text-ink" href="/" aria-label="Gastos Controlados, inicio">
+          <span class="material-symbols-outlined text-primary" aria-hidden="true">account_balance_wallet</span>
+          <span>Gastos Controlados</span>
+        </a>
+        <nav class="hidden h-full items-center gap-8 text-sm font-medium text-muted md:flex" aria-label="Navegación principal">
+          <a class="relative flex h-full items-center text-primary after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-primary" href="#producto">Producto</a>
+          <a class="hover:text-primary" href="#como-funciona">Cómo funciona</a>
+          <a class="hover:text-primary" href="#compatibilidad">Compatibilidad</a>
+          <a class="hover:text-primary" href="#seguridad">Seguridad</a>
+        </nav>
+        <a class="btn-primary" href="/auth/google" aria-label="Acceder con Google">
+          <svg class="size-4 shrink-0 rounded-sm bg-white p-[1px]" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.482h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.909c1.702-1.567 2.684-3.876 2.684-6.615Z"/><path fill="#34A853" d="M9 18c2.43 0 4.468-.806 5.956-2.18l-2.909-2.258c-.806.54-1.836.859-3.047.859-2.344 0-4.328-1.585-5.037-3.714H.956v2.332A9 9 0 0 0 9 18Z"/><path fill="#FBBC05" d="M3.963 10.707A5.41 5.41 0 0 1 3.682 9c0-.592.102-1.168.281-1.707V4.961H.956A9 9 0 0 0 0 9c0 1.452.347 2.827.956 4.039l3.007-2.332Z"/><path fill="#EA4335" d="M9 3.579c1.321 0 2.507.454 3.441 1.345l2.582-2.582C13.464.891 11.426 0 9 0A9 9 0 0 0 .956 4.961l3.007 2.332C4.672 5.164 6.656 3.579 9 3.579Z"/></svg>
+          <span class="hidden sm:inline">Acceder con Google</span>
+        </a>
+      </div>
+    </header>
+
+    <main id="contenido">
+      <section class="py-16 sm:py-24 lg:py-28" aria-labelledby="hero-title">
+        <div class="shell grid items-center gap-14 lg:grid-cols-[.82fr_1.18fr] lg:gap-16">
           <div>
-            <h2>Gastos</h2>
-            <p>
-              Primero entiende el mes. Si necesitas corregir algo, abre el
-              detalle.
-            </p>
-          </div>
-          <div class="button-row">
-            <div class="period-controls">
-              <label class="month-picker">
-                Periodo
-                <select
-                  id="monthSelect"
-                  aria-label="Seleccionar periodo de gastos"
-                ></select>
-              </label>
-              <button
-                class="secondary period-sync-button"
-                id="syncGmailButton"
-                hidden
-              >
-                Sincronizar
-              </button>
+            <p class="inline-flex items-center gap-2 rounded-full border border-[#dfe3f5] bg-lavender px-4 py-2 text-xs font-semibold text-primary"><span class="material-symbols-outlined icon-fill !text-base" aria-hidden="true">bolt</span>Tu mes, ordenado automáticamente</p>
+            <h1 id="hero-title" class="mt-6 text-[2.65rem] font-semibold leading-[1.04] tracking-[-.055em] sm:text-[4rem] lg:text-[4.35rem]">
+              <span class="block">Controla tus gastos</span><span class="block text-primary">sin mover un dedo.</span>
+            </h1>
+            <p class="mt-6 max-w-xl text-base leading-7 text-muted sm:text-lg sm:leading-8">Organiza los comprobantes de Banco de Chile que llegan a tu Gmail. Elige un periodo y obtén una vista mensual clara, categorizada y editable.</p>
+            <div class="mt-8 flex flex-wrap gap-3">
+              <a class="btn-primary" href="/auth/google">Comenzar ahora<span class="material-symbols-outlined !text-base" aria-hidden="true">arrow_forward</span></a>
+              <a class="btn-secondary" href="/app">Ver dashboard</a>
             </div>
-            <div class="view-switch" role="group" aria-label="Vista de gastos">
-              <span class="view-switch-label">Vista</span>
-              <div class="view-switch-options">
-                <button
-                  class="view-switch-option view-switch-option-active"
-                  id="dashboardViewButton"
-                  type="button"
-                >
-                  Resumen
-                </button>
-                <button
-                  class="view-switch-option"
-                  id="tableViewButton"
-                  type="button"
-                >
-                  Detalle
-                </button>
+            <dl class="mt-10 grid grid-cols-3 border-t border-line pt-6">
+              <div><dt class="text-xs text-muted">Fuente actual</dt><dd class="mt-1.5 text-sm font-semibold">Banco de Chile</dd></div>
+              <div class="border-x border-line px-4"><dt class="text-xs text-muted">Vista</dt><dd class="mt-1.5 text-sm font-semibold">Resumen mensual</dd></div>
+              <div class="pl-4"><dt class="text-xs text-muted">Control</dt><dd class="mt-1.5 text-sm font-semibold">Siempre editable</dd></div>
+            </dl>
+          </div>
+
+          <div class="relative rounded-[20px] border border-[#dfe3f0] bg-gradient-to-br from-white via-[#f7f8ff] to-[#e9edfa] p-3 shadow-[0_28px_70px_rgba(39,61,110,.14)] sm:p-5" aria-label="Vista ilustrativa del dashboard mensual de Gastos Controlados">
+            <div class="overflow-hidden rounded-2xl border border-[#d7dce9] bg-[#fbfbfe] shadow-[0_16px_40px_rgba(37,55,92,.12)]">
+              <div class="flex items-center justify-between border-b border-line bg-white px-4 py-3 sm:px-5">
+                <div class="flex items-center gap-2 text-xs font-semibold text-ink sm:text-sm"><span class="material-symbols-outlined icon-fill !text-xl text-primary" aria-hidden="true">account_balance_wallet</span><span>Gastos Controlados</span></div>
+                <div class="flex items-center gap-2 rounded-full bg-[#e8f6ee] px-3 py-1.5 text-[10px] font-semibold text-[#237447] sm:text-xs"><span class="size-2 rounded-full bg-[#38a169]"></span>Gmail conectado</div>
+              </div>
+              <div class="p-4 sm:p-5 lg:p-6">
+                <div class="flex flex-wrap items-end justify-between gap-3"><div><span class="text-[10px] font-semibold uppercase tracking-[.14em] text-primary sm:text-xs">Resumen mensual</span><h2 class="mt-1 text-lg font-semibold tracking-[-.035em] sm:text-2xl">Agosto 2026</h2></div><div class="rounded-xl border border-line bg-white px-3 py-2 text-[10px] font-medium text-muted sm:text-xs">Periodo seleccionado</div></div>
+                <div class="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+                  <div class="rounded-xl bg-primary p-3 text-white sm:p-4"><span class="block text-[10px] text-blue-100 sm:text-xs">Gastos</span><b class="mt-1 block text-sm sm:text-lg">$684.920</b></div>
+                  <div class="rounded-xl border border-line bg-white p-3 sm:p-4"><span class="block text-[10px] text-muted sm:text-xs">Ingresos</span><b class="mt-1 block text-sm sm:text-lg">$920.000</b></div>
+                  <div class="rounded-xl border border-line bg-white p-3 sm:p-4"><span class="block text-[10px] text-muted sm:text-xs">Balance</span><b class="mt-1 block text-sm text-[#237447] sm:text-lg">+$235.080</b></div>
+                </div>
+                <div class="mt-3 grid gap-3 sm:grid-cols-[1.18fr_.82fr]">
+                  <div class="rounded-xl border border-line bg-white p-4"><div class="flex items-center justify-between"><h3 class="text-xs font-semibold sm:text-sm">Distribución por categoría</h3><span class="text-[10px] text-muted">Total del mes</span></div><div class="mt-4 space-y-3"><div><div class="mb-1.5 flex justify-between text-[10px] sm:text-xs"><span>Alimentación</span><b>38%</b></div><div class="h-2 rounded-full bg-lavender"><div class="h-2 w-[38%] rounded-full bg-primary"></div></div></div><div><div class="mb-1.5 flex justify-between text-[10px] sm:text-xs"><span>Hogar</span><b>27%</b></div><div class="h-2 rounded-full bg-lavender"><div class="h-2 w-[27%] rounded-full bg-[#7894ce]"></div></div></div><div><div class="mb-1.5 flex justify-between text-[10px] sm:text-xs"><span>Transporte</span><b>18%</b></div><div class="h-2 rounded-full bg-lavender"><div class="h-2 w-[18%] rounded-full bg-[#aab9db]"></div></div></div></div></div>
+                  <div class="rounded-xl border border-line bg-white p-4"><h3 class="text-xs font-semibold sm:text-sm">Presupuesto</h3><div class="mx-auto mt-4 grid size-24 place-items-center rounded-full bg-[conic-gradient(#174ea6_0_68%,#e8ebf4_68%)] sm:size-28"><div class="grid size-[72px] place-items-center rounded-full bg-white text-center sm:size-[84px]"><span class="text-base font-bold text-primary sm:text-xl">68%<small class="block text-[10px] font-normal text-muted">utilizado</small></span></div></div><p class="mt-3 text-center text-[10px] text-muted sm:text-xs">$315.080 disponibles</p></div>
+                </div>
+                <div class="mt-3 rounded-xl border border-line bg-white p-4"><div class="flex items-center justify-between"><h3 class="text-xs font-semibold sm:text-sm">Movimientos recientes</h3><span class="text-[10px] font-medium text-primary sm:text-xs">Ver detalle</span></div><div class="mt-3 divide-y divide-line text-[10px] sm:text-xs"><div class="flex items-center justify-between py-2"><span><b class="block font-medium">Supermercado</b><span class="text-muted">Alimentación · 18 ago</span></span><b>-$42.580</b></div><div class="flex items-center justify-between py-2"><span><b class="block font-medium">Transferencia recibida</b><span class="text-muted">Ingreso · 16 ago</span></span><b class="text-[#237447]">+$120.000</b></div></div></div>
               </div>
             </div>
-            <button id="newExpenseButton">Agregar gasto</button>
-            <button class="secondary" id="refreshButton" hidden>
-              Actualizar
-            </button>
+            <div class="absolute -bottom-4 left-5 flex items-center gap-2 rounded-full border border-[#d7ddea] bg-white px-3 py-2 text-[10px] font-semibold text-primary shadow-[0_10px_25px_rgba(29,51,96,.14)] sm:-left-5 sm:bottom-8 sm:px-4 sm:text-xs"><span class="material-symbols-outlined icon-fill !text-base" aria-hidden="true">sync</span>12 movimientos sincronizados</div>
+            <div class="mt-7 text-center text-[10px] font-medium uppercase tracking-[.12em] text-muted sm:mt-4 sm:text-xs">Vista ilustrativa · datos de ejemplo</div>
           </div>
         </div>
-        <div id="dashboard" class="dashboard" aria-live="polite" hidden></div>
-        <div id="transactions" class="transactions-table-wrap"></div>
       </section>
 
-      <section class="panel setup-panel" aria-labelledby="gmailSetupTitle">
-        <div class="panel-header">
-          <div>
-            <span class="section-kicker">Configuración</span>
-            <h2 id="gmailSetupTitle">Conexión de Gmail</h2>
-            <p>
-              Autoriza lectura de Gmail solo cuando quieras importar gastos del
-              periodo seleccionado desde Banco de Chile.
-            </p>
-          </div>
-          <div class="button-row">
-            <a class="button" href="/auth/google" id="connectGmail"
-              >Conectar Gmail</a
-            >
-            <button class="secondary" id="disconnectGmailButton" hidden>
-              Desconectar Gmail
-            </button>
+      <section class="border-y border-line bg-lavender py-20 sm:py-28" id="problema" aria-labelledby="problem-title">
+        <div class="shell text-center">
+          <p class="eyebrow">El problema</p><h2 class="section-title" id="problem-title">Tus gastos están ahí. Entenderlos no debería ser difícil.</h2><p class="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted">Los correos bancarios contienen información útil, pero revisarlos y ordenar el mes manualmente consume tiempo.</p>
+          <div class="mt-12 grid gap-5 text-left sm:grid-cols-2 lg:grid-cols-4">
+            <article class="card p-7"><span class="grid size-12 place-items-center rounded-xl bg-[#fdeaea] text-[#bb3b3b]"><span class="material-symbols-outlined icon-fill" aria-hidden="true">warning</span></span><h3 class="mt-5 text-base font-semibold">Información dispersa</h3><p class="mt-2 text-sm leading-6 text-muted">Cada movimiento queda aislado en un correo diferente.</p></article>
+            <article class="card p-7"><span class="grid size-12 place-items-center rounded-xl bg-[#fff0df] text-[#bc681b]"><span class="material-symbols-outlined icon-fill" aria-hidden="true">schedule</span></span><h3 class="mt-5 text-base font-semibold">Tiempo perdido</h3><p class="mt-2 text-sm leading-6 text-muted">Buscar, leer y ordenar mensajes uno por uno toma tiempo.</p></article>
+            <article class="card p-7"><span class="grid size-12 place-items-center rounded-xl bg-[#e7f1ff] text-[#286bb5]"><span class="material-symbols-outlined icon-fill" aria-hidden="true">wifi_off</span></span><h3 class="mt-5 text-base font-semibold">Sin una vista común</h3><p class="mt-2 text-sm leading-6 text-muted">No existe un resumen mensual dentro de la bandeja de entrada.</p></article>
+            <article class="card p-7"><span class="grid size-12 place-items-center rounded-xl bg-[#eeebff] text-[#6553aa]"><span class="material-symbols-outlined icon-fill" aria-hidden="true">description</span></span><h3 class="mt-5 text-base font-semibold">Difícil de corregir</h3><p class="mt-2 text-sm leading-6 text-muted">El comprobante no refleja tus categorías ni tu presupuesto.</p></article>
           </div>
         </div>
-        <div id="gmailStatus" class="status-box">
-          Revisando estado de Gmail...
+      </section>
+
+      <section class="border-b border-line bg-[#fdfcff] py-20 sm:py-28" id="producto" aria-labelledby="product-title">
+        <div class="shell text-center">
+          <p class="eyebrow">El producto</p><h2 class="section-title" id="product-title">De tus correos a un mes bajo control.</h2><p class="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted">Gastos Controlados transforma datos compatibles de Banco de Chile en una vista que puedes revisar y ajustar.</p>
+          <div class="mt-12 grid gap-5 text-left lg:grid-cols-3">
+            <article class="card p-8"><span class="grid size-14 place-items-center rounded-2xl bg-[#183d7b] text-white"><span class="material-symbols-outlined icon-fill" aria-hidden="true">mail</span></span><span class="mt-6 inline-block rounded-full bg-lavender px-3 py-1.5 text-[10px] font-semibold tracking-wide text-primary">BANCO DE CHILE</span><h3 class="mt-4 text-lg font-semibold">Sincronización por periodo</h3><p class="mt-3 text-sm leading-6 text-muted">Consulta en el Gmail autorizado los correos de transacciones compatibles para el periodo que elijas.</p></article>
+            <article class="card p-8"><span class="grid size-14 place-items-center rounded-2xl bg-[#2878e5] text-white"><span class="material-symbols-outlined icon-fill" aria-hidden="true">auto_awesome</span></span><h3 class="mt-6 text-lg font-semibold">Clasificación automática</h3><p class="mt-3 text-sm leading-6 text-muted">Extrae monto, fecha, contraparte y tipo del comprobante, y aplica categorías compatibles con tus reglas.</p></article>
+            <article class="card p-8"><span class="grid size-14 place-items-center rounded-2xl bg-[#183d7b] text-white"><span class="material-symbols-outlined icon-fill" aria-hidden="true">receipt_long</span></span><span class="mt-6 inline-block rounded-full bg-lavender px-3 py-1.5 text-[10px] font-semibold tracking-wide text-primary">PERIODO SELECCIONADO</span><h3 class="mt-4 text-lg font-semibold">Resumen y detalle mensual</h3><p class="mt-3 text-sm leading-6 text-muted">Revisa gastos, ingresos, categorías y movimientos; corrige datos, presupuesto o categorías cuando lo necesites.</p></article>
+          </div>
         </div>
-        <div id="gmailSyncProgress" class="progress-card" hidden>
-          <div class="progress-copy">
-            <strong>Sincronizando periodo...</strong>
-            <span
-              >Buscando mensajes del periodo seleccionado de Banco de Chile y
-              extrayendo gastos.</span
-            >
+      </section>
+
+      <section class="border-b border-line bg-white py-16 sm:py-20" id="compatibilidad" aria-labelledby="compatibility-title">
+        <div class="shell">
+          <div class="rounded-[20px] border border-[#d9dff0] bg-[linear-gradient(120deg,#eef2ff_0%,#f7f4ff_100%)] p-7 sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-16">
+            <div class="flex items-start gap-4 sm:gap-5"><span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary text-white sm:size-14"><span class="material-symbols-outlined icon-fill" aria-hidden="true">account_balance</span></span><div><p class="eyebrow">Compatibilidad bancaria</p><h2 class="mt-2 text-xl font-semibold tracking-[-.035em] sm:text-2xl" id="compatibility-title">Disponible actualmente para Banco de Chile.</h2></div></div>
+            <div class="mt-6 max-w-2xl lg:mt-0"><p class="text-base font-semibold text-ink">Próximamente incorporaremos más bancos.</p><p class="mt-2 text-sm leading-6 text-muted sm:text-base sm:leading-7">La compatibilidad se agrega banco por banco porque cada institución utiliza plantillas diferentes en sus correos de comprobantes de transacciones.</p></div>
           </div>
-          <div class="progress-bar" aria-hidden="true">
-            <div id="gmailSyncProgressFill" class="progress-fill"></div>
+        </div>
+      </section>
+
+      <section class="border-b border-line bg-lavender py-20 sm:py-28" id="como-funciona" aria-labelledby="steps-title">
+        <div class="shell">
+          <div class="max-w-3xl">
+            <p class="eyebrow">Cómo funciona</p>
+            <h2 class="section-title sm:max-w-2xl" id="steps-title">De tu Gmail a un mes ordenado, en cinco pasos.</h2>
+            <p class="mt-5 max-w-2xl text-base leading-7 text-muted">Tú eliges qué periodo consultar. Gastos Controlados encuentra los comprobantes compatibles, organiza la información y te deja revisar cada resultado.</p>
           </div>
+          <ol class="relative mt-14 grid gap-0 before:absolute before:bottom-8 before:left-[1.45rem] before:top-8 before:w-px before:bg-primary/20 before:content-[''] md:mt-20 md:grid-cols-5 md:gap-6 md:before:inset-x-0 md:before:bottom-auto md:before:left-0 md:before:top-9 md:before:h-px md:before:w-auto lg:gap-9">
+            <li class="relative grid grid-cols-[3.5rem_1fr] gap-4 pb-10 md:block md:pb-0">
+              <span class="relative z-10 block bg-lavender text-[2.75rem] font-medium leading-none tracking-[-.07em] text-primary md:inline-block md:pr-4 md:text-[3.25rem]">01</span>
+              <div class="pt-1 md:mt-8 md:pt-0"><h3 class="text-sm font-semibold leading-5 text-ink">Autoriza Gmail</h3><p class="mt-2 text-sm leading-6 text-muted">Conecta Google y concede acceso de lectura para consultar mensajes compatibles de Banco de Chile.</p></div>
+            </li>
+            <li class="relative grid grid-cols-[3.5rem_1fr] gap-4 pb-10 md:block md:pb-0">
+              <span class="relative z-10 block bg-lavender text-[2.75rem] font-medium leading-none tracking-[-.07em] text-primary md:inline-block md:px-4 md:text-[3.25rem]">02</span>
+              <div class="pt-1 md:mt-8 md:pt-0"><h3 class="text-sm font-semibold leading-5 text-ink">Elige el periodo</h3><p class="mt-2 text-sm leading-6 text-muted">Selecciona el mes o periodo que quieres revisar antes de iniciar la consulta.</p></div>
+            </li>
+            <li class="relative grid grid-cols-[3.5rem_1fr] gap-4 pb-10 md:block md:pb-0">
+              <span class="relative z-10 block bg-lavender text-[2.75rem] font-medium leading-none tracking-[-.07em] text-primary md:inline-block md:px-4 md:text-[3.25rem]">03</span>
+              <div class="pt-1 md:mt-8 md:pt-0"><h3 class="text-sm font-semibold leading-5 text-ink">Sincroniza comprobantes</h3><p class="mt-2 text-sm leading-6 text-muted">Busca en Gmail los correos de transacciones compatibles para el periodo seleccionado.</p></div>
+            </li>
+            <li class="relative grid grid-cols-[3.5rem_1fr] gap-4 pb-10 md:block md:pb-0">
+              <span class="relative z-10 block bg-lavender text-[2.75rem] font-medium leading-none tracking-[-.07em] text-primary md:inline-block md:px-4 md:text-[3.25rem]">04</span>
+              <div class="pt-1 md:mt-8 md:pt-0"><h3 class="text-sm font-semibold leading-5 text-ink">Organiza el mes</h3><p class="mt-2 text-sm leading-6 text-muted">Extrae campos compatibles y agrupa compras, transferencias, pagos e ingresos.</p></div>
+            </li>
+            <li class="relative grid grid-cols-[3.5rem_1fr] gap-4 md:block">
+              <span class="relative z-10 block bg-lavender text-[2.75rem] font-medium leading-none tracking-[-.07em] text-primary md:inline-block md:px-4 md:text-[3.25rem]">05</span>
+              <div class="pt-1 md:mt-8 md:pt-0"><h3 class="text-sm font-semibold leading-5 text-ink">Revisa y ajusta</h3><p class="mt-2 text-sm leading-6 text-muted">Explora el dashboard y detalle; corrige datos, categorías, presupuesto o gastos manuales.</p></div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="border-y border-line bg-white py-16 sm:py-20" id="seguridad" aria-labelledby="security-title">
+        <div class="shell grid gap-6 md:grid-cols-[.75fr_1.25fr] md:items-center">
+          <div><p class="eyebrow">Seguridad y datos</p><h2 class="mt-3 text-2xl font-semibold tracking-[-.035em]" id="security-title">Acceso autorizado y acotado.</h2></div>
+          <div class="grid gap-5 text-sm leading-6 text-muted sm:grid-cols-2"><p class="flex gap-3"><span class="material-symbols-outlined text-primary" aria-hidden="true">mark_email_read</span><span>Se consultan mensajes compatibles de Banco de Chile para el periodo seleccionado.</span></p><p class="flex gap-3"><span class="material-symbols-outlined text-primary" aria-hidden="true">settings</span><span>Correcciones, reglas, movimientos manuales, categorías y presupuesto pueden persistir.</span></p></div>
         </div>
       </section>
     </main>
 
-    <div id="profile" class="profile" hidden></div>
-
-    <template id="transactionRowTemplate">
-      <tr>
-        <td data-field="select"></td>
-        <td data-field="counterparty"></td>
-        <td data-field="amount"></td>
-        <td data-field="date"></td>
-        <td data-field="category"></td>
-        <td><button class="secondary" data-action="view">Ver</button></td>
-      </tr>
-    </template>
-
-    <dialog id="detailModal" class="modal">
-      <form method="dialog" class="modal-inner">
-        <button
-          id="detailModalClose"
-          class="modal-close"
-          type="button"
-          aria-label="Cerrar"
-        >
-          ✕
-        </button>
-        <button
-          id="modalBackToCounterparty"
-          class="secondary modal-back"
-          type="button"
-          hidden
-        >
-          ← Atrás
-        </button>
-        <h3 class="modal-title">Detalle del gasto</h3>
-        <div class="modal-grid">
-          <label>
-            Fecha y hora
-            <input
-              id="modalOccurredAt"
-              name="occurredAt"
-              type="datetime-local"
-              required
-            />
-          </label>
-          <label>
-            Monto CLP
-            <input
-              id="modalAmount"
-              name="amount"
-              type="text"
-              inputmode="numeric"
-              required
-              placeholder="12500"
-            />
-          </label>
-          <label>
-            Tipo
-            <select id="modalKind" name="kind" required>
-              <option value="purchase">Compra</option>
-              <option value="transfer">Transferencia</option>
-              <option value="payment">Pago</option>
-              <option value="income">Ingreso</option>
-              <option value="unknown">Desconocido</option>
-            </select>
-          </label>
-          <label>
-            Dirección
-            <select id="modalDirection" name="direction" required>
-              <option value="outflow">Salida</option>
-              <option value="inflow">Entrada</option>
-            </select>
-          </label>
-          <label>
-            Categoría
-            <select id="modalCategory" name="category"></select>
-          </label>
-          <label>
-            Comercio o persona
-            <input
-              id="modalCounterparty"
-              name="counterparty"
-              placeholder="Supermercado, persona o comercio"
-            />
-          </label>
-          <label class="modal-grid-full">
-            Descripción
-            <input
-              id="modalDescription"
-              name="description"
-              placeholder="Detalle breve"
-            />
-          </label>
-        </div>
-        <p id="modalStatus" class="modal-status"></p>
-        <div class="modal-actions">
-          <button type="button" id="modalDelete" class="danger">
-            Eliminar
-          </button>
-          <button type="button" id="modalSave">Guardar</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="counterpartyDetailModal" class="modal">
-      <div class="modal-inner">
-        <button
-          class="modal-close"
-          id="counterpartyDetailClose"
-          type="button"
-          aria-label="Cerrar"
-        >
-          ✕
-        </button>
-        <h3 id="counterpartyDetailTitle" class="modal-title">
-          Gastos por comercio
-        </h3>
-        <p id="counterpartyDetailSummary" class="modal-status"></p>
-        <div id="counterpartyDetailList" class="counterparty-detail-list"></div>
-        <div class="modal-actions">
-          <button type="button" id="counterpartyDetailDone" class="secondary">
-            Cerrar
-          </button>
-        </div>
+    <footer class="bg-[#faf9fe]">
+      <div class="shell flex flex-col gap-5 py-7 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2"><a class="flex items-center gap-2 font-semibold text-ink" href="/"><span class="material-symbols-outlined !text-lg text-primary" aria-hidden="true">account_balance_wallet</span>Gastos Controlados</a><span>© 2026 Gastos Controlados</span></div>
+        <nav class="flex flex-wrap gap-5 font-medium" aria-label="Navegación del pie"><a class="hover:text-primary" href="#producto">Producto</a><a class="hover:text-primary" href="#como-funciona">Cómo funciona</a><a class="hover:text-primary" href="#seguridad">Seguridad</a><a class="hover:text-primary" href="/app">Dashboard</a></nav>
       </div>
-    </dialog>
-
-    <dialog
-      id="gmailConsentModal"
-      class="modal"
-      aria-labelledby="gmailConsentTitle"
-      aria-describedby="gmailConsentDescription"
-    >
-      <form method="dialog" class="modal-inner">
-        <button
-          class="modal-close"
-          id="gmailConsentClose"
-          type="button"
-          aria-label="Cerrar"
-        >
-          ✕
-        </button>
-        <h3 id="gmailConsentTitle" class="modal-title">
-          Cómo se usan tus correos y gastos
-        </h3>
-        <div id="gmailConsentDescription" class="terms-copy">
-          <p>
-            Para detectar tus gastos automáticamente, la app necesita acceso de
-            solo lectura a Gmail. Ese permiso se usa únicamente para buscar
-            correos relacionados con el banco configurado actualmente, Banco de
-            Chile, dentro del periodo que estés revisando.
-          </p>
-          <p>
-            Los correos se leen para extraer movimientos, montos, fechas y
-            comercios, y así mostrarte métricas, tablas, gráficos y agrupaciones
-            de gasto. La app no envía correos, no modifica tu cuenta de Gmail y
-            no usa tus mensajes para otros fines.
-          </p>
-          <p>
-            Los gastos importados desde Gmail se procesan para construir la
-            vista del periodo seleccionado. No se guardan como una base
-            histórica permanente de movimientos. Si vuelves a revisar o
-            sincronizar un periodo, la app puede volver a leer los correos
-            autorizados para reconstruir esa información.
-          </p>
-          <p>
-            Lo que sí puede guardarse localmente son las configuraciones y datos
-            que tú decides aplicar, por ejemplo: categorías por comercio, reglas
-            de categorización, correcciones a movimientos específicos, gastos
-            ingresados manualmente, preferencias de vista, presupuesto mensual y
-            ajustes similares.
-          </p>
-          <p>
-            Esto permite que la app recuerde tus decisiones sin almacenar todos
-            tus gastos importados desde Gmail como historial permanente.
-          </p>
-        </div>
-        <label class="terms-check">
-          <input id="gmailConsentCheck" type="checkbox" />
-          <span>
-            Entiendo que mis gastos importados desde Gmail no se guardan como
-            historial permanente y que solo se almacenan localmente las
-            configuraciones, correcciones o datos que yo aplique.
-          </span>
-        </label>
-        <div class="modal-actions">
-          <button type="button" id="gmailConsentCancel" class="secondary">
-            Cancelar
-          </button>
-          <button type="button" id="gmailConsentAccept" disabled>
-            Aceptar y conectar Gmail
-          </button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="settingsModal" class="modal">
-      <div class="modal-inner">
-        <button
-          id="settingsClose"
-          class="modal-close"
-          type="button"
-          aria-label="Cerrar"
-        >
-          ✕
-        </button>
-        <h3 class="modal-title">Configuración</h3>
-
-        <section class="settings-section">
-          <h4>Cuenta</h4>
-          <p id="settingsProfile" class="profile-email">Sin cuenta conectada</p>
-        </section>
-
-        <section class="settings-section">
-          <h4>Categorías</h4>
-          <div id="categorySettingsList" class="category-settings-list"></div>
-
-          <form id="categoryForm" class="category-form">
-            <label>
-              Nombre
-              <input id="categoryName" type="text" maxlength="40" />
-            </label>
-            <label>
-              Color
-              <input id="categoryColor" type="color" value="#22c55e" />
-            </label>
-            <button type="submit">Guardar categoría</button>
-          </form>
-
-          <p id="categoryFormStatus" class="modal-status"></p>
-        </section>
-      </div>
-    </dialog>
-
-    <dialog id="newExpenseModal" class="modal">
-      <form method="dialog" class="modal-inner">
-        <button class="modal-close" type="button" aria-label="Cerrar">✕</button>
-        <h3 class="modal-title">Nuevo gasto</h3>
-        <div class="modal-grid">
-          <label>
-            Fecha y hora
-            <input
-              id="newOccurredAt"
-              name="occurredAt"
-              type="datetime-local"
-              required
-            />
-          </label>
-          <label>
-            Monto CLP
-            <input
-              id="newAmount"
-              name="amount"
-              type="text"
-              inputmode="numeric"
-              required
-              placeholder="12500"
-            />
-          </label>
-          <label>
-            Tipo
-            <select id="newKind" name="kind" required>
-              <option value="purchase">Compra</option>
-              <option value="transfer">Transferencia</option>
-              <option value="payment">Pago</option>
-              <option value="income">Ingreso</option>
-              <option value="unknown">Desconocido</option>
-            </select>
-          </label>
-          <label>
-            Dirección
-            <select id="newDirection" name="direction" required>
-              <option value="outflow">Salida</option>
-              <option value="inflow">Entrada</option>
-            </select>
-          </label>
-          <label>
-            Categoría
-            <input id="newCategory" name="category" placeholder="Comida" />
-          </label>
-          <label>
-            Comercio o persona
-            <input
-              id="newCounterparty"
-              name="counterparty"
-              placeholder="Supermercado, persona o comercio"
-            />
-          </label>
-          <label class="modal-grid-full">
-            Descripción
-            <input
-              id="newDescription"
-              name="description"
-              placeholder="Detalle breve"
-            />
-          </label>
-        </div>
-        <p id="newFormStatus" class="modal-status"></p>
-        <div class="modal-actions">
-          <button type="button" id="newCancel" class="secondary">
-            Cancelar
-          </button>
-          <button type="button" id="newSave">Guardar</button>
-        </div>
-      </form>
-    </dialog>
-
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-    <script type="module" src="/app.js"></script>
+    </footer>
   </body>
 </html>

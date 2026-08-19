@@ -19,8 +19,8 @@ const DEFAULT_CATEGORIES = [
 ];
 const CREATE_CATEGORY_VALUE = "__create_category__";
 
-// Modo demo: cargar datos ficticios sin backend
-const DEMO_MODE = true;
+// Demo data is explicit so production never bypasses Gmail authentication.
+const DEMO_MODE = new URLSearchParams(window.location.search).has("demo");
 let demoData = [];
 
 function adjustDemoDates(data) {
