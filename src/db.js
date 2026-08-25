@@ -107,14 +107,100 @@ export async function initDb() {
   `);
 
 	await db.execute(`
-    CREATE TABLE IF NOT EXISTS google_tokens (
+		CREATE TABLE IF NOT EXISTS google_tokens (
       user_email TEXT PRIMARY KEY,
       token_json TEXT NOT NULL DEFAULT '{}',
       profile_json TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+	`);
+
+	await db.execute(`
+		CREATE TABLE IF NOT EXISTS financial_preferences (
+			user_email TEXT PRIMARY KEY,
+			selected_start_date TEXT NOT NULL,
+			selected_end_date_exclusive TEXT NOT NULL,
+			updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`);
+
+	await db.execute(`
+		CREATE TABLE IF NOT EXISTS financial_periods (
+			user_email TEXT NOT NULL,
+			start_date TEXT NOT NULL,
+			end_date_exclusive TEXT NOT NULL,
+			income_amount INTEGER,
+			completed_at TEXT,
+			updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY(user_email, start_date, end_date_exclusive)
+		)
+	`);
+}
+
+export async function getFinancialCycleSettings(userEmail) {
+	const result = await db.execute({
+		sql: `SELECT p.selected_start_date AS startDate,
+			p.selected_end_date_exclusive AS endDateExclusive,
+			f.income_amount AS incomeAmount, f.completed_at AS completedAt
+			FROM financial_preferences p
+			LEFT JOIN financial_periods f ON f.user_email = p.user_email
+				AND f.start_date = p.selected_start_date
+				AND f.end_date_exclusive = p.selected_end_date_exclusive
+			WHERE p.user_email = ?`,
+		args: [userEmail],
+	});
+	const row = result.rows[0];
+	return row
+		? {
+				selectedPeriod: {
+					startDate: row.startDate,
+					endDateExclusive: row.endDateExclusive,
+				},
+				incomeAmount: row.incomeAmount,
+				completedAt: row.completedAt,
+			}
+		: null;
+}
+
+export async function getFinancialCyclePeriod(userEmail, period) {
+	const result = await db.execute({
+		sql: `SELECT income_amount AS incomeAmount, completed_at AS completedAt FROM financial_periods
+			WHERE user_email = ? AND start_date = ? AND end_date_exclusive = ?`,
+		args: [userEmail, period.startDate, period.endDateExclusive],
+	});
+	const row = result.rows[0];
+	return row ? { selectedPeriod: period, incomeAmount: row.incomeAmount, completedAt: row.completedAt } : null;
+}
+
+export async function completeFinancialCyclePeriod(userEmail, record) {
+	const { selectedPeriod, incomeAmount, completedAt } = record;
+	await db.execute({ sql: `INSERT INTO financial_periods (user_email, start_date, end_date_exclusive, income_amount, completed_at)
+		VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_email, start_date, end_date_exclusive) DO UPDATE SET completed_at = excluded.completed_at, updated_at = CURRENT_TIMESTAMP`, args: [userEmail, selectedPeriod.startDate, selectedPeriod.endDateExclusive, incomeAmount, completedAt] });
+	return getFinancialCyclePeriod(userEmail, selectedPeriod);
+}
+
+export async function upsertFinancialCycleSettings(userEmail, record) {
+	const { selectedPeriod, incomeAmount, completedAt = null } = record;
+	await db.batch([
+		{
+			sql: `INSERT INTO financial_preferences (user_email, selected_start_date, selected_end_date_exclusive)
+				VALUES (?, ?, ?) ON CONFLICT(user_email) DO UPDATE SET
+				selected_start_date = excluded.selected_start_date,
+				selected_end_date_exclusive = excluded.selected_end_date_exclusive,
+				updated_at = CURRENT_TIMESTAMP`,
+			args: [userEmail, selectedPeriod.startDate, selectedPeriod.endDateExclusive],
+		},
+		{
+			sql: `INSERT INTO financial_periods (user_email, start_date, end_date_exclusive, income_amount, completed_at)
+				VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_email, start_date, end_date_exclusive) DO UPDATE SET
+				income_amount = excluded.income_amount,
+				completed_at = COALESCE(excluded.completed_at, financial_periods.completed_at),
+				updated_at = CURRENT_TIMESTAMP`,
+			args: [userEmail, selectedPeriod.startDate, selectedPeriod.endDateExclusive, incomeAmount, completedAt],
+		},
+	]);
+	return getFinancialCycleSettings(userEmail);
 }
 
 export async function listManualMovements(

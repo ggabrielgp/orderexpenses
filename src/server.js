@@ -20,6 +20,9 @@ import {
 	deleteUserCategory,
 	ensureDbInitialized,
 	getSession,
+	completeFinancialCyclePeriod,
+	getFinancialCyclePeriod,
+	getFinancialCycleSettings,
 	hideMovement,
 	insertManualMovement,
 	listCounterpartyCategoryRules,
@@ -28,7 +31,9 @@ import {
 	updateManualMovement,
 	upsertCounterpartyCategoryRule,
 	upsertUserCategory,
+	upsertFinancialCycleSettings,
 } from "./db.js";
+import { ReviewPeriod } from "../public/review-period.js";
 import {
 	loadIncomeCandidateMovements,
 	loadMovementsForMonthResult,
@@ -87,6 +92,37 @@ export default async function handleRequest(req, res) {
 		await ensureDbInitialized();
 		guardMutationRequest(req);
 		const session = await getOrCreateSession(req, res);
+		if (
+			process.env.FINANCIAL_CYCLE_ONBOARDING === "true" &&
+			url.pathname === "/api/session/profile" &&
+			req.method === "GET"
+		) {
+			const profile = await getSessionUserProfile(session);
+			return sendJson(res, {
+				authenticated: Boolean(profile?.email),
+				profile: profile ?? null,
+				gmail: { connected: Boolean(session.userEmail && (await hasGoogleToken(session.userEmail))), connectUrl: "/auth/google" },
+				features: { financialCycleOnboarding: true },
+			});
+		}
+		if (process.env.FINANCIAL_CYCLE_ONBOARDING === "true" &&
+			(url.pathname === "/api/financial-cycle" || url.pathname === "/api/financial-cycle/complete")) {
+			const user = await requireActiveUser(session);
+			const result = await dispatchFinancialCycleRequest({
+				pathname: url.pathname,
+				method: req.method,
+				user,
+				readBody: () => readJson(req),
+				api: createFinancialCycleApi({
+				isConnected: hasGoogleToken,
+				read: getFinancialCycleSettings,
+				readPeriod: getFinancialCyclePeriod,
+				write: upsertFinancialCycleSettings,
+				complete: completeFinancialCyclePeriod,
+				}),
+			});
+			if (result) return sendJson(res, result.body, result.status);
+		}
 
 		if (url.pathname === "/api/transactions" && req.method === "GET") {
 			const user = await getSessionUserProfile(session);
@@ -306,6 +342,78 @@ export default async function handleRequest(req, res) {
 	}
 }
 
+export async function dispatchFinancialCycleRequest({ pathname, method, user, sameOrigin = true, readBody, api }) {
+	const allowedMethods = pathname === "/api/financial-cycle" ? ["GET", "PUT"] : pathname === "/api/financial-cycle/complete" ? ["POST"] : null;
+	if (!allowedMethods) return null;
+	if (!allowedMethods.includes(method)) return financialCycleResponse(405, "method_not_allowed", "Unsupported financial-cycle route method");
+	if (method !== "GET" && !sameOrigin) return financialCycleResponse(403, "forbidden", "Same-origin request required");
+	return api({ method, user, body: method === "GET" ? null : await readBody() });
+}
+
+export function createFinancialCycleApi({ isConnected, read, readPeriod = read, write, complete = write, syncPeriod = unavailableRangeSync }) {
+	return async ({ method, user, body, sameOrigin = true }) => {
+		if (!user?.email) return financialCycleResponse(401, "unauthorized", "Authentication is required");
+		if (["PUT", "POST"].includes(method) && !sameOrigin)
+			return financialCycleResponse(403, "forbidden", "Same-origin request required");
+		if (method === "GET")
+			return { status: 200, body: (await read(user.email)) ?? emptyFinancialCycle() };
+		if (method === "PUT") {
+			const validation = validateFinancialCycle(body);
+			if (validation.error) return validation.error;
+			return { status: 200, body: await write(user.email, validation.value) };
+		}
+		if (method !== "POST") return financialCycleResponse(405, "method_not_allowed", "Use GET, PUT, or POST");
+		const validation = validateFinancialCycle({ selectedPeriod: body?.period, incomeAmount: null });
+		if (validation.error) return validation.error;
+		if (!(await isConnected(user.email))) {
+			return { status: 409, body: { outcome: "disconnected", action: { label: "Connect with Google", href: "/auth/google" }, retryable: true, completedAt: null } };
+		}
+		try {
+			const outcome = await syncPeriod(user.email, validation.value.selectedPeriod);
+			if (outcome.outcome === "partial") {
+				return { status: 207, body: { outcome: "partial", scanned: outcome.scanned, transactions: outcome.transactions.length, failedCount: outcome.failedCount, retryable: true, completedAt: null } };
+			}
+			const existing = await readPeriod(user.email, validation.value.selectedPeriod);
+			const completedAt = existing?.completedAt ?? new Date().toISOString();
+			await complete(user.email, { ...validation.value, incomeAmount: existing?.incomeAmount ?? null, completedAt });
+			return { status: 200, body: { outcome: "success", scanned: outcome.scanned, transactions: outcome.transactions.length, completedAt } };
+		} catch {
+			return { status: 502, body: { outcome: "error", retryable: true, completedAt: null } };
+		}
+	};
+}
+
+function validateFinancialCycle(body) {
+	try {
+		const selectedPeriod = ReviewPeriod.create(body?.selectedPeriod).toJSON();
+		const incomeAmount = body?.incomeAmount;
+		if (incomeAmount !== null && (!Number.isSafeInteger(incomeAmount) || incomeAmount <= 0))
+			throw Object.assign(new TypeError("incomeAmount must be a positive whole CLP amount"), { field: "incomeAmount" });
+		return { value: { selectedPeriod, incomeAmount } };
+	} catch (error) {
+		const field = error.field ?? financialCycleErrorField(error.message);
+		return { error: { status: 400, body: { error: { code: "invalid_input", message: error.message, field } } } };
+	}
+}
+
+function emptyFinancialCycle() {
+	return { selectedPeriod: null, incomeAmount: null, completedAt: null };
+}
+
+function financialCycleErrorField(message) {
+	if (/incomeAmount/.test(message)) return "incomeAmount";
+	if (/startDate must be before/.test(message)) return "startDate";
+	return /endDateExclusive/.test(message) ? "endDateExclusive" : "startDate";
+}
+
+async function unavailableRangeSync() {
+	throw new Error("Financial-cycle range sync is not available until WU3");
+}
+
+function financialCycleResponse(status, code, message) {
+	return { status, body: { error: { code, message } } };
+}
+
 if (process.env.VERCEL !== "1") {
 	const server = createServer(handleRequest);
 	server.listen(PORT, HOST, () => {
@@ -480,7 +588,7 @@ function normalizeDateTime(value) {
 }
 
 function guardMutationRequest(req) {
-	if (!["POST", "PATCH", "DELETE"].includes(req.method ?? "")) return;
+	if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method ?? "")) return;
 
 	const secFetchSite = req.headers["sec-fetch-site"];
 	if (secFetchSite && !["same-origin", "none"].includes(secFetchSite)) {
