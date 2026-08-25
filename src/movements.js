@@ -82,26 +82,41 @@ export async function loadIncomeCandidateMovements(
 
 export async function syncRuntimeMovements(
 	userEmail,
-	{ month, payTiming = "varies", limit = 200 } = {},
+	{ month, period, payTiming = "varies", limit } = {},
 ) {
-	const { emails, query } = await listBancoChileEmails(userEmail, {
+	const { emails, query, failedCount = 0 } = await listBancoChileEmails(userEmail, {
 		month,
+		period,
 		payTiming,
 		limit,
 	});
 	const gmailMovements = parseEmailsToMovements(emails);
-	const selectedMonthMovements = gmailMovements.filter((movement) =>
-		isInMonth(movement.occurredAt, month),
-	);
-	const manualMovements = await listManualMovements(userEmail, month);
+	const selectedMovements = period
+		? filterMovementsForPeriod(gmailMovements, period)
+		: gmailMovements.filter((movement) => isInMonth(movement.occurredAt, month));
+	const manualMovements = period
+		? await loadManualMovementsForPeriod(userEmail, period)
+		: await listManualMovements(userEmail, month);
 	const movements = await applyStoredOverrides(
 		userEmail,
 		await applyStoredCounterpartyRules(userEmail, [
-			...selectedMonthMovements,
+			...selectedMovements,
 			...manualMovements,
 		]),
 	);
-	return { query, scanned: emails.length, transactions: movements };
+	return period
+		? { query, ...toRangeSyncResult({ scanned: emails.length, transactions: movements, failedCount }) }
+		: { query, scanned: emails.length, transactions: movements };
+}
+
+export function toRangeSyncResult({ scanned, transactions, failedCount = 0 }) {
+	return failedCount > 0
+		? { outcome: "partial", scanned, transactions, failedCount, completedAt: null }
+		: { outcome: "success", scanned, transactions, failedCount: 0 };
+}
+
+export function filterMovementsForPeriod(movements, { startDate, endDateExclusive }) {
+	return movements.filter((movement) => isInRange(movement.occurredAt, startDate, endDateExclusive));
 }
 
 async function safeLoadGmailMovements(userEmail, { month, payTiming, limit }) {
@@ -284,4 +299,30 @@ function isInMonth(value, month) {
 	if (!value) return false;
 	const { start, end } = monthRange(month);
 	return String(value) >= start && String(value) < end;
+}
+
+function isInRange(value, startDate, endDateExclusive) {
+	const date = String(value ?? "").slice(0, 10);
+	return date >= startDate && date < endDateExclusive;
+}
+
+async function loadManualMovementsForPeriod(userEmail, period) {
+	const months = monthsForPeriod(period);
+	const movements = (await Promise.all(months.map((month) => listManualMovements(userEmail, month)))).flat();
+	return filterMovementsForPeriod(movements, period);
+}
+
+function monthsForPeriod({ startDate, endDateExclusive }) {
+	const months = [];
+	let [year, month] = startDate.slice(0, 7).split("-").map(Number);
+	const endMonth = endDateExclusive.slice(0, 7);
+	while (`${year}-${String(month).padStart(2, "0")}` <= endMonth) {
+		months.push(`${year}-${String(month).padStart(2, "0")}`);
+		month += 1;
+		if (month === 13) {
+			year += 1;
+			month = 1;
+		}
+	}
+	return months;
 }

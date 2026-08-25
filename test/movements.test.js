@@ -5,7 +5,9 @@ import {
 	applyCounterpartyCategoryRules,
 	applyMovementOverrides,
 	computeMovementKey,
+	filterMovementsForPeriod,
 	normalizeCounterpartyKey,
+	toRangeSyncResult,
 } from "../src/movements.js";
 
 test("computes stable movement keys from source and source id", () => {
@@ -89,4 +91,36 @@ test("applies overrides and hides runtime movements", () => {
 	assert.equal(result[0].category, "Comida");
 	assert.equal(result[0].status, "edited");
 	assert.equal(result[0].movementKey, "gm_visible");
+});
+
+test("attributes stable date-only and timestamp movements with an inclusive start and exclusive end", () => {
+	const movements = [
+		{ movementKey: "dec", occurredAt: "2026-12-31" },
+		{ movementKey: "late-dec", occurredAt: "2026-12-31T23:59:59" },
+		{ movementKey: "jan", occurredAt: "2027-01-01" },
+	];
+
+	assert.deepEqual(
+		filterMovementsForPeriod(movements, {
+			startDate: "2026-12-31",
+			endDateExclusive: "2027-01-01",
+		}).map((movement) => movement.movementKey),
+		["dec", "late-dec"],
+	);
+});
+
+test("reports failed range pages as provisional partial results without completion metadata", () => {
+	const result = toRangeSyncResult({
+		scanned: 3,
+		transactions: [{ movementKey: "stable-key" }],
+		failedCount: 1,
+	});
+
+	assert.deepEqual(result, {
+		outcome: "partial",
+		scanned: 3,
+		transactions: [{ movementKey: "stable-key" }],
+		failedCount: 1,
+		completedAt: null,
+	});
 });

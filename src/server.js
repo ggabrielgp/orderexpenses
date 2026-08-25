@@ -117,9 +117,10 @@ export default async function handleRequest(req, res) {
 				isConnected: hasGoogleToken,
 				read: getFinancialCycleSettings,
 				readPeriod: getFinancialCyclePeriod,
-				write: upsertFinancialCycleSettings,
-				complete: completeFinancialCyclePeriod,
-				}),
+					write: upsertFinancialCycleSettings,
+					complete: completeFinancialCyclePeriod,
+					syncPeriod: syncFinancialCyclePeriod,
+					}),
 			});
 			if (result) return sendJson(res, result.body, result.status);
 		}
@@ -462,6 +463,10 @@ async function syncGmail(body, userEmail) {
 		month: normalizeMonthParam(body.month),
 		payTiming: body.payTiming,
 	});
+}
+
+async function syncFinancialCyclePeriod(userEmail, period) {
+	return syncRuntimeMovements(userEmail, { period });
 }
 
 async function saveExistingMovementOverride(

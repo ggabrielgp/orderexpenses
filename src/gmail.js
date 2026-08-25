@@ -137,7 +137,7 @@ export async function getSessionUserProfile(session) {
 
 export async function listBancoChileEmails(
 	userEmail,
-	{ limit = DEFAULT_LIMIT, month, payTiming = "varies" } = {},
+	{ limit, month, period, payTiming = "varies" } = {},
 ) {
 	const client = await createOAuthClient(userEmail);
 	if (!(await hasGoogleToken(userEmail))) {
@@ -146,16 +146,16 @@ export async function listBancoChileEmails(
 		throw error;
 	}
 
-	const queries = bancoChileQueriesForPayTiming(payTiming, month);
+	const queries = period
+		? bancoChileQueriesForRange(period)
+		: bancoChileQueriesForPayTiming(payTiming, month);
 	const gmail = google.gmail({ version: "v1", auth: client });
-	const messagesById = new Map();
-
-	for (const query of queries) {
-		const messages = await listMessagesForQuery(gmail, query, limit);
-		for (const message of messages) {
-			if (message.id) messagesById.set(message.id, message);
-		}
-	}
+	const { messages, failedCount } = await collectMessagesForQueries(
+		gmail,
+		queries,
+		period ? limit : limit ?? DEFAULT_LIMIT,
+	);
+	const messagesById = new Map(messages.filter((message) => message.id).map((message) => [message.id, message]));
 
 	const emails = [];
 	for (const message of messagesById.values()) {
@@ -167,13 +167,29 @@ export async function listBancoChileEmails(
 		emails.push(toEmailInput(detail.data));
 	}
 
-	return { emails, query: queries.join(" OR ") };
+	return { emails, query: queries.join(" OR "), failedCount };
 }
 
-async function listMessagesForQuery(gmail, query, limit) {
+export async function collectMessagesForQueries(gmail, queries, limit) {
+	const messages = [];
+	let failedCount = 0;
+	let firstError;
+	for (const query of queries) {
+		try {
+			messages.push(...(await listMessagesForQuery(gmail, query, limit)));
+		} catch (error) {
+			failedCount += 1;
+			firstError ??= error;
+		}
+	}
+	if (!messages.length && firstError) throw firstError;
+	return { messages, failedCount };
+}
+
+export async function listMessagesForQuery(gmail, query, limit) {
 	const messages = [];
 	let pageToken;
-	const cap = Math.max(Number(limit) || DEFAULT_LIMIT, 1);
+	const cap = limit == null ? Infinity : Math.max(Number(limit) || DEFAULT_LIMIT, 1);
 
 	do {
 		const remaining = cap - messages.length;
@@ -242,6 +258,14 @@ export function bancoChileQueriesForPayTiming(payTiming = "varies", month) {
 	];
 }
 
+export function bancoChileQueriesForRange(period) {
+	const range = dateOnlyRange(period);
+	return [
+		bancoChileQuery(BANCO_CHILE_EXPENSE_FILTER, range),
+		bancoChileQuery(BANCO_CHILE_INCOME_FILTER, range),
+	];
+}
+
 function bancoChileQuery(filter, { start, end }) {
 	return `${BANCO_CHILE_SENDER_FILTER} ${filter} after:${formatGmailDate(start)} before:${formatGmailDate(end)}`;
 }
@@ -283,6 +307,19 @@ function parseMonth(value) {
 
 function formatGmailDate(date) {
 	return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function dateOnlyRange({ startDate, endDateExclusive }) {
+	return {
+		start: dateOnlyToLocalDate(startDate),
+		end: dateOnlyToLocalDate(endDateExclusive),
+	};
+}
+
+function dateOnlyToLocalDate(value) {
+	const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+	if (!match) throw new TypeError("Range dates must be YYYY-MM-DD");
+	return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
 function toEmailInput(message) {
