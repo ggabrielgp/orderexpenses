@@ -39,6 +39,12 @@ test("serves the marketing landing at the root", async () => {
 	assert.doesNotMatch(response.body, /id="dashboard"/);
 });
 
+test("landing demo CTA opens the deterministic demo dashboard without changing sign-in", async () => {
+	const source = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+	assert.match(source, /<a class="btn-secondary" href="\/app\?demo">Ver dashboard<\/a>/);
+	assert.match(source, /id="landingSessionAction"[^>]*href="\/auth\/google"/);
+});
+
 test("serves the product dashboard from the clean app route", async () => {
 	for (const pathname of ["/app", "/app/"]) {
 		const response = await request(pathname);
