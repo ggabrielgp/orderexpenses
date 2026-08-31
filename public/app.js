@@ -1,3 +1,5 @@
+import { mountFinancialCycleWizard } from "./financial-cycle.js";
+
 const echarts = window.echarts;
 
 const BUDGET_STORAGE_KEY = "financeMonthlyBudget";
@@ -22,6 +24,12 @@ const CREATE_CATEGORY_VALUE = "__create_category__";
 // Demo data is explicit so production never bypasses Gmail authentication.
 const DEMO_MODE = new URLSearchParams(window.location.search).has("demo");
 let demoData = [];
+
+function guardDemoMutation() {
+	if (!DEMO_MODE) return false;
+	demoAuthModal.showModal();
+	return true;
+}
 
 function adjustDemoDates(data) {
 	const now = new Date();
@@ -57,16 +65,17 @@ function mockApiResponse(endpoint) {
 		return {
 			hasCredentials: true,
 			connected: true,
-			activeEmail: "usuario@ejemplo.com",
+			activeEmail: "demo@demo.cl",
 		};
 	}
 
 	if (endpoint === "/api/gmail/profile") {
 		return {
 			connected: true,
-			email: "usuario@ejemplo.com",
-			name: "Usuario Demo",
+			email: "demo@demo.cl",
+			name: "Demo",
 			picture: null,
+			demo: true,
 		};
 	}
 
@@ -196,6 +205,8 @@ const gmailConsentClose = document.querySelector("#gmailConsentClose");
 const heroTitle = document.querySelector("#heroTitle");
 const heroSubtitle = document.querySelector("#heroSubtitle");
 const profileEl = document.querySelector("#profile");
+const reopenFinancialCycle = document.querySelector("#reopenFinancialCycle");
+const demoModeBadge = document.querySelector("#demoModeBadge");
 const refreshButton = document.querySelector("#refreshButton");
 const dashboardViewButton = document.querySelector("#dashboardViewButton");
 const tableViewButton = document.querySelector("#tableViewButton");
@@ -204,6 +215,9 @@ const dashboardEl = document.querySelector("#dashboard");
 const transactionsEl = document.querySelector("#transactions");
 const summaryEl = document.querySelector("#summary");
 const rowTemplate = document.querySelector("#transactionRowTemplate");
+const demoAuthModal = document.querySelector("#demoAuthModal");
+const demoAuthClose = document.querySelector("#demoAuthClose");
+const demoAuthCancel = document.querySelector("#demoAuthCancel");
 
 const newExpenseButton = document.querySelector("#newExpenseButton");
 const newExpenseModal = document.querySelector("#newExpenseModal");
@@ -339,16 +353,43 @@ settingsModal.addEventListener("click", (event) => {
 	if (event.target === settingsModal) closeSettingsModal();
 });
 categoryForm.addEventListener("submit", saveCategoryFromSettings);
+demoAuthClose.addEventListener("click", closeDemoAuthModal);
+demoAuthCancel.addEventListener("click", closeDemoAuthModal);
+demoAuthModal.addEventListener("click", (event) => {
+	if (event.target === demoAuthModal) closeDemoAuthModal();
+});
+
+if (DEMO_MODE) {
+	demoModeBadge.hidden = false;
+}
 
 renderMonthSelect();
+const session = await loadDashboardSession();
 await loadGmailStatus();
-await loadProfile();
+await loadProfile(session);
 await loadCategories();
 await loadTransactions();
 await autoSyncAfterGmailConnect();
 
+if (session?.features?.financialCycleOnboarding) {
+	mountFinancialCycleWizard({
+		dialog: document.querySelector("#financialCycleModal"),
+		reopen: reopenFinancialCycle,
+		demo: DEMO_MODE,
+	});
+} else if (DEMO_MODE) {
+	mountFinancialCycleWizard({
+		dialog: document.querySelector("#financialCycleModal"),
+		reopen: reopenFinancialCycle,
+		demo: true,
+	});
+} else {
+	reopenFinancialCycle.hidden = true;
+}
+
 function openGmailConsentModal(event) {
 	event.preventDefault();
+	if (guardDemoMutation()) return;
 	if (connectGmailLink.getAttribute("aria-disabled") === "true") {
 		gmailStatus.textContent =
 			"Ya hay una cuenta Gmail conectada. Desconéctala antes de cambiar de cuenta.";
@@ -364,6 +405,7 @@ function closeGmailConsentModal() {
 }
 
 function acceptGmailConsent() {
+	if (guardDemoMutation()) return;
 	if (!gmailConsentCheck.checked) return;
 	window.location.href = connectGmailLink.href;
 }
@@ -377,16 +419,24 @@ async function autoSyncAfterGmailConnect() {
 	await syncGmail();
 }
 
-async function loadProfile() {
+async function loadDashboardSession() {
+	if (DEMO_MODE) return null;
 	try {
-		let profile;
+		const response = await fetch("/api/session/profile");
+		return response.ok ? await response.json() : null;
+	} catch {
+		return null;
+	}
+}
+
+async function loadProfile(session) {
+	try {
 		if (DEMO_MODE) {
-			profile = mockApiResponse("/api/gmail/profile");
-		} else {
-			const response = await fetch("/api/gmail/profile");
-			profile = await response.json();
+			renderProfile(mockApiResponse("/api/gmail/profile"));
+			return;
 		}
-		renderProfile(profile);
+		if (session?.profile) renderProfile(session.profile);
+		else renderProfile(null);
 	} catch {
 		profileEl.hidden = true;
 		state.profile = null;
@@ -436,6 +486,18 @@ function renderProfile(profile) {
 		img.className = "profile-photo";
 		img.referrerPolicy = "no-referrer";
 		profileEl.append(img);
+	} else if (profile.demo) {
+		const avatar = document.createElement("span");
+		avatar.className = "profile-photo profile-photo-fallback profile-photo-demo";
+		avatar.setAttribute("aria-hidden", "true");
+		avatar.textContent = "D";
+		profileEl.append(avatar);
+	} else {
+		const avatar = document.createElement("span");
+		avatar.className = "profile-photo profile-photo-fallback material-symbols-outlined";
+		avatar.setAttribute("aria-hidden", "true");
+		avatar.textContent = "person";
+		profileEl.append(avatar);
 	}
 
 	const info = document.createElement("div");
@@ -452,10 +514,12 @@ function renderProfile(profile) {
 
 function openSettingsModal(options = {}) {
 	if (profileEl.hidden) return;
+	if (guardDemoMutation()) return;
 	categoryFormStatus.textContent = "";
 	categoryName.value = "";
 	categoryColorInput.value = "#22c55e";
 	renderCategorySettings();
+	categoryForm.hidden = false;
 	settingsModal.showModal();
 	if (options.focusCategoryForm) {
 		setTimeout(() => categoryName.focus(), 0);
@@ -505,6 +569,7 @@ function renderCategorySettingsRow(category) {
 
 async function saveCategoryFromSettings(event) {
 	event.preventDefault();
+	if (guardDemoMutation(categoryFormStatus)) return;
 	const name = normalizeCategoryName(categoryName.value);
 	if (!name) {
 		categoryFormStatus.textContent = "Ingresa un nombre de categoría.";
@@ -531,6 +596,7 @@ async function saveCategoryFromSettings(event) {
 }
 
 async function deleteCategoryFromSettings(name) {
+	if (guardDemoMutation(categoryFormStatus)) return;
 	if (!confirm(`¿Eliminar la categoría ${name}?`)) return;
 	try {
 		const response = await fetch(
@@ -580,10 +646,10 @@ async function loadGmailStatus(options = {}) {
 					: "Gmail no conectado. Presiona Conectar Gmail para autorizar lectura.";
 			}
 		}
-		disconnectGmailButton.hidden = !status.connected || DEMO_MODE;
-		syncGmailButton.hidden = !status.connected || DEMO_MODE;
+		disconnectGmailButton.hidden = !status.connected;
+		syncGmailButton.hidden = !status.connected;
 		syncGmailButton.disabled =
-			!status.connected || state.isGmailSyncing || DEMO_MODE;
+			!status.connected || state.isGmailSyncing;
 		connectGmailLink.setAttribute(
 			"aria-disabled",
 			status.connected || DEMO_MODE ? "true" : "false",
@@ -597,6 +663,7 @@ async function loadGmailStatus(options = {}) {
 }
 
 async function disconnectGmail() {
+	if (guardDemoMutation(gmailStatus)) return;
 	disconnectGmailButton.disabled = true;
 	syncGmailButton.disabled = true;
 	gmailStatus.textContent = "Desconectando Gmail...";
@@ -624,11 +691,7 @@ async function disconnectGmail() {
 }
 
 async function syncGmail() {
-	if (DEMO_MODE) {
-		gmailStatus.textContent =
-			"Modo demostraci\u00f3n: los datos ya est\u00e1n cargados.";
-		return;
-	}
+	if (guardDemoMutation()) return;
 	startGmailSyncProgress();
 	gmailStatus.textContent = `Buscando gastos de ${selectedMonthLabel()} en Gmail...`;
 	try {
@@ -657,6 +720,7 @@ async function syncGmail() {
 }
 
 async function createManualExpense() {
+	if (guardDemoMutation(newFormStatus)) return;
 	const body = {
 		occurredAt: `${newOccurredAt.value}:00`,
 		amount: parseCLP(newAmount.value),
@@ -997,10 +1061,19 @@ function renderTableView(transactions) {
 	const categoryFilters = renderTableCategoryFilters(transactions, categoryFilter);
 	const bulkBar = renderBulkCategoryBar(sorted);
 	const tableFeedback = renderTableFeedback();
+	const controls = document.createElement("div");
+	controls.className = "detail-table-controls";
+	controls.append(tableSummary, categoryFilters, bulkBar, tableFeedback);
+	const viewport = document.createElement("div");
+	viewport.className = "detail-table-viewport";
+	viewport.tabIndex = 0;
+	viewport.setAttribute("role", "region");
+	viewport.setAttribute("aria-label", "Movimientos del detalle");
 	const table = document.createElement("table");
 	table.className = "transactions-table";
 	table.append(renderTableHead(sorted), renderTableBody(sorted));
-	transactionsEl.append(tableSummary, categoryFilters, bulkBar, tableFeedback, table);
+	viewport.append(table);
+	transactionsEl.append(controls, viewport);
 }
 
 function activeTableCategoryFilter(transactions) {
@@ -1332,6 +1405,11 @@ function renderNextBestAction(transactions, knownExpenses) {
 		detail.textContent = `${pending.length} ${pending.length === 1 ? "movimiento necesita" : "movimientos necesitan"} tu confirmación.`;
 		button.textContent = "Revisar ahora";
 		button.addEventListener("click", openFirstReviewItem);
+	} else if (DEMO_MODE) {
+		title.textContent = "Explorar el detalle";
+		detail.textContent = "Revisa los movimientos ficticios sin modificar los datos.";
+		button.textContent = "Ver detalle";
+		button.addEventListener("click", () => setView("table"));
 	} else if (state.budgetEnabled) {
 		title.textContent = "Seguir el ritmo del mes";
 		detail.textContent =
@@ -1391,6 +1469,7 @@ function renderBudgetToggle() {
 	button.setAttribute("aria-checked", String(state.budgetEnabled));
 	button.setAttribute("aria-label", "Calcular cuánto queda este mes");
 	button.addEventListener("click", () => {
+		if (guardDemoMutation()) return;
 		state.budgetEnabled = !state.budgetEnabled;
 		saveViewPreferences();
 		preserveScrollDuringRender(() => render({ animate: false }));
@@ -1489,6 +1568,10 @@ function renderIncomeDetection() {
 	timingLabel.append(timingSelect);
 
 	toggle.addEventListener("change", async () => {
+		if (guardDemoMutation()) {
+			toggle.checked = !toggle.checked;
+			return;
+		}
 		state.budget.autoDetectIncome = toggle.checked;
 		if (!toggle.checked) {
 			state.budget.confirmedIncomeId = "manual";
@@ -1499,6 +1582,7 @@ function renderIncomeDetection() {
 		updateHeroKpis();
 	});
 	timingSelect.addEventListener("change", async () => {
+		if (guardDemoMutation()) return;
 		state.budget.payTiming = timingSelect.value;
 		state.budget.confirmedIncomeId = state.budget.salary ? "manual" : "";
 		saveBudgetPreferences();
@@ -1574,6 +1658,7 @@ function renderIncomeFallbackActions() {
 	manualButton.className = "secondary";
 	manualButton.textContent = "Ingresar manualmente";
 	manualButton.addEventListener("click", () => {
+		if (guardDemoMutation()) return;
 		state.budget.confirmedIncomeId = "manual";
 		saveBudgetPreferences();
 		render();
@@ -1585,6 +1670,7 @@ function renderIncomeFallbackActions() {
 	disableButton.className = "secondary";
 	disableButton.textContent = "Desactivar detección";
 	disableButton.addEventListener("click", () => {
+		if (guardDemoMutation()) return;
 		state.budget.autoDetectIncome = false;
 		state.budget.confirmedIncomeId = state.budget.salary ? "manual" : "";
 		state.incomeCandidates = [];
@@ -1596,6 +1682,7 @@ function renderIncomeFallbackActions() {
 }
 
 function useIncomeCandidate(candidate) {
+	if (guardDemoMutation()) return;
 	state.budget.salary = formatCLP(candidate.amount);
 	state.budget.confirmedIncomeId = String(candidate.id);
 	saveBudgetPreferences();
@@ -1674,6 +1761,12 @@ function wireBudgetInput(input, key, totalSpent, card) {
 		input.value = raw === "" ? "" : String(raw);
 	});
 	input.addEventListener("input", () => {
+		if (guardDemoMutation()) {
+			input.value = state.budget[key]
+				? formatCLP(parseCLP(state.budget[key]))
+				: "";
+			return;
+		}
 		input.value = sanitizeBudgetInput(input.value);
 		state.budget[key] = input.value;
 		if (key === "salary") state.budget.confirmedIncomeId = "manual";
@@ -1683,6 +1776,7 @@ function wireBudgetInput(input, key, totalSpent, card) {
 		updateDashboardRemainingSummary(totalSpent);
 	});
 	input.addEventListener("blur", () => {
+		if (guardDemoMutation()) return;
 		input.value = sanitizeBudgetInput(input.value);
 		const raw = parseCLP(input.value);
 		input.value = raw === "" ? "" : formatCLP(raw);
@@ -1857,6 +1951,7 @@ function loadViewPreferences() {
 }
 
 function saveViewPreferences() {
+	if (DEMO_MODE) return;
 	try {
 		localStorage.setItem(
 			VIEW_PREFERENCES_STORAGE_KEY,
@@ -1870,6 +1965,7 @@ function saveViewPreferences() {
 }
 
 function saveBudgetPreferences() {
+	if (DEMO_MODE) return;
 	try {
 		const raw = localStorage.getItem(BUDGET_STORAGE_KEY);
 		let months = {};
@@ -2977,14 +3073,15 @@ function categoryOptions(transactions = state.transactions) {
 	const sorted = [...catalog].sort((a, b) =>
 		a.name.localeCompare(b.name, "es"),
 	);
-	return [
+	const options = [
 		{ value: "", label: "Sin categoría" },
 		...sorted.map((category) => ({
 			value: category.name,
 			label: category.name,
 		})),
-		{ value: CREATE_CATEGORY_VALUE, label: "+ Crear categoría" },
 	];
+	options.push({ value: CREATE_CATEGORY_VALUE, label: "+ Crear categoría" });
+	return options;
 }
 
 function mergeCategoryCatalog(categories = []) {
@@ -3055,6 +3152,7 @@ function populateCategorySelect(select, selectedValue = "") {
 }
 
 async function saveCounterpartyCategoryRule(row, category) {
+	if (guardDemoMutation()) return;
 	const response = await fetch("/api/counterparty-rules", {
 		method: "PUT",
 		headers: { "content-type": "application/json" },
@@ -3561,6 +3659,7 @@ function clearTransactionSelection() {
 }
 
 async function applyBulkCategoryAssignment(transactions) {
+	if (guardDemoMutation()) return;
 	const selectedIds = selectedVisibleTransactionIds(transactions);
 	if (selectedIds.length === 0 || !state.bulkCategory || state.isBulkAssigning)
 		return;
@@ -3587,6 +3686,7 @@ async function applyBulkCategoryAssignment(transactions) {
 }
 
 async function patchTransactionCategory(id, category) {
+	if (guardDemoMutation()) return;
 	const transaction = state.transactions.find(
 		(tx) => String(tx.id) === String(id),
 	);
@@ -3595,15 +3695,6 @@ async function patchTransactionCategory(id, category) {
 		category,
 		status: transaction.status === "manual" ? "manual" : "edited",
 	};
-	if (DEMO_MODE) {
-		state.transactions = state.transactions.map((tx) =>
-			String(tx.id) === String(id) ? { ...tx, ...patch } : tx,
-		);
-		demoData = demoData.map((tx) =>
-			String(tx.id) === String(id) ? { ...tx, ...patch } : tx,
-		);
-		return;
-	}
 	const params = new URLSearchParams({ month: state.selectedMonth });
 	const response = await fetch(
 		`/api/transactions/${encodeURIComponent(id)}?${params}`,
@@ -3914,6 +4005,7 @@ function closeModal(options = {}) {
 }
 
 async function saveFromModal() {
+	if (guardDemoMutation(modalStatus)) return;
 	if (!state.activeId) return;
 	modalStatus.textContent = "Guardando...";
 
@@ -3973,6 +4065,7 @@ function backToCounterpartyDetail() {
 }
 
 async function deleteFromModal() {
+	if (guardDemoMutation(modalStatus)) return;
 	if (!state.activeId) return;
 	const transaction = state.transactions.find((tx) => tx.id === state.activeId);
 	const name =
@@ -4038,6 +4131,7 @@ function stopGmailSyncProgress() {
 }
 
 function openNewExpenseModal() {
+	if (guardDemoMutation(newFormStatus)) return;
 	newOccurredAt.value = toDatetimeLocal(defaultDateTimeForSelectedMonth());
 	newAmount.value = "";
 	newKind.value = "purchase";
@@ -4051,6 +4145,10 @@ function openNewExpenseModal() {
 
 function closeNewExpenseModal() {
 	newExpenseModal.close();
+}
+
+function closeDemoAuthModal() {
+	demoAuthModal.close();
 }
 
 function statusLabel(transaction) {

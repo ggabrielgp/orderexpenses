@@ -14,6 +14,33 @@
     <link rel="stylesheet" href="/app.css" />
   </head>
   <body>
+    <header class="app-header">
+      <div class="app-header-inner">
+        <div class="app-brand-group">
+          <span id="demoModeBadge" class="demo-mode-badge" hidden>Modo demo</span>
+          <a class="product-brand" href="/" aria-label="Gastos Controlados, inicio">
+            <span class="product-brand-mark material-symbols-outlined" aria-hidden="true">account_balance_wallet</span>
+            <span>Gastos Controlados</span>
+          </a>
+        </div>
+        <nav class="app-navigation" aria-label="Vistas del panel">
+          <button
+            class="app-navigation-link view-switch-option-active"
+            id="dashboardViewButton"
+            type="button"
+          >
+            Resumen
+          </button>
+          <button class="app-navigation-link" id="tableViewButton" type="button">
+            Detalle
+          </button>
+        </nav>
+        <div class="app-account">
+          <button id="reopenFinancialCycle" class="secondary cycle-reopen" type="button">Revisar periodo</button>
+          <div id="profile" class="profile" hidden></div>
+        </div>
+      </div>
+    </header>
     <div class="mesh-gradient-container" aria-hidden="true">
       <div class="mesh-sphere sphere-1"></div>
       <div class="mesh-sphere sphere-2"></div>
@@ -22,10 +49,6 @@
     </div>
     <main class="shell">
       <section class="hero" aria-labelledby="heroTitle">
-        <a class="product-brand" href="/" aria-label="Gastos Controlados, inicio">
-          <span class="product-brand-mark material-symbols-outlined" aria-hidden="true">account_balance_wallet</span>
-          <span>Gastos Controlados</span>
-        </a>
         <div class="hero-context">
           <span class="section-kicker">Resumen mensual</span>
           <div class="hero-headline">
@@ -62,25 +85,6 @@
               >
                 Sincronizar
               </button>
-            </div>
-            <div class="view-switch" role="group" aria-label="Vista de gastos">
-              <span class="view-switch-label">Vista</span>
-              <div class="view-switch-options">
-                <button
-                  class="view-switch-option view-switch-option-active"
-                  id="dashboardViewButton"
-                  type="button"
-                >
-                  Resumen
-                </button>
-                <button
-                  class="view-switch-option"
-                  id="tableViewButton"
-                  type="button"
-                >
-                  Detalle
-                </button>
-              </div>
             </div>
             <button id="newExpenseButton">Agregar gasto</button>
             <button class="secondary" id="refreshButton" hidden>
@@ -128,8 +132,6 @@
         </div>
       </section>
     </main>
-
-    <div id="profile" class="profile" hidden></div>
 
     <template id="transactionRowTemplate">
       <tr>
@@ -360,6 +362,26 @@
       </div>
     </dialog>
 
+    <dialog
+      id="demoAuthModal"
+      class="modal"
+      aria-labelledby="demoAuthTitle"
+      aria-describedby="demoAuthDescription"
+    >
+      <div class="modal-inner demo-auth-modal-inner">
+        <button id="demoAuthClose" class="modal-close" type="button" aria-label="Cerrar">✕</button>
+        <span class="demo-auth-icon material-symbols-outlined" aria-hidden="true">lock</span>
+        <h3 id="demoAuthTitle" class="modal-title">Inicia sesión para continuar</h3>
+        <p id="demoAuthDescription" class="demo-auth-description">
+          Esta acción necesita una cuenta para guardar cambios o conectarse con los servicios de Gastos Controlados.
+        </p>
+        <div class="modal-actions demo-auth-actions">
+          <button id="demoAuthCancel" type="button" class="secondary">Cancelar</button>
+          <a class="button" href="/auth/google">Continuar con Google</a>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="newExpenseModal" class="modal">
       <form method="dialog" class="modal-inner">
         <button class="modal-close" type="button" aria-label="Cerrar">✕</button>
@@ -431,6 +453,18 @@
           <button type="button" id="newSave">Guardar</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="financialCycleModal" class="modal cycle-modal" aria-labelledby="financialCycleTitle">
+      <div class="modal-inner">
+        <span data-wizard-step class="section-kicker">Paso 1 de 3</span>
+        <div class="cycle-progress" aria-hidden="true"><span data-wizard-progress></span></div>
+        <h3 id="financialCycleTitle" data-wizard-heading class="modal-title" tabindex="-1">Prepara tu periodo</h3>
+        <p data-wizard-error class="modal-status" role="alert"></p>
+        <section data-wizard-period><p>Elige las fechas inclusivas que quieres revisar.</p><div class="modal-grid"><label>Desde<input data-wizard-start type="date" required></label><label>Hasta<input data-wizard-end type="date" required></label></div><div class="modal-actions"><button data-wizard-next type="button">Continuar</button></div></section>
+        <section data-wizard-income hidden><p>¿Cuál fue tu ingreso principal? Es opcional.</p><label>Ingreso CLP<input data-wizard-income-input type="number" inputmode="numeric" min="1" placeholder="900000"></label><div class="modal-actions"><button data-wizard-skip type="button" class="secondary">Omitir</button><button data-wizard-income-next type="button">Continuar</button></div></section>
+        <section data-wizard-sync hidden><span class="material-symbols-outlined cycle-sync-icon" aria-hidden="true">sync</span><p data-wizard-status aria-live="polite">Listo para sincronizar.</p><div class="modal-actions"><a data-wizard-connect class="button" href="/auth/google" hidden>Conectar Gmail</a><button data-wizard-retry type="button" class="secondary" hidden>Reintentar</button><button data-wizard-sync-button type="button">Sincronizar</button><button data-wizard-close type="button" hidden>Ver dashboard</button></div></section>
+      </div>
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
