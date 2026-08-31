@@ -160,6 +160,15 @@ test("feature-on dashboard mounts the wizard only after the session advertises i
 	assert.match(source, /else \{\s*reopenFinancialCycle\.hidden = true;/);
 });
 
+test("feature-on dashboard requests selected-period transactions while feature-off keeps month APIs", async () => {
+	const source = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+	assert.match(source, /params\.set\("startDate", state\.reviewPeriod\.startDate\)/);
+	assert.match(source, /params\.set\("endDateExclusive", state\.reviewPeriod\.endDateExclusive\)/);
+	assert.match(source, /state\.financialCycleEnabled = Boolean\(session\?\.features\?\.financialCycleOnboarding\)/);
+	assert.match(source, /period: state\.financialCycleEnabled \? state\.reviewPeriod : null/);
+	assert.match(source, /onCompleted: applyFinancialCycleDashboardPeriod/);
+});
+
 test("dashboard identity uses the landing session-profile contract while Gmail remains separate", async () => {
 	const source = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
 	assert.match(source, /fetch\("\/api\/session\/profile"\)/);

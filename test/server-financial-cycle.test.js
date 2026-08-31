@@ -3,7 +3,7 @@ import test from "node:test";
 
 process.env.VERCEL = "1";
 process.env.TURSO_DATABASE_URL = "file:./data/finance.db";
-const { createFinancialCycleApi, dispatchFinancialCycleRequest } = await import("../src/server.js");
+const { createFinancialCycleApi, dispatchFinancialCycleRequest, financialCyclePeriodFromQuery } = await import("../src/server.js");
 
 function createApi({ connected = true, syncResult } = {}) {
 	const records = new Map();
@@ -29,6 +29,25 @@ function createApi({ connected = true, syncResult } = {}) {
 
 const period = { startDate: "2026-01-01", endDateExclusive: "2026-02-01" };
 const user = { email: "owner@example.com" };
+
+test("uses canonical selected-period query boundaries only while the feature is enabled", () => {
+	const previous = process.env.FINANCIAL_CYCLE_ONBOARDING;
+	process.env.FINANCIAL_CYCLE_ONBOARDING = "true";
+	assert.deepEqual(
+		financialCyclePeriodFromQuery(
+			new URLSearchParams({ startDate: "2026-12-31", endDateExclusive: "2027-01-02" }),
+		),
+		{ startDate: "2026-12-31", endDateExclusive: "2027-01-02" },
+	);
+	process.env.FINANCIAL_CYCLE_ONBOARDING = "false";
+	assert.equal(
+		financialCyclePeriodFromQuery(
+			new URLSearchParams({ startDate: "2026-12-31", endDateExclusive: "2027-01-02" }),
+		),
+		null,
+	);
+	process.env.FINANCIAL_CYCLE_ONBOARDING = previous;
+});
 
 test("rejects malformed, impossible, reversed periods and invalid CLP income", async () => {
 	const { api } = createApi();

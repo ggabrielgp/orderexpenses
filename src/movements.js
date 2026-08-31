@@ -109,6 +109,19 @@ export async function syncRuntimeMovements(
 		: { query, scanned: emails.length, transactions: movements };
 }
 
+export async function loadMovementsForPeriodResult(userEmail, period) {
+	const manualMovements = await loadManualMovementsForPeriod(userEmail, period);
+	const { movements: gmailMovements, warning } = await safeLoadGmailMovements(
+		userEmail,
+		{ period },
+	);
+	const movements = await applyStoredCounterpartyRules(userEmail, [
+		...filterMovementsForPeriod(gmailMovements, period),
+		...manualMovements,
+	]);
+	return { movements: await applyStoredOverrides(userEmail, movements), warning };
+}
+
 export function toRangeSyncResult({ scanned, transactions, failedCount = 0 }) {
 	return failedCount > 0
 		? { outcome: "partial", scanned, transactions, failedCount, completedAt: null }
@@ -119,10 +132,11 @@ export function filterMovementsForPeriod(movements, { startDate, endDateExclusiv
 	return movements.filter((movement) => isInRange(movement.occurredAt, startDate, endDateExclusive));
 }
 
-async function safeLoadGmailMovements(userEmail, { month, payTiming, limit }) {
+async function safeLoadGmailMovements(userEmail, { month, period, payTiming, limit }) {
 	try {
 		const { emails } = await listBancoChileEmails(userEmail, {
-			month,
+				month,
+				period,
 			payTiming,
 			limit,
 		});

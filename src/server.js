@@ -36,6 +36,7 @@ import {
 import { ReviewPeriod } from "../public/review-period.js";
 import {
 	loadIncomeCandidateMovements,
+	loadMovementsForPeriodResult,
 	loadMovementsForMonthResult,
 	normalizeCounterpartyKey,
 	saveMovementOverride,
@@ -129,10 +130,13 @@ export default async function handleRequest(req, res) {
 			const user = await getSessionUserProfile(session);
 			const month = normalizeMonthParam(url.searchParams.get("month"));
 			if (!user?.email) return sendJson(res, { transactions: [] });
-			const result = await loadMovementsForMonthResult(user.email, {
-				month,
-				payTiming: url.searchParams.get("payTiming") ?? "varies",
-			});
+			const period = financialCyclePeriodFromQuery(url.searchParams);
+			const result = period
+				? await loadMovementsForPeriodResult(user.email, period)
+				: await loadMovementsForMonthResult(user.email, {
+						month,
+						payTiming: url.searchParams.get("payTiming") ?? "varies",
+					});
 			return sendJson(res, {
 				transactions: result.movements,
 				warning: result.warning,
@@ -397,6 +401,14 @@ function validateFinancialCycle(body) {
 	}
 }
 
+export function financialCyclePeriodFromQuery(searchParams) {
+	if (process.env.FINANCIAL_CYCLE_ONBOARDING !== "true") return null;
+	const startDate = searchParams.get("startDate");
+	const endDateExclusive = searchParams.get("endDateExclusive");
+	if (!startDate && !endDateExclusive) return null;
+	return ReviewPeriod.create({ startDate, endDateExclusive }).toJSON();
+}
+
 function emptyFinancialCycle() {
 	return { selectedPeriod: null, incomeAmount: null, completedAt: null };
 }
@@ -458,9 +470,13 @@ async function readJsonBody(req) {
 
 async function syncGmail(body, userEmail) {
 	const limit = Math.min(Math.max(Number(body.limit ?? 200), 1), 200);
+	const period = process.env.FINANCIAL_CYCLE_ONBOARDING === "true" && body.period
+		? ReviewPeriod.create(body.period).toJSON()
+		: null;
 	return syncRuntimeMovements(userEmail, {
 		limit,
 		month: normalizeMonthParam(body.month),
+		period,
 		payTiming: body.payTiming,
 	});
 }

@@ -51,7 +51,7 @@ export function trapFocus(event, root) {
 	if ((!event.shiftKey && event.target === last) || (event.shiftKey && event.target === first)) { event.preventDefault(); (event.shiftKey ? last : first).focus(); }
 }
 
-export function mountFinancialCycleWizard({ dialog, reopen, demo = false, fetcher = fetch }) {
+export function mountFinancialCycleWizard({ dialog, reopen, demo = false, fetcher = fetch, onCompleted = () => {} }) {
 	if (!dialog || !reopen) return null;
 	let invoker = reopen;
 	const controller = createWizardController({ adapter: demo ? createDemoAdapter() : createAuthenticatedAdapter(fetcher), onChange: render });
@@ -72,7 +72,13 @@ export function mountFinancialCycleWizard({ dialog, reopen, demo = false, fetche
 	$("next").addEventListener("click", () => { controller.dispatch({ type: "SET_DATES", startDate: $("start").value, endDate: $("end").value }); controller.dispatch({ type: "NEXT" }); });
 	$("income-next").addEventListener("click", () => { controller.dispatch({ type: "SET_INCOME", incomeAmount: $("income-input").value }); controller.dispatch({ type: "CONTINUE_INCOME" }); });
 	$("skip").addEventListener("click", () => controller.dispatch({ type: "SKIP_INCOME" }));
-	$("sync-button").addEventListener("click", () => controller.sync()); $("retry").addEventListener("click", () => { controller.dispatch({ type: "RETRY" }); controller.sync(); });
+	async function syncAndApply() {
+		await controller.sync();
+		if (controller.state.completed) {
+			onCompleted({ period: controller.state.period, incomeAmount: controller.state.incomeAmount });
+		}
+	}
+	$("sync-button").addEventListener("click", syncAndApply); $("retry").addEventListener("click", () => { controller.dispatch({ type: "RETRY" }); syncAndApply(); });
 	$("close").addEventListener("click", () => { dialog.close(); restoreFocus(invoker); }); dialog.addEventListener("cancel", (event) => { if (!controller.state.completed) event.preventDefault(); });
 	controller.bootstrap().then((completed) => { if (!completed) open(); }).catch(() => open());
 	return { open, controller };

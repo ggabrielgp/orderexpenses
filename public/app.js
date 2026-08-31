@@ -1,4 +1,10 @@
 import { mountFinancialCycleWizard } from "./financial-cycle.js";
+import {
+	calculatePeriodSummary,
+	filterTransactionsForReviewPeriod,
+	periodLabel,
+	resolveReviewPeriod,
+} from "./dashboard-period.js";
 
 const echarts = window.echarts;
 
@@ -138,6 +144,9 @@ const state = {
 	chartDayKey: null,
 	isGmailSyncing: false,
 	selectedMonth: currentMonthKey(),
+	financialCycleEnabled: false,
+	reviewPeriod: null,
+	periodIncomeAmount: null,
 	budget: loadBudgetPreferences(currentMonthKey()),
 	budgetEnabled: viewPreferences.budgetEnabled,
 	incomeCandidates: [],
@@ -365,6 +374,8 @@ if (DEMO_MODE) {
 
 renderMonthSelect();
 const session = await loadDashboardSession();
+state.financialCycleEnabled = Boolean(session?.features?.financialCycleOnboarding);
+if (state.financialCycleEnabled) await loadFinancialCycleSettings();
 await loadGmailStatus();
 await loadProfile(session);
 await loadCategories();
@@ -376,15 +387,27 @@ if (session?.features?.financialCycleOnboarding) {
 		dialog: document.querySelector("#financialCycleModal"),
 		reopen: reopenFinancialCycle,
 		demo: DEMO_MODE,
+		onCompleted: applyFinancialCycleDashboardPeriod,
 	});
 } else if (DEMO_MODE) {
 	mountFinancialCycleWizard({
 		dialog: document.querySelector("#financialCycleModal"),
 		reopen: reopenFinancialCycle,
 		demo: true,
+		onCompleted: applyFinancialCycleDashboardPeriod,
 	});
 } else {
 	reopenFinancialCycle.hidden = true;
+}
+
+async function applyFinancialCycleDashboardPeriod({ period, incomeAmount }) {
+	state.reviewPeriod = resolveReviewPeriod(period).toJSON();
+	state.periodIncomeAmount = incomeAmount ?? null;
+	state.financialCycleEnabled = true;
+	state.chartTab = "month";
+	state.chartDayKey = null;
+	state.tableCategoryFilter = "";
+	await loadTransactions();
 }
 
 function openGmailConsentModal(event) {
@@ -426,6 +449,19 @@ async function loadDashboardSession() {
 		return response.ok ? await response.json() : null;
 	} catch {
 		return null;
+	}
+}
+
+async function loadFinancialCycleSettings() {
+	try {
+		const response = await fetch("/api/financial-cycle");
+		if (!response.ok) return;
+		const settings = await response.json();
+		state.reviewPeriod = resolveReviewPeriod(settings.selectedPeriod).toJSON();
+		state.periodIncomeAmount = settings.incomeAmount ?? null;
+	} catch {
+		state.reviewPeriod = null;
+		state.periodIncomeAmount = null;
 	}
 }
 
@@ -701,6 +737,7 @@ async function syncGmail() {
 			body: JSON.stringify({
 				limit: 200,
 				month: state.selectedMonth,
+				period: state.financialCycleEnabled ? state.reviewPeriod : null,
 				payTiming: state.budget.payTiming,
 			}),
 		});
@@ -709,7 +746,7 @@ async function syncGmail() {
 			throw new Error(payload.error || "Error sincronizando Gmail");
 		gmailStatus.textContent = `Sincronizaci\u00f3n lista: ${payload.scanned} mensajes de ${selectedMonthLabel()} procesados.`;
 		state.transactions = payload.transactions || [];
-		await loadIncomeCandidates({ renderAfter: false });
+		if (!state.financialCycleEnabled) await loadIncomeCandidates({ renderAfter: false });
 	} catch (error) {
 		gmailStatus.textContent = `Error sincronizando Gmail: ${error.message}`;
 	} finally {
@@ -799,6 +836,10 @@ async function loadTransactions() {
 			});
 		} else {
 			const params = new URLSearchParams({ month: state.selectedMonth });
+			if (state.financialCycleEnabled && state.reviewPeriod) {
+				params.set("startDate", state.reviewPeriod.startDate);
+				params.set("endDateExclusive", state.reviewPeriod.endDateExclusive);
+			}
 			const response = await fetch(`/api/transactions?${params}`);
 			payload = await response.json();
 			if (!response.ok)
@@ -806,7 +847,7 @@ async function loadTransactions() {
 		}
 		state.transactions = payload.transactions || [];
 		pruneSelectedTransactions();
-		await loadIncomeCandidates({ renderAfter: false });
+		if (!state.financialCycleEnabled) await loadIncomeCandidates({ renderAfter: false });
 		render();
 	} catch (error) {
 		showTableMessage(`No se pudieron cargar los gastos. ${error.message}`, {
@@ -1282,6 +1323,16 @@ function renderDashboardLead(transactions, knownExpenses, context) {
 }
 
 function dashboardRemainingSummary(totalSpent) {
+	if (state.financialCycleEnabled) {
+		const summary = calculatePeriodSummary([], state.periodIncomeAmount);
+		const remaining = summary.remaining === null ? null : summary.remaining - totalSpent;
+		return remaining === null
+			? { value: "—", detail: "Agrega un ingreso para este periodo." }
+			: {
+					value: remaining >= 0 ? formatCLP(remaining) : `-${formatCLP(Math.abs(remaining))}`,
+					detail: `${formatCLP(state.periodIncomeAmount)} ingreso - ${formatCLP(totalSpent)} gastos`,
+				};
+	}
 	const income = confirmedBudgetIncome();
 	if (!state.budgetEnabled || income.amount === null) {
 		return {
@@ -1860,6 +1911,11 @@ function setBudgetResult(item, valueText, detailText) {
 }
 
 function confirmedBudgetIncome() {
+	if (state.financialCycleEnabled) {
+		return state.periodIncomeAmount === null
+			? { amount: null, reason: "Agrega un ingreso para este periodo." }
+			: { amount: state.periodIncomeAmount, reason: "" };
+	}
 	const salary = parseCLP(state.budget.salary);
 	if (salary === "") {
 		return {
@@ -1993,17 +2049,7 @@ function formatSignedCLP(value) {
 }
 
 function buildMonthlyDailySpending(expenses) {
-	const selectedMonth = selectedMonthDate();
-	const monthStart = new Date(
-		selectedMonth.getFullYear(),
-		selectedMonth.getMonth(),
-		1,
-	);
-	const monthEnd = new Date(
-		selectedMonth.getFullYear(),
-		selectedMonth.getMonth() + 1,
-		0,
-	);
+	const { start: monthStart, end: monthEnd } = selectedCalendarBounds();
 	const firstWeekStart = startOfWeek(monthStart);
 	const lastWeekStart = startOfWeek(monthEnd);
 	const weeks = [];
@@ -2023,14 +2069,14 @@ function buildMonthlyDailySpending(expenses) {
 		});
 	}
 
-	const monthDays = createWeekdayTotals(selectedMonth);
+	const monthDays = createWeekdayTotals(monthStart);
 	const weekByDate = new Map(
 		weeks.flatMap((week) => week.days.map((day) => [day.key, day])),
 	);
 
 	for (const expense of expenses) {
 		const date = parseTransactionDate(expense.occurredAt);
-		if (!date || !isSameMonth(date, selectedMonth)) continue;
+		if (!date || !isDateInSelectedPeriod(date)) continue;
 		const amount = Number(expense.amount);
 		const weekDay = weekByDate.get(dateKey(date));
 		if (weekDay) weekDay.total += amount;
@@ -2038,7 +2084,7 @@ function buildMonthlyDailySpending(expenses) {
 		monthDay.total += amount;
 	}
 
-	return { weeks, monthDays, monthLabel: monthName(selectedMonth) };
+	return { weeks, monthDays, monthLabel: selectedMonthLabel() };
 }
 
 function createWeekDays(weekStart, monthStart, monthEnd) {
@@ -2245,11 +2291,10 @@ function renderChartDayDetail(selected, selectedDay, expenses) {
 }
 
 function chartDayTransactions(selected, selectedDay, expenses) {
-	const selectedMonth = selectedMonthDate();
 	return expenses
 		.filter((tx) => {
 			const date = parseTransactionDate(tx.occurredAt);
-			if (!date || !isSameMonth(date, selectedMonth)) return false;
+			if (!date || !isDateInSelectedPeriod(date)) return false;
 			if (selected.mode === "month") {
 				return `weekday-${weekdayIndex(date)}` === selectedDay.key;
 			}
@@ -2354,13 +2399,13 @@ function chartTotalsRows(series) {
 		),
 	}));
 	const monthTotal = weekRows.reduce((sum, row) => sum + row.total, 0);
-	return [...weekRows, { id: "month", label: "Mes", total: monthTotal }];
+	return [...weekRows, { id: "month", label: state.financialCycleEnabled ? "Periodo" : "Mes", total: monthTotal }];
 }
 
 function chartTabOptions(series) {
 	return [
 		...series.weeks.map((week) => ({ id: week.id, label: week.label })),
-		{ id: "month", label: "Mes completo" },
+		{ id: "month", label: state.financialCycleEnabled ? "Periodo completo" : "Mes completo" },
 	];
 }
 
@@ -2380,8 +2425,7 @@ function selectedChartSeries(series) {
 		mode: "month",
 		days: series.monthDays,
 		detail: series.monthLabel,
-		ariaLabel:
-			"Mes completo, total gastado por cada día de la semana durante el mes",
+		ariaLabel: `${state.financialCycleEnabled ? "Periodo" : "Mes"} completo, total gastado por cada día de la semana`,
 	};
 }
 
@@ -2426,6 +2470,9 @@ function isSameMonth(date, reference) {
 }
 
 function selectedMonthTransactions(transactions) {
+	if (state.financialCycleEnabled && state.reviewPeriod) {
+		return filterTransactionsForReviewPeriod(transactions, state.reviewPeriod);
+	}
 	const selectedMonth = selectedMonthDate();
 	return transactions.filter((tx) => {
 		const date = parseTransactionDate(tx.occurredAt);
@@ -2437,6 +2484,32 @@ function selectedMonthExpenseTransactions(transactions) {
 	return selectedMonthTransactions(transactions).filter(
 		isRecognizedExpense,
 	);
+}
+
+function selectedCalendarBounds() {
+	if (state.financialCycleEnabled && state.reviewPeriod) {
+		return {
+			start: dateFromDateOnly(state.reviewPeriod.startDate),
+			end: addDays(dateFromDateOnly(state.reviewPeriod.endDateExclusive), -1),
+		};
+	}
+	const selectedMonth = selectedMonthDate();
+	return {
+		start: new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1),
+		end: new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0),
+	};
+}
+
+function isDateInSelectedPeriod(date) {
+	return state.financialCycleEnabled && state.reviewPeriod
+		? state.reviewPeriod.startDate <= dateKey(date) &&
+			dateKey(date) < state.reviewPeriod.endDateExclusive
+		: isSameMonth(date, selectedMonthDate());
+}
+
+function dateFromDateOnly(value) {
+	const [year, month, day] = value.split("-").map(Number);
+	return new Date(year, month - 1, day);
 }
 
 function isRecognizedExpense(transaction) {
@@ -2465,6 +2538,9 @@ function monthName(date) {
 }
 
 function selectedMonthLabel() {
+	if (state.financialCycleEnabled && state.reviewPeriod) {
+		return periodLabel(state.reviewPeriod);
+	}
 	return monthName(selectedMonthDate());
 }
 
@@ -3720,6 +3796,10 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 
 	let income = detectedIncome;
 	let incomeSource = inflows.length > 0 ? "detected" : "none";
+	if (state.financialCycleEnabled) {
+		income = state.periodIncomeAmount;
+		incomeSource = income === null ? "none" : "period";
+	}
 
 	if (state.budgetEnabled) {
 		const budgetIncome = confirmedBudgetIncome();
@@ -3732,13 +3812,15 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 	}
 
 	const incomeDetail =
-		incomeSource === "budget"
+		incomeSource === "period"
+			? "Del periodo seleccionado"
+			: incomeSource === "budget"
 			? "Del presupuesto"
 			: incomeSource === "detected"
 				? "Detectado automáticamente"
 				: "Sin ingreso detectado";
 
-	const remaining = income - totalSpent;
+	const remaining = income === null ? null : income - totalSpent;
 	const remainingPercent =
 		income > 0 ? Math.round((remaining / income) * 100) : 0;
 
@@ -3767,7 +3849,9 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 			key: "remaining",
 			label: "Saldo restante",
 			value:
-				remaining >= 0
+				remaining === null
+					? "—"
+					: remaining >= 0
 					? formatCLP(remaining)
 					: `-${formatCLP(Math.abs(remaining))}`,
 			detail:
