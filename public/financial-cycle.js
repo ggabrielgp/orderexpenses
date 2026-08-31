@@ -75,11 +75,17 @@ export function mountFinancialCycleWizard({ dialog, reopen, demo = false, fetche
 	async function syncAndApply() {
 		await controller.sync();
 		if (controller.state.completed) {
-			onCompleted({ period: controller.state.period, incomeAmount: controller.state.incomeAmount });
+			await onCompleted({ period: controller.state.period, incomeAmount: controller.state.incomeAmount });
 		}
 	}
 	$("sync-button").addEventListener("click", syncAndApply); $("retry").addEventListener("click", () => { controller.dispatch({ type: "RETRY" }); syncAndApply(); });
 	$("close").addEventListener("click", () => { dialog.close(); restoreFocus(invoker); }); dialog.addEventListener("cancel", (event) => { if (!controller.state.completed) event.preventDefault(); });
-	controller.bootstrap().then((completed) => { if (!completed) open(); }).catch(() => open());
-	return { open, controller };
+	const ready = controller.bootstrap().then((completed) => {
+		if (!completed) open();
+		return !completed;
+	}).catch(() => {
+		open();
+		return true;
+	});
+	return { open, controller, ready, get incomplete() { return !controller.state.completed; } };
 }

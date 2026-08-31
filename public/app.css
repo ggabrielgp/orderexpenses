@@ -263,12 +263,58 @@ body {
 	display: flex;
 	justify-content: flex-end;
 	min-width: 0;
+	position: relative;
 }
 
 .profile {
 	display: flex;
 	align-items: center;
 	gap: 10px;
+}
+
+.account-menu {
+	position: absolute;
+	top: calc(100% + 10px);
+	right: 0;
+	display: grid;
+	gap: 4px;
+	width: min(280px, calc(100vw - 32px));
+	padding: var(--space-2);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-card);
+	background: var(--surface-raised);
+	box-shadow: var(--shadow-panel);
+	z-index: 40;
+}
+
+.account-menu[hidden] {
+	display: none;
+}
+
+.account-menu button,
+.account-menu a {
+	justify-content: flex-start;
+	min-height: 38px;
+	background: transparent;
+	color: var(--ink);
+	box-shadow: none;
+}
+
+.account-menu button:hover,
+.account-menu a:hover {
+	background: var(--accent-soft);
+	box-shadow: none;
+}
+
+.account-menu-status {
+	margin: var(--space-2) var(--space-2) 0;
+	color: var(--ink-muted);
+	font-size: var(--text-xs);
+	line-height: 1.4;
+}
+
+.account-menu-progress {
+	padding: var(--space-2);
 }
 
 .profile-photo-fallback {
@@ -467,25 +513,6 @@ h3 {
 	border-color: var(--line-strong);
 }
 
-.setup-panel {
-	background: var(--surface-subtle);
-	box-shadow: var(--shadow-sm);
-	opacity: 0.92;
-}
-
-.setup-panel .panel-header {
-	margin-bottom: var(--space-3);
-}
-
-.setup-panel h2 {
-	font-size: 1.05rem;
-}
-
-.setup-panel .status-box,
-.setup-panel .progress-card {
-	background: rgba(255, 255, 255, 0.86);
-}
-
 .section-kicker {
 	display: inline-flex;
 	margin-bottom: var(--space-1);
@@ -559,10 +586,7 @@ h3 {
 	display: flex;
 	align-items: center;
 	gap: var(--space-3);
-	position: fixed;
-	top: 30px;
-	right: max(16px, calc((100vw - 1200px) / 2));
-	z-index: 20;
+	position: static;
 	max-width: min(280px, calc(100vw - 32px));
 	background: rgba(255, 255, 255, 0.94);
 	box-shadow: var(--shadow-card);
@@ -3205,6 +3229,38 @@ button:hover,
 	background: transparent;
 	box-shadow: none;
 	backdrop-filter: none;
+}
+
+#profile {
+	border: 1px solid transparent;
+	border-radius: var(--radius-card);
+	padding: 6px 10px;
+	background: transparent;
+	color: var(--ink);
+	box-shadow: none;
+	transform: none;
+	transition: background 160ms ease, border-color 160ms ease;
+}
+
+#profile:hover {
+	border-color: var(--accent-line);
+	background: var(--accent-soft);
+	color: var(--ink);
+	box-shadow: none;
+	transform: none;
+}
+
+#profile:active {
+	background: var(--surface-pressed);
+	transform: none;
+}
+
+#profile:focus-visible {
+	outline: 3px solid var(--focus);
+	outline-offset: 2px;
+	background: var(--accent-soft);
+	color: var(--ink);
+	box-shadow: none;
 }
 .profile-photo { width: 42px; height: 42px; }
 .profile-photo-fallback { border: 1px solid var(--accent-line); font-size: 22px; }

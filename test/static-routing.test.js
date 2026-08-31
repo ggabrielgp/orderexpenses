@@ -148,21 +148,22 @@ test("feature-off dashboard keeps monthly behavior without mounting or fetching 
 	assert.match(source, /if \(!DEMO_MODE\) return false;/);
 	assert.match(
 		source,
-		/if \(session\?\.features\?\.financialCycleOnboarding\) \{\s*mountFinancialCycleWizard\(/,
+		/if \(state\.financialCycleEnabled && !DEMO_MODE\) \{\s*const wizard = mountFinancialCycleWizard\(/,
 	);
 	assert.match(source, /reopenFinancialCycle\.hidden = true;/);
 	assert.match(source, /const session = await loadDashboardSession\(\);/);
 	assert.match(source, /fetch\("\/api\/categories"\)/);
 	assert.match(source, /fetch\(`\/api\/transactions\?\$\{params\}`\)/);
-	assert.match(source, /profileEl\.addEventListener\("click", openSettingsModal\)/);
+	assert.match(source, /profileEl\.addEventListener\("click", toggleAccountMenu\)/);
 });
 
 test("feature-on dashboard mounts the wizard only after the session advertises it", async () => {
 	const source = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
 	assert.match(
 		source,
-		/if \(session\?\.features\?\.financialCycleOnboarding\) \{\s*mountFinancialCycleWizard\(\{[\s\S]*?demo: DEMO_MODE,/,
+		/if \(state\.financialCycleEnabled && !DEMO_MODE\) \{\s*const wizard = mountFinancialCycleWizard\(\{[\s\S]*?demo: DEMO_MODE,/,
 	);
+	assert.match(source, /if \(!onboardingIncomplete && !state\.financialCycleEnabled && DEMO_MODE\)/);
 	assert.match(source, /else \{\s*reopenFinancialCycle\.hidden = true;/);
 });
 
@@ -203,4 +204,67 @@ test("detail table keeps controls outside the row scroll viewport and headers st
 	assert.match(styles, /\.detail-table-viewport\s*\{[^}]*max-height:[^}]*overflow: auto/s);
 	assert.match(styles, /\.transactions-table th\s*\{[^}]*position: sticky;[^}]*top: 0;/s);
 	assert.match(styles, /--detail-visible-rows:\s*8/);
+});
+
+test("incomplete financial-cycle onboarding opens before dashboard data or post-OAuth synchronization", async () => {
+	const [script, wizard] = await Promise.all([
+		readFile(new URL("../public/app.js", import.meta.url), "utf8"),
+		readFile(new URL("../public/financial-cycle.js", import.meta.url), "utf8"),
+	]);
+	assert.match(
+		script,
+		/const wizard = mountFinancialCycleWizard\([\s\S]*?await wizard\.ready;[\s\S]*?onboardingIncomplete = wizard\.incomplete;/,
+	);
+	const startup = script.slice(script.indexOf("const session = await loadDashboardSession()"));
+	assert.match(startup, /if \(!onboardingIncomplete\) \{\s*await loadGmailStatus\(\);\s*await loadCategories\(\);\s*await loadTransactions\(\);\s*await autoSyncAfterGmailConnect\(\);/);
+	assert.match(wizard, /const ready = controller\.bootstrap\(\)\.then\(/);
+});
+
+test("account menu exposes Gmail identity, configuration, connect, and real disconnect safely", async () => {
+	const [html, script] = await Promise.all([
+		readFile(new URL("../public/app.html", import.meta.url), "utf8"),
+		readFile(new URL("../public/app.js", import.meta.url), "utf8"),
+	]);
+	assert.match(html, /id="profile"[\s\S]*?aria-haspopup="menu"/);
+	assert.match(html, /id="accountMenu"[^>]*role="menu"/);
+	assert.match(html, /id="accountSettingsButton"[^>]*>Configuración</);
+	assert.match(html, /id="connectGmail"[^>]*href="\/auth\/google"/);
+	assert.match(html, /id="disconnectGmailButton"[^>]*>Desconectar Gmail</);
+	assert.match(script, /accountSettingsButton\.addEventListener\("click", openSettingsModal\)/);
+	assert.match(script, /disconnectGmailButton\.addEventListener\("click", disconnectGmail\)/);
+	assert.match(script, /if \(DEMO_MODE\) return;/);
+	assert.match(script, /profile\.picture/);
+	assert.match(script, /avatar\.textContent = "mail"/);
+});
+
+test("account menu keeps its hidden initial state despite its grid layout", async () => {
+	const [html, styles] = await Promise.all([
+		readFile(new URL("../public/app.html", import.meta.url), "utf8"),
+		readFile(new URL("../public/app.css", import.meta.url), "utf8"),
+	]);
+	assert.match(html, /id="accountMenu"[^>]*class="account-menu"[^>]*hidden/);
+	assert.match(styles, /\.account-menu\[hidden\]\s*\{\s*display:\s*none;/s);
+});
+
+test("profile trigger isolates its restrained hover and focus treatment from generic buttons", async () => {
+	const styles = await readFile(new URL("../public/app.css", import.meta.url), "utf8");
+	assert.match(styles, /#profile\s*\{[^}]*background:\s*transparent;[^}]*color:\s*var\(--ink\);/s);
+	assert.match(styles, /#profile:hover\s*\{[^}]*background:\s*var\(--accent-soft\);[^}]*color:\s*var\(--ink\);[^}]*transform:\s*none;/s);
+	assert.match(styles, /#profile:focus-visible\s*\{[^}]*outline:\s*3px solid var\(--focus\);[^}]*background:\s*var\(--accent-soft\);/s);
+});
+
+test("profile trigger keeps its press state neutral instead of inheriting button scale", async () => {
+	const styles = await readFile(new URL("../public/app.css", import.meta.url), "utf8");
+	assert.match(styles, /#profile:active\s*\{[^}]*background:\s*var\(--surface-pressed\);[^}]*transform:\s*none;/s);
+});
+
+test("dashboard removes the visible setup panel while retaining Gmail feedback infrastructure", async () => {
+	const [html, script] = await Promise.all([
+		readFile(new URL("../public/app.html", import.meta.url), "utf8"),
+		readFile(new URL("../public/app.js", import.meta.url), "utf8"),
+	]);
+	assert.doesNotMatch(html, /class="panel setup-panel"/);
+	assert.match(html, /id="gmailStatus"[^>]*aria-live="polite"/);
+	assert.match(html, /id="gmailSyncProgress"/);
+	assert.doesNotMatch(script, /querySelector\("\.setup-panel"\)/);
 });

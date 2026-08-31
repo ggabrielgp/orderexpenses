@@ -37,7 +37,14 @@
         </nav>
         <div class="app-account">
           <button id="reopenFinancialCycle" class="secondary cycle-reopen" type="button">Revisar periodo</button>
-          <div id="profile" class="profile" hidden></div>
+          <button id="profile" class="profile" type="button" aria-label="Abrir menú de cuenta" aria-haspopup="menu" aria-expanded="false" aria-controls="accountMenu" hidden></button>
+          <div id="accountMenu" class="account-menu" role="menu" hidden>
+            <button id="accountSettingsButton" type="button" role="menuitem">Configuración</button>
+            <a id="connectGmail" href="/auth/google" role="menuitem">Conectar Gmail</a>
+            <button id="disconnectGmailButton" type="button" role="menuitem" hidden>Desconectar Gmail</button>
+            <p id="gmailStatus" class="account-menu-status" aria-live="polite">Revisando estado de Gmail...</p>
+            <div id="gmailSyncProgress" class="account-menu-progress" hidden><div class="progress-bar" aria-hidden="true"><div id="gmailSyncProgressFill" class="progress-fill"></div></div></div>
+          </div>
         </div>
       </div>
     </header>
@@ -96,41 +103,6 @@
         <div id="transactions" class="transactions-table-wrap"></div>
       </section>
 
-      <section class="panel setup-panel" aria-labelledby="gmailSetupTitle">
-        <div class="panel-header">
-          <div>
-            <span class="section-kicker">Configuración</span>
-            <h2 id="gmailSetupTitle">Conexión de Gmail</h2>
-            <p>
-              Autoriza lectura de Gmail solo cuando quieras importar gastos del
-              periodo seleccionado desde Banco de Chile.
-            </p>
-          </div>
-          <div class="button-row">
-            <a class="button" href="/auth/google" id="connectGmail"
-              >Conectar Gmail</a
-            >
-            <button class="secondary" id="disconnectGmailButton" hidden>
-              Desconectar Gmail
-            </button>
-          </div>
-        </div>
-        <div id="gmailStatus" class="status-box">
-          Revisando estado de Gmail...
-        </div>
-        <div id="gmailSyncProgress" class="progress-card" hidden>
-          <div class="progress-copy">
-            <strong>Sincronizando periodo...</strong>
-            <span
-              >Buscando mensajes del periodo seleccionado de Banco de Chile y
-              extrayendo gastos.</span
-            >
-          </div>
-          <div class="progress-bar" aria-hidden="true">
-            <div id="gmailSyncProgressFill" class="progress-fill"></div>
-          </div>
-        </div>
-      </section>
     </main>
 
     <template id="transactionRowTemplate">

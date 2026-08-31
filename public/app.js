@@ -1,4 +1,6 @@
 import { mountFinancialCycleWizard } from "./financial-cycle.js";
+import { bindNativeAccountMenu } from "./account-menu.js";
+import { createDeferredDashboardInitializer } from "./dashboard-startup.js";
 import {
 	calculatePeriodSummary,
 	filterTransactionsForReviewPeriod,
@@ -214,6 +216,8 @@ const gmailConsentClose = document.querySelector("#gmailConsentClose");
 const heroTitle = document.querySelector("#heroTitle");
 const heroSubtitle = document.querySelector("#heroSubtitle");
 const profileEl = document.querySelector("#profile");
+const accountMenu = document.querySelector("#accountMenu");
+const accountSettingsButton = document.querySelector("#accountSettingsButton");
 const reopenFinancialCycle = document.querySelector("#reopenFinancialCycle");
 const demoModeBadge = document.querySelector("#demoModeBadge");
 const refreshButton = document.querySelector("#refreshButton");
@@ -340,6 +344,7 @@ tableViewButton.addEventListener("click", () => setView("table"));
 disconnectGmailButton.addEventListener("click", disconnectGmail);
 syncGmailButton.addEventListener("click", syncGmail);
 connectGmailLink.addEventListener("click", openGmailConsentModal);
+accountSettingsButton.addEventListener("click", openSettingsModal);
 gmailConsentCheck.addEventListener("change", () => {
 	gmailConsentAccept.disabled = !gmailConsentCheck.checked;
 });
@@ -350,13 +355,13 @@ gmailConsentModal.addEventListener("click", (event) => {
 	if (event.target === gmailConsentModal) closeGmailConsentModal();
 });
 
-profileEl.addEventListener("click", openSettingsModal);
-profileEl.addEventListener("keydown", (event) => {
-	if (event.key === "Enter" || event.key === " ") {
-		event.preventDefault();
-		openSettingsModal();
-	}
+const accountMenuController = bindNativeAccountMenu({
+	trigger: profileEl,
+	menu: accountMenu,
+	firstMenuItem: accountSettingsButton,
+	bindClick: false,
 });
+profileEl.addEventListener("click", toggleAccountMenu);
 settingsClose.addEventListener("click", closeSettingsModal);
 settingsModal.addEventListener("click", (event) => {
 	if (event.target === settingsModal) closeSettingsModal();
@@ -375,21 +380,38 @@ if (DEMO_MODE) {
 renderMonthSelect();
 const session = await loadDashboardSession();
 state.financialCycleEnabled = Boolean(session?.features?.financialCycleOnboarding);
-if (state.financialCycleEnabled) await loadFinancialCycleSettings();
-await loadGmailStatus();
 await loadProfile(session);
-await loadCategories();
-await loadTransactions();
-await autoSyncAfterGmailConnect();
-
-if (session?.features?.financialCycleOnboarding) {
-	mountFinancialCycleWizard({
+let onboardingIncomplete = false;
+if (state.financialCycleEnabled && !DEMO_MODE) {
+	const wizard = mountFinancialCycleWizard({
 		dialog: document.querySelector("#financialCycleModal"),
 		reopen: reopenFinancialCycle,
 		demo: DEMO_MODE,
 		onCompleted: applyFinancialCycleDashboardPeriod,
 	});
-} else if (DEMO_MODE) {
+	await wizard.ready;
+	onboardingIncomplete = wizard.incomplete;
+	if (!onboardingIncomplete) {
+		state.reviewPeriod = wizard.controller.state.period;
+		state.periodIncomeAmount = wizard.controller.state.incomeAmount;
+	}
+}
+
+const initializeDeferredDashboard = createDeferredDashboardInitializer({
+	loadGmailStatus,
+	loadCategories,
+	loadTransactions,
+	autoSyncAfterGmailConnect,
+});
+
+if (!onboardingIncomplete) {
+	await loadGmailStatus();
+	await loadCategories();
+	await loadTransactions();
+	await autoSyncAfterGmailConnect();
+}
+
+if (!onboardingIncomplete && !state.financialCycleEnabled && DEMO_MODE) {
 	mountFinancialCycleWizard({
 		dialog: document.querySelector("#financialCycleModal"),
 		reopen: reopenFinancialCycle,
@@ -407,7 +429,7 @@ async function applyFinancialCycleDashboardPeriod({ period, incomeAmount }) {
 	state.chartTab = "month";
 	state.chartDayKey = null;
 	state.tableCategoryFilter = "";
-	await loadTransactions();
+	await initializeDeferredDashboard();
 }
 
 function openGmailConsentModal(event) {
@@ -511,9 +533,8 @@ function renderProfile(profile) {
 	}
 
 	profileEl.hidden = false;
-	profileEl.setAttribute("role", "button");
-	profileEl.tabIndex = 0;
-	profileEl.setAttribute("aria-label", "Abrir configuración");
+	profileEl.setAttribute("aria-expanded", "false");
+	profileEl.setAttribute("aria-label", "Abrir menú de cuenta");
 	state.profile = profile;
 	if (profile.picture) {
 		const img = document.createElement("img");
@@ -532,7 +553,7 @@ function renderProfile(profile) {
 		const avatar = document.createElement("span");
 		avatar.className = "profile-photo profile-photo-fallback material-symbols-outlined";
 		avatar.setAttribute("aria-hidden", "true");
-		avatar.textContent = "person";
+		avatar.textContent = "mail";
 		profileEl.append(avatar);
 	}
 
@@ -548,9 +569,18 @@ function renderProfile(profile) {
 	profileEl.append(info);
 }
 
+function toggleAccountMenu() {
+	accountMenuController.toggle();
+}
+
+function closeAccountMenu() {
+	accountMenuController.close();
+}
+
 function openSettingsModal(options = {}) {
 	if (profileEl.hidden) return;
 	if (guardDemoMutation()) return;
+	closeAccountMenu();
 	categoryFormStatus.textContent = "";
 	categoryName.value = "";
 	categoryColorInput.value = "#22c55e";
@@ -667,6 +697,7 @@ async function loadGmailStatus(options = {}) {
 					"Falta data/google-credentials.json. Crea credenciales OAuth de Gmail y vuelve a iniciar la app.";
 			}
 			disconnectGmailButton.hidden = true;
+			connectGmailLink.hidden = false;
 			syncGmailButton.hidden = true;
 			syncGmailButton.disabled = true;
 			connectGmailLink.removeAttribute("aria-disabled");
@@ -682,7 +713,8 @@ async function loadGmailStatus(options = {}) {
 					: "Gmail no conectado. Presiona Conectar Gmail para autorizar lectura.";
 			}
 		}
-		disconnectGmailButton.hidden = !status.connected;
+		disconnectGmailButton.hidden = !status.connected || DEMO_MODE;
+		connectGmailLink.hidden = status.connected || DEMO_MODE;
 		syncGmailButton.hidden = !status.connected;
 		syncGmailButton.disabled =
 			!status.connected || state.isGmailSyncing;
