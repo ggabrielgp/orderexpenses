@@ -21,14 +21,40 @@ test("filters totals and labels with the selected exclusive-end review period", 
 	];
 
 	assert.deepEqual(
-		filterTransactionsForReviewPeriod(transactions, period).map((transaction) => transaction.id),
+		filterTransactionsForReviewPeriod(transactions, period).map(
+			(transaction) => transaction.id,
+		),
 		["inside-start", "inside-end"],
 	);
 	assert.equal(periodLabel(period), "2026-12-30 – 2027-01-01");
-	assert.deepEqual(calculatePeriodSummary([transactions[0], transactions[1]], 10000), {
-		totalSpent: 3500,
-		remaining: 6500,
-	});
+	assert.deepEqual(
+		calculatePeriodSummary([transactions[0], transactions[1]], 10000),
+		{
+			totalSpent: 3500,
+			remaining: 6500,
+		},
+	);
+});
+
+test("filters transactions when the stored review period is a serialized DTO", () => {
+	const period = resolveReviewPeriod(selectedPeriod).toJSON();
+	const transactions = [
+		{ id: "inside", occurredAt: "2026-12-31T10:00:00", amount: 1000 },
+		{ id: "outside", occurredAt: "2027-01-02T00:00:00", amount: 2500 },
+	];
+
+	assert.deepEqual(
+		filterTransactionsForReviewPeriod(transactions, period).map(
+			(transaction) => transaction.id,
+		),
+		["inside"],
+	);
+});
+
+test("renders the label when the stored review period is a serialized DTO", () => {
+	const period = resolveReviewPeriod(selectedPeriod).toJSON();
+
+	assert.equal(periodLabel(period), "2026-12-30 – 2027-01-01");
 });
 
 test("keeps remaining unavailable for skipped income and rejects invalid transaction dates", () => {
@@ -43,7 +69,9 @@ test("keeps remaining unavailable for skipped income and rejects invalid transac
 	];
 
 	assert.deepEqual(
-		filterTransactionsForReviewPeriod(transactions, period).map((transaction) => transaction.id),
+		filterTransactionsForReviewPeriod(transactions, period).map(
+			(transaction) => transaction.id,
+		),
 		["leap-day"],
 	);
 	assert.deepEqual(calculatePeriodSummary([transactions[0]], null), {

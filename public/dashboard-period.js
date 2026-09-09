@@ -1,14 +1,18 @@
 import { ReviewPeriod } from "./review-period.js";
 
-export function resolveReviewPeriod(value, fallback = ReviewPeriod.currentMonth()) {
+export function resolveReviewPeriod(
+	value,
+	fallback = ReviewPeriod.currentMonth(),
+) {
 	return value ? ReviewPeriod.create(value) : fallback;
 }
 
 export function filterTransactionsForReviewPeriod(transactions, period) {
+	const reviewPeriod = normalizeReviewPeriod(period);
 	return transactions.filter((transaction) => {
 		const date = String(transaction.occurredAt ?? "").slice(0, 10);
 		try {
-			return period.includes(date);
+			return reviewPeriod.includes(date);
 		} catch {
 			return false;
 		}
@@ -27,5 +31,9 @@ export function calculatePeriodSummary(transactions, incomeAmount) {
 }
 
 export function periodLabel(period) {
-	return period.label;
+	return normalizeReviewPeriod(period).label;
+}
+
+function normalizeReviewPeriod(period) {
+	return period instanceof ReviewPeriod ? period : ReviewPeriod.create(period);
 }
