@@ -3,23 +3,34 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#faf8ff" />
+    <meta name="theme-color" content="#f6f5f2" />
     <title>Resumen · Gastos Controlados</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&family=Sora:wght@400..800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="/design-tokens.css" />
     <link rel="stylesheet" href="/app.css" />
   </head>
   <body>
     <header class="app-header">
       <div class="app-header-inner">
         <div class="app-brand-group">
-          <span id="demoModeBadge" class="demo-mode-badge" hidden>Modo demo</span>
-          <a class="product-brand" href="/" aria-label="Gastos Controlados, inicio">
-            <span class="product-brand-mark material-symbols-outlined" aria-hidden="true">account_balance_wallet</span>
+          <span id="demoModeBadge" class="demo-mode-badge" hidden
+            >Modo demo</span
+          >
+          <a
+            class="product-brand"
+            href="/"
+            aria-label="Gastos Controlados, inicio"
+          >
+            <span
+              class="product-brand-mark material-symbols-outlined"
+              aria-hidden="true"
+              >account_balance_wallet</span
+            >
             <span>Gastos Controlados</span>
           </a>
         </div>
@@ -31,19 +42,48 @@
           >
             Resumen
           </button>
-          <button class="app-navigation-link" id="tableViewButton" type="button">
-            Detalle
+          <button
+            class="app-navigation-link"
+            id="tableViewButton"
+            type="button"
+          >
+            Movimientos
           </button>
         </nav>
         <div class="app-account">
-          <button id="reopenFinancialCycle" class="secondary cycle-reopen" type="button">Revisar periodo</button>
-          <button id="profile" class="profile" type="button" aria-label="Abrir menú de cuenta" aria-haspopup="menu" aria-expanded="false" aria-controls="accountMenu" hidden></button>
+          <button
+            id="profile"
+            class="profile"
+            type="button"
+            aria-label="Abrir menú de cuenta"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            aria-controls="accountMenu"
+            hidden
+          ></button>
           <div id="accountMenu" class="account-menu" role="menu" hidden>
-            <button id="accountSettingsButton" type="button" role="menuitem">Configuración</button>
-            <a id="connectGmail" href="/auth/google" role="menuitem">Conectar Gmail</a>
-            <button id="disconnectGmailButton" type="button" role="menuitem" hidden>Desconectar Gmail</button>
-            <p id="gmailStatus" class="account-menu-status" aria-live="polite">Revisando estado de Gmail...</p>
-            <div id="gmailSyncProgress" class="account-menu-progress" hidden><div class="progress-bar" aria-hidden="true"><div id="gmailSyncProgressFill" class="progress-fill"></div></div></div>
+            <button id="accountSettingsButton" type="button" role="menuitem">
+              Configuración
+            </button>
+            <a id="connectGmail" href="/auth/google" role="menuitem"
+              >Conectar Gmail</a
+            >
+            <button
+              id="disconnectGmailButton"
+              type="button"
+              role="menuitem"
+              hidden
+            >
+              Desconectar Gmail
+            </button>
+            <p id="gmailStatus" class="account-menu-status" aria-live="polite">
+              Revisando estado de Gmail...
+            </p>
+            <div id="gmailSyncProgress" class="account-menu-progress" hidden>
+              <div class="progress-bar" aria-hidden="true">
+                <div id="gmailSyncProgressFill" class="progress-fill"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -55,25 +95,13 @@
       <div class="mesh-grain"></div>
     </div>
     <main class="shell">
-      <section class="hero" aria-labelledby="heroTitle">
-        <div class="hero-context">
-          <span class="section-kicker">Resumen mensual</span>
-          <div class="hero-headline">
+      <section class="panel product-panel" aria-labelledby="heroTitle">
+        <div class="panel-header period-action-header">
+          <div class="period-heading">
+            <span class="section-kicker">Resumen mensual</span>
             <h1 id="heroTitle">Tu mes en un vistazo</h1>
             <p class="subtitle" id="heroSubtitle">
               Conecta tu cuenta para ver el análisis automático de tus gastos.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel product-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Gastos</h2>
-            <p>
-              Primero entiende el mes. Si necesitas corregir algo, abre el
-              detalle.
             </p>
           </div>
           <div class="button-row">
@@ -92,6 +120,13 @@
               >
                 Sincronizar
               </button>
+              <button
+                id="reopenFinancialCycle"
+                class="secondary cycle-reopen"
+                type="button"
+              >
+                Revisar periodo
+              </button>
             </div>
             <button id="newExpenseButton">Agregar gasto</button>
             <button class="secondary" id="refreshButton" hidden>
@@ -102,7 +137,6 @@
         <div id="dashboard" class="dashboard" aria-live="polite" hidden></div>
         <div id="transactions" class="transactions-table-wrap"></div>
       </section>
-
     </main>
 
     <template id="transactionRowTemplate">
@@ -341,14 +375,30 @@
       aria-describedby="demoAuthDescription"
     >
       <div class="modal-inner demo-auth-modal-inner">
-        <button id="demoAuthClose" class="modal-close" type="button" aria-label="Cerrar">✕</button>
-        <span class="demo-auth-icon material-symbols-outlined" aria-hidden="true">lock</span>
-        <h3 id="demoAuthTitle" class="modal-title">Inicia sesión para continuar</h3>
+        <button
+          id="demoAuthClose"
+          class="modal-close"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
+        <span
+          class="demo-auth-icon material-symbols-outlined"
+          aria-hidden="true"
+          >lock</span
+        >
+        <h3 id="demoAuthTitle" class="modal-title">
+          Inicia sesión para continuar
+        </h3>
         <p id="demoAuthDescription" class="demo-auth-description">
-          Esta acción necesita una cuenta para guardar cambios o conectarse con los servicios de Gastos Controlados.
+          Esta acción necesita una cuenta para guardar cambios o conectarse con
+          los servicios de Gastos Controlados.
         </p>
         <div class="modal-actions demo-auth-actions">
-          <button id="demoAuthCancel" type="button" class="secondary">Cancelar</button>
+          <button id="demoAuthCancel" type="button" class="secondary">
+            Cancelar
+          </button>
           <a class="button" href="/auth/google">Continuar con Google</a>
         </div>
       </div>
@@ -427,16 +477,67 @@
       </form>
     </dialog>
 
-    <dialog id="financialCycleModal" class="modal cycle-modal" aria-labelledby="financialCycleTitle">
-      <div class="modal-inner">
-        <span data-wizard-step class="section-kicker">Paso 1 de 3</span>
-        <div class="cycle-progress" aria-hidden="true"><span data-wizard-progress></span></div>
-        <h3 id="financialCycleTitle" data-wizard-heading class="modal-title" tabindex="-1">Prepara tu periodo</h3>
-        <p data-wizard-error class="modal-status" role="alert"></p>
-        <section data-wizard-period><p>Elige las fechas inclusivas que quieres revisar.</p><div class="modal-grid"><label>Desde<input data-wizard-start type="date" required></label><label>Hasta<input data-wizard-end type="date" required></label></div><div class="modal-actions"><button data-wizard-next type="button">Continuar</button></div></section>
-        <section data-wizard-income hidden><p>¿Cuál fue tu ingreso principal? Es opcional.</p><label>Ingreso CLP<input data-wizard-income-input type="number" inputmode="numeric" min="1" placeholder="900000"></label><div class="modal-actions"><button data-wizard-skip type="button" class="secondary">Omitir</button><button data-wizard-income-next type="button">Continuar</button></div></section>
-        <section data-wizard-sync hidden><span class="material-symbols-outlined cycle-sync-icon" aria-hidden="true">sync</span><p data-wizard-status aria-live="polite">Listo para sincronizar.</p><div class="modal-actions"><a data-wizard-connect class="button" href="/auth/google" hidden>Conectar Gmail</a><button data-wizard-retry type="button" class="secondary" hidden>Reintentar</button><button data-wizard-sync-button type="button">Sincronizar</button><button data-wizard-close type="button" hidden>Ver dashboard</button></div></section>
-      </div>
+    <dialog
+      id="financialCycleModal"
+      class="modal cycle-modal"
+      aria-labelledby="financialCycleTitle"
+    >
+      <form data-wizard-form class="modal-inner">
+        <span class="section-kicker">Configuración del periodo</span>
+        <h3
+          id="financialCycleTitle"
+          data-wizard-heading
+          class="modal-title"
+          tabindex="-1"
+        >
+          Revisa tu periodo financiero
+        </h3>
+        <p class="cycle-description">
+          Define las fechas que quieres analizar. Ambas fechas están incluidas.
+        </p>
+        <div class="modal-grid cycle-fields">
+          <label
+            >Desde<input
+              data-wizard-start
+              type="date"
+              required
+              aria-describedby="financialCycleError"
+          /></label>
+          <label
+            >Hasta<input
+              data-wizard-end
+              type="date"
+              required
+              aria-describedby="financialCycleError"
+          /></label>
+          <label class="modal-grid-full"
+            >Ingreso mensual en CLP <span class="optional-label">(opcional)</span
+            ><input
+              data-wizard-income-input
+              type="number"
+              inputmode="numeric"
+              min="1"
+              step="1"
+              placeholder="Ej.: 900000"
+              aria-describedby="financialCycleIncomeHelp financialCycleError"
+            /><small id="financialCycleIncomeHelp"
+              >Se usa para calcular cuánto queda disponible en este periodo.</small
+            ></label
+          >
+        </div>
+        <p
+          id="financialCycleError"
+          data-wizard-error
+          class="modal-status cycle-error"
+          role="alert"
+        ></p>
+        <p data-wizard-status class="modal-status" aria-live="polite"></p>
+        <div class="modal-actions">
+          <button data-wizard-cancel type="button" class="secondary" hidden>
+            Cancelar</button
+          ><button data-wizard-save type="submit">Guardar configuración</button>
+        </div>
+      </form>
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>

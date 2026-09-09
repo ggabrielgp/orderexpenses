@@ -1,6 +1,5 @@
 import { mountFinancialCycleWizard } from "./financial-cycle.js";
 import { bindNativeAccountMenu } from "./account-menu.js";
-import { createDeferredDashboardInitializer } from "./dashboard-startup.js";
 import {
 	calculatePeriodSummary,
 	filterTransactionsForReviewPeriod,
@@ -145,6 +144,7 @@ const state = {
 	chartTab: "month",
 	chartDayKey: null,
 	isGmailSyncing: false,
+	gmailConnected: false,
 	selectedMonth: currentMonthKey(),
 	financialCycleEnabled: false,
 	reviewPeriod: null,
@@ -379,7 +379,10 @@ if (DEMO_MODE) {
 
 renderMonthSelect();
 const session = await loadDashboardSession();
-state.financialCycleEnabled = Boolean(session?.features?.financialCycleOnboarding);
+state.financialCycleEnabled = Boolean(
+	session?.features?.financialCycleOnboarding,
+);
+setPeriodControlMode();
 await loadProfile(session);
 let onboardingIncomplete = false;
 if (state.financialCycleEnabled && !DEMO_MODE) {
@@ -387,7 +390,7 @@ if (state.financialCycleEnabled && !DEMO_MODE) {
 		dialog: document.querySelector("#financialCycleModal"),
 		reopen: reopenFinancialCycle,
 		demo: DEMO_MODE,
-		onCompleted: applyFinancialCycleDashboardPeriod,
+		onSaved: applyFinancialCycleDashboardPeriod,
 	});
 	await wizard.ready;
 	onboardingIncomplete = wizard.incomplete;
@@ -397,18 +400,8 @@ if (state.financialCycleEnabled && !DEMO_MODE) {
 	}
 }
 
-const initializeDeferredDashboard = createDeferredDashboardInitializer({
-	loadGmailStatus,
-	loadCategories,
-	loadTransactions,
-	autoSyncAfterGmailConnect,
-});
-
 if (!onboardingIncomplete) {
-	await loadGmailStatus();
-	await loadCategories();
-	await loadTransactions();
-	await autoSyncAfterGmailConnect();
+	await refreshDashboardAfterFinancialCycle();
 }
 
 if (!onboardingIncomplete && !state.financialCycleEnabled && DEMO_MODE) {
@@ -416,11 +409,10 @@ if (!onboardingIncomplete && !state.financialCycleEnabled && DEMO_MODE) {
 		dialog: document.querySelector("#financialCycleModal"),
 		reopen: reopenFinancialCycle,
 		demo: true,
-		onCompleted: applyFinancialCycleDashboardPeriod,
+		onSaved: applyFinancialCycleDashboardPeriod,
 	});
-} else {
-	reopenFinancialCycle.hidden = true;
 }
+reopenFinancialCycle.hidden = !state.financialCycleEnabled && !DEMO_MODE;
 
 async function applyFinancialCycleDashboardPeriod({ period, incomeAmount }) {
 	state.reviewPeriod = resolveReviewPeriod(period).toJSON();
@@ -429,11 +421,23 @@ async function applyFinancialCycleDashboardPeriod({ period, incomeAmount }) {
 	state.chartTab = "month";
 	state.chartDayKey = null;
 	state.tableCategoryFilter = "";
-	await initializeDeferredDashboard();
+	setPeriodControlMode();
+	render();
+	await refreshDashboardAfterFinancialCycle();
+}
+
+async function refreshDashboardAfterFinancialCycle() {
+	const gmailConnected = await loadGmailStatus();
+	await loadCategories();
+	await loadTransactions();
+	const oauthSyncStarted = await autoSyncAfterGmailConnect();
+	if (state.financialCycleEnabled && gmailConnected && !oauthSyncStarted) {
+		await syncGmail();
+	}
 }
 
 function openGmailConsentModal(event) {
-	event.preventDefault();
+	event?.preventDefault();
 	if (guardDemoMutation()) return;
 	if (connectGmailLink.getAttribute("aria-disabled") === "true") {
 		gmailStatus.textContent =
@@ -452,16 +456,17 @@ function closeGmailConsentModal() {
 function acceptGmailConsent() {
 	if (guardDemoMutation()) return;
 	if (!gmailConsentCheck.checked) return;
-	window.location.href = connectGmailLink.href;
+	window.location.assign("/auth/google");
 }
 
 async function autoSyncAfterGmailConnect() {
 	const params = new URLSearchParams(window.location.search);
-	if (params.get("gmail") !== "connected") return;
+	if (params.get("gmail") !== "connected") return false;
 	window.history.replaceState({}, "", window.location.pathname);
 	gmailStatus.textContent =
 		"Gmail conectado. Iniciando sincronización automática...";
 	await syncGmail();
+	return true;
 }
 
 async function loadDashboardSession() {
@@ -551,7 +556,8 @@ function renderProfile(profile) {
 		profileEl.append(avatar);
 	} else {
 		const avatar = document.createElement("span");
-		avatar.className = "profile-photo profile-photo-fallback material-symbols-outlined";
+		avatar.className =
+			"profile-photo profile-photo-fallback material-symbols-outlined";
 		avatar.setAttribute("aria-hidden", "true");
 		avatar.textContent = "mail";
 		profileEl.append(avatar);
@@ -665,10 +671,9 @@ async function deleteCategoryFromSettings(name) {
 	if (guardDemoMutation(categoryFormStatus)) return;
 	if (!confirm(`¿Eliminar la categoría ${name}?`)) return;
 	try {
-		const response = await fetch(
-			`/api/categories/${encodeURIComponent(name)}`,
-			{ method: "DELETE" },
-		);
+		const response = await fetch(`/api/categories/${encodeURIComponent(name)}`, {
+			method: "DELETE",
+		});
 		const payload = await response.json();
 		if (!response.ok)
 			throw new Error(payload.error || "No se pudo eliminar la categoría");
@@ -691,6 +696,7 @@ async function loadGmailStatus(options = {}) {
 			status = await response.json();
 		}
 		if (!status.hasCredentials && !DEMO_MODE) {
+			state.gmailConnected = false;
 			updatePageTitle(false);
 			if (!options.preserveMessage) {
 				gmailStatus.textContent =
@@ -701,9 +707,10 @@ async function loadGmailStatus(options = {}) {
 			syncGmailButton.hidden = true;
 			syncGmailButton.disabled = true;
 			connectGmailLink.removeAttribute("aria-disabled");
-			return;
+			return false;
 		}
-		updatePageTitle(status.connected || DEMO_MODE);
+		state.gmailConnected = Boolean(status.connected || DEMO_MODE);
+		updatePageTitle(state.gmailConnected);
 		if (!options.preserveMessage) {
 			if (DEMO_MODE) {
 				gmailStatus.textContent = `Modo demostraci\u00f3n activado. Mostrando datos ficticios de ${selectedMonthLabel()}.`;
@@ -716,17 +723,19 @@ async function loadGmailStatus(options = {}) {
 		disconnectGmailButton.hidden = !status.connected || DEMO_MODE;
 		connectGmailLink.hidden = status.connected || DEMO_MODE;
 		syncGmailButton.hidden = !status.connected;
-		syncGmailButton.disabled =
-			!status.connected || state.isGmailSyncing;
+		syncGmailButton.disabled = !status.connected || state.isGmailSyncing;
 		connectGmailLink.setAttribute(
 			"aria-disabled",
 			status.connected || DEMO_MODE ? "true" : "false",
 		);
+		return state.gmailConnected;
 	} catch (error) {
+		state.gmailConnected = false;
 		updatePageTitle(false);
 		if (!options.preserveMessage) {
 			gmailStatus.textContent = `Error revisando Gmail: ${error.message}`;
 		}
+		return false;
 	}
 }
 
@@ -778,7 +787,8 @@ async function syncGmail() {
 			throw new Error(payload.error || "Error sincronizando Gmail");
 		gmailStatus.textContent = `Sincronizaci\u00f3n lista: ${payload.scanned} mensajes de ${selectedMonthLabel()} procesados.`;
 		state.transactions = payload.transactions || [];
-		if (!state.financialCycleEnabled) await loadIncomeCandidates({ renderAfter: false });
+		if (!state.financialCycleEnabled)
+			await loadIncomeCandidates({ renderAfter: false });
 	} catch (error) {
 		gmailStatus.textContent = `Error sincronizando Gmail: ${error.message}`;
 	} finally {
@@ -874,12 +884,12 @@ async function loadTransactions() {
 			}
 			const response = await fetch(`/api/transactions?${params}`);
 			payload = await response.json();
-			if (!response.ok)
-				throw new Error(payload.error || "Error cargando gastos");
+			if (!response.ok) throw new Error(payload.error || "Error cargando gastos");
 		}
 		state.transactions = payload.transactions || [];
 		pruneSelectedTransactions();
-		if (!state.financialCycleEnabled) await loadIncomeCandidates({ renderAfter: false });
+		if (!state.financialCycleEnabled)
+			await loadIncomeCandidates({ renderAfter: false });
 		render();
 	} catch (error) {
 		showTableMessage(`No se pudieron cargar los gastos. ${error.message}`, {
@@ -941,12 +951,25 @@ function createEmptyState(titleText, copyText, options = {}) {
 		copy.textContent = bodyCopy;
 		box.append(copy);
 	}
-	if (options.actionLabel && options.onAction) {
-		const action = document.createElement("button");
-		action.type = "button";
-		action.textContent = options.actionLabel;
-		action.addEventListener("click", options.onAction);
-		box.append(action);
+	const primaryActionLabel = options.primaryActionLabel || options.actionLabel;
+	const onPrimaryAction = options.onPrimaryAction || options.onAction;
+	if (primaryActionLabel && onPrimaryAction) {
+		const actions = document.createElement("div");
+		actions.className = "empty-actions";
+		const primaryAction = document.createElement("button");
+		primaryAction.type = "button";
+		primaryAction.textContent = primaryActionLabel;
+		primaryAction.addEventListener("click", onPrimaryAction);
+		actions.append(primaryAction);
+		if (options.secondaryActionLabel && options.onSecondaryAction) {
+			const secondaryAction = document.createElement("button");
+			secondaryAction.type = "button";
+			secondaryAction.className = "secondary";
+			secondaryAction.textContent = options.secondaryActionLabel;
+			secondaryAction.addEventListener("click", options.onSecondaryAction);
+			actions.append(secondaryAction);
+		}
+		box.append(actions);
 	}
 	return box;
 }
@@ -962,6 +985,12 @@ async function changeSelectedMonth() {
 	await loadTransactions();
 }
 
+function setPeriodControlMode() {
+	const customPeriodActive = state.financialCycleEnabled;
+	monthSelect.disabled = customPeriodActive;
+	monthSelect.closest(".month-picker").hidden = customPeriodActive;
+}
+
 function renderMonthSelect() {
 	monthSelect.replaceChildren();
 	for (const option of selectableMonthOptions()) {
@@ -971,6 +1000,7 @@ function renderMonthSelect() {
 		item.selected = option.value === state.selectedMonth;
 		monthSelect.append(item);
 	}
+	setPeriodControlMode();
 }
 
 function selectableMonthOptions() {
@@ -1088,19 +1118,7 @@ function render(options = {}) {
 	renderSummary(visibleTransactions);
 
 	if (visibleTransactions.length === 0) {
-		const empty = createEmptyState(
-			`Todavía no hay gastos en ${selectedMonthLabel()}`,
-			"Sincroniza Gmail o agrega un gasto manual para este periodo para empezar a ver el resumen.",
-			{ actionLabel: "Agregar gasto", onAction: openNewExpenseModal },
-		);
-		if (state.view === "dashboard") {
-			dashboardEl.append(
-				state.budgetEnabled ? renderBudgetPanel(0) : renderBudgetToggle(),
-			);
-			dashboardEl.append(empty);
-		} else {
-			transactionsEl.append(empty);
-		}
+		renderEmptyPeriod();
 		return;
 	}
 
@@ -1112,14 +1130,36 @@ function render(options = {}) {
 	renderTableView(visibleTransactions);
 }
 
+function renderEmptyPeriod() {
+	const canSyncGmail = !syncGmailButton.hidden;
+	const empty = createEmptyState(
+		`Todavía no hay gastos en ${selectedMonthLabel()}`,
+		canSyncGmail
+			? "Sincroniza Gmail para buscar movimientos de este periodo."
+			: "Conecta Gmail para importar movimientos de este periodo.",
+		{
+			primaryActionLabel: canSyncGmail ? "Sincronizar Gmail" : "Conectar Gmail",
+			onPrimaryAction: canSyncGmail ? syncGmail : openGmailConsentModal,
+			secondaryActionLabel: "Agregar gasto",
+			onSecondaryAction: openNewExpenseModal,
+		},
+	);
+
+	if (state.view === "dashboard") {
+		dashboardEl.append(empty);
+		dashboardEl.append(
+			state.budgetEnabled ? renderBudgetPanel(0) : renderBudgetToggle(),
+		);
+	} else {
+		transactionsEl.append(empty);
+	}
+}
+
 function renderViewToggle() {
 	const isDashboard = state.view === "dashboard";
 	dashboardViewButton.classList.remove("secondary");
 	tableViewButton.classList.remove("secondary");
-	dashboardViewButton.classList.toggle(
-		"view-switch-option-active",
-		isDashboard,
-	);
+	dashboardViewButton.classList.toggle("view-switch-option-active", isDashboard);
 	tableViewButton.classList.toggle("view-switch-option-active", !isDashboard);
 	dashboardViewButton.setAttribute("aria-pressed", String(isDashboard));
 	tableViewButton.setAttribute("aria-pressed", String(!isDashboard));
@@ -1127,11 +1167,17 @@ function renderViewToggle() {
 
 function renderTableView(transactions) {
 	const categoryFilter = activeTableCategoryFilter(transactions);
-	const filtered = filterTransactionsByTableCategory(transactions, categoryFilter);
+	const filtered = filterTransactionsByTableCategory(
+		transactions,
+		categoryFilter,
+	);
 	const sorted = sortTransactions(filtered);
 	pruneSelectedTransactions(sorted);
 	const tableSummary = renderTableSummary(sorted, transactions, categoryFilter);
-	const categoryFilters = renderTableCategoryFilters(transactions, categoryFilter);
+	const categoryFilters = renderTableCategoryFilters(
+		transactions,
+		categoryFilter,
+	);
 	const bulkBar = renderBulkCategoryBar(sorted);
 	const tableFeedback = renderTableFeedback();
 	const controls = document.createElement("div");
@@ -1153,7 +1199,8 @@ function activeTableCategoryFilter(transactions) {
 	const normalized = normalizeCategoryName(state.tableCategoryFilter || "");
 	if (!normalized) return "";
 	const hasCategory = transactions.some(
-		(tx) => categoryKey(categoryLabelForTransaction(tx)) === categoryKey(normalized),
+		(tx) =>
+			categoryKey(categoryLabelForTransaction(tx)) === categoryKey(normalized),
 	);
 	if (!hasCategory) {
 		state.tableCategoryFilter = "";
@@ -1298,7 +1345,9 @@ function renderDashboard(transactions, options = {}) {
 
 	const cards = [
 		lead,
-		state.budgetEnabled ? renderBudgetPanel(totalSpent, budgetCard) : budgetToggle,
+		state.budgetEnabled
+			? renderBudgetPanel(totalSpent, budgetCard)
+			: budgetToggle,
 		categoryDistribution,
 		weeklyChart,
 		monthStory,
@@ -1331,23 +1380,13 @@ function renderDashboardLead(transactions, knownExpenses, context) {
 	const side = document.createElement("div");
 	side.className = "lead-answer-stack";
 	side.append(
-		leadAnswerCard("remaining", "¿Cuánto me queda?", remaining.value, remaining.detail),
 		leadAnswerCard(
-			"top-category",
-			"¿Dónde se fue la plata?",
-			context.topCategory.label,
-			context.topCategory.label === "—"
-				? "Todavía no hay categoría dominante."
-				: `${formatCLP(context.topCategory.total)} concentrados ahí.`,
+			"remaining",
+			"¿Cuánto me queda?",
+			remaining.value,
+			remaining.detail,
 		),
-		leadAnswerCard(
-			"review",
-			"¿Qué tengo que revisar?",
-			String(context.pendingReviewCount || context.unknownExpenseCount),
-			context.pendingReviewCount || context.unknownExpenseCount
-				? "Abrí el detalle sólo para corregir esos movimientos."
-				: "No hay alertas urgentes en este periodo.",
-		),
+		renderNextBestAction(transactions, knownExpenses),
 	);
 
 	section.append(primary, side);
@@ -1357,11 +1396,15 @@ function renderDashboardLead(transactions, knownExpenses, context) {
 function dashboardRemainingSummary(totalSpent) {
 	if (state.financialCycleEnabled) {
 		const summary = calculatePeriodSummary([], state.periodIncomeAmount);
-		const remaining = summary.remaining === null ? null : summary.remaining - totalSpent;
+		const remaining =
+			summary.remaining === null ? null : summary.remaining - totalSpent;
 		return remaining === null
 			? { value: "—", detail: "Agrega un ingreso para este periodo." }
 			: {
-					value: remaining >= 0 ? formatCLP(remaining) : `-${formatCLP(Math.abs(remaining))}`,
+					value:
+						remaining >= 0
+							? formatCLP(remaining)
+							: `-${formatCLP(Math.abs(remaining))}`,
 					detail: `${formatCLP(state.periodIncomeAmount)} ingreso - ${formatCLP(totalSpent)} gastos`,
 				};
 	}
@@ -1374,7 +1417,8 @@ function dashboardRemainingSummary(totalSpent) {
 	}
 	const remaining = income.amount - totalSpent;
 	return {
-		value: remaining >= 0 ? formatCLP(remaining) : `-${formatCLP(Math.abs(remaining))}`,
+		value:
+			remaining >= 0 ? formatCLP(remaining) : `-${formatCLP(Math.abs(remaining))}`,
 		detail: `${formatCLP(income.amount)} ingreso - ${formatCLP(totalSpent)} gastos`,
 	};
 }
@@ -1436,9 +1480,9 @@ function monthStorySummary(knownExpenses, context) {
 		return "Todavía no hay suficiente información para contarte el mes.";
 	}
 	const topLabel =
-		context.topCategory.label !== "—"
-			? context.topCategory.label
-			: "varias categorías";
+		context.topCategory.label === "—"
+			? "varias categorías"
+			: context.topCategory.label;
 	return `Llevas ${formatCLP(context.totalSpent)} en gastos detectados. La historia principal está en ${topLabel}.`;
 }
 
@@ -1490,19 +1534,19 @@ function renderNextBestAction(transactions, knownExpenses) {
 		button.addEventListener("click", openFirstReviewItem);
 	} else if (DEMO_MODE) {
 		title.textContent = "Explorar el detalle";
-		detail.textContent = "Revisa los movimientos ficticios sin modificar los datos.";
+		detail.textContent =
+			"Revisa los movimientos ficticios sin modificar los datos.";
 		button.textContent = "Ver detalle";
 		button.addEventListener("click", () => setView("table"));
 	} else if (state.budgetEnabled) {
 		title.textContent = "Seguir el ritmo del mes";
 		detail.textContent =
-			"Ya podés mirar cuánto te queda y ajustar si algo no calza.";
+			"Ya puedes revisar cuánto te queda y ajustar cualquier diferencia.";
 		button.textContent = "Ver detalle";
 		button.addEventListener("click", () => setView("table"));
 	} else if (knownExpenses.length > 0) {
 		title.textContent = "Responder la pregunta clave";
-		detail.textContent =
-			"Activa el cálculo para saber cuánto te queda este mes.";
+		detail.textContent = "Activa el cálculo para saber cuánto te queda este mes.";
 		button.textContent = "Calcular cuánto queda";
 		button.addEventListener("click", () => {
 			state.budgetEnabled = true;
@@ -1565,7 +1609,10 @@ function renderBudgetToggle() {
 	return section;
 }
 
-function renderBudgetPanel(totalSpent, budgetCard = renderBudgetCard(totalSpent)) {
+function renderBudgetPanel(
+	totalSpent,
+	budgetCard = renderBudgetCard(totalSpent),
+) {
 	const panel = renderBudgetToggle();
 	panel.classList.add("budget-toggle-card-expanded");
 	const content = document.createElement("div");
@@ -2431,13 +2478,23 @@ function chartTotalsRows(series) {
 		),
 	}));
 	const monthTotal = weekRows.reduce((sum, row) => sum + row.total, 0);
-	return [...weekRows, { id: "month", label: state.financialCycleEnabled ? "Periodo" : "Mes", total: monthTotal }];
+	return [
+		...weekRows,
+		{
+			id: "month",
+			label: state.financialCycleEnabled ? "Periodo" : "Mes",
+			total: monthTotal,
+		},
+	];
 }
 
 function chartTabOptions(series) {
 	return [
 		...series.weeks.map((week) => ({ id: week.id, label: week.label })),
-		{ id: "month", label: state.financialCycleEnabled ? "Periodo completo" : "Mes completo" },
+		{
+			id: "month",
+			label: state.financialCycleEnabled ? "Periodo completo" : "Mes completo",
+		},
 	];
 }
 
@@ -2513,6 +2570,7 @@ function selectedMonthTransactions(transactions) {
 }
 
 function selectedMonthExpenseTransactions(transactions) {
+	// biome-ignore format: Preserve the multiline predicate contract checked by static tests.
 	return selectedMonthTransactions(transactions).filter(
 		isRecognizedExpense,
 	);
@@ -2535,7 +2593,7 @@ function selectedCalendarBounds() {
 function isDateInSelectedPeriod(date) {
 	return state.financialCycleEnabled && state.reviewPeriod
 		? state.reviewPeriod.startDate <= dateKey(date) &&
-			dateKey(date) < state.reviewPeriod.endDateExclusive
+				dateKey(date) < state.reviewPeriod.endDateExclusive
 		: isSameMonth(date, selectedMonthDate());
 }
 
@@ -2828,8 +2886,7 @@ function buildCategoryBreakdown(transactions) {
 	const groups = new Map();
 	const total = sumAmounts(transactions);
 	for (const tx of transactions) {
-		const category =
-			normalizeCategoryName(tx.category || "") || "Sin categoría";
+		const category = normalizeCategoryName(tx.category || "") || "Sin categoría";
 		const key = categoryKey(category);
 		if (!groups.has(key)) {
 			groups.set(key, {
@@ -3178,9 +3235,7 @@ function categoryOptions(transactions = state.transactions) {
 			catalog.push({ name: value, color: "#64748b", builtin: false });
 		}
 	}
-	const sorted = [...catalog].sort((a, b) =>
-		a.name.localeCompare(b.name, "es"),
-	);
+	const sorted = [...catalog].sort((a, b) => a.name.localeCompare(b.name, "es"));
 	const options = [
 		{ value: "", label: "Sin categoría" },
 		...sorted.map((category) => ({
@@ -3506,7 +3561,11 @@ function renderTableBody(sorted) {
 	return tbody;
 }
 
-function renderTableSummary(transactions, allTransactions = transactions, categoryFilter = "") {
+function renderTableSummary(
+	transactions,
+	allTransactions = transactions,
+	categoryFilter = "",
+) {
 	const expenses = transactions.filter(
 		(tx) => tx.direction === "outflow" && hasKnownAmount(tx),
 	);
@@ -3847,10 +3906,10 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 		incomeSource === "period"
 			? "Del periodo seleccionado"
 			: incomeSource === "budget"
-			? "Del presupuesto"
-			: incomeSource === "detected"
-				? "Detectado automáticamente"
-				: "Sin ingreso detectado";
+				? "Del presupuesto"
+				: incomeSource === "detected"
+					? "Detectado automáticamente"
+					: "Sin ingreso detectado";
 
 	const remaining = income === null ? null : income - totalSpent;
 	const remainingPercent =
@@ -3884,8 +3943,8 @@ function computeHeroKpiData(knownExpenses, allMonthTransactions) {
 				remaining === null
 					? "—"
 					: remaining >= 0
-					? formatCLP(remaining)
-					: `-${formatCLP(Math.abs(remaining))}`,
+						? formatCLP(remaining)
+						: `-${formatCLP(Math.abs(remaining))}`,
 			detail:
 				income > 0
 					? `${remainingPercent}% disponible`
@@ -4065,10 +4124,10 @@ function renderCategoryBadge(transaction) {
 	badge.type = "button";
 	badge.className = "category-badge";
 	badge.textContent = category || "+ Categoría";
-	if (!category) {
-		badge.classList.add("category-badge-empty");
-	} else {
+	if (category) {
 		badge.style.setProperty("--category-color", categoryVisualColor(category));
+	} else {
+		badge.classList.add("category-badge-empty");
 	}
 	badge.addEventListener("click", () => openModal(transaction.id));
 	return badge;
@@ -4134,8 +4193,8 @@ async function saveFromModal() {
 		counterparty: modalCounterparty.value,
 		description: modalDescription.value,
 		status:
-			(state.transactions.find((tx) => tx.id === state.activeId) || {})
-				.status === "manual"
+			(state.transactions.find((tx) => tx.id === state.activeId) || {}).status ===
+			"manual"
 				? "manual"
 				: "edited",
 	};

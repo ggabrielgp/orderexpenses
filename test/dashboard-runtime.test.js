@@ -24,7 +24,7 @@ class FakeElement extends EventTarget {
 
 function createWizardDialog() {
 	const elements = Object.fromEntries(
-		["start", "end", "step", "progress", "error", "status", "period", "income", "sync", "retry", "connect", "close", "next", "income-next", "skip", "income-input", "sync-button"]
+		["heading", "form", "start", "end", "income-input", "error", "status", "cancel", "save"]
 			.map((name) => [name, new FakeElement()]),
 	);
 	const dialog = new FakeElement();
@@ -34,7 +34,7 @@ function createWizardDialog() {
 	};
 	dialog.querySelectorAll = () => [];
 	dialog.showModal = () => { dialog.open = true; };
-	dialog.close = () => { dialog.open = false; };
+	dialog.close = () => { dialog.open = false; dialog.dispatchEvent(new Event("close")); };
 	return { dialog, elements };
 }
 
@@ -69,7 +69,7 @@ test("native profile keyboard activation produces one account-menu toggle and re
 	assert.equal(menu.hidden, true, "outside click must close an open account menu");
 });
 
-test("first Step 3 completion initializes Gmail, categories, selected-period transactions, and sync exactly once in order", async () => {
+test("one-form setup saves, closes, and initializes dashboard work once", async () => {
 	const calls = [];
 	const initialize = createDeferredDashboardInitializer({
 		loadGmailStatus: async () => calls.push("gmail"),
@@ -77,19 +77,33 @@ test("first Step 3 completion initializes Gmail, categories, selected-period tra
 		loadTransactions: async () => calls.push("transactions"),
 		autoSyncAfterGmailConnect: async () => calls.push("sync"),
 	});
-
 	const { dialog, elements } = createWizardDialog();
-	const wizard = mountFinancialCycleWizard({
-		dialog,
-		reopen: new FakeElement(),
-		demo: true,
-		onCompleted: initialize,
-	});
+	const reopen = new FakeElement();
+	const wizard = mountFinancialCycleWizard({ dialog, reopen, demo: true, onSaved: initialize, now: new Date(2028, 1, 15) });
 	await wizard.ready;
-	elements.next.click();
-	elements.skip.click();
-	elements["sync-button"].click();
+	assert.deepEqual({ open: dialog.open, start: elements.start.value, end: elements.end.value, cancelHidden: elements.cancel.hidden }, { open: true, start: "2028-02-01", end: "2028-02-29", cancelHidden: true });
+	elements.form.dispatchEvent(new Event("submit", { cancelable: true }));
 	await new Promise((resolve) => setTimeout(resolve, 0));
-	await Promise.all([initialize(), initialize()]);
+	assert.equal(dialog.open, false);
+	assert.equal(reopen.focused, true);
 	assert.deepEqual(calls, ["gmail", "categories", "transactions", "sync"]);
+});
+
+test("configured reopen hydrates values and Cancel closes without saving", async () => {
+	let saves = 0;
+	const settings = { selectedPeriod: { startDate: "2028-02-01", endDateExclusive: "2028-03-01" }, incomeAmount: 750000 };
+	const fetcher = async (_url, options = {}) => {
+		if (options.method === "PUT") saves += 1;
+		return { ok: true, json: async () => settings };
+	};
+	const { dialog, elements } = createWizardDialog();
+	const reopen = new FakeElement();
+	const wizard = mountFinancialCycleWizard({ dialog, reopen, fetcher });
+	assert.equal(await wizard.ready, false);
+	reopen.click();
+	assert.deepEqual({ open: dialog.open, start: elements.start.value, end: elements.end.value, income: elements["income-input"].value, cancelHidden: elements.cancel.hidden }, { open: true, start: "2028-02-01", end: "2028-02-29", income: "750000", cancelHidden: false });
+	elements.cancel.click();
+	assert.equal(dialog.open, false);
+	assert.equal(saves, 0);
+	assert.equal(reopen.focused, true);
 });
