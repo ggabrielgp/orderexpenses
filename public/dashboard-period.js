@@ -1,3 +1,4 @@
+import { formatCompactDateOnly } from "./date-format.js";
 import { ReviewPeriod } from "./review-period.js";
 
 export function resolveReviewPeriod(
@@ -31,7 +32,8 @@ export function calculatePeriodSummary(transactions, incomeAmount) {
 }
 
 export function periodLabel(period) {
-	return normalizeReviewPeriod(period).label;
+	const reviewPeriod = normalizeReviewPeriod(period);
+	return `${formatCompactDateOnly(reviewPeriod.startDate)} – ${formatCompactDateOnly(reviewPeriod.visibleEndDate)}`;
 }
 
 function normalizeReviewPeriod(period) {

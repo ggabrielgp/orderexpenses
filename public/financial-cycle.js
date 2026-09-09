@@ -1,3 +1,4 @@
+import { formatReadableDateOnly } from "./date-format.js";
 import { ReviewPeriod } from "./review-period.js";
 
 function initialState(referenceDate = new Date()) {
@@ -325,7 +326,7 @@ export function mountFinancialCycleWizard({
 			const button = element("button", String(day), {
 				type: "button",
 				"data-date": key,
-				"aria-label": key,
+				"aria-label": formatReadableDateOnly(key),
 				"aria-pressed": selected,
 				class: `cycle-day${key > today ? " is-future" : ""}`,
 			});
