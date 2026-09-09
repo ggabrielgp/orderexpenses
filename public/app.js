@@ -136,6 +136,7 @@ window.addEventListener("resize", () => {
 const viewPreferences = loadViewPreferences();
 
 const state = {
+	dashboardReady: false,
 	transactions: [],
 	activeId: null,
 	sortKey: null,
@@ -379,9 +380,7 @@ if (DEMO_MODE) {
 
 renderMonthSelect();
 const session = await loadDashboardSession();
-state.financialCycleEnabled = Boolean(
-	session?.features?.financialCycleOnboarding,
-);
+state.financialCycleEnabled = Boolean(session?.authenticated) && !DEMO_MODE;
 setPeriodControlMode();
 await loadProfile(session);
 let onboardingIncomplete = false;
@@ -401,6 +400,7 @@ if (state.financialCycleEnabled && !DEMO_MODE) {
 }
 
 if (!onboardingIncomplete) {
+	state.dashboardReady = true;
 	await refreshDashboardAfterFinancialCycle();
 }
 
@@ -418,6 +418,7 @@ async function applyFinancialCycleDashboardPeriod({ period, incomeAmount }) {
 	state.reviewPeriod = resolveReviewPeriod(period).toJSON();
 	state.periodIncomeAmount = incomeAmount ?? null;
 	state.financialCycleEnabled = true;
+	state.dashboardReady = true;
 	state.chartTab = "month";
 	state.chartDayKey = null;
 	state.tableCategoryFilter = "";
@@ -427,6 +428,7 @@ async function applyFinancialCycleDashboardPeriod({ period, incomeAmount }) {
 }
 
 async function refreshDashboardAfterFinancialCycle() {
+	if (!state.dashboardReady) return;
 	const gmailConnected = await loadGmailStatus();
 	await loadCategories();
 	await loadTransactions();
@@ -460,6 +462,7 @@ function acceptGmailConsent() {
 }
 
 async function autoSyncAfterGmailConnect() {
+	if (!state.dashboardReady) return;
 	const params = new URLSearchParams(window.location.search);
 	if (params.get("gmail") !== "connected") return false;
 	window.history.replaceState({}, "", window.location.pathname);
@@ -471,15 +474,31 @@ async function autoSyncAfterGmailConnect() {
 
 async function loadDashboardSession() {
 	if (DEMO_MODE) return null;
-	try {
-		const response = await fetch("/api/session/profile");
-		return response.ok ? await response.json() : null;
-	} catch {
-		return null;
+	for (;;) {
+		try {
+			const response = await fetch("/api/session/profile");
+			if (!response.ok) throw new Error("Session unavailable");
+			const session = await response.json();
+			if (typeof session?.authenticated !== "boolean")
+				throw new Error("Invalid session");
+			return session;
+		} catch {
+			await new Promise((resolve) => {
+				showTableMessage(
+					"No fue posible verificar tu sesión. Reintenta para continuar.",
+					{
+						actionLabel: "Reintentar sesión",
+						onAction: resolve,
+					},
+				);
+			});
+			showTableMessage("Verificando sesión...");
+		}
 	}
 }
 
 async function loadFinancialCycleSettings() {
+	if (!state.dashboardReady) return;
 	try {
 		const response = await fetch("/api/financial-cycle");
 		if (!response.ok) return;
@@ -507,6 +526,7 @@ async function loadProfile(session) {
 }
 
 async function loadCategories() {
+	if (!state.dashboardReady) return;
 	if (!state.profile?.email && !DEMO_MODE) {
 		state.categories = defaultCategoryCatalog();
 		return;
@@ -687,6 +707,7 @@ async function deleteCategoryFromSettings(name) {
 }
 
 async function loadGmailStatus(options = {}) {
+	if (!state.dashboardReady) return;
 	try {
 		let status;
 		if (DEMO_MODE) {
@@ -768,6 +789,7 @@ async function disconnectGmail() {
 }
 
 async function syncGmail() {
+	if (!state.dashboardReady) return;
 	if (guardDemoMutation()) return;
 	startGmailSyncProgress();
 	gmailStatus.textContent = `Buscando gastos de ${selectedMonthLabel()} en Gmail...`;
@@ -833,6 +855,7 @@ async function createManualExpense() {
 }
 
 async function loadIncomeCandidates({ renderAfter = true } = {}) {
+	if (!state.dashboardReady) return;
 	if (!state.budget.autoDetectIncome) {
 		state.incomeCandidates = [];
 		if (renderAfter) render();
@@ -863,6 +886,7 @@ async function loadIncomeCandidates({ renderAfter = true } = {}) {
 }
 
 async function loadTransactions() {
+	if (!state.dashboardReady) return;
 	refreshButton.disabled = true;
 	if (state.isGmailSyncing) {
 		showGmailSyncMessage();
@@ -975,6 +999,7 @@ function createEmptyState(titleText, copyText, options = {}) {
 }
 
 async function changeSelectedMonth() {
+	if (!state.dashboardReady) return;
 	state.selectedMonth = monthSelect.value;
 	state.budget = loadBudgetPreferences(state.selectedMonth);
 	state.incomeCandidates = [];
@@ -1016,6 +1041,7 @@ function selectableMonthOptions() {
 }
 
 function setView(view) {
+	if (!state.dashboardReady) return;
 	if (state.view === view) return;
 	const outgoing = state.view === "dashboard" ? dashboardEl : transactionsEl;
 	const incoming = view === "dashboard" ? dashboardEl : transactionsEl;

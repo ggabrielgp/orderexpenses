@@ -363,10 +363,7 @@ test("dashboard P0 information architecture starts inside one compact period hea
 	assert.match(panel, /id="monthSelect"[\s\S]*id="reopenFinancialCycle"/);
 	assert.doesNotMatch(account, /id="reopenFinancialCycle"/);
 	assert.doesNotMatch(panel, /<h2>\s*Gastos\s*<\/h2>/);
-	assert.match(
-		source,
-		/id="tableViewButton"[^>]*>\s*Movimientos\s*<\/button>/,
-	);
+	assert.match(source, /id="tableViewButton"[^>]*>\s*Movimientos\s*<\/button>/);
 	for (const id of [
 		"heroTitle",
 		"heroSubtitle",
@@ -398,7 +395,10 @@ test("dashboard P0 lead prioritizes money and action before descriptive analysis
 		source.indexOf("function renderViewToggle("),
 	);
 
-	assert.match(lead, /primary\.append\([\s\S]*side\.append\([\s\S]*renderNextBestAction\(/);
+	assert.match(
+		lead,
+		/primary\.append\([\s\S]*side\.append\([\s\S]*renderNextBestAction\(/,
+	);
 	assert.doesNotMatch(lead, /top-category|context\.topCategory/);
 	assert.ok(dashboard.indexOf("lead,") < dashboard.indexOf("monthStory,"));
 	assert.match(emptyPeriod, /syncGmailButton\.hidden/);
@@ -508,7 +508,7 @@ test("demo mode guards every mutation function and local preference write", asyn
 	}
 });
 
-test("feature-off dashboard keeps monthly behavior without mounting or fetching financial-cycle APIs", async () => {
+test("anonymous dashboard retains monthly routing and authenticated users mount onboarding", async () => {
 	const source = await readFile(
 		new URL("../public/app.js", import.meta.url),
 		"utf8",
@@ -518,17 +518,17 @@ test("feature-off dashboard keeps monthly behavior without mounting or fetching 
 		source,
 		/if \(state\.financialCycleEnabled && !DEMO_MODE\) \{\s*const wizard = mountFinancialCycleWizard\(/,
 	);
-	assert.match(source, /reopenFinancialCycle\.hidden = true;/);
+	assert.match(
+		source,
+		/reopenFinancialCycle\.hidden = !state\.financialCycleEnabled && !DEMO_MODE;/,
+	);
 	assert.match(source, /const session = await loadDashboardSession\(\);/);
 	assert.match(source, /fetch\("\/api\/categories"\)/);
 	assert.match(source, /fetch\(`\/api\/transactions\?\$\{params\}`\)/);
-	assert.match(
-		source,
-		/profileEl\.addEventListener\("click", toggleAccountMenu\)/,
-	);
+	assert.match(source, /bindNativeAccountMenu\(/);
 });
 
-test("feature-on dashboard mounts the wizard only after the session advertises it", async () => {
+test("authenticated dashboard mounts onboarding while demo retains its separate path", async () => {
 	const source = await readFile(
 		new URL("../public/app.js", import.meta.url),
 		"utf8",
@@ -541,7 +541,10 @@ test("feature-on dashboard mounts the wizard only after the session advertises i
 		source,
 		/if \(!onboardingIncomplete && !state\.financialCycleEnabled && DEMO_MODE\)/,
 	);
-	assert.match(source, /else \{\s*reopenFinancialCycle\.hidden = true;/);
+	assert.match(
+		source,
+		/reopenFinancialCycle\.hidden = !state\.financialCycleEnabled && !DEMO_MODE;/,
+	);
 });
 
 test("feature-on dashboard requests selected-period transactions while feature-off keeps month APIs", async () => {
@@ -559,13 +562,13 @@ test("feature-on dashboard requests selected-period transactions while feature-o
 	);
 	assert.match(
 		source,
-		/state\.financialCycleEnabled\s*=\s*Boolean\(\s*session\?\.features\?\.financialCycleOnboarding\s*,?\s*\)/,
+		/state\.financialCycleEnabled\s*=\s*Boolean\(session\?\.authenticated\) && !DEMO_MODE/,
 	);
 	assert.match(
 		source,
 		/period: state\.financialCycleEnabled \? state\.reviewPeriod : null/,
 	);
-	assert.match(source, /onCompleted: applyFinancialCycleDashboardPeriod/);
+	assert.match(source, /onSaved: applyFinancialCycleDashboardPeriod/);
 });
 
 test("dashboard identity uses the landing session-profile contract while Gmail remains separate", async () => {
@@ -584,10 +587,7 @@ test("dashboard hides identity when the session contract is unavailable instead 
 		new URL("../public/app.js", import.meta.url),
 		"utf8",
 	);
-	assert.match(
-		source,
-		/return response\.ok \? await response\.json\(\) : null;/,
-	);
+	assert.match(source, /actionLabel: "Reintentar sesión"/);
 	assert.match(source, /else renderProfile\(null\);/);
 	assert.match(source, /async function loadGmailStatus\(options = \{\}\)/);
 });
@@ -630,9 +630,9 @@ test("incomplete financial-cycle onboarding opens before dashboard data or post-
 	);
 	assert.match(
 		startup,
-		/if \(!onboardingIncomplete\) \{\s*await loadGmailStatus\(\);\s*await loadCategories\(\);\s*await loadTransactions\(\);\s*await autoSyncAfterGmailConnect\(\);/,
+		/if \(!onboardingIncomplete\) \{\s*state\.dashboardReady = true;\s*await refreshDashboardAfterFinancialCycle\(\);/,
 	);
-	assert.match(wizard, /const ready = controller\.bootstrap\(\)\.then\(/);
+	assert.match(wizard, /const ready = bootstrap\(\);/);
 });
 
 test("account menu exposes Gmail identity, configuration, connect, and real disconnect safely", async () => {

@@ -122,10 +122,11 @@
               </button>
               <button
                 id="reopenFinancialCycle"
+                hidden
                 class="secondary cycle-reopen"
                 type="button"
               >
-                Revisar periodo
+                Cambiar período
               </button>
             </div>
             <button id="newExpenseButton">Agregar gasto</button>
@@ -531,6 +532,9 @@
           class="modal-status cycle-error"
           role="alert"
         ></p>
+        <section class="cycle-calendar" aria-label="Calendario del período" data-wizard-calendar></section>
+        <p class="cycle-description">Selecciona el inicio y luego el final, o edita las fechas. El contorno indica hoy; los días atenuados son futuros.</p>
+        <button data-wizard-retry type="button" class="secondary" hidden>Reintentar carga</button>
         <p data-wizard-status class="modal-status" aria-live="polite"></p>
         <div class="modal-actions">
           <button data-wizard-cancel type="button" class="secondary" hidden>

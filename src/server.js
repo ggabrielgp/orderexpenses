@@ -93,21 +93,24 @@ export default async function handleRequest(req, res) {
 		await ensureDbInitialized();
 		guardMutationRequest(req);
 		const session = await getOrCreateSession(req, res);
-		if (
-			process.env.FINANCIAL_CYCLE_ONBOARDING === "true" &&
-			url.pathname === "/api/session/profile" &&
-			req.method === "GET"
-		) {
+		if (url.pathname === "/api/session/profile" && req.method === "GET") {
 			const profile = await getSessionUserProfile(session);
 			return sendJson(res, {
 				authenticated: Boolean(profile?.email),
 				profile: profile ?? null,
-				gmail: { connected: Boolean(session.userEmail && (await hasGoogleToken(session.userEmail))), connectUrl: "/auth/google" },
+				gmail: {
+					connected: Boolean(
+						session.userEmail && (await hasGoogleToken(session.userEmail)),
+					),
+					connectUrl: "/auth/google",
+				},
 				features: { financialCycleOnboarding: true },
 			});
 		}
-		if (process.env.FINANCIAL_CYCLE_ONBOARDING === "true" &&
-			(url.pathname === "/api/financial-cycle" || url.pathname === "/api/financial-cycle/complete")) {
+		if (
+			url.pathname === "/api/financial-cycle" ||
+			url.pathname === "/api/financial-cycle/complete"
+		) {
 			const user = await requireActiveUser(session);
 			const result = await dispatchFinancialCycleRequest({
 				pathname: url.pathname,
@@ -115,13 +118,13 @@ export default async function handleRequest(req, res) {
 				user,
 				readBody: () => readJson(req),
 				api: createFinancialCycleApi({
-				isConnected: hasGoogleToken,
-				read: getFinancialCycleSettings,
-				readPeriod: getFinancialCyclePeriod,
+					isConnected: hasGoogleToken,
+					read: getFinancialCycleSettings,
+					readPeriod: getFinancialCyclePeriod,
 					write: upsertFinancialCycleSettings,
 					complete: completeFinancialCyclePeriod,
 					syncPeriod: syncFinancialCyclePeriod,
-					}),
+				}),
 			});
 			if (result) return sendJson(res, result.body, result.status);
 		}
@@ -211,8 +214,7 @@ export default async function handleRequest(req, res) {
 				await deleteCounterpartyCategoryRule(user.email, counterpartyKey);
 				return sendJson(res, { ok: true, deleted: true });
 			}
-			const displayName =
-				String(body.displayName ?? "").trim() || counterpartyKey;
+			const displayName = String(body.displayName ?? "").trim() || counterpartyKey;
 			const rule = await upsertCounterpartyCategoryRule(user.email, {
 				counterpartyKey,
 				displayName,
@@ -221,9 +223,7 @@ export default async function handleRequest(req, res) {
 			return sendJson(res, { rule });
 		}
 
-		const ruleMatch = url.pathname.match(
-			/^\/api\/counterparty-rules\/([^/]+)$/,
-		);
+		const ruleMatch = url.pathname.match(/^\/api\/counterparty-rules\/([^/]+)$/);
 		if (ruleMatch && req.method === "DELETE") {
 			const user = await requireActiveUser(session);
 			const counterpartyKey = normalizeCounterpartyKey(
@@ -311,9 +311,7 @@ export default async function handleRequest(req, res) {
 			const transaction = movementId.startsWith("manual_")
 				? await updateManualMovement(movementId, patch, user.email)
 				: await saveExistingMovementOverride(user.email, movementId, patch, {
-						month: normalizeMonthParam(
-							url.searchParams.get("month") ?? body.month,
-						),
+						month: normalizeMonthParam(url.searchParams.get("month") ?? body.month),
 						payTiming: body.payTiming,
 					});
 			if (!transaction)
@@ -328,13 +326,10 @@ export default async function handleRequest(req, res) {
 			const deleted = movementId.startsWith("manual_")
 				? await deleteManualMovement(movementId, user.email)
 				: await hideExistingMovement(user.email, movementId, {
-						month: normalizeMonthParam(
-							url.searchParams.get("month") ?? body.month,
-						),
+						month: normalizeMonthParam(url.searchParams.get("month") ?? body.month),
 						payTiming: body.payTiming,
 					});
-			if (!deleted)
-				return sendJson(res, { error: "Transaction not found" }, 404);
+			if (!deleted) return sendJson(res, { error: "Transaction not found" }, 404);
 			return sendJson(res, { ok: true });
 		}
 
@@ -347,43 +342,131 @@ export default async function handleRequest(req, res) {
 	}
 }
 
-export async function dispatchFinancialCycleRequest({ pathname, method, user, sameOrigin = true, readBody, api }) {
-	const allowedMethods = pathname === "/api/financial-cycle" ? ["GET", "PUT"] : pathname === "/api/financial-cycle/complete" ? ["POST"] : null;
+export async function dispatchFinancialCycleRequest({
+	pathname,
+	method,
+	user,
+	sameOrigin = true,
+	readBody,
+	api,
+}) {
+	const allowedMethods =
+		pathname === "/api/financial-cycle"
+			? ["GET", "PUT"]
+			: pathname === "/api/financial-cycle/complete"
+				? ["POST"]
+				: null;
 	if (!allowedMethods) return null;
-	if (!allowedMethods.includes(method)) return financialCycleResponse(405, "method_not_allowed", "Unsupported financial-cycle route method");
-	if (method !== "GET" && !sameOrigin) return financialCycleResponse(403, "forbidden", "Same-origin request required");
+	if (!allowedMethods.includes(method))
+		return financialCycleResponse(
+			405,
+			"method_not_allowed",
+			"Unsupported financial-cycle route method",
+		);
+	if (method !== "GET" && !sameOrigin)
+		return financialCycleResponse(
+			403,
+			"forbidden",
+			"Same-origin request required",
+		);
 	return api({ method, user, body: method === "GET" ? null : await readBody() });
 }
 
-export function createFinancialCycleApi({ isConnected, read, readPeriod = read, write, complete = write, syncPeriod = unavailableRangeSync }) {
+export function createFinancialCycleApi({
+	isConnected,
+	read,
+	readPeriod = read,
+	write,
+	complete = write,
+	syncPeriod = unavailableRangeSync,
+}) {
 	return async ({ method, user, body, sameOrigin = true }) => {
-		if (!user?.email) return financialCycleResponse(401, "unauthorized", "Authentication is required");
+		if (!user?.email)
+			return financialCycleResponse(
+				401,
+				"unauthorized",
+				"Authentication is required",
+			);
 		if (["PUT", "POST"].includes(method) && !sameOrigin)
-			return financialCycleResponse(403, "forbidden", "Same-origin request required");
+			return financialCycleResponse(
+				403,
+				"forbidden",
+				"Same-origin request required",
+			);
 		if (method === "GET")
-			return { status: 200, body: (await read(user.email)) ?? emptyFinancialCycle() };
+			return {
+				status: 200,
+				body: (await read(user.email)) ?? emptyFinancialCycle(),
+			};
 		if (method === "PUT") {
 			const validation = validateFinancialCycle(body);
 			if (validation.error) return validation.error;
 			return { status: 200, body: await write(user.email, validation.value) };
 		}
-		if (method !== "POST") return financialCycleResponse(405, "method_not_allowed", "Use GET, PUT, or POST");
-		const validation = validateFinancialCycle({ selectedPeriod: body?.period, incomeAmount: null });
+		if (method !== "POST")
+			return financialCycleResponse(
+				405,
+				"method_not_allowed",
+				"Use GET, PUT, or POST",
+			);
+		const validation = validateFinancialCycle({
+			selectedPeriod: body?.period,
+			incomeAmount: null,
+		});
 		if (validation.error) return validation.error;
 		if (!(await isConnected(user.email))) {
-			return { status: 409, body: { outcome: "disconnected", action: { label: "Connect with Google", href: "/auth/google" }, retryable: true, completedAt: null } };
+			return {
+				status: 409,
+				body: {
+					outcome: "disconnected",
+					action: { label: "Connect with Google", href: "/auth/google" },
+					retryable: true,
+					completedAt: null,
+				},
+			};
 		}
 		try {
-			const outcome = await syncPeriod(user.email, validation.value.selectedPeriod);
+			const outcome = await syncPeriod(
+				user.email,
+				validation.value.selectedPeriod,
+			);
 			if (outcome.outcome === "partial") {
-				return { status: 207, body: { outcome: "partial", scanned: outcome.scanned, transactions: outcome.transactions.length, failedCount: outcome.failedCount, retryable: true, completedAt: null } };
+				return {
+					status: 207,
+					body: {
+						outcome: "partial",
+						scanned: outcome.scanned,
+						transactions: outcome.transactions.length,
+						failedCount: outcome.failedCount,
+						retryable: true,
+						completedAt: null,
+					},
+				};
 			}
-			const existing = await readPeriod(user.email, validation.value.selectedPeriod);
+			const existing = await readPeriod(
+				user.email,
+				validation.value.selectedPeriod,
+			);
 			const completedAt = existing?.completedAt ?? new Date().toISOString();
-			await complete(user.email, { ...validation.value, incomeAmount: existing?.incomeAmount ?? null, completedAt });
-			return { status: 200, body: { outcome: "success", scanned: outcome.scanned, transactions: outcome.transactions.length, completedAt } };
+			await complete(user.email, {
+				...validation.value,
+				incomeAmount: existing?.incomeAmount ?? null,
+				completedAt,
+			});
+			return {
+				status: 200,
+				body: {
+					outcome: "success",
+					scanned: outcome.scanned,
+					transactions: outcome.transactions.length,
+					completedAt,
+				},
+			};
 		} catch {
-			return { status: 502, body: { outcome: "error", retryable: true, completedAt: null } };
+			return {
+				status: 502,
+				body: { outcome: "error", retryable: true, completedAt: null },
+			};
 		}
 	};
 }
@@ -392,17 +475,27 @@ function validateFinancialCycle(body) {
 	try {
 		const selectedPeriod = ReviewPeriod.create(body?.selectedPeriod).toJSON();
 		const incomeAmount = body?.incomeAmount;
-		if (incomeAmount !== null && (!Number.isSafeInteger(incomeAmount) || incomeAmount <= 0))
-			throw Object.assign(new TypeError("incomeAmount must be a positive whole CLP amount"), { field: "incomeAmount" });
+		if (
+			incomeAmount !== null &&
+			(!Number.isSafeInteger(incomeAmount) || incomeAmount <= 0)
+		)
+			throw Object.assign(
+				new TypeError("incomeAmount must be a positive whole CLP amount"),
+				{ field: "incomeAmount" },
+			);
 		return { value: { selectedPeriod, incomeAmount } };
 	} catch (error) {
 		const field = error.field ?? financialCycleErrorField(error.message);
-		return { error: { status: 400, body: { error: { code: "invalid_input", message: error.message, field } } } };
+		return {
+			error: {
+				status: 400,
+				body: { error: { code: "invalid_input", message: error.message, field } },
+			},
+		};
 	}
 }
 
 export function financialCyclePeriodFromQuery(searchParams) {
-	if (process.env.FINANCIAL_CYCLE_ONBOARDING !== "true") return null;
 	const startDate = searchParams.get("startDate");
 	const endDateExclusive = searchParams.get("endDateExclusive");
 	if (!startDate && !endDateExclusive) return null;
@@ -455,8 +548,7 @@ async function readJsonBody(req) {
 
 	for await (const chunk of req) {
 		size += chunk.length;
-		if (size > MAX_BODY_BYTES)
-			throw httpError(413, "Request body is too large");
+		if (size > MAX_BODY_BYTES) throw httpError(413, "Request body is too large");
 		chunks.push(chunk);
 	}
 
@@ -470,9 +562,7 @@ async function readJsonBody(req) {
 
 async function syncGmail(body, userEmail) {
 	const limit = Math.min(Math.max(Number(body.limit ?? 200), 1), 200);
-	const period = process.env.FINANCIAL_CYCLE_ONBOARDING === "true" && body.period
-		? ReviewPeriod.create(body.period).toJSON()
-		: null;
+	const period = body.period ? ReviewPeriod.create(body.period).toJSON() : null;
 	return syncRuntimeMovements(userEmail, {
 		limit,
 		month: normalizeMonthParam(body.month),
@@ -618,7 +708,7 @@ function guardMutationRequest(req) {
 
 	const origin = req.headers.origin;
 	if (!origin) return;
-	const parsed = new URL(origin);
+	const parsed = parseRequestOrigin(origin);
 	if (APP_BASE_URL || process.env.VERCEL_URL) {
 		const allowedOrigins = configuredAllowedOrigins();
 		if (!allowedOrigins.has(parsed.origin)) {
@@ -650,9 +740,7 @@ function mergeCategories(customCategories = []) {
 			builtin: false,
 		});
 	}
-	return [...merged.values()].sort((a, b) =>
-		a.name.localeCompare(b.name, "es"),
-	);
+	return [...merged.values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
 
 function normalizeCategoryName(value) {
@@ -677,11 +765,19 @@ function isLoopbackHost(host) {
 	return host === "127.0.0.1" || host === "localhost" || host === "::1";
 }
 
+export function parseRequestOrigin(value) {
+	try {
+		return new URL(value);
+	} catch {
+		throw httpError(403, "Invalid origin URL");
+	}
+}
+
 function configuredAllowedOrigins() {
 	return new Set(
 		[APP_BASE_URL, vercelUrl()]
 			.filter(Boolean)
-			.map((value) => new URL(value).origin),
+			.map((value) => parseRequestOrigin(value).origin),
 	);
 }
 
@@ -729,8 +825,7 @@ async function getOrCreateSession(req, res) {
 
 function refreshSessionCookie(res, sessionId) {
 	const secure =
-		process.env.COOKIE_SECURE === "true" ||
-		process.env.NODE_ENV === "production";
+		process.env.COOKIE_SECURE === "true" || process.env.NODE_ENV === "production";
 	const maxAgeSeconds = SESSION_TTL_DAYS * 24 * 60 * 60;
 	const cookie = [
 		`${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}`,

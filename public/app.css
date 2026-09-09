@@ -3716,8 +3716,51 @@ dialog.modal.cycle-modal {
 	min-height: 1.25em;
 }
 .cycle-modal [hidden],
+#reopenFinancialCycle[hidden],
 .month-picker[hidden] {
-	display: none;
+	display: none !important;
+}
+.cycle-calendar {
+	margin: 0 0 var(--space-4);
+}
+.cycle-calendar-nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 10px;
+}
+.cycle-calendar-days {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 4px;
+	text-align: center;
+}
+.cycle-calendar-days > span {
+	color: var(--ink-muted);
+	font-size: 0.75rem;
+}
+.cycle-calendar button {
+	min-height: 36px;
+	padding: 4px;
+	background: transparent;
+	color: var(--ink);
+	box-shadow: none;
+}
+.cycle-calendar .cycle-day[aria-pressed="true"] {
+	background: #dcece3;
+	color: #214f3b;
+}
+.cycle-calendar .cycle-day.is-future {
+	color: #68786f;
+	font-weight: 400;
+}
+.cycle-calendar .cycle-day[aria-current="date"] {
+	outline: 2px solid #214f3b;
+	outline-offset: -2px;
+	font-weight: 800;
+}
+.cycle-calendar button:focus-visible {
+	box-shadow: 0 0 0 3px #b88739;
 }
 
 @media (max-width: 480px) {
