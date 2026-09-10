@@ -1,12 +1,42 @@
 import { formatReadableDateOnly } from "./date-format.js";
 import { ReviewPeriod } from "./review-period.js";
 
+function incomeDigits(value) {
+	return String(value ?? "").replace(/\D/g, "");
+}
+
+function formatClpDigits(digits) {
+	return digits ? `$ ${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}` : "";
+}
+
+export function formatClpIncomeEdit(
+	value,
+	selectionStart = String(value ?? "").length,
+) {
+	const source = String(value ?? "");
+	const digitsBeforeCaret = incomeDigits(source.slice(0, selectionStart)).length;
+	const formatted = formatClpDigits(incomeDigits(source));
+	if (!formatted) return { value: "", selectionStart: 0 };
+	if (!digitsBeforeCaret) return { value: formatted, selectionStart: 2 };
+	let seen = 0;
+	let caret = formatted.length;
+	for (let index = 0; index < formatted.length; index++) {
+		if (/\d/.test(formatted[index])) seen += 1;
+		if (seen === digitsBeforeCaret) {
+			caret = index + 1;
+			break;
+		}
+	}
+	return { value: formatted, selectionStart: caret };
+}
+
 function initialState(referenceDate = new Date()) {
 	const period = ReviewPeriod.currentMonth(referenceDate);
 	return {
 		startDate: period.startDate,
 		endDate: period.visibleEndDate,
 		period: null,
+		savedPeriod: null,
 		incomeAmount: null,
 		savedIncomeAmount: null,
 		configured: false,
@@ -83,7 +113,10 @@ export function wizardReducer(state = initialState(), action) {
 				...state,
 				saving: false,
 				configured: true,
-				savedIncomeAmount: state.incomeAmount,
+				period: action.period,
+				savedPeriod: action.period,
+				incomeAmount: action.incomeAmount,
+				savedIncomeAmount: action.incomeAmount,
 				outcome: "success",
 				error: "",
 				errorField: "",
@@ -111,6 +144,7 @@ export function wizardReducer(state = initialState(), action) {
 				startDate: savedPeriod.startDate,
 				endDate: savedPeriod.visibleEndDate,
 				period: savedPeriod.toJSON(),
+				savedPeriod: savedPeriod.toJSON(),
 				incomeAmount: action.incomeAmount ?? null,
 				savedIncomeAmount: action.incomeAmount ?? null,
 				configured: true,
@@ -120,9 +154,9 @@ export function wizardReducer(state = initialState(), action) {
 			};
 		}
 		case "OPEN": {
-			if (!state.configured || !state.period)
+			if (!state.configured || !state.savedPeriod)
 				return { ...state, outcome: "", error: "", errorField: "" };
-			const savedPeriod = ReviewPeriod.create(state.period);
+			const savedPeriod = ReviewPeriod.create(state.savedPeriod);
 			return {
 				...state,
 				startDate: savedPeriod.startDate,
@@ -202,16 +236,20 @@ export function createWizardController({
 			this.dispatch({ type: "SET_FORM", ...values });
 			this.dispatch({ type: "VALIDATE" });
 			if (this.state.error) return Promise.resolve(this.state);
+			const submission = {
+				period: { ...this.state.period },
+				incomeAmount: this.state.incomeAmount,
+			};
 			this.dispatch({ type: "SAVING" });
 			savePromise = (async () => {
 				try {
 					const saved = await adapter.save(
-						this.state.period,
-						this.state.incomeAmount,
+						submission.period,
+						submission.incomeAmount,
 					);
 					if (saved?.outcome && saved.outcome !== "success")
 						throw new Error("settings save failed");
-					this.dispatch({ type: "SAVED" });
+					this.dispatch({ type: "SAVED", ...submission });
 				} catch {
 					this.dispatch({ type: "SAVE_FAILED" });
 				} finally {
@@ -260,7 +298,8 @@ export function mountFinancialCycleWizard({
 	if (!dialog || !reopen) return null;
 	let invoker = reopen;
 	let calendarMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-	let rangeStart = null;
+	let awaitingRangeEnd = false;
+	let focusedDate = null;
 	const $ = (name) => dialog.querySelector(`[data-wizard-${name}]`);
 	const controller = createWizardController({
 		adapter: demo ? createDemoAdapter() : createAuthenticatedAdapter(fetcher),
@@ -271,8 +310,9 @@ export function mountFinancialCycleWizard({
 	function open(from = reopen) {
 		invoker = from;
 		if (["loading", "load-error"].includes(controller.state.outcome)) return;
-		rangeStart = null;
+		awaitingRangeEnd = false;
 		controller.dispatch({ type: "OPEN" });
+		focusedDate = controller.state.startDate;
 		calendarMonth = new Date(`${controller.state.startDate}T12:00:00`);
 		renderCalendar();
 		dialog.showModal();
@@ -290,6 +330,11 @@ export function mountFinancialCycleWizard({
 		const month = calendarMonth.getMonth();
 		const first = new Date(year, month, 1);
 		const today = dateKey(now);
+		const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+		const tabbableDate =
+			[focusedDate, controller.state.startDate].find((key) =>
+				key?.startsWith(monthPrefix),
+			) ?? dateKey(first);
 		const label = first.toLocaleDateString("es-CL", {
 			month: "long",
 			year: "numeric",
@@ -302,18 +347,22 @@ export function mountFinancialCycleWizard({
 			return node;
 		}
 		const nav = element("div", "", { class: "cycle-calendar-nav" });
+		const previousMonth = element("button", "‹", {
+			type: "button",
+			"data-month": -1,
+			"aria-label": "Mes anterior",
+		});
+		const nextMonth = element("button", "›", {
+			type: "button",
+			"data-month": 1,
+			"aria-label": "Mes siguiente",
+		});
+		previousMonth.disabled = controller.state.saving;
+		nextMonth.disabled = controller.state.saving;
 		nav.append(
-			element("button", "‹", {
-				type: "button",
-				"data-month": -1,
-				"aria-label": "Mes anterior",
-			}),
+			previousMonth,
 			element("strong", label, { "aria-live": "polite" }),
-			element("button", "›", {
-				type: "button",
-				"data-month": 1,
-				"aria-label": "Mes siguiente",
-			}),
+			nextMonth,
 		);
 		const days = element("div", "", { class: "cycle-calendar-days" });
 		for (const name of ["L", "M", "M", "J", "V", "S", "D"])
@@ -322,23 +371,40 @@ export function mountFinancialCycleWizard({
 			days.append(element("span", "", { "aria-hidden": true }));
 		for (let day = 1; day <= new Date(year, month + 1, 0).getDate(); day++) {
 			const key = dateKey(new Date(year, month, day));
-			const selected = key >= $("start").value && key <= $("end").value;
+			const selected = controller.state.endDate
+				? key >= controller.state.startDate && key <= controller.state.endDate
+				: key === controller.state.startDate;
 			const button = element("button", String(day), {
 				type: "button",
 				"data-date": key,
 				"aria-label": formatReadableDateOnly(key),
+				"aria-describedby": "financialCycleCalendarHelp",
 				"aria-pressed": selected,
+				tabindex: key === tabbableDate ? 0 : -1,
 				class: `cycle-day${key > today ? " is-future" : ""}`,
 			});
+			button.disabled = controller.state.saving;
 			if (key === today) button.setAttribute("aria-current", "date");
 			days.append(button);
 		}
 		root.replaceChildren(nav, days);
 	}
 
+	function calendarTarget(event) {
+		return event.target?.closest?.("button") ?? event.target;
+	}
+
+	function focusRenderedDate(key) {
+		$("calendar").querySelector(`[data-date="${key}"]`)?.focus();
+	}
+
 	$("calendar")?.addEventListener("click", (event) => {
-		const target = event.target.closest("button");
-		if (!target || ["loading", "load-error"].includes(controller.state.outcome))
+		const target = calendarTarget(event);
+		if (
+			!target?.dataset ||
+			controller.state.saving ||
+			["loading", "load-error"].includes(controller.state.outcome)
+		)
 			return;
 		if (target.dataset.month) {
 			calendarMonth = new Date(
@@ -346,78 +412,134 @@ export function mountFinancialCycleWizard({
 				calendarMonth.getMonth() + Number(target.dataset.month),
 				1,
 			);
-		} else if (target.dataset.date) {
-			const key = target.dataset.date;
-			if (!rangeStart) {
-				rangeStart = key;
-				$("start").value = key;
-				$("end").value = key;
-			} else {
-				$("start").value = key < rangeStart ? key : rangeStart;
-				$("end").value = key > rangeStart ? key : rangeStart;
-				rangeStart = null;
-			}
-		}
-		renderCalendar();
-		const selector = target.dataset.date
-			? `[data-date="${target.dataset.date}"]`
-			: `[data-month="${target.dataset.month}"]`;
-		$("calendar").querySelector(selector)?.focus();
-	});
-	for (const name of ["start", "end"]) {
-		$(name).addEventListener("change", () => {
-			rangeStart = null;
-			if ($(name).value) calendarMonth = new Date(`${$(name).value}T12:00:00`);
+			focusedDate = dateKey(calendarMonth);
 			renderCalendar();
+			$("calendar")
+				.querySelector(`[data-month="${target.dataset.month}"]`)
+				?.focus();
+			return;
+		}
+		if (!target.dataset.date) return;
+		const key = target.dataset.date;
+		focusedDate = key;
+		if (!awaitingRangeEnd) {
+			awaitingRangeEnd = true;
+			controller.dispatch({
+				type: "SET_FORM",
+				startDate: key,
+				endDate: "",
+				incomeAmount: incomeDigits($("income-input").value),
+			});
+		} else {
+			awaitingRangeEnd = false;
+			controller.dispatch({
+				type: "SET_FORM",
+				startDate:
+					key < controller.state.startDate ? key : controller.state.startDate,
+				endDate:
+					key > controller.state.startDate ? key : controller.state.startDate,
+				incomeAmount: incomeDigits($("income-input").value),
+			});
+		}
+		focusRenderedDate(key);
+	});
+
+	$("calendar")?.addEventListener("keydown", (event) => {
+		const target = calendarTarget(event);
+		if (controller.state.saving || !target?.dataset?.date) return;
+		const offsets = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+		const current = new Date(`${target.dataset.date}T12:00:00`);
+		if (event.key in offsets)
+			current.setDate(current.getDate() + offsets[event.key]);
+		else if (["PageUp", "PageDown"].includes(event.key)) {
+			const day = current.getDate();
+			const direction = event.key === "PageUp" ? -1 : 1;
+			current.setDate(1);
+			current.setMonth(current.getMonth() + direction);
+			current.setDate(
+				Math.min(
+					day,
+					new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate(),
+				),
+			);
+		} else return;
+		event.preventDefault();
+		focusedDate = dateKey(current);
+		calendarMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+		renderCalendar();
+		focusRenderedDate(focusedDate);
+	});
+
+	$("income-input").addEventListener("input", (event) => {
+		if (controller.state.saving) return;
+		const input = event.target;
+		const formatted = formatClpIncomeEdit(input.value, input.selectionStart);
+		controller.dispatch({
+			type: "SET_FORM",
+			startDate: controller.state.startDate,
+			endDate: controller.state.endDate,
+			incomeAmount: incomeDigits(input.value),
 		});
-	}
+		input.value = formatted.value;
+		input.setSelectionRange?.(formatted.selectionStart, formatted.selectionStart);
+	});
 
 	function render(state) {
-		$("start").value = state.startDate;
-		$("end").value = state.endDate;
-		$("income-input").value = state.incomeAmount ?? "";
+		$("start-summary").textContent = state.startDate
+			? formatReadableDateOnly(state.startDate)
+			: "Pendiente";
+		$("end-summary").textContent = state.endDate
+			? formatReadableDateOnly(state.endDate)
+			: "Pendiente";
+		$("income-input").value = formatClpDigits(incomeDigits(state.incomeAmount));
 		$("error").textContent = state.error;
+		$("calendar").setAttribute(
+			"aria-invalid",
+			String(["startDate", "endDate"].includes(state.errorField)),
+		);
 		renderCalendar();
 		$("status").textContent = state.saving ? "Guardando configuración..." : "";
 		$("save").disabled =
 			state.saving || ["loading", "load-error"].includes(state.outcome);
+		$("income-input").disabled = state.saving;
+		$("cancel").disabled = state.saving;
 		if ($("retry")) $("retry").hidden = state.outcome !== "load-error";
 		$("save").textContent = state.configured
 			? "Guardar cambios"
 			: "Guardar configuración";
 		$("cancel").hidden = !state.configured;
-		for (const [field, name] of [
-			["startDate", "start"],
-			["endDate", "end"],
-			["incomeAmount", "income-input"],
-		]) {
-			$(name).setAttribute("aria-invalid", String(state.errorField === field));
-		}
+		$("income-input").setAttribute(
+			"aria-invalid",
+			String(state.errorField === "incomeAmount"),
+		);
 	}
 
 	reopen.addEventListener("click", () => open());
 	dialog.addEventListener("keydown", (event) => trapFocus(event, dialog));
 	dialog.addEventListener("close", () => restoreFocus(invoker));
 	dialog.addEventListener("cancel", (event) => {
-		if (!controller.state.configured) event.preventDefault();
+		if (controller.state.saving || !controller.state.configured)
+			event.preventDefault();
 	});
 	$("cancel").addEventListener("click", () => {
-		if (controller.state.configured) dialog.close();
+		if (controller.state.configured && !controller.state.saving) dialog.close();
 	});
 	$("form").addEventListener("submit", async (event) => {
 		event.preventDefault();
 		if (controller.state.saving) return;
 		const state = await controller.save({
-			startDate: $("start").value,
-			endDate: $("end").value,
-			incomeAmount: $("income-input").value,
+			startDate: controller.state.startDate,
+			endDate: controller.state.endDate,
+			incomeAmount: incomeDigits($("income-input").value),
 		});
 		if (state.errorField) {
-			({
-				startDate: $("start"),
-				endDate: $("end"),
-				incomeAmount: $("income-input"),
-			})[state.errorField]?.focus();
+			if (state.errorField === "incomeAmount") $("income-input").focus();
+			else {
+				focusedDate = controller.state.startDate;
+				calendarMonth = new Date(`${controller.state.startDate}T12:00:00`);
+				renderCalendar();
+				focusRenderedDate(controller.state.startDate);
+			}
 			return;
 		}
 		if (state.outcome !== "success") return;

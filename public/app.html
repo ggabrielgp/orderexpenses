@@ -494,32 +494,30 @@
           Revisa tu periodo financiero
         </h3>
         <p class="cycle-description">
-          Define las fechas que quieres analizar. Ambas fechas están incluidas.
+          Elige el primer y último día que quieres analizar. Ambas fechas están incluidas.
         </p>
-        <div class="modal-grid cycle-fields">
+        <dl class="cycle-range-summary" aria-live="polite">
+          <div><dt>Desde</dt><dd data-wizard-start-summary></dd></div>
+          <div><dt>Hasta</dt><dd data-wizard-end-summary></dd></div>
+        </dl>
+        <section
+          class="cycle-calendar"
+          aria-label="Calendario del período"
+          aria-describedby="financialCycleCalendarHelp financialCycleError"
+          data-wizard-calendar
+        ></section>
+        <p id="financialCycleCalendarHelp" class="cycle-calendar-help">
+          Usa las flechas para moverte por los días y Page Up o Page Down para cambiar de mes. El contorno indica hoy; los días atenuados son futuros.
+        </p>
+        <div class="cycle-fields">
           <label
-            >Desde<input
-              data-wizard-start
-              type="date"
-              required
-              aria-describedby="financialCycleError"
-          /></label>
-          <label
-            >Hasta<input
-              data-wizard-end
-              type="date"
-              required
-              aria-describedby="financialCycleError"
-          /></label>
-          <label class="modal-grid-full"
             >Ingreso mensual en CLP <span class="optional-label">(opcional)</span
             ><input
               data-wizard-income-input
-              type="number"
+              type="text"
               inputmode="numeric"
-              min="1"
-              step="1"
-              placeholder="Ej.: 900000"
+              autocomplete="off"
+              placeholder="Ej.: $ 900.000"
               aria-describedby="financialCycleIncomeHelp financialCycleError"
             /><small id="financialCycleIncomeHelp"
               >Se usa para calcular cuánto queda disponible en este periodo.</small
@@ -532,8 +530,6 @@
           class="modal-status cycle-error"
           role="alert"
         ></p>
-        <section class="cycle-calendar" aria-label="Calendario del período" data-wizard-calendar></section>
-        <p class="cycle-description">Selecciona el inicio y luego el final, o edita las fechas. El contorno indica hoy; los días atenuados son futuros.</p>
         <button data-wizard-retry type="button" class="secondary" hidden>Reintentar carga</button>
         <p data-wizard-status class="modal-status" aria-live="polite"></p>
         <div class="modal-actions">
