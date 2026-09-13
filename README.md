@@ -40,10 +40,16 @@ Open:
 http://127.0.0.1:3000
 ```
 
-For development with watch mode:
+For frontend development with watch mode:
 
 ```bash
 npm run dev
+```
+
+This starts the Node backend at `http://127.0.0.1:3000` and the Vite development server together. The process coordinator shuts both down together, so Vite proxy requests always have a running backend. Open the Vite app at:
+
+```text
+http://localhost:5173
 ```
 
 ## Test

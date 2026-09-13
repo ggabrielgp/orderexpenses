@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/server.js",
+    "dev": "concurrently --kill-others \"npm run dev:server\" \"vite\"",
+    "dev:server": "node --watch src/server.js",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "prestart": "npm run build",
     "start": "node src/server.js",
     "test": "node --test"
   },
@@ -13,6 +17,16 @@
   },
   "dependencies": {
     "@libsql/client": "^0.15.15",
-    "googleapis": "^171.4.0"
+    "googleapis": "^171.4.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.2",
+    "concurrently": "^10.0.5",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3"
   }
 }

@@ -16,5 +16,8 @@ data/
 # Dependencies
 node_modules/
 
+# Generated frontend build
+/dist/
+
 # Logs
 *.log

@@ -33,7 +33,7 @@ import {
 	upsertUserCategory,
 	upsertFinancialCycleSettings,
 } from "./db.js";
-import { ReviewPeriod } from "../public/review-period.js";
+import { ReviewPeriod } from "./shared/review-period.js";
 import {
 	loadIncomeCandidateMovements,
 	loadMovementsForPeriodResult,
@@ -53,6 +53,8 @@ if (!isLoopbackHost(HOST) && process.env.ALLOW_UNSAFE_HOST !== "true") {
 }
 const MAX_BODY_BYTES = 256 * 1024;
 const PUBLIC_DIR = join(process.cwd(), "public");
+const VITE_DIST_DIR = join(process.cwd(), "dist");
+const SHARED_DIR = join(process.cwd(), "src", "shared");
 const SESSION_COOKIE_NAME =
 	process.env.SESSION_COOKIE_NAME ?? "finance_session";
 const SESSION_TTL_DAYS = Math.max(
@@ -87,7 +89,7 @@ export default async function handleRequest(req, res) {
 	try {
 		const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
 		if (isStaticRequest(url.pathname, req.method)) {
-			return await serveStatic(url.pathname, res);
+			return await serveStatic(url, res);
 		}
 
 		await ensureDbInitialized();
@@ -333,7 +335,7 @@ export default async function handleRequest(req, res) {
 			return sendJson(res, { ok: true });
 		}
 
-		return await serveStatic(url.pathname, res);
+		return await serveStatic(url, res);
 	} catch (error) {
 		if (error.status)
 			return sendJson(res, { error: error.message }, error.status);
@@ -672,15 +674,37 @@ function currentMonthKey() {
 	return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 }
 
-async function serveStatic(pathname, res) {
-	const requested =
-		pathname === "/"
-			? "/index.html"
-			: pathname === "/app" || pathname === "/app/"
-				? "/app.html"
-				: pathname;
-	const safePath = normalize(requested).replace(/^\.\.(?:\/|$)/, "");
-	const fullPath = join(PUBLIC_DIR, safePath);
+export function resolveStaticAsset(pathname, searchParams = new URLSearchParams()) {
+	if (pathname === "/app" || pathname === "/app/") {
+		return searchParams.has("demo")
+			? { directory: "public", pathname: "/app.html" }
+			: { directory: "dist", pathname: "/index.html" };
+	}
+	if (pathname === "/legacy-app" || pathname === "/legacy-app/") {
+		return { directory: "public", pathname: "/app.html" };
+	}
+	if (pathname === "/src/shared/review-period.js") {
+		return { directory: "shared", pathname: "/review-period.js" };
+	}
+	if (pathname.startsWith("/assets/")) {
+		return { directory: "dist", pathname };
+	}
+	return {
+		directory: "public",
+		pathname: pathname === "/" ? "/index.html" : pathname,
+	};
+}
+
+async function serveStatic(url, res) {
+	const asset = resolveStaticAsset(url.pathname, url.searchParams);
+	const safePath = normalize(asset.pathname).replace(/^\.\.(?:\/|$)/, "");
+	const root =
+		asset.directory === "dist"
+			? VITE_DIST_DIR
+			: asset.directory === "shared"
+				? SHARED_DIR
+				: PUBLIC_DIR;
+	const fullPath = join(root, safePath);
 
 	try {
 		await access(fullPath);

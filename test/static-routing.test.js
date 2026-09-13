@@ -62,8 +62,26 @@ test("landing and dashboard load Sora across every referenced weight", async () 
 	}
 });
 
-test("serves the product dashboard from the clean app route", async () => {
+test("npm start builds production assets before serving /app", async () => {
+	const packageJson = JSON.parse(
+		await readFile(new URL("../package.json", import.meta.url), "utf8"),
+	);
+	assert.equal(packageJson.scripts.prestart, "npm run build");
+	assert.equal(packageJson.scripts.start, "node src/server.js");
+});
+
+test("serves the React shell from the clean app route", async () => {
 	for (const pathname of ["/app", "/app/"]) {
+		const response = await request(pathname);
+		assert.equal(response.status, 200);
+		assert.match(response.body, /id="root"/);
+		assert.match(response.body, /\/assets\//);
+		assert.doesNotMatch(response.body, /id="dashboard"/);
+	}
+});
+
+test("serves the legacy dashboard from its explicit route and the demo query", async () => {
+	for (const pathname of ["/legacy-app", "/legacy-app/", "/app?demo"]) {
 		const response = await request(pathname);
 		assert.equal(response.status, 200);
 		assert.match(response.body, /id="dashboard"/);
