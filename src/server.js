@@ -675,6 +675,9 @@ function currentMonthKey() {
 }
 
 export function resolveStaticAsset(pathname, searchParams = new URLSearchParams()) {
+	if (pathname === "/app/demo" || pathname === "/app/demo/") {
+		return { directory: "dist", pathname: "/index.html" };
+	}
 	if (pathname === "/app" || pathname === "/app/") {
 		return searchParams.has("demo")
 			? { directory: "public", pathname: "/app.html" }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { loadFinancialDashboardData, updateFinancialCycle } from "../api/client";
+import type { DemoDashboardData } from "../demo-data";
 import type {
 	FinancialDashboardData,
 	FinancialPeriod,
@@ -304,6 +305,64 @@ export function DashboardPage({ session, gmail, onRetry }: DashboardPageProps) {
 				</div>
 			</section>
 		</main>
+	);
+}
+
+export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
+	const balance = data.currentPeriodInflow - data.currentPeriodSpending;
+	return (
+		<main className="shell react-shell">
+			<section className="panel product-panel react-dashboard-shell demo-dashboard" aria-labelledby="demo-dashboard-title">
+				<header className="react-dashboard-header">
+					<div>
+						<span className="section-kicker">Demo</span>
+						<h1 id="demo-dashboard-title">Resumen mensual de ejemplo</h1>
+						<p className="subtitle">Datos sintéticos para conocer Gastos Controlados.</p>
+					</div>
+					<span className="demo-read-only-badge">Solo lectura</span>
+				</header>
+
+				<div className="demo-kpi-grid" aria-label="Resumen financiero de ejemplo">
+					<DemoKpi label="Ingresos" value={formatClp(data.currentPeriodInflow)} />
+					<DemoKpi label="Gastos" value={formatClp(data.currentPeriodSpending)} />
+					<DemoKpi label="Balance" value={formatClp(balance)} />
+				</div>
+
+				<section className="demo-movements" aria-labelledby="demo-movements-title">
+					<div>
+						<span className="section-kicker">Movimientos</span>
+						<h2 id="demo-movements-title">Actividad del periodo</h2>
+					</div>
+					<ul>
+						{data.movements.slice(0, 6).map((movement) => (
+							<li key={movement.id}>
+								<div>
+									<strong>{movement.counterparty}</strong>
+									<span>{movement.category ?? "Sin categoría"} · {movement.occurredAt.slice(0, 10)}</span>
+								</div>
+								<b className={movement.direction === "inflow" ? "demo-inflow" : ""}>
+									{movement.direction === "inflow" ? "+" : "-"}{formatClp(movement.amount)}
+								</b>
+							</li>
+						))}
+					</ul>
+				</section>
+
+				<footer className="demo-dashboard-footer">
+					<p>Esta demo no guarda cambios ni se conecta a tu cuenta.</p>
+					<a className="button" href="/auth/google">Inicia sesión para editar</a>
+				</footer>
+			</section>
+		</main>
+	);
+}
+
+function DemoKpi({ label, value }: { label: string; value: string }) {
+	return (
+		<article className="demo-kpi">
+			<span>{label}</span>
+			<strong>{value}</strong>
+		</article>
 	);
 }
 
