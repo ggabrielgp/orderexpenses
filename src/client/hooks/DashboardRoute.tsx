@@ -1,15 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { getGmailStatus, getSessionProfile, syncGmail } from "../api/client";
-import type { GmailStatusResponse, SessionResponse } from "../api/types";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { getSessionProfile } from "../api/client";
+import type { SessionResponse } from "../api/types";
 import { loadDemoDashboardData, type DemoDashboardData } from "../demo-data";
 import { DashboardPage, DemoDashboardPage } from "../pages/DashboardPage";
 
 type LoadState =
 	| { status: "loading" }
 	| { status: "error"; message: string }
-	| { status: "ready"; session: SessionResponse; gmail: GmailStatusResponse };
-
-type GmailSyncState = "idle" | "syncing" | "error";
+	| { status: "ready"; session: SessionResponse };
 
 /** Keeps the existing React dashboard data boundary out of route selection. */
 export function DashboardRoute() {
@@ -61,44 +59,20 @@ export function DemoDashboardRoute() {
 function AccountDashboardRoute() {
 	const [state, setState] = useState<LoadState>({ status: "loading" });
 	const [retryToken, setRetryToken] = useState(0);
-	const [gmailSyncState, setGmailSyncState] = useState<GmailSyncState>("idle");
-	const oauthSyncStarted = useRef(false);
-
 	const retry = useCallback(() => setRetryToken((token) => token + 1), []);
-	const synchronizeAfterOAuth = useCallback(async () => {
-		setGmailSyncState("syncing");
-		try {
-			await syncGmail();
-			setGmailSyncState("idle");
-			retry();
-		} catch {
-			setGmailSyncState("error");
-		}
-	}, [retry]);
-
-	useEffect(() => {
-		const url = new URL(window.location.href);
-		if (oauthSyncStarted.current || url.searchParams.get("gmail") !== "connected") return;
-
-		oauthSyncStarted.current = true;
-		url.searchParams.delete("gmail");
-		window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-		void synchronizeAfterOAuth();
-	}, [synchronizeAfterOAuth]);
 
 	useEffect(() => {
 		const controller = new AbortController();
 		setState({ status: "loading" });
-
-		Promise.all([getSessionProfile(controller.signal), getGmailStatus(controller.signal)])
-			.then(([session, gmail]) => {
-				if (!controller.signal.aborted) setState({ status: "ready", session, gmail });
+		getSessionProfile(controller.signal)
+			.then((session) => {
+				if (!controller.signal.aborted) setState({ status: "ready", session });
 			})
 			.catch(() => {
 				if (!controller.signal.aborted) {
 					setState({
 						status: "error",
-						message: "We could not load your session or Gmail connection status.",
+						message: "We could not load your session.",
 					});
 				}
 			});
@@ -106,19 +80,8 @@ function AccountDashboardRoute() {
 		return () => controller.abort();
 	}, [retryToken]);
 
-	if (gmailSyncState === "syncing") {
-		return <ShellMessage title="Synchronizing Gmail" copy="Gmail is connected. Importing your latest movements..." />;
-	}
-	if (gmailSyncState === "error") {
-		return (
-			<ShellMessage title="Unable to synchronize Gmail" copy="Your Gmail account is connected, but we could not import your movements.">
-				<button type="button" onClick={synchronizeAfterOAuth}>Retry Gmail sync</button>
-				<a className="button react-secondary-link" href="/legacy-app">Open legacy dashboard</a>
-			</ShellMessage>
-		);
-	}
 	if (state.status === "loading") {
-		return <ShellMessage title="Loading your account" copy="Checking your session and Gmail connection..." />;
+		return <ShellMessage title="Loading your account" copy="Checking your session..." />;
 	}
 	if (state.status === "error") {
 		return (
@@ -128,7 +91,7 @@ function AccountDashboardRoute() {
 			</ShellMessage>
 		);
 	}
-	return <DashboardPage session={state.session} gmail={state.gmail} onRetry={retry} />;
+	return <DashboardPage session={state.session} onRetry={retry} />;
 }
 
 function ShellMessage({ title, copy, children }: { title: string; copy: string; children?: ReactNode }) {

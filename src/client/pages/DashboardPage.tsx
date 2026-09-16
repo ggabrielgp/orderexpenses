@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { loadFinancialDashboardData, updateFinancialCycle } from "../api/client";
 import type { DemoDashboardData } from "../demo-data";
 import type {
 	FinancialDashboardData,
 	FinancialPeriod,
 	FinancialTransaction,
-	GmailStatusResponse,
 	UpdateFinancialCycleRequest,
 	SessionResponse,
 } from "../api/types";
@@ -14,7 +13,6 @@ import { ReviewPeriod } from "../../shared/review-period.js";
 
 interface DashboardPageProps {
 	session: SessionResponse;
-	gmail: GmailStatusResponse;
 	onRetry: () => void;
 }
 
@@ -145,16 +143,16 @@ export function summarizeRecognizedExpenses(transactions: FinancialTransaction[]
 	return transactions.reduce(
 		(summary, transaction) => {
 			if (!isRecognizedExpense(transaction)) return summary;
+			if (typeof transaction.amount !== "number" || !Number.isFinite(transaction.amount)) {
+				return { ...summary, pendingAmountCount: summary.pendingAmountCount + 1 };
+			}
 			return {
 				count: summary.count + 1,
-				totalSpending:
-					summary.totalSpending +
-					(typeof transaction.amount === "number" && Number.isFinite(transaction.amount)
-						? transaction.amount
-						: 0),
+				totalSpending: summary.totalSpending + transaction.amount,
+				pendingAmountCount: summary.pendingAmountCount,
 			};
 		},
-		{ count: 0, totalSpending: 0 },
+		{ count: 0, totalSpending: 0, pendingAmountCount: 0 },
 	);
 }
 
@@ -232,7 +230,7 @@ export function createFinancialCycleSetupPayload(
 	};
 }
 
-export function DashboardPage({ session, gmail, onRetry }: DashboardPageProps) {
+export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 	if (!session.authenticated) {
 		return (
 			<main className="shell react-shell">
@@ -257,8 +255,8 @@ export function DashboardPage({ session, gmail, onRetry }: DashboardPageProps) {
 	}
 
 	const profile = session.profile;
-	const connected = gmail.connected || session.gmail.connected;
-	const gmailEmail = gmail.activeEmail ?? profile?.email ?? "No connected account";
+	const connected = session.gmail.connected;
+	const gmailEmail = profile?.email ?? "No connected account";
 
 	return (
 		<main className="shell react-shell">
@@ -410,7 +408,6 @@ function FinancialSummary() {
 	const spendingByKind = summarizeRecognizedExpensesByKind(state.data.transactions);
 	const latestExpense = selectLatestRecognizedExpense(state.data.transactions, selectedPeriod!);
 	const movements = getRecognizedExpenseMovements(state.data.transactions);
-	const remainingBalance = incomeAmount === null ? null : incomeAmount - summary.totalSpending;
 	return (
 		<section className="react-financial-summary" aria-labelledby="react-financial-summary-title">
 			<div className="react-financial-summary-heading">
@@ -455,11 +452,9 @@ function FinancialSummary() {
 							<strong>{formatClp(summary.totalSpending)}</strong>
 						</article>
 						<article className="react-financial-card">
-							<span>Remaining balance</span>
-							<strong>{remainingBalance === null ? "Unavailable" : formatClp(remainingBalance)}</strong>
-							{remainingBalance === null && (
-								<p>Remaining balance cannot be calculated until income is configured.</p>
-							)}
+							<span>Pending amounts</span>
+							<strong>{summary.pendingAmountCount}</strong>
+							<p>Recognized movements awaiting a finite amount.</p>
 						</article>
 					</div>
 					<section className="react-latest-expense" aria-labelledby="react-latest-expense-title">
@@ -517,11 +512,12 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 	const [endDate, setEndDate] = useState(currentMonth.visibleEndDate);
 	const [incomeValue, setIncomeValue] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
+	const saveLock = useRef(false);
 	const [error, setError] = useState<string | null>(null);
 
 	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		if (isSaving) return;
+		if (saveLock.current) return;
 
 		let cycle: UpdateFinancialCycleRequest;
 		try {
@@ -531,12 +527,14 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 			return;
 		}
 
+		saveLock.current = true;
 		setIsSaving(true);
 		setError(null);
 		try {
 			await updateFinancialCycle(cycle);
 			onSaved();
 		} catch {
+			saveLock.current = false;
 			setError("Your financial period could not be saved. Please try again.");
 			setIsSaving(false);
 		}

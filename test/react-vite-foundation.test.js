@@ -136,26 +136,20 @@ test("production mounts the React shell at /app/demo and preserves the legacy da
 	});
 });
 
-test("React consumes the OAuth marker and synchronizes Gmail once without changing ordinary refreshes", async () => {
-	const [app, dashboardRoute, client] = await Promise.all([
+test("React loads only the session before gating financial data and never auto-syncs Gmail", async () => {
+	const [app, dashboardRoute, page] = await Promise.all([
 		readFile(new URL("../src/client/App.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/hooks/DashboardRoute.tsx", import.meta.url), "utf8"),
-		readFile(new URL("../src/client/api/client.ts", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
 	]);
 
 	assert.match(app, /<DashboardRoute\s*\/>/);
-	assert.match(dashboardRoute, /useRef\(false\)/);
-	assert.match(dashboardRoute, /oauthSyncStarted\.current\s*\|\|/);
-	assert.match(dashboardRoute, /url\.searchParams\.get\("gmail"\) !== "connected"/);
-	assert.match(dashboardRoute, /url\.searchParams\.delete\("gmail"\)/);
-	assert.match(dashboardRoute, /window\.history\.replaceState\(/);
-	assert.match(dashboardRoute, /syncGmail\(\)/);
-	assert.match(dashboardRoute, /Synchronizing Gmail/);
-	assert.match(dashboardRoute, /Unable to synchronize Gmail/);
-	assert.match(dashboardRoute, /const retry = useCallback\(\(\) => setRetryToken/);
-	assert.match(client, /"\/api\/gmail\/sync"/);
-	assert.match(client, /method: "POST"/);
-	assert.match(client, /body: JSON\.stringify\(\{\}\)/);
+	assert.match(dashboardRoute, /getSessionProfile\(controller\.signal\)/);
+	assert.doesNotMatch(dashboardRoute, /getGmailStatus|syncGmail|\/api\/gmail\/sync|gmail"\) !== "connected"/);
+	assert.match(dashboardRoute, /Unable to load the account/);
+	assert.match(dashboardRoute, /<button type="button" onClick=\{retry\}>Retry<\/button>/);
+	assert.match(page, /if \(!session\.authenticated\)/);
+	assert.match(page, /<FinancialSummary \/>/);
 });
 
 test("the React root composes the bounded landing header and hero with its session CTA contract", async () => {
@@ -337,8 +331,9 @@ test("the React financial summary loads the configured period before transaction
 		]);
 		assert.deepEqual(calls.map(([, options]) => options?.method), [undefined, undefined]);
 		assert.deepEqual(page.summarizeRecognizedExpenses(data.transactions), {
-			count: 3,
+			count: 1,
 			totalSpending: 1200,
+			pendingAmountCount: 2,
 		});
 		assert.equal(
 			page.formatPeriodLabel(data.cycle.selectedPeriod),
@@ -456,18 +451,40 @@ test("the React financial summary selects the latest valid recognized expense wi
 	assert.match(source, /<dt>When<\/dt>/);
 });
 
-test("the React financial summary shows a remaining balance only when income is configured", async () => {
-	const [page, styles] = await Promise.all([
+test("the React financial summary exposes pending recognized amounts without inventing a balance", async (t) => {
+	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const loadedConfig = await loadConfigFromFile(
+		{ command: "serve", mode: "test" },
+		configPath,
+	);
+	const vite = await createViteServer({
+		...loadedConfig?.config,
+		configFile: false,
+		appType: "custom",
+		server: { middlewareMode: true },
+	});
+	t.after(() => vite.close());
+
+	const [page, source, styles] = await Promise.all([
+		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
-
-	assert.match(page, /const remainingBalance = incomeAmount === null \? null : incomeAmount - summary\.totalSpending/);
-	assert.match(page, /<span>Remaining balance<\/span>/);
-	assert.match(page, /remainingBalance === null \? "Unavailable" : formatClp\(remainingBalance\)/);
-	assert.match(page, /Remaining balance cannot be calculated until income is configured\./);
-	assert.match(page, /return amount < 0 \? `-\$\{formatted\}` : formatted/);
-	assert.match(styles, /\.react-financial-grid\s*\{\s*display: grid;\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+	assert.deepEqual(
+		page.summarizeRecognizedExpenses([
+			{ direction: "outflow", kind: "purchase", amount: 1200 },
+			{ direction: "outflow", kind: "payment", amount: null },
+			{ direction: "outflow", kind: "transfer", amount: Number.NaN },
+			{ direction: "outflow", kind: "purchase", amount: Number.POSITIVE_INFINITY },
+			{ direction: "outflow", kind: "other", amount: null },
+		]),
+		{ count: 1, totalSpending: 1200, pendingAmountCount: 3 },
+	);
+	assert.match(source, /Pending amounts/);
+	assert.match(source, /summary\.pendingAmountCount/);
+	assert.doesNotMatch(source, /Remaining balance|remainingBalance/);
+	assert.match(source, /return amount < 0 \? `-\$\{formatted\}` : formatted/);
+	assert.match(styles, /\.react-financial-grid\s*\{\s*display: grid;\s*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
 	assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.react-financial-grid\s*\{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 });
 
