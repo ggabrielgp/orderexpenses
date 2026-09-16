@@ -6,7 +6,7 @@ import test from "node:test";
 import { createServer as createViteServer, loadConfigFromFile } from "vite";
 
 process.env.VERCEL = "1";
-process.env.TURSO_DATABASE_URL = "file:./data/finance.db";
+process.env.TURSO_DATABASE_URL = "file::memory:";
 
 const { resolveStaticAsset } = await import("../src/server.js");
 const { ReviewPeriod: sharedReviewPeriod } = await import(
@@ -78,7 +78,7 @@ test("Vite development serves /app and proxies legacy backend paths", async (t) 
 
 	const viteAddress = vite.httpServer?.address();
 	assert.ok(viteAddress && typeof viteAddress !== "string");
-	for (const path of ["/", "/app", "/app/"]) {
+	for (const path of ["/", "/app", "/app/", "/app/demo", "/app/demo/"]) {
 		const appResponse = await fetch(`http://127.0.0.1:${viteAddress.port}${path}`, {
 			headers: { accept: "text/html" },
 		});
@@ -103,7 +103,7 @@ test("Vite development serves /app and proxies legacy backend paths", async (t) 
 	]);
 });
 
-test("production mounts the React shell at /app and preserves the legacy dashboard route", () => {
+test("production mounts the React shell at /app/demo and preserves the legacy dashboard route", () => {
 	assert.deepEqual(resolveStaticAsset("/"), {
 		directory: "public",
 		pathname: "/index.html",
@@ -116,6 +116,12 @@ test("production mounts the React shell at /app and preserves the legacy dashboa
 		directory: "dist",
 		pathname: "/index.html",
 	});
+	for (const pathname of ["/app/demo", "/app/demo/"]) {
+		assert.deepEqual(resolveStaticAsset(pathname), {
+			directory: "dist",
+			pathname: "/index.html",
+		});
+	}
 	assert.deepEqual(resolveStaticAsset("/app", new URLSearchParams("demo")), {
 		directory: "public",
 		pathname: "/app.html",
@@ -180,7 +186,7 @@ test("the React root composes the bounded landing header and hero with its sessi
 	assert.match(header, /Ir al dashboard/);
 	assert.match(header, /profile\?\.name \|\| profile\?\.email/);
 	assert.match(hero, /aria-labelledby="hero-title"/);
-	assert.match(hero, /href="\/app\?demo"/);
+	assert.match(hero, /href="\/app\/demo"/);
 	assert.match(reveal, /IntersectionObserver/);
 	assert.match(reveal, /prefers-reduced-motion: reduce/);
 	assert.match(styles, /\.landing-reveal \{ opacity: 0; transform: translateY\(20px\)/);
@@ -540,6 +546,118 @@ test("the React movements view derives safe, finite recognized expense rows", as
 	assert.match(source, /No recognized expenses are available for this period\./);
 	assert.match(source, /Open legacy dashboard/);
 	assert.match(source, /\}, \[retryToken\]\);/);
+});
+
+test("the demo fixture adapter validates and safely rebases movements without API access", async (t) => {
+	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const loadedConfig = await loadConfigFromFile(
+		{ command: "serve", mode: "test" },
+		configPath,
+	);
+	const vite = await createViteServer({
+		...loadedConfig?.config,
+		configFile: false,
+		appType: "custom",
+		server: { middlewareMode: true },
+	});
+	t.after(() => vite.close());
+
+	const demo = await vite.ssrLoadModule("/src/client/demo-data.ts");
+	const source = await readFile(
+		new URL("../src/client/demo-data.ts", import.meta.url),
+		"utf8",
+	);
+	const fixture = [
+		{
+			id: "expense",
+			occurredAt: "2024-02-29T12:30:00",
+			amount: 25000,
+			direction: "outflow",
+			kind: "purchase",
+			counterparty: "Mercado",
+			category: "Comida",
+		},
+		{
+			id: "income",
+			occurredAt: "2024-02-28T08:00:00",
+			amount: 900000,
+			direction: "inflow",
+			kind: "transfer",
+			counterparty: "Empleador",
+			category: null,
+		},
+	];
+	const data = demo.createDemoDashboardData(fixture, new Date("2025-02-01T12:00:00Z"));
+
+	assert.equal(data.movements[0].occurredAt, "2025-02-28T12:30:00");
+	assert.deepEqual(data.period, {
+		startDate: "2025-02-01",
+		endDateExclusive: "2025-03-01",
+	});
+	assert.equal(data.currentPeriodSpending, 25000);
+	assert.equal(data.currentPeriodInflow, 900000);
+	assert.throws(
+		() => demo.createDemoDashboardData([{ ...fixture[0], amount: "25000" }], new Date("2025-02-01T12:00:00Z")),
+		/Demo fixture/,
+	);
+
+	const calls = [];
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (path) => {
+		calls.push(path);
+		return { ok: true, json: async () => fixture };
+	};
+	try {
+		await demo.loadDemoDashboardData();
+		assert.deepEqual(calls, ["/demo-data.json"]);
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+	assert.doesNotMatch(source, /getSessionProfile|getGmailStatus|syncGmail|\/api\//);
+});
+
+test("the demo route renders Spanish read-only data and keeps session and sync calls out of the demo branch", async (t) => {
+	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const loadedConfig = await loadConfigFromFile(
+		{ command: "serve", mode: "test" },
+		configPath,
+	);
+	const vite = await createViteServer({
+		...loadedConfig?.config,
+		configFile: false,
+		appType: "custom",
+		server: { middlewareMode: true },
+	});
+	t.after(() => vite.close());
+
+	const [React, renderer, page, route, hero] = await Promise.all([
+		import("react"),
+		import("react-dom/server"),
+		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
+		vite.ssrLoadModule("/src/client/hooks/DashboardRoute.tsx"),
+		readFile(new URL("../src/client/components/landing/LandingHero.tsx", import.meta.url), "utf8"),
+	]);
+	const markup = renderer.renderToStaticMarkup(
+		React.createElement(page.DemoDashboardPage, {
+			data: {
+				period: { startDate: "2025-02-01", endDateExclusive: "2025-03-01" },
+				currentPeriodSpending: 25000,
+				currentPeriodInflow: 900000,
+				movements: [{ id: "expense", occurredAt: "2025-02-28T12:30:00", amount: 25000, direction: "outflow", kind: "purchase", counterparty: "Mercado", category: "Comida" }],
+			},
+		}),
+	);
+
+	assert.equal(route.isDemoDashboardRoute("/app/demo"), true);
+	assert.equal(route.isDemoDashboardRoute("/app/demo/"), true);
+	assert.equal(route.isDemoDashboardRoute("/app"), false);
+	assert.match(markup, /Demo/);
+	assert.match(markup, /Solo lectura/);
+	assert.match(markup, /Mercado/);
+	assert.match(markup, /href="\/auth\/google"/);
+	assert.match(hero, /href="\/app\/demo"/);
+	const demoBranch = route.DemoDashboardRoute.toString();
+	assert.doesNotMatch(demoBranch, /getSessionProfile|getGmailStatus|syncGmail|\/api\//);
 });
 
 test("the legacy browser module re-exports the shared review-period contract", () => {

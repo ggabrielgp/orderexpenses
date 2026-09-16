@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { getGmailStatus, getSessionProfile, syncGmail } from "../api/client";
 import type { GmailStatusResponse, SessionResponse } from "../api/types";
-import { DashboardPage } from "../pages/DashboardPage";
+import { loadDemoDashboardData, type DemoDashboardData } from "../demo-data";
+import { DashboardPage, DemoDashboardPage } from "../pages/DashboardPage";
 
 type LoadState =
 	| { status: "loading" }
@@ -12,6 +13,52 @@ type GmailSyncState = "idle" | "syncing" | "error";
 
 /** Keeps the existing React dashboard data boundary out of route selection. */
 export function DashboardRoute() {
+	return isDemoDashboardRoute(window.location.pathname) ? <DemoDashboardRoute /> : <AccountDashboardRoute />;
+}
+
+export function isDemoDashboardRoute(pathname: string) {
+	return pathname === "/app/demo" || pathname === "/app/demo/";
+}
+
+type DemoLoadState =
+	| { status: "loading" }
+	| { status: "error"; message: string }
+	| { status: "ready"; data: DemoDashboardData };
+
+export function DemoDashboardRoute() {
+	const [state, setState] = useState<DemoLoadState>({ status: "loading" });
+	const [retryToken, setRetryToken] = useState(0);
+	const retry = useCallback(() => setRetryToken((token) => token + 1), []);
+
+	useEffect(() => {
+		const controller = new AbortController();
+		setState({ status: "loading" });
+		loadDemoDashboardData(controller.signal)
+			.then((data) => {
+				if (!controller.signal.aborted) setState({ status: "ready", data });
+			})
+			.catch(() => {
+				if (!controller.signal.aborted) {
+					setState({ status: "error", message: "No se pudieron cargar los datos de ejemplo." });
+				}
+			});
+		return () => controller.abort();
+	}, [retryToken]);
+
+	if (state.status === "loading") {
+		return <ShellMessage title="Cargando demo" copy="Preparando datos sintéticos de ejemplo." />;
+	}
+	if (state.status === "error") {
+		return (
+			<ShellMessage title="Demo no disponible" copy={state.message}>
+				<button type="button" onClick={retry}>Reintentar</button>
+			</ShellMessage>
+		);
+	}
+	return <DemoDashboardPage data={state.data} />;
+}
+
+function AccountDashboardRoute() {
 	const [state, setState] = useState<LoadState>({ status: "loading" });
 	const [retryToken, setRetryToken] = useState(0);
 	const [gmailSyncState, setGmailSyncState] = useState<GmailSyncState>("idle");

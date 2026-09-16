@@ -10,7 +10,7 @@ export function LandingHero() {
 					<p className="landing-hero-description">Organiza los comprobantes de Banco de Chile que llegan a tu Gmail. Elige un periodo y obtén una vista mensual clara, categorizada y editable.</p>
 					<div className="landing-hero-actions">
 						<a className="landing-primary-button" href="/auth/google">Comenzar ahora<span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>
-						<a className="landing-secondary-button" href="/app?demo">Ver dashboard</a>
+						<a className="landing-secondary-button" href="/app/demo">Ver dashboard</a>
 					</div>
 					<dl className="landing-hero-facts">
 						<div><dt>Fuente actual</dt><dd>Banco de Chile</dd></div>

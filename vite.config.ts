@@ -13,7 +13,9 @@ function backendProxy() {
 
 function demoAppProxy(requestUrl?: string) {
 	const url = new URL(requestUrl ?? "/app", backendTarget);
-	return url.searchParams.has("demo") ? undefined : "/app";
+	if (url.pathname === "/app/demo" || url.pathname === "/app/demo/") return "/app";
+	if (url.searchParams.has("demo")) return undefined;
+	return url.pathname === "/app" || url.pathname === "/app/" ? "/app" : undefined;
 }
 
 export default defineConfig({

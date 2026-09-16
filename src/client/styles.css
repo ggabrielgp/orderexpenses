@@ -687,6 +687,93 @@
 	border-bottom: 0;
 }
 
+.demo-dashboard {
+	gap: var(--space-4);
+}
+
+.demo-read-only-badge {
+	align-self: start;
+	border: 1px solid var(--line-strong);
+	border-radius: 999px;
+	background: var(--surface);
+	padding: var(--space-1) var(--space-3);
+	font-size: .875rem;
+	font-weight: 700;
+}
+
+.demo-kpi-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--space-3);
+}
+
+.demo-kpi,
+.demo-movements {
+	display: grid;
+	gap: var(--space-2);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-3);
+}
+
+.demo-kpi span,
+.demo-movements li span,
+.demo-dashboard-footer p {
+	color: var(--ink-muted);
+}
+
+.demo-kpi strong {
+	font-family: var(--font-display);
+	font-size: 1.25rem;
+}
+
+.demo-movements h2 {
+	margin: var(--space-1) 0 0;
+	font-size: 1.1rem;
+}
+
+.demo-movements ul {
+	display: grid;
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.demo-movements li {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--space-3);
+	border-top: 1px solid var(--line);
+	padding-top: var(--space-2);
+}
+
+.demo-movements li div {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.demo-movements li b {
+	white-space: nowrap;
+}
+
+.demo-inflow {
+	color: #16713a;
+}
+
+.demo-dashboard-footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+
+.demo-dashboard-footer p {
+	margin: 0;
+}
+
 @media (max-width: 640px) {
 	.react-dashboard-header,
 	.react-financial-summary-heading {
@@ -703,6 +790,10 @@
 
 	.react-financial-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.demo-kpi-grid {
+		grid-template-columns: 1fr;
 	}
 }
 
