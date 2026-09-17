@@ -119,7 +119,7 @@ export function getRecognizedExpenseIdentity(transaction: Pick<FinancialTransact
 	for (const value of [transaction.counterparty, transaction.description]) {
 		if (typeof value === "string" && value.trim()) return value.trim();
 	}
-	return "Unidentified expense";
+	return "Gasto sin identificar";
 }
 
 function formatMovementDate(occurredAt: unknown) {
@@ -130,7 +130,7 @@ function formatMovementDate(occurredAt: unknown) {
 function getMovementCategory(category: unknown) {
 	return typeof category === "string" && category.trim()
 		? category.trim()
-		: "Uncategorized";
+		: "Sin categoría";
 }
 
 export function getRecognizedExpenseMovements(
@@ -174,7 +174,8 @@ function getMovementTextField(value: unknown) {
  * - `occurredAt` is normalized to a full local `YYYY-MM-DDTHH:mm:ss` so the edit draft is always
  *   a valid `datetime-local` value, including for the date-only rows the server can store;
  * - the fields start from the stored text rather than from the display fallbacks, so editing an
- *   untouched movement never writes "Unidentified expense"/"Uncategorized" back to the server.
+ *   untouched movement never writes the "Gasto sin identificar"/"Sin categoría" placeholders back
+ *   to the server.
  */
 export function getEditableRecognizedExpenseMovements(
 	transactions: FinancialTransaction[],
@@ -296,18 +297,17 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 		return (
 			<main className="shell react-shell">
 				<section className="panel product-panel react-message" aria-labelledby="react-sign-in-title">
-					<span className="section-kicker">React migration</span>
-					<h1 id="react-sign-in-title">Connect your Gmail account</h1>
+					<h1 id="react-sign-in-title">Conecta tu cuenta de Gmail</h1>
 					<p className="subtitle">
-						Sign in to load your profile and connection status. The complete dashboard
-						is still available in the legacy application during this migration.
+						Inicia sesión para cargar tu perfil y el estado de la conexión. El
+						dashboard completo sigue disponible en la aplicación anterior.
 					</p>
 					<div className="react-shell-actions">
 						<a className="button" href={session.gmail.connectUrl}>
-							Connect Gmail
+							Conectar Gmail
 						</a>
 						<a className="button react-secondary-link" href="/legacy-app">
-							Open legacy dashboard
+							Abrir dashboard anterior
 						</a>
 					</div>
 				</section>
@@ -317,38 +317,38 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 
 	const profile = session.profile;
 	const connected = session.gmail.connected;
-	const gmailEmail = profile?.email ?? "No connected account";
+	const gmailEmail = profile?.email ?? "Sin cuenta conectada";
 
 	return (
 		<main className="shell react-shell">
 			<section className="panel product-panel react-dashboard-shell" aria-labelledby="react-dashboard-title">
 				<header className="react-dashboard-header">
 					<div>
-						<span className="section-kicker">React migration</span>
-						<h1 id="react-dashboard-title">Account overview</h1>
+						<h1 id="react-dashboard-title">Resumen de la cuenta</h1>
 						<p className="subtitle">
-							Your financial summary is read-only. Use the legacy dashboard for setup and
-							other account management.
+							Aquí puedes registrar, editar y eliminar movimientos. La sincronización
+							con Gmail y la gestión de categorías siguen en el dashboard anterior hasta
+							que se integren.
 						</p>
 					</div>
 					<a className="button react-secondary-link" href="/legacy-app">
-						Open legacy dashboard
+						Abrir dashboard anterior
 					</a>
 				</header>
 
 				<div className="react-status-grid">
 					<article className="react-status-card">
-						<span className="section-kicker">Current session</span>
-						<strong>{profile?.name || "Connected user"}</strong>
-						<p>{profile?.email || "No Gmail profile is associated with this session."}</p>
+						<span className="section-kicker">Sesión actual</span>
+						<strong>{profile?.name || "Usuario conectado"}</strong>
+						<p>{profile?.email || "No hay un perfil de Gmail asociado a esta sesión."}</p>
 					</article>
 					<article className="react-status-card">
-						<span className="section-kicker">Gmail connection</span>
-						<strong>{connected ? "Connected" : "Not connected"}</strong>
-						<p>{connected ? gmailEmail : "Connect Gmail to import and review movements."}</p>
+						<span className="section-kicker">Conexión con Gmail</span>
+						<strong>{connected ? "Conectado" : "Sin conexión"}</strong>
+						<p>{connected ? gmailEmail : "Conecta Gmail para importar y revisar movimientos."}</p>
 						{!connected && (
 							<a className="button" href={session.gmail.connectUrl}>
-								Connect Gmail
+								Conectar Gmail
 							</a>
 						)}
 					</article>
@@ -358,9 +358,9 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 
 				<div className="react-shell-actions">
 					<button className="secondary" type="button" onClick={onRetry}>
-						Refresh connection status
+						Actualizar estado de la conexión
 					</button>
-					<a href="/">Back to home</a>
+					<a href="/">Volver al inicio</a>
 				</div>
 			</section>
 		</main>
@@ -514,13 +514,13 @@ function FinancialSummary() {
 	}, [retryToken]);
 
 	if (state.status === "loading") {
-		return <section className="react-financial-state" aria-live="polite">Loading financial summary...</section>;
+		return <section className="react-financial-state" aria-live="polite">Cargando resumen financiero...</section>;
 	}
 	if (state.status === "failed") {
 		return (
 			<section className="react-financial-state" role="alert">
-				<p>Financial summary could not be loaded.</p>
-				<button className="secondary" type="button" onClick={retry}>Retry financial summary</button>
+				<p>No se pudo cargar el resumen financiero.</p>
+				<button className="secondary" type="button" onClick={retry}>Reintentar resumen financiero</button>
 			</section>
 		);
 	}
@@ -647,12 +647,12 @@ function FinancialSummary() {
 		<section className="react-financial-summary" aria-labelledby="react-financial-summary-title">
 			<div className="react-financial-summary-heading">
 				<div>
-					<span className="section-kicker">Configured period</span>
-					<h2 id="react-financial-summary-title">Financial summary</h2>
+					<span className="section-kicker">Periodo configurado</span>
+					<h2 id="react-financial-summary-title">Resumen financiero</h2>
 					<p>{formatPeriodLabel(selectedPeriod!)}</p>
 				</div>
 				<div className="react-financial-summary-actions">
-					{state.data.warning && <p className="react-financial-warning" role="status">Warning: {state.data.warning}</p>}
+					{state.data.warning && <p className="react-financial-warning" role="status">Advertencia: {state.data.warning}</p>}
 					<button className="button" type="button" onClick={openCreateExpense}>
 						Nuevo gasto
 					</button>
@@ -682,14 +682,14 @@ function FinancialSummary() {
 					{removalNotice.message}
 				</p>
 			)}
-			<div className="react-financial-view-toggle" role="group" aria-label="Financial view">
+			<div className="react-financial-view-toggle" role="group" aria-label="Vista financiera">
 				<button
 					className="secondary"
 					type="button"
 					aria-pressed={view === "summary"}
 					onClick={() => setView("summary")}
 				>
-					Summary
+					Resumen
 				</button>
 				<button
 					className="secondary"
@@ -697,70 +697,70 @@ function FinancialSummary() {
 					aria-pressed={view === "movements"}
 					onClick={() => setView("movements")}
 				>
-					Movements
+					Movimientos
 				</button>
 			</div>
 			{view === "summary" ? (
 				<>
 					<div className="react-financial-grid">
 						<article className="react-financial-card">
-							<span>Configured income</span>
-							<strong>{incomeAmount === null ? "Not configured" : formatClp(incomeAmount)}</strong>
+							<span>Ingreso configurado</span>
+							<strong>{incomeAmount === null ? "Sin configurar" : formatClp(incomeAmount)}</strong>
 						</article>
 						<article className="react-financial-card">
-							<span>Recognized expenses</span>
+							<span>Gastos reconocidos</span>
 							<strong>{summary.count}</strong>
 						</article>
 						<article className="react-financial-card">
-							<span>Total spending</span>
+							<span>Gasto total</span>
 							<strong>{formatClp(summary.totalSpending)}</strong>
 						</article>
 						<article className="react-financial-card">
-							<span>Pending amounts</span>
+							<span>Montos pendientes</span>
 							<strong>{summary.pendingAmountCount}</strong>
-							<p>Recognized movements awaiting a finite amount.</p>
+							<p>Movimientos reconocidos que esperan un monto válido.</p>
 						</article>
 					</div>
 					<section className="react-latest-expense" aria-labelledby="react-latest-expense-title">
-						<h3 id="react-latest-expense-title">Latest recognized expense</h3>
+						<h3 id="react-latest-expense-title">Último gasto reconocido</h3>
 						{latestExpense ? (
 							<dl>
 								<div>
-									<dt>Merchant</dt>
+									<dt>Comercio</dt>
 									<dd>{getRecognizedExpenseIdentity(latestExpense)}</dd>
 								</div>
 								<div>
-									<dt>Amount</dt>
+									<dt>Monto</dt>
 									<dd>{formatClp(latestExpense.amount)}</dd>
 								</div>
 								<div>
-									<dt>When</dt>
+									<dt>Fecha</dt>
 									<dd>{latestExpense.occurredAt}</dd>
 								</div>
 							</dl>
 						) : (
-							<p>No dated recognized expense is available for this period.</p>
+							<p>No hay un gasto reconocido con fecha para este periodo.</p>
 						)}
 					</section>
 					<section className="react-spending-breakdown" aria-labelledby="react-spending-breakdown-title">
-						<h3 id="react-spending-breakdown-title">Recognized spending by type</h3>
+						<h3 id="react-spending-breakdown-title">Gasto reconocido por tipo</h3>
 						<dl className="react-spending-breakdown">
 							<div>
-								<dt>Purchases</dt>
+								<dt>Compras</dt>
 								<dd>{formatClp(spendingByKind.purchase)}</dd>
 							</div>
 							<div>
-								<dt>Transfers</dt>
+								<dt>Transferencias</dt>
 								<dd>{formatClp(spendingByKind.transfer)}</dd>
 							</div>
 							<div>
-								<dt>Payments</dt>
+								<dt>Pagos</dt>
 								<dd>{formatClp(spendingByKind.payment)}</dd>
 							</div>
 						</dl>
 					</section>
 					{summary.count === 0 && (
-						<p className="react-financial-empty" role="status">No recognized expenses were found for this period.</p>
+						<p className="react-financial-empty" role="status">No se encontraron gastos reconocidos para este periodo.</p>
 					)}
 				</>
 			) : (
@@ -818,7 +818,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 		try {
 			cycle = createFinancialCycleSetupPayload(startDate, endDate, incomeValue);
 		} catch {
-			setError("Enter a valid date range and a positive whole CLP income, or leave income blank.");
+			setError("Ingresa un rango de fechas válido y un ingreso en CLP positivo sin decimales, o deja el ingreso en blanco.");
 			return;
 		}
 
@@ -830,7 +830,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 			onSaved();
 		} catch {
 			saveLock.current = false;
-			setError("Your financial period could not be saved. Please try again.");
+			setError("No se pudo guardar tu periodo financiero. Inténtalo de nuevo.");
 			setIsSaving(false);
 		}
 	};
@@ -847,14 +847,14 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 	return (
 		<section className="react-financial-state" aria-labelledby="react-financial-setup-title">
 			<div>
-				<span className="section-kicker">Financial setup</span>
-				<h2 id="react-financial-setup-title">Set up your financial period</h2>
-				<p>Choose the inclusive dates for the period you want to review.</p>
+				<span className="section-kicker">Configuración financiera</span>
+				<h2 id="react-financial-setup-title">Configura tu periodo financiero</h2>
+				<p>Elige las fechas inclusivas del periodo que quieres revisar.</p>
 			</div>
 			<form className="react-financial-setup-form" onSubmit={handleSubmit}>
 				<div className="react-financial-setup-fields">
 					<label htmlFor="financial-cycle-start-date">
-						<span>Start date</span>
+						<span>Fecha de inicio</span>
 						<input
 							id="financial-cycle-start-date"
 							type="date"
@@ -865,7 +865,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 						/>
 					</label>
 					<label htmlFor="financial-cycle-end-date">
-						<span>End date (inclusive)</span>
+						<span>Fecha de término (inclusive)</span>
 						<input
 							id="financial-cycle-end-date"
 							type="date"
@@ -876,7 +876,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 						/>
 					</label>
 					<label htmlFor="financial-cycle-income">
-						<span>Monthly income (optional)</span>
+						<span>Ingreso mensual (opcional)</span>
 						<input
 							id="financial-cycle-income"
 							type="text"
@@ -888,17 +888,17 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 							disabled={isSaving}
 							aria-describedby="financial-cycle-income-help"
 						/>
-						<small id="financial-cycle-income-help">Whole CLP amount. Example: 900.000</small>
+						<small id="financial-cycle-income-help">Monto en CLP sin decimales. Ejemplo: 900.000</small>
 					</label>
 				</div>
 				{error && <p className="react-financial-setup-error" role="alert">{error}</p>}
 				<div className="react-shell-actions">
 					<button type="submit" disabled={isSaving}>
-						{isSaving ? "Saving financial period..." : "Save financial period"}
+						{isSaving ? "Guardando periodo financiero..." : "Guardar periodo financiero"}
 					</button>
 				</div>
 			</form>
-			<p aria-live="polite">{isSaving ? "Saving financial period..." : ""}</p>
+			<p aria-live="polite">{isSaving ? "Guardando periodo financiero..." : ""}</p>
 		</section>
 	);
 }
@@ -929,8 +929,8 @@ export function MovementsTable({
 	if (movements.length === 0) {
 		return (
 			<section className="react-financial-empty" role="status">
-				<p>No recognized expenses are available for this period.</p>
-				<a className="button react-secondary-link" href="/legacy-app">Open legacy dashboard</a>
+				<p>No hay gastos reconocidos disponibles para este periodo.</p>
+				<a className="button react-secondary-link" href="/legacy-app">Abrir dashboard anterior</a>
 			</section>
 		);
 	}
@@ -944,10 +944,10 @@ export function MovementsTable({
 			<table className="react-movements-table">
 				<thead>
 					<tr>
-						<th scope="col">Counterparty</th>
-						<th scope="col">Amount</th>
-						<th scope="col">Date</th>
-						<th scope="col">Category</th>
+						<th scope="col">Contraparte</th>
+						<th scope="col">Monto</th>
+						<th scope="col">Fecha</th>
+						<th scope="col">Categoría</th>
 						<th scope="col">Acciones</th>
 					</tr>
 				</thead>

@@ -72,7 +72,7 @@ function AccountDashboardRoute() {
 				if (!controller.signal.aborted) {
 					setState({
 						status: "error",
-						message: "We could not load your session.",
+						message: "No pudimos cargar tu sesión.",
 					});
 				}
 			});
@@ -81,13 +81,13 @@ function AccountDashboardRoute() {
 	}, [retryToken]);
 
 	if (state.status === "loading") {
-		return <ShellMessage title="Loading your account" copy="Checking your session..." />;
+		return <ShellMessage title="Cargando tu cuenta" copy="Verificando tu sesión..." />;
 	}
 	if (state.status === "error") {
 		return (
-			<ShellMessage title="Unable to load the account" copy={state.message}>
-				<button type="button" onClick={retry}>Retry</button>
-				<a className="button react-secondary-link" href="/legacy-app">Open legacy dashboard</a>
+			<ShellMessage title="No se pudo cargar la cuenta" copy={state.message}>
+				<button type="button" onClick={retry}>Reintentar</button>
+				<a className="button react-secondary-link" href="/legacy-app">Abrir dashboard anterior</a>
 			</ShellMessage>
 		);
 	}
