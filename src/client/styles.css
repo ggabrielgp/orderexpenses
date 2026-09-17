@@ -1253,6 +1253,145 @@
 	}
 }
 
+/* Category administration surface. Scoped to the React components that own it; the legacy
+   `.settings-*` / `.category-*` classes are deliberately not reused. */
+.react-settings-dialog {
+	width: min(34rem, calc(100vw - 2 * var(--space-4)));
+	max-height: calc(100vh - 2 * var(--space-4));
+	overflow: auto;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	color: var(--ink);
+	padding: var(--space-4);
+}
+
+.react-settings-dialog::backdrop {
+	background: rgba(15, 23, 42, .55);
+}
+
+.react-settings-dialog h2 {
+	margin: 0 0 var(--space-2);
+	font-family: var(--font-display);
+}
+
+.react-settings-dialog h3 {
+	margin: 0;
+	font-size: 1rem;
+}
+
+.react-category-section,
+.react-category-form {
+	display: grid;
+	gap: var(--space-3);
+	margin-top: var(--space-3);
+}
+
+.react-category-list {
+	display: grid;
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.react-category-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto auto;
+	align-items: center;
+	gap: var(--space-2);
+	border-top: 1px solid var(--line);
+	padding-top: var(--space-2);
+}
+
+.react-category-badge {
+	justify-self: start;
+	border: 1px solid var(--category-color, #64748b);
+	border-left: 6px solid var(--category-color, #64748b);
+	border-radius: 999px;
+	background: var(--surface);
+	padding: var(--space-1) var(--space-3);
+	font-weight: 600;
+}
+
+.react-category-origin,
+.react-category-form-help,
+.react-category-loading {
+	color: var(--ink-muted);
+	font-size: .875rem;
+}
+
+.react-category-delete-confirmation {
+	grid-column: 1 / -1;
+	display: grid;
+	gap: var(--space-2);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface-subtle);
+	padding: var(--space-3);
+}
+
+.react-category-delete-confirmation p {
+	margin: 0;
+}
+
+.react-category-delete-confirmation .react-shell-actions,
+.react-category-form .react-shell-actions {
+	justify-content: flex-end;
+	margin: 0;
+}
+
+.react-category-form label {
+	display: grid;
+	gap: var(--space-1);
+}
+
+/* The global `input` rules already style the text field; only the colour swatch needs a scoped
+   size, because a native colour input would otherwise stretch to the global full width. */
+.react-category-form input[type="color"] {
+	width: 4rem;
+	height: 2.25rem;
+	padding: 2px;
+}
+
+.react-category-form input:disabled {
+	cursor: not-allowed;
+	opacity: .7;
+}
+
+.react-category-catalog-error {
+	display: grid;
+	gap: var(--space-2);
+	margin: 0;
+}
+
+.react-category-catalog-error p {
+	margin: 0;
+}
+
+.react-category-status {
+	margin: var(--space-3) 0 0;
+}
+
+.react-category-status-success {
+	color: var(--success);
+}
+
+.react-category-status-error {
+	color: var(--danger);
+}
+
+.react-category-status-pending {
+	color: var(--ink-muted);
+}
+
+.react-category-delete-confirm:disabled,
+.react-category-delete:disabled,
+.react-category-form button[type="submit"]:disabled {
+	cursor: not-allowed;
+	opacity: .7;
+}
+
 .demo-dashboard {
 	gap: var(--space-4);
 }

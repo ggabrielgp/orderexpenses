@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
 	createManualExpense,
+	deleteCategory,
 	loadFinancialDashboardData,
 	removeTransaction,
 	syncGmail,
 	updateFinancialCycle,
 	updateTransaction,
+	upsertCategory,
 } from "../api/client";
 import {
 	CreateManualExpenseDialog,
@@ -42,6 +44,8 @@ import {
 	type GmailConsentState,
 } from "../components/gmail/gmailConsent";
 import { createGmailSyncSubmitter } from "../components/gmail/gmailSync";
+import { CategorySettingsDialog } from "../components/settings/CategorySettingsDialog";
+import { createCategoryMutationSubmitter } from "../components/settings/categorySettings";
 import {
 	formatIncomeInput,
 	formatPeriodLabel,
@@ -351,6 +355,24 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 		});
 	}, [financialDashboard]);
 
+	/**
+	 * Category administration surface. It is reachable only from this authenticated tree: the demo
+	 * route renders `DemoDashboardPage`, a separate read-only composition that never mounts it, so
+	 * demo writes stay impossible by construction instead of by a guard check.
+	 */
+	const [isCategorySettingsOpen, setIsCategorySettingsOpen] = useState(false);
+	/** The C1 single in-flight lock, reused for the category mutations. */
+	const categorySettingsLock = useRef(false);
+	const submitCategoryMutation = useMemo(
+		() =>
+			createCategoryMutationSubmitter({
+				upsertCategory,
+				deleteCategory,
+				lock: categorySettingsLock,
+			}),
+		[],
+	);
+
 	if (!session.authenticated) {
 		return (
 			<main className="shell react-shell">
@@ -385,15 +407,32 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 					<div>
 						<h1 id="react-dashboard-title">Resumen de la cuenta</h1>
 						<p className="subtitle">
-							Aquí puedes registrar, editar y eliminar movimientos, y sincronizar
-							con Gmail. La gestión de categorías y el resto de la administración
-							de la cuenta siguen disponibles en el dashboard anterior.
+							Aquí puedes registrar, editar y eliminar movimientos, administrar las
+							categorías y sincronizar con Gmail. El resto de la administración de la
+							cuenta sigue disponible en el dashboard anterior.
 						</p>
 					</div>
-					<a className="button react-secondary-link" href="/legacy-app">
-						Abrir dashboard anterior
-					</a>
+					<div className="react-shell-actions">
+						<button
+							className="secondary"
+							type="button"
+							onClick={() => setIsCategorySettingsOpen(true)}
+						>
+							Configuración
+						</button>
+						<a className="button react-secondary-link" href="/legacy-app">
+							Abrir dashboard anterior
+						</a>
+					</div>
 				</header>
+
+				{/* Mounted only in this authenticated tree: `DemoDashboardPage` is a separate read-only
+				    composition that never mounts the settings surface. */}
+				<CategorySettingsDialog
+					isOpen={isCategorySettingsOpen}
+					onClose={() => setIsCategorySettingsOpen(false)}
+					submitMutation={submitCategoryMutation}
+				/>
 
 				<div className="react-status-grid">
 					<article className="react-status-card">

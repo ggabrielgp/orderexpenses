@@ -108,6 +108,36 @@ export interface CategoriesResponse {
 	categories: Category[];
 }
 
+/** Body of `PUT /api/categories`; the server normalizes both fields again on arrival. */
+export interface UpsertCategoryRequest {
+	name: string;
+	color: string;
+}
+
+/**
+ * Response of `PUT /api/categories`.
+ *
+ * It carries the single stored row — `{ name, color, createdAt, updatedAt }`
+ * (`src/db.js:483-505`) — and never the merged catalog, so it has no `builtin` flag and must not
+ * be treated as a catalog entry: only `GET /api/categories` reports provenance.
+ */
+export interface UpsertCategoryResponse {
+	category: {
+		name: string;
+		color: string;
+		createdAt?: string | null;
+		updatedAt?: string | null;
+	};
+}
+
+/**
+ * Response of `DELETE /api/categories/:name`. A category that does not exist is a 404 whose body
+ * is `{ error: "Category not found" }` (`src/server.js:190-198`), not this shape.
+ */
+export interface DeleteCategoryResponse {
+	ok: true;
+}
+
 export interface CreateManualExpenseRequest {
 	occurredAt: string;
 	amount: number;

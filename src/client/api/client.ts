@@ -1,6 +1,7 @@
 import type {
 	CategoriesResponse,
 	CreateManualExpenseRequest,
+	DeleteCategoryResponse,
 	FinancialCycleResponse,
 	FinancialDashboardData,
 	FinancialPeriod,
@@ -12,6 +13,8 @@ import type {
 	TransactionsResponse,
 	UpdateFinancialCycleRequest,
 	UpdateTransactionRequest,
+	UpsertCategoryRequest,
+	UpsertCategoryResponse,
 } from "./types";
 
 export class ApiError extends Error {
@@ -80,6 +83,58 @@ export async function createManualExpense(expense: CreateManualExpenseRequest) {
 export async function getCategories(signal?: AbortSignal) {
 	const response = await getJson<CategoriesResponse>("/api/categories", signal);
 	return response.categories;
+}
+
+/**
+ * Reads the server's own `{ error }` body for a rejected mutation and throws an `ApiError` that
+ * carries it.
+ *
+ * `getJson` deliberately does not read that body, because its current callers only need a
+ * status-bearing error; the category endpoints answer with user-facing Spanish copy
+ * (`"name es obligatorio"`, `"color inválido"`, `"Category not found"`, `src/server.js:179-198`),
+ * so the mutations need their own scoped reader instead of changing `getJson` for everyone. A body
+ * that is missing, empty or not JSON leaves the status-bearing message as the only truth.
+ */
+async function throwServerError(response: Response, fallbackMessage: string): Promise<never> {
+	let message = fallbackMessage;
+	try {
+		const payload = (await response.json()) as { error?: unknown };
+		if (typeof payload?.error === "string" && payload.error.trim()) {
+			message = payload.error.trim();
+		}
+	} catch {
+		// Unreadable body: the status message already names what the server answered.
+	}
+	throw new ApiError(message);
+}
+
+/** Creates or overwrites a category, matching on the normalized name. */
+export async function upsertCategory(
+	category: UpsertCategoryRequest,
+): Promise<UpsertCategoryResponse> {
+	const response = await fetch("/api/categories", {
+		method: "PUT",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(category),
+		credentials: "same-origin",
+	});
+	if (!response.ok) {
+		await throwServerError(response, `Request to /api/categories failed (${response.status})`);
+	}
+	return (await response.json()) as UpsertCategoryResponse;
+}
+
+/**
+ * Deletes a category by name. The server removes only the `categories` row (`src/db.js:507-515`),
+ * so stored movement categories and counterparty rules are untouched.
+ */
+export async function deleteCategory(name: string): Promise<DeleteCategoryResponse> {
+	const path = `/api/categories/${encodeURIComponent(name)}`;
+	const response = await fetch(path, { method: "DELETE", credentials: "same-origin" });
+	if (!response.ok) {
+		await throwServerError(response, `Request to ${path} failed (${response.status})`);
+	}
+	return (await response.json()) as DeleteCategoryResponse;
 }
 
 const movementMonthPattern = /^(\d{4}-(?:0[1-9]|1[0-2]))-/;
