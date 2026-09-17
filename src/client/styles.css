@@ -1392,6 +1392,109 @@
 	opacity: .7;
 }
 
+/* Counterparty rule surface. It reuses the shipped `.react-settings-dialog` shell and the global
+   primitives (`.button`, `button.secondary`, `.react-shell-actions`, `.section-kicker`) instead of
+   copying the category classes, so only what this dialog owns is defined here. */
+.react-counterparty-dialog {
+	width: min(38rem, calc(100vw - 2 * var(--space-4)));
+}
+
+.react-counterparty-intro,
+.react-counterparty-form-help,
+.react-counterparty-loading,
+.react-counterparty-rule-origin,
+.react-counterparty-load-error {
+	color: var(--ink-muted);
+	font-size: .875rem;
+}
+
+.react-counterparty-load-error,
+.react-counterparty-form-error p {
+	margin: 0;
+}
+
+.react-counterparty-section,
+.react-counterparty-form,
+.react-counterparty-form-error {
+	display: grid;
+	gap: var(--space-3);
+	margin-top: var(--space-3);
+}
+
+.react-counterparty-form-error {
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface-subtle);
+	padding: var(--space-3);
+}
+
+.react-counterparty-list {
+	display: grid;
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.react-counterparty-rule-row {
+	display: grid;
+	align-items: center;
+	gap: var(--space-2);
+	border-top: 1px solid var(--line);
+	padding-top: var(--space-2);
+}
+
+.react-counterparty-rule-row span {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.react-counterparty-rule-name {
+	overflow-wrap: anywhere;
+}
+
+.react-counterparty-form label {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.react-counterparty-form .react-shell-actions {
+	justify-content: flex-end;
+	margin: 0;
+}
+
+.react-counterparty-status {
+	margin: var(--space-3) 0 0;
+}
+
+.react-counterparty-status-success {
+	color: var(--success);
+}
+
+.react-counterparty-status-warning {
+	color: var(--warning);
+}
+
+.react-counterparty-status-error {
+	color: var(--danger);
+}
+
+.react-counterparty-status-pending {
+	color: var(--ink-muted);
+}
+
+.react-counterparty-list-retry,
+.react-counterparty-category-retry,
+.react-counterparty-form button[type="submit"]:disabled {
+	cursor: not-allowed;
+	opacity: .7;
+}
+
+.react-counterparty-list-retry,
+.react-counterparty-category-retry {
+	justify-self: start;
+}
+
 .demo-dashboard {
 	gap: var(--space-4);
 }

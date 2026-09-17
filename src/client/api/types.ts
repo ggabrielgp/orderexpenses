@@ -108,6 +108,46 @@ export interface CategoriesResponse {
 	categories: Category[];
 }
 
+/**
+ * One stored counterparty category rule, as `GET /api/counterparty-rules` returns it
+ * (`src/db.js:409-423`). The server applies these rules only when it loads movements, so the
+ * `counterpartyKey` must be the exact key it computes for them (`normalizeCounterpartyKey`).
+ */
+export interface CounterpartyRule {
+	counterpartyKey: string;
+	displayName: string;
+	category: string;
+	createdAt?: string | null;
+	updatedAt?: string | null;
+}
+
+export interface CounterpartyRulesResponse {
+	rules: CounterpartyRule[];
+}
+
+/**
+ * Body of `PUT /api/counterparty-rules`. An empty `category` is the documented clearing path: the
+ * server deletes the rule instead of storing it (`src/server.js:213-218`).
+ */
+export interface UpsertCounterpartyRuleRequest {
+	counterpartyKey: string;
+	displayName: string;
+	category: string;
+}
+
+/**
+ * Response of `PUT /api/counterparty-rules`.
+ *
+ * The server answers one of two shapes (`src/server.js:205-223`) and they mean different things:
+ * `{ rule }` when it stored the rule, and `{ ok: true, deleted: true }` when the empty category
+ * cleared it. Modelled as a discriminated union instead of two optional fields, so a cleared rule
+ * cannot be read as a saved one: `outcome` has to be narrowed before either payload is reachable,
+ * and only the stored branch carries a rule at all.
+ */
+export type UpsertCounterpartyRuleResponse =
+	| { outcome: "saved"; rule: CounterpartyRule }
+	| { outcome: "cleared" };
+
 /** Body of `PUT /api/categories`; the server normalizes both fields again on arrival. */
 export interface UpsertCategoryRequest {
 	name: string;

@@ -1,5 +1,7 @@
 import type {
 	CategoriesResponse,
+	CounterpartyRule,
+	CounterpartyRulesResponse,
 	CreateManualExpenseRequest,
 	DeleteCategoryResponse,
 	FinancialCycleResponse,
@@ -15,6 +17,8 @@ import type {
 	UpdateTransactionRequest,
 	UpsertCategoryRequest,
 	UpsertCategoryResponse,
+	UpsertCounterpartyRuleRequest,
+	UpsertCounterpartyRuleResponse,
 } from "./types";
 
 export class ApiError extends Error {
@@ -196,6 +200,56 @@ export async function removeTransaction(target: MovementUpdateTarget) {
 	if (!response.ok) {
 		throw new ApiError(`Request to /api/transactions/${movementId} failed (${response.status})`);
 	}
+}
+
+/**
+ * Loads the stored counterparty category rules.
+ *
+ * They are not a catalog: the server applies them only when it loads movements
+ * (`applyStoredCounterpartyRules`, `src/movements.js:249-284`), which is why a mutation that stores
+ * one has to be followed by a reload of the period to become visible.
+ */
+export async function getCounterpartyRules(signal?: AbortSignal) {
+	const response = await getJson<CounterpartyRulesResponse>("/api/counterparty-rules", signal);
+	return response.rules;
+}
+
+/**
+ * Creates, replaces or clears one counterparty rule.
+ *
+ * An empty `category` is the documented clearing path: the server deletes the rule and answers
+ * `{ ok: true, deleted: true }` (`src/server.js:213-218`), which this function reports as the
+ * non-overlapping `cleared` branch of its return type. A 200 that confirms neither outcome is an
+ * error, not a save, because nothing would tell the caller which of the two happened.
+ *
+ * There is deliberately no `deleteCounterpartyRule` here: the dedicated `DELETE` endpoint
+ * (`src/server.js:228-242`) has no consumer in this surface, and an exported function nobody calls
+ * would be dead code.
+ */
+export async function upsertCounterpartyRule(
+	rule: UpsertCounterpartyRuleRequest,
+): Promise<UpsertCounterpartyRuleResponse> {
+	const response = await fetch("/api/counterparty-rules", {
+		method: "PUT",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(rule),
+		credentials: "same-origin",
+	});
+	if (!response.ok) {
+		await throwServerError(
+			response,
+			`Request to /api/counterparty-rules failed (${response.status})`,
+		);
+	}
+	const payload = (await response.json()) as {
+		rule?: CounterpartyRule;
+		deleted?: unknown;
+	};
+	if (payload?.deleted === true) return { outcome: "cleared" };
+	if (payload?.rule) return { outcome: "saved", rule: payload.rule };
+	throw new ApiError(
+		"The server did not report whether the counterparty rule was saved or cleared.",
+	);
 }
 
 /** Loads the cycle first so configured users never fall back to a month request. */

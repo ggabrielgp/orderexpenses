@@ -8,6 +8,7 @@ import {
 	updateFinancialCycle,
 	updateTransaction,
 	upsertCategory,
+	upsertCounterpartyRule,
 } from "../api/client";
 import {
 	CreateManualExpenseDialog,
@@ -45,7 +46,9 @@ import {
 } from "../components/gmail/gmailConsent";
 import { createGmailSyncSubmitter } from "../components/gmail/gmailSync";
 import { CategorySettingsDialog } from "../components/settings/CategorySettingsDialog";
+import { CounterpartyRulesDialog } from "../components/settings/CounterpartyRulesDialog";
 import { createCategoryMutationSubmitter } from "../components/settings/categorySettings";
+import { createCounterpartyRuleSubmitter } from "../components/settings/counterpartyRules";
 import {
 	formatIncomeInput,
 	formatPeriodLabel,
@@ -373,6 +376,28 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 		[],
 	);
 
+	/**
+	 * Counterparty rule surface, reachable only from this authenticated tree for the same structural
+	 * reason as the settings dialog.
+	 *
+	 * Its submitter owns the period reload the financial summary publishes: the server applies rules
+	 * while it loads movements, so a stored rule is invisible until the dashboard reloads. While no
+	 * handle has been published yet (`financialDashboard === null`, which is the state before the
+	 * summary mounts) the reload is reported as failed rather than as a refresh that never happened.
+	 */
+	const [isCounterpartyRulesOpen, setIsCounterpartyRulesOpen] = useState(false);
+	/** The C1 single in-flight lock, reused for the counterparty rule mutations. */
+	const counterpartyRulesLock = useRef(false);
+	const submitCounterpartyRule = useMemo(
+		() =>
+			createCounterpartyRuleSubmitter({
+				upsertRule: upsertCounterpartyRule,
+				reload: financialDashboard?.reload ?? null,
+				lock: counterpartyRulesLock,
+			}),
+		[financialDashboard],
+	);
+
 	if (!session.authenticated) {
 		return (
 			<main className="shell react-shell">
@@ -420,6 +445,13 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 						>
 							Configuración
 						</button>
+						<button
+							className="secondary"
+							type="button"
+							onClick={() => setIsCounterpartyRulesOpen(true)}
+						>
+							Reglas de contraparte
+						</button>
 						<a className="button react-secondary-link" href="/legacy-app">
 							Abrir dashboard anterior
 						</a>
@@ -427,11 +459,16 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 				</header>
 
 				{/* Mounted only in this authenticated tree: `DemoDashboardPage` is a separate read-only
-				    composition that never mounts the settings surface. */}
+				    composition that never mounts the settings or counterparty rule surfaces. */}
 				<CategorySettingsDialog
 					isOpen={isCategorySettingsOpen}
 					onClose={() => setIsCategorySettingsOpen(false)}
 					submitMutation={submitCategoryMutation}
+				/>
+				<CounterpartyRulesDialog
+					isOpen={isCounterpartyRulesOpen}
+					onClose={() => setIsCounterpartyRulesOpen(false)}
+					submitMutation={submitCounterpartyRule}
 				/>
 
 				<div className="react-status-grid">
