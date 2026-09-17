@@ -22,9 +22,27 @@ export interface GmailStatusResponse {
 	activeEmail: string | null;
 }
 
+/** Response of `POST /api/gmail/disconnect` (`src/server.js`). */
+export interface GmailDisconnectResponse {
+	ok: boolean;
+}
+
+/**
+ * Response of `POST /api/gmail/sync`.
+ *
+ * The shape depends on what the request asked for (`src/movements.js:95-113`): period mode — the
+ * only mode this client asks for — always reports `outcome` and `failedCount`, because that is
+ * where per-query failures are counted, while month mode reports neither and drops the failure
+ * count entirely. `outcome` and `failedCount` are therefore optional rather than assumed: a reader
+ * must never turn a response that cannot carry a partial verdict into a complete import.
+ */
 export interface GmailSyncResponse {
+	query?: string;
+	outcome?: "success" | "partial";
 	scanned: number;
 	transactions: unknown[];
+	failedCount?: number;
+	completedAt?: string | null;
 }
 
 export interface FinancialPeriod {

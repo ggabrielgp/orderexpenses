@@ -760,6 +760,224 @@
 	opacity: .7;
 }
 
+.react-gmail-consent-dialog {
+	width: min(38rem, calc(100vw - 2 * var(--space-4)));
+	max-height: calc(100vh - 2 * var(--space-4));
+	overflow-y: auto;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-4);
+	color: var(--ink);
+	box-shadow: var(--shadow-panel);
+}
+
+.react-gmail-consent-dialog::backdrop {
+	background: rgb(15 23 42 / 45%);
+}
+
+.react-gmail-consent-dialog h2 {
+	margin: 0 0 var(--space-2);
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+}
+
+.react-gmail-consent-close {
+	display: block;
+	margin: 0 0 var(--space-2) auto;
+	border: 0;
+	background: none;
+	padding: var(--space-1);
+	color: var(--ink-muted);
+	cursor: pointer;
+	font-size: 1rem;
+	line-height: 1;
+}
+
+.react-gmail-consent-terms p {
+	margin: 0 0 var(--space-3);
+	color: var(--ink-muted);
+}
+
+.react-gmail-consent-acknowledgement {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	margin-bottom: var(--space-3);
+	color: var(--ink);
+	font-size: .875rem;
+}
+
+.react-gmail-consent-acknowledgement input {
+	margin: var(--space-1) 0 0;
+	flex: 0 0 auto;
+}
+
+.react-gmail-consent-dialog .react-shell-actions {
+	justify-content: flex-end;
+	margin: 0;
+}
+
+.react-gmail-consent-accept:disabled {
+	cursor: not-allowed;
+	opacity: .7;
+}
+
+.react-gmail-consent-refused {
+	margin: var(--space-2) 0 0;
+	border-left: 3px solid var(--warning);
+	border-radius: var(--radius-control);
+	background: var(--warning-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink);
+}
+
+/* Connection card. The card body is a grid child list, so every rule here only shapes one line of
+   it; the action row is the single place a new control (GS-4's manual sync) can be added. */
+.react-status-card .react-gmail-connection-account {
+	margin: 0;
+	font-weight: 600;
+	color: var(--ink);
+}
+
+.react-gmail-connection-message {
+	margin: 0;
+}
+
+.react-status-card .react-gmail-connection-message-failed {
+	color: var(--danger);
+}
+
+.react-status-card .react-gmail-connection-notice {
+	margin: 0;
+	border-left: 3px solid var(--success);
+	border-radius: var(--radius-control);
+	background: var(--success-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink);
+}
+
+.react-status-card .react-gmail-connection-notice-warning {
+	border-left-color: var(--warning);
+	background: var(--warning-soft);
+}
+
+.react-gmail-connection-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	margin-top: var(--space-2);
+}
+
+.react-gmail-connection-actions button:disabled {
+	cursor: not-allowed;
+	opacity: .7;
+}
+
+.react-gmail-sync-control:disabled {
+	cursor: not-allowed;
+	opacity: .7;
+}
+
+.react-gmail-sync-pending {
+	margin: var(--space-2) 0 0;
+	border-left: 3px solid var(--line-strong);
+	border-radius: var(--radius-control);
+	background: var(--surface-subtle);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink-muted);
+}
+
+.react-gmail-sync-notice {
+	margin: var(--space-2) 0 0;
+	border-left: 3px solid var(--success);
+	border-radius: var(--radius-control);
+	background: var(--success-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink);
+}
+
+.react-gmail-sync-notice-success {
+	border-left-color: var(--success);
+	background: var(--success-soft);
+}
+
+.react-gmail-sync-notice-warning {
+	border-left-color: var(--warning);
+	background: var(--warning-soft);
+}
+
+.react-gmail-sync-notice-error {
+	border-left-color: var(--danger);
+	background: var(--danger-soft);
+}
+
+.react-gmail-sync-unavailable {
+	margin: var(--space-2) 0 0;
+	color: var(--ink-muted);
+}
+
+.react-gmail-disconnect-dialog {
+	width: min(32rem, calc(100vw - 2 * var(--space-4)));
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-4);
+	color: var(--ink);
+	box-shadow: var(--shadow-panel);
+}
+
+.react-gmail-disconnect-dialog::backdrop {
+	background: rgb(15 23 42 / 45%);
+}
+
+.react-gmail-disconnect-dialog h2 {
+	margin: 0 0 var(--space-2);
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+}
+
+.react-gmail-disconnect-statements p {
+	margin: 0 0 var(--space-3);
+	color: var(--ink-muted);
+}
+
+.react-gmail-disconnect-pending {
+	font-weight: 600;
+}
+
+.react-gmail-disconnect-error {
+	border-left: 3px solid var(--danger);
+	border-radius: var(--radius-control);
+	background: var(--danger-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--danger) !important;
+}
+
+.react-gmail-disconnect-result p:first-child {
+	color: var(--success) !important;
+	font-weight: 600;
+}
+
+.react-gmail-disconnect-stale {
+	border-left: 3px solid var(--warning);
+	border-radius: var(--radius-control);
+	background: var(--warning-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink) !important;
+}
+
+.react-gmail-disconnect-dialog .react-shell-actions {
+	justify-content: flex-end;
+	margin: 0;
+}
+
+.react-gmail-disconnect-confirm:disabled {
+	cursor: not-allowed;
+	opacity: .7;
+}
+
 .react-financial-summary-actions {
 	display: flex;
 	flex-wrap: wrap;

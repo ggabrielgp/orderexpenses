@@ -4,6 +4,7 @@ import type {
 	FinancialCycleResponse,
 	FinancialDashboardData,
 	FinancialPeriod,
+	GmailDisconnectResponse,
 	GmailStatusResponse,
 	GmailSyncResponse,
 	MovementUpdateTarget,
@@ -156,11 +157,37 @@ export async function loadFinancialDashboardData(
 	return { cycle, transactions, warning };
 }
 
-export async function syncGmail(signal?: AbortSignal) {
-	const response = await fetch("/api/gmail/sync", {
+/**
+ * Removes the stored Gmail authorization for this session. The server answers `{ ok: true }` and
+ * clears the session's account link, so the next status read reports the account as disconnected.
+ */
+export async function disconnectGmail(): Promise<GmailDisconnectResponse> {
+	const response = await fetch("/api/gmail/disconnect", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify({}),
+		credentials: "same-origin",
+	});
+	if (!response.ok) {
+		throw new ApiError(`Request to /api/gmail/disconnect failed (${response.status})`);
+	}
+	return (await response.json()) as GmailDisconnectResponse;
+}
+
+/**
+ * Synchronizes the configured financial period.
+ *
+ * `period` is required and always sent: the server only reports `outcome` and `failedCount` in
+ * period mode, and in month mode it silently drops the failure count (`src/movements.js:95-113`),
+ * which would leave this client unable to tell a partial import from a complete one. `month` and
+ * `payTiming` are deliberately absent: the React surface synchronizes the configured period and
+ * the server's pay-timing default applies.
+ */
+export async function syncGmail(period: FinancialPeriod, signal?: AbortSignal) {
+	const response = await fetch("/api/gmail/sync", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ limit: 200, period }),
 		signal,
 		credentials: "same-origin",
 	});

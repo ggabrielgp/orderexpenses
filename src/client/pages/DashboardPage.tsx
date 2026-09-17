@@ -3,6 +3,7 @@ import {
 	createManualExpense,
 	loadFinancialDashboardData,
 	removeTransaction,
+	syncGmail,
 	updateFinancialCycle,
 	updateTransaction,
 } from "../api/client";
@@ -33,6 +34,14 @@ import {
 	type RemovalNotice,
 	type RemovalState,
 } from "../components/movements/removalState";
+import { GmailConsentDialog } from "../components/gmail/GmailConsentDialog";
+import { GmailConnectionPanel } from "../components/gmail/GmailConnectionPanel";
+import {
+	createGmailConsentState,
+	reduceGmailConsent,
+	type GmailConsentState,
+} from "../components/gmail/gmailConsent";
+import { createGmailSyncSubmitter } from "../components/gmail/gmailSync";
 import {
 	formatIncomeInput,
 	formatPeriodLabel,
@@ -63,6 +72,21 @@ export { formatPeriodLabel };
 interface DashboardPageProps {
 	session: SessionResponse;
 	onRetry: () => void;
+}
+
+/**
+ * What the financial summary publishes for the Gmail card above it: the period the server has
+ * configured, and the cycle-first reload that shows the imported movements.
+ *
+ * The summary owns both, so it registers them here instead of the page duplicating either. The
+ * period is what makes a sync result verifiable at all: the request always carries it, because
+ * the server only reports per-query failures in period mode (`src/movements.js:105-113`).
+ */
+export interface FinancialDashboardHandle {
+	/** Configured period, or `null` while no cycle is configured. */
+	period: FinancialPeriod | null;
+	/** Re-runs the cycle-first dashboard load. Resolves `false` when the reload failed. */
+	reload: () => Promise<boolean>;
 }
 
 type FinancialSummaryState =
@@ -293,6 +317,40 @@ export function createFinancialCycleSetupPayload(
 }
 
 export function DashboardPage({ session, onRetry }: DashboardPageProps) {
+	/**
+	 * The financial summary publishes its configured period and its reload here, in state rather
+	 * than in a ref, so the Gmail card's own render sees the period as soon as the summary knows it.
+	 */
+	const [financialDashboard, setFinancialDashboard] = useState<FinancialDashboardHandle | null>(
+		null,
+	);
+	const registerFinancialDashboard = useCallback((handle: FinancialDashboardHandle | null) => {
+		setFinancialDashboard(handle);
+	}, []);
+	/**
+	 * The C1 synchronous lock, reused for the manual sync: React state cannot close the async window,
+	 * so two clicks in the same tick would otherwise both issue the request.
+	 */
+	const syncLock = useRef(false);
+	/**
+	 * Builds the manual sync request with the configured period and the same cycle-first reload the
+	 * movements slice uses, so a sync refreshes the list the user is looking at and a failed reload
+	 * is reported as stale data instead of as a failed sync.
+	 *
+	 * While no cycle is configured there is no period to send, and without it the server drops the
+	 * failure count, so this stays `null`: the card then offers no control it could not describe
+	 * truthfully.
+	 */
+	const submitGmailSync = useMemo(() => {
+		if (financialDashboard === null || financialDashboard.period === null) return null;
+		return createGmailSyncSubmitter({
+			sync: syncGmail,
+			period: financialDashboard.period,
+			reload: financialDashboard.reload,
+			lock: syncLock,
+		});
+	}, [financialDashboard]);
+
 	if (!session.authenticated) {
 		return (
 			<main className="shell react-shell">
@@ -303,9 +361,11 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 						dashboard completo sigue disponible en la aplicación anterior.
 					</p>
 					<div className="react-shell-actions">
-						<a className="button" href={session.gmail.connectUrl}>
-							Conectar Gmail
-						</a>
+						<GmailConnectControl
+							connectUrl={session.gmail.connectUrl}
+							accountConnected={session.gmail.connected}
+							className="button"
+						/>
 						<a className="button react-secondary-link" href="/legacy-app">
 							Abrir dashboard anterior
 						</a>
@@ -317,7 +377,6 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 
 	const profile = session.profile;
 	const connected = session.gmail.connected;
-	const gmailEmail = profile?.email ?? "Sin cuenta conectada";
 
 	return (
 		<main className="shell react-shell">
@@ -326,9 +385,9 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 					<div>
 						<h1 id="react-dashboard-title">Resumen de la cuenta</h1>
 						<p className="subtitle">
-							Aquí puedes registrar, editar y eliminar movimientos. La sincronización
-							con Gmail y la gestión de categorías siguen en el dashboard anterior hasta
-							que se integren.
+							Aquí puedes registrar, editar y eliminar movimientos, y sincronizar
+							con Gmail. La gestión de categorías y el resto de la administración
+							de la cuenta siguen disponibles en el dashboard anterior.
 						</p>
 					</div>
 					<a className="button react-secondary-link" href="/legacy-app">
@@ -343,18 +402,25 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 						<p>{profile?.email || "No hay un perfil de Gmail asociado a esta sesión."}</p>
 					</article>
 					<article className="react-status-card">
-						<span className="section-kicker">Conexión con Gmail</span>
-						<strong>{connected ? "Conectado" : "Sin conexión"}</strong>
-						<p>{connected ? gmailEmail : "Conecta Gmail para importar y revisar movimientos."}</p>
-						{!connected && (
-							<a className="button" href={session.gmail.connectUrl}>
-								Conectar Gmail
-							</a>
-						)}
+						{/* The real connection state lives in the panel: it reads `/api/gmail/status`, offers the
+						    refresh, and owns the disconnection. The connect control stays unit A's and is handed
+						    the effective state, so a stale session snapshot can never refuse a valid reconnection. */}
+						<GmailConnectionPanel
+							authenticated={session.authenticated}
+							initialConnected={connected}
+							connectControl={(accountConnected) => (
+								<GmailConnectControl
+									connectUrl={session.gmail.connectUrl}
+									accountConnected={accountConnected}
+									className="button"
+								/>
+							)}
+							submitSync={submitGmailSync}
+						/>
 					</article>
 				</div>
 
-				<FinancialSummary />
+				<FinancialSummary onHandle={registerFinancialDashboard} />
 
 				<div className="react-shell-actions">
 					<button className="secondary" type="button" onClick={onRetry}>
@@ -364,6 +430,63 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 				</div>
 			</section>
 		</main>
+	);
+}
+
+interface GmailConnectControlProps {
+	/** Server-owned OAuth entry point. The control never builds or rewrites it. */
+	connectUrl: string;
+	/** Whether a Gmail account is already connected; drives the refusal guard. */
+	accountConnected: boolean;
+	className?: string;
+}
+
+/**
+ * Connect entry point for both the anonymous shell and the disconnected status card.
+ *
+ * It replaces the former direct link to the server-provided OAuth URL, so the user reads the
+ * consent before the app leaves for Google. The URL is only handed to the consent dialog; this
+ * component never navigates on its own, which is why a dismissed consent simply returns the user
+ * to the same control.
+ */
+export function GmailConnectControl({
+	connectUrl,
+	accountConnected,
+	className,
+}: GmailConnectControlProps) {
+	const [consent, setConsent] = useState<GmailConsentState>(createGmailConsentState);
+
+	const openConsent = useCallback(() => {
+		setConsent((current) => reduceGmailConsent(current, { type: "open", accountConnected }));
+	}, [accountConnected]);
+
+	const closeConsent = useCallback(() => {
+		setConsent((current) => reduceGmailConsent(current, { type: "cancel" }));
+	}, []);
+
+	return (
+		<>
+			<button className={className} type="button" onClick={openConsent}>
+				Conectar Gmail
+			</button>
+			{/* Only a refused open produces a message, and that message names the real consequence. */}
+			{consent.phase === "refused" && consent.message !== null && (
+				<p className="react-gmail-consent-refused" role="status">
+					{consent.message}
+				</p>
+			)}
+			<GmailConsentDialog
+				isOpen={consent.phase === "open"}
+				state={consent}
+				connectUrl={connectUrl}
+				onAcknowledge={(acknowledged) =>
+					setConsent((current) =>
+						reduceGmailConsent(current, { type: "acknowledge", acknowledged }),
+					)
+				}
+				onClose={closeConsent}
+			/>
+		</>
 	);
 }
 
@@ -425,7 +548,7 @@ function DemoKpi({ label, value }: { label: string; value: string }) {
 	);
 }
 
-function FinancialSummary() {
+function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboardHandle | null) => void }) {
 	const [state, setState] = useState<FinancialSummaryState>({ status: "loading" });
 	const [view, setView] = useState<"summary" | "movements">("summary");
 	const [retryToken, setRetryToken] = useState(0);
@@ -474,6 +597,24 @@ function FinancialSummary() {
 			return false;
 		}
 	}, []);
+
+	/**
+	 * The configured period, read before the early returns so the registration below can publish it
+	 * for the Gmail card. It is `null` while the cycle is loading, failed, or unconfigured — the
+	 * states in which there is no period a sync request could carry and no result it could verify.
+	 */
+	const configuredPeriod = state.status === "ready" ? state.data.cycle.selectedPeriod : null;
+
+	/**
+	 * Publishes the period and the reload the Gmail card asks for. A new load re-registers the same
+	 * helper with the fresh period, which is what lets the card sync exactly the range the summary
+	 * is showing. A failed reload is reported to the card as `false`; it never throws.
+	 */
+	useEffect(() => {
+		if (!onHandle) return;
+		onHandle({ period: configuredPeriod, reload: reloadFinancialDashboard });
+		return () => onHandle(null);
+	}, [onHandle, configuredPeriod, reloadFinancialDashboard]);
 
 	const submitManualExpense = useMemo(
 		() =>
