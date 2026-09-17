@@ -1,15 +1,64 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { loadFinancialDashboardData, updateFinancialCycle } from "../api/client";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+	createManualExpense,
+	loadFinancialDashboardData,
+	removeTransaction,
+	updateFinancialCycle,
+	updateTransaction,
+} from "../api/client";
+import {
+	CreateManualExpenseDialog,
+	acquireInFlightLock,
+	createManualExpenseSubmitter,
+	getManualExpenseCreationNotice,
+	releaseInFlightLock,
+	type ManualExpenseCreationNotice,
+} from "../components/movements/CreateManualExpenseDialog";
+import {
+	EditMovementDialog,
+	createMovementEditSubmitter,
+	getMovementEditNotice,
+	type MovementEditNotice,
+} from "../components/movements/EditMovementDialog";
+import { RemoveMovementDialog } from "../components/movements/RemoveMovementDialog";
+import {
+	canSubmitRemoval,
+	createMovementRemovalSubmitter,
+	createRemovalState,
+	getRemovalErrorMessage,
+	getRemovalNotFoundMessage,
+	getRemovalNotice,
+	reduceRemovalDismissal,
+	reduceRemovalState,
+	type RemovalNotice,
+	type RemovalState,
+} from "../components/movements/removalState";
+import {
+	formatIncomeInput,
+	formatPeriodLabel,
+	getMovementUpdateTarget,
+	normalizeLocalDateTime,
+	recognizedExpenseKinds,
+	type EditableRecognizedExpenseMovement,
+	type RecognizedExpenseMovement,
+} from "../components/movements/manualExpense";
 import type { DemoDashboardData } from "../demo-data";
 import type {
 	FinancialDashboardData,
 	FinancialPeriod,
 	FinancialTransaction,
-	UpdateFinancialCycleRequest,
+	RecognizedExpenseKind,
 	SessionResponse,
+	UpdateFinancialCycleRequest,
 } from "../api/types";
 // @ts-expect-error The shared JavaScript review-period contract has no TypeScript declaration.
 import { ReviewPeriod } from "../../shared/review-period.js";
+
+// The recognized-expense row type is owned by the movements module; it stays re-exported
+// here so the page's public type surface is unchanged. `formatPeriodLabel` is re-exported for
+// the same reason: one shared definition, an unchanged public surface.
+export type { RecognizedExpenseMovement };
+export { formatPeriodLabel };
 
 interface DashboardPageProps {
 	session: SessionResponse;
@@ -27,47 +76,12 @@ type DatedRecognizedExpense = FinancialTransaction & {
 	occurredAt: string;
 };
 
-type RecognizedExpenseMovement = {
-	counterparty: string;
-	amount: number;
-	date: string;
-	category: string;
-};
-
-const recognizedExpenseKinds = new Set(["purchase", "transfer", "payment"]);
-const localDateTimePattern = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/;
-
 export function isRecognizedExpense(transaction: FinancialTransaction) {
 	return (
 		transaction.direction === "outflow" &&
 		typeof transaction.kind === "string" &&
 		recognizedExpenseKinds.has(transaction.kind)
 	);
-}
-
-function normalizeLocalDateTime(occurredAt: unknown) {
-	if (typeof occurredAt !== "string") return null;
-	const match = localDateTimePattern.exec(occurredAt);
-	if (!match) return null;
-
-	const [, yearText, monthText, dayText, hourText, minuteText, secondText] = match;
-	const year = Number(yearText);
-	const month = Number(monthText);
-	const day = Number(dayText);
-	const date = new Date(Date.UTC(year, month - 1, day));
-	if (
-		date.getUTCFullYear() !== year ||
-		date.getUTCMonth() !== month - 1 ||
-		date.getUTCDate() !== day
-	) {
-		return null;
-	}
-
-	const hour = hourText === undefined ? 0 : Number(hourText);
-	const minute = minuteText === undefined ? 0 : Number(minuteText);
-	const second = secondText === undefined ? 0 : Number(secondText);
-	if (hour > 23 || minute > 59 || second > 59) return null;
-	return `${yearText}-${monthText}-${dayText}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
 }
 
 export function selectLatestRecognizedExpense(
@@ -131,10 +145,66 @@ export function getRecognizedExpenseMovements(
 			return [];
 		}
 		return [{
+			id: typeof transaction.id === "string" && transaction.id.trim()
+				? transaction.id.trim()
+				: null,
 			counterparty: getRecognizedExpenseIdentity(transaction),
 			amount: transaction.amount,
 			date: formatMovementDate(transaction.occurredAt),
 			category: getMovementCategory(transaction.category),
+		}];
+	});
+}
+
+function getMovementTextField(value: unknown) {
+	return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * The records the edit dialog can actually PATCH, alongside the read-side projection above.
+ *
+ * Every exclusion is deliberate and leaves the movement with no edit affordance instead of a
+ * broken one:
+ * - recognized expenses only, through the same predicate the summary uses;
+ * - a finite amount only, because a recognized movement with an unknown or non-finite amount is
+ *   reported separately as a pending count and never itemized, so it has no row to edit;
+ * - identity and date eligibility is delegated to `getMovementUpdateTarget`, which owns the
+ *   rule that a PATCH needs a non-empty id and a parseable original `occurredAt` (the server
+ *   derives its single lookup month from that date);
+ * - `occurredAt` is normalized to a full local `YYYY-MM-DDTHH:mm:ss` so the edit draft is always
+ *   a valid `datetime-local` value, including for the date-only rows the server can store;
+ * - the fields start from the stored text rather than from the display fallbacks, so editing an
+ *   untouched movement never writes "Unidentified expense"/"Uncategorized" back to the server.
+ */
+export function getEditableRecognizedExpenseMovements(
+	transactions: FinancialTransaction[],
+): EditableRecognizedExpenseMovement[] {
+	return transactions.flatMap((transaction) => {
+		if (
+			!isRecognizedExpense(transaction) ||
+			typeof transaction.amount !== "number" ||
+			!Number.isFinite(transaction.amount)
+		) {
+			return [];
+		}
+		const target = getMovementUpdateTarget({
+			id: transaction.id,
+			occurredAt: transaction.occurredAt,
+			isManual: transaction.isManual,
+		});
+		const occurredAt = normalizeLocalDateTime(transaction.occurredAt);
+		if (target === null || occurredAt === null) return [];
+		return [{
+			id: target.movementId,
+			counterparty: getMovementTextField(transaction.counterparty),
+			amount: transaction.amount,
+			date: occurredAt.slice(0, 10),
+			category: getMovementTextField(transaction.category),
+			description: getMovementTextField(transaction.description),
+			kind: transaction.kind as RecognizedExpenseKind,
+			direction: "outflow",
+			occurredAt,
+			isManual: target.isManual,
 		}];
 	});
 }
@@ -183,11 +253,6 @@ export function summarizeRecognizedExpensesByKind(transactions: FinancialTransac
 	);
 }
 
-export function formatPeriodLabel(period: FinancialPeriod) {
-	const reviewPeriod = ReviewPeriod.create(period);
-	return `${reviewPeriod.startDate} – ${reviewPeriod.visibleEndDate}`;
-}
-
 function formatClp(amount: number) {
 	const formatted = new Intl.NumberFormat("es-CL", {
 		style: "currency",
@@ -195,10 +260,6 @@ function formatClp(amount: number) {
 		maximumFractionDigits: 0,
 	}).format(Math.abs(amount));
 	return amount < 0 ? `-${formatted}` : formatted;
-}
-
-function formatIncomeInput(amount: number) {
-	return new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 }).format(amount);
 }
 
 function parseIncomeAmount(value: string) {
@@ -369,6 +430,70 @@ function FinancialSummary() {
 	const [view, setView] = useState<"summary" | "movements">("summary");
 	const [retryToken, setRetryToken] = useState(0);
 	const retry = useCallback(() => setRetryToken((token) => token + 1), []);
+	const [isCreateOpen, setIsCreateOpen] = useState(false);
+	const [creationNotice, setCreationNotice] = useState<ManualExpenseCreationNotice | null>(null);
+	/** Movement being edited; `null` keeps the edit dialog closed. */
+	const [editMovement, setEditMovement] = useState<EditableRecognizedExpenseMovement | null>(null);
+	const [editNotice, setEditNotice] = useState<MovementEditNotice | null>(null);
+	/**
+	 * Removal lifecycle owned by unit B. `removal.movementId` is the single source of "which record
+	 * is being removed"; the movement snapshot below is only the data the dialog renders.
+	 */
+	const [removal, setRemoval] = useState<RemovalState>(createRemovalState);
+	const [removalNotice, setRemovalNotice] = useState<RemovalNotice | null>(null);
+	/**
+	 * Movement the removal dialog shows, captured only when the reducer accepts the open. It is
+	 * deliberately not derived from `editableMovements`: a successful removal followed by a
+	 * successful reload drops the row from that list, so a derived movement would unmount the
+	 * dialog and lose the outcome before the user could dismiss it.
+	 */
+	const [removalMovement, setRemovalMovement] = useState<EditableRecognizedExpenseMovement | null>(
+		null,
+	);
+	/**
+	 * The C1 synchronous lock, reused for the DELETE. React state cannot close the async window:
+	 * two clicks in the same tick both read a submittable phase, so this ref is what guarantees a
+	 * single DELETE per attempt.
+	 */
+	const removalLock = useRef(false);
+
+	/**
+	 * Cycle-first refresh shared by the create, edit, and removal flows (review unit C2 reuses
+	 * it). It resolves `true` when the dashboard was reloaded and `false` when the reload failed,
+	 * so a caller can say the visible list may be stale instead of reporting a mutation that
+	 * already happened as failed. The previous data stays on screen when the reload fails.
+	 */
+	const reloadFinancialDashboard = useCallback(async (): Promise<boolean> => {
+		try {
+			const data = await loadFinancialDashboardData();
+			setState(
+				data.cycle.selectedPeriod ? { status: "ready", data } : { status: "unconfigured" },
+			);
+			return true;
+		} catch {
+			return false;
+		}
+	}, []);
+
+	const submitManualExpense = useMemo(
+		() =>
+			createManualExpenseSubmitter({
+				createExpense: createManualExpense,
+				reload: reloadFinancialDashboard,
+			}),
+		[reloadFinancialDashboard],
+	);
+
+	const handleManualExpenseSaved = useCallback((reloadFailed: boolean) => {
+		setCreationNotice(getManualExpenseCreationNotice(reloadFailed));
+		setIsCreateOpen(false);
+	}, []);
+
+	const openCreateExpense = useCallback(() => {
+		// A previous outcome must not describe the new attempt.
+		setCreationNotice(null);
+		setIsCreateOpen(true);
+	}, []);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -408,6 +533,116 @@ function FinancialSummary() {
 	const spendingByKind = summarizeRecognizedExpensesByKind(state.data.transactions);
 	const latestExpense = selectLatestRecognizedExpense(state.data.transactions, selectedPeriod!);
 	const movements = getRecognizedExpenseMovements(state.data.transactions);
+	const editableMovements = getEditableRecognizedExpenseMovements(state.data.transactions);
+
+	// Both submitters are rebuilt per render on purpose: the period only exists once the cycle is
+	// configured, and their dependencies (`updateTransaction`, `removeTransaction` and the stable
+	// reload helper) are the same on every render, so no memo is needed to keep them honest.
+	const submitEdit = createMovementEditSubmitter({
+		period: selectedPeriod!,
+		updateMovement: updateTransaction,
+		reload: reloadFinancialDashboard,
+	});
+	const submitRemoval = createMovementRemovalSubmitter({
+		removeMovement: removeTransaction,
+		reload: reloadFinancialDashboard,
+	});
+
+	const openMovementEdit = (movement: EditableRecognizedExpenseMovement) => {
+		// A previous outcome must not describe the new attempt.
+		setEditNotice(null);
+		setEditMovement(movement);
+	};
+
+	const handleMovementEditSaved = (reloadFailed: boolean) => {
+		setEditNotice(getMovementEditNotice(reloadFailed));
+		setEditMovement(null);
+	};
+
+	const openMovementRemoval = (movement: EditableRecognizedExpenseMovement) => {
+		setRemovalNotice(null);
+		// The lock only closes the same-tick double-click window; the reducer owns the in-flight
+		// rule (`open` is a no-op while `removing`), so freeing a previous attempt here cannot
+		// re-enable a DELETE and keeps a second removal from being silently blocked.
+		releaseInFlightLock(removalLock);
+		// Unit B's guard owns the stale row: opening a movement whose removal already completed is
+		// a no-op, so the dialog cannot even appear for it and no second DELETE becomes possible.
+		// The transition is computed before committing so the dialog only ever shows a movement the
+		// reducer actually opened; a refused open must not stamp a snapshot the reducer does not hold.
+		const opened = reduceRemovalState(removal, { type: "open", movementId: movement.id });
+		if (opened.phase !== "confirming" || opened.movementId !== movement.id) return;
+		setRemovalMovement(movement);
+		setRemoval(opened);
+	};
+
+	const dismissMovementRemoval = () => {
+		// The by-phase mapping is unit B's: `confirming` cancels, and a terminal phase dismisses
+		// through `dismissRemoval`, which keeps `removedMovementIds`. Closing with a fresh
+		// `createRemovalState()` here would erase the guard and re-arm a completed removal.
+		setRemovalNotice(getRemovalNotice(removal));
+		setRemoval((current) => reduceRemovalDismissal(current));
+		setRemovalMovement(null);
+		releaseInFlightLock(removalLock);
+	};
+
+	const confirmMovementRemoval = async () => {
+		if (!canSubmitRemoval(removal)) return;
+		const movement = removalMovement;
+		const target =
+			movement === null
+				? null
+				: getMovementUpdateTarget({
+						id: movement.id ?? undefined,
+						occurredAt: movement.occurredAt,
+						isManual: movement.isManual,
+					});
+		// No usable target means no DELETE: the same rule that leaves a row without an action keeps
+		// a stale confirmation from sending a request the API layer would refuse.
+		if (target === null) return;
+		if (!acquireInFlightLock(removalLock)) return;
+		setRemoval((current) => reduceRemovalState(current, { type: "confirm" }));
+		try {
+			const outcome = await submitRemoval(target);
+			if (outcome.status === "removed") {
+				// The result stays on screen until the user dismisses it, which is when the outcome
+				// is published on the dashboard.
+				setRemoval((current) =>
+					reduceRemovalState(current, {
+						type: "succeeded",
+						hadReloadFailure: outcome.reloadFailed,
+					}),
+				);
+				return;
+			}
+			if (outcome.status === "notFound") {
+				// Terminal, exactly like the edit flow: a 404 cannot be repaired by repeating the same
+				// DELETE, so the dialog offers only a truthful close and never a retry control.
+				releaseInFlightLock(removalLock);
+				setRemoval((current) =>
+					reduceRemovalState(current, {
+						type: "notFound",
+						message: getRemovalNotFoundMessage(),
+					}),
+				);
+				return;
+			}
+			releaseInFlightLock(removalLock);
+			setRemoval((current) =>
+				reduceRemovalState(current, { type: "failed", message: outcome.message }),
+			);
+		} catch {
+			// The submitter reports instead of throwing, so this is only reachable if it is replaced:
+			// the attempt is over, so the lock is released and the failure is truthful.
+			releaseInFlightLock(removalLock);
+			setRemoval((current) =>
+				reduceRemovalState(current, {
+					type: "failed",
+					message: getRemovalErrorMessage(undefined),
+				}),
+			);
+		}
+	};
+
 	return (
 		<section className="react-financial-summary" aria-labelledby="react-financial-summary-title">
 			<div className="react-financial-summary-heading">
@@ -416,8 +651,37 @@ function FinancialSummary() {
 					<h2 id="react-financial-summary-title">Financial summary</h2>
 					<p>{formatPeriodLabel(selectedPeriod!)}</p>
 				</div>
-				{state.data.warning && <p className="react-financial-warning" role="status">Warning: {state.data.warning}</p>}
+				<div className="react-financial-summary-actions">
+					{state.data.warning && <p className="react-financial-warning" role="status">Warning: {state.data.warning}</p>}
+					<button className="button" type="button" onClick={openCreateExpense}>
+						Nuevo gasto
+					</button>
+				</div>
 			</div>
+			{creationNotice && (
+				<p
+					className={`react-financial-creation-notice react-financial-creation-notice-${creationNotice.tone}`}
+					role="status"
+				>
+					{creationNotice.message}
+				</p>
+			)}
+			{editNotice && (
+				<p
+					className={`react-financial-mutation-notice react-financial-mutation-notice-${editNotice.tone}`}
+					role="status"
+				>
+					{editNotice.message}
+				</p>
+			)}
+			{removalNotice && (
+				<p
+					className={`react-financial-mutation-notice react-financial-mutation-notice-${removalNotice.tone}`}
+					role="status"
+				>
+					{removalNotice.message}
+				</p>
+			)}
 			<div className="react-financial-view-toggle" role="group" aria-label="Financial view">
 				<button
 					className="secondary"
@@ -500,8 +764,39 @@ function FinancialSummary() {
 					)}
 				</>
 			) : (
-				<MovementsTable movements={movements} />
+				<MovementsTable
+					movements={movements}
+					editableMovements={editableMovements}
+					onEdit={openMovementEdit}
+					onRemove={openMovementRemoval}
+				/>
 			)}
+			{/* Only a configured summary can create an expense: the trigger lives here, and the
+			    dialog is the only place that requests the category catalog. */}
+			<CreateManualExpenseDialog
+				isOpen={isCreateOpen}
+				period={selectedPeriod!}
+				onClose={() => setIsCreateOpen(false)}
+				submitExpense={submitManualExpense}
+				onSaved={handleManualExpenseSaved}
+			/>
+			{/* The edit dialog is only reachable from a row action, and every row that offers one is
+			    already bound to a target the PATCH accepts. */}
+			<EditMovementDialog
+				isOpen={editMovement !== null}
+				movement={editMovement}
+				period={selectedPeriod!}
+			onClose={() => setEditMovement(null)}
+				submitEdit={submitEdit}
+				onSaved={handleMovementEditSaved}
+			/>
+			{/* Unit B's dialog, driven by the reducer that owns the guard against a second DELETE. */}
+			<RemoveMovementDialog
+				movement={removalMovement}
+				state={removal}
+				onCancel={dismissMovementRemoval}
+				onConfirm={confirmMovementRemoval}
+			/>
 		</section>
 	);
 }
@@ -608,7 +903,29 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 	);
 }
 
-function MovementsTable({ movements }: { movements: RecognizedExpenseMovement[] }) {
+/**
+ * Movements table with the bounded per-row actions.
+ *
+ * The action availability is not a second rule: a row is actionable exactly when the editable
+ * projection produced a record for it, which already requires a usable identity and a parseable
+ * original date. A row outside that projection therefore renders no control at all instead of a
+ * control that could only produce a rejected request.
+ */
+export interface MovementsTableProps {
+	/** Read projection: every recognized expense of the period, always visible. */
+	movements: RecognizedExpenseMovement[];
+	/** Records a mutation may target, from `getEditableRecognizedExpenseMovements`. */
+	editableMovements: EditableRecognizedExpenseMovement[];
+	onEdit: (movement: EditableRecognizedExpenseMovement) => void;
+	onRemove: (movement: EditableRecognizedExpenseMovement) => void;
+}
+
+export function MovementsTable({
+	movements,
+	editableMovements,
+	onEdit,
+	onRemove,
+}: MovementsTableProps) {
 	if (movements.length === 0) {
 		return (
 			<section className="react-financial-empty" role="status">
@@ -617,6 +934,10 @@ function MovementsTable({ movements }: { movements: RecognizedExpenseMovement[] 
 			</section>
 		);
 	}
+
+	const editableById = new Map(
+		editableMovements.map((movement) => [movement.id, movement] as const),
+	);
 
 	return (
 		<div className="react-movements-table-wrapper">
@@ -627,17 +948,46 @@ function MovementsTable({ movements }: { movements: RecognizedExpenseMovement[] 
 						<th scope="col">Amount</th>
 						<th scope="col">Date</th>
 						<th scope="col">Category</th>
+						<th scope="col">Acciones</th>
 					</tr>
 				</thead>
 				<tbody>
-					{movements.map((movement, index) => (
-						<tr key={`${movement.counterparty}-${movement.date}-${index}`}>
-							<td>{movement.counterparty}</td>
-							<td>{formatClp(movement.amount)}</td>
-							<td>{movement.date}</td>
-							<td>{movement.category}</td>
-						</tr>
-					))}
+					{movements.map((movement, index) => {
+						const editable =
+							movement.id === null ? null : editableById.get(movement.id) ?? null;
+						return (
+							<tr key={`${movement.counterparty}-${movement.date}-${index}`}>
+								<td>{movement.counterparty}</td>
+								<td>{formatClp(movement.amount)}</td>
+								<td>{movement.date}</td>
+								<td>{movement.category}</td>
+								<td className="react-movements-actions">
+									{editable ? (
+										<>
+											<button
+												type="button"
+												className="secondary react-movement-action"
+												onClick={() => onEdit(editable)}
+											>
+												Editar
+											</button>
+											<button
+												type="button"
+												className="secondary react-movement-action"
+												onClick={() => onRemove(editable)}
+											>
+												Eliminar
+											</button>
+										</>
+									) : (
+										<span className="react-movements-read-only">
+											Solo lectura: sin identificación o fecha válida
+										</span>
+									)}
+								</td>
+							</tr>
+						);
+					})}
 				</tbody>
 			</table>
 		</div>

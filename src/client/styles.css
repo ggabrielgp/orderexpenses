@@ -687,6 +687,354 @@
 	border-bottom: 0;
 }
 
+.react-movements-actions {
+	white-space: nowrap;
+}
+
+.react-movement-action + .react-movement-action {
+	margin-left: var(--space-2);
+}
+
+.react-movements-read-only {
+	color: var(--ink-muted);
+	font-size: .875rem;
+}
+
+.react-removal-dialog {
+	width: min(30rem, calc(100vw - 2 * var(--space-4)));
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-4);
+	color: var(--ink);
+	box-shadow: var(--shadow-panel);
+}
+
+.react-removal-dialog::backdrop {
+	background: rgb(15 23 42 / 45%);
+}
+
+.react-removal-dialog h2 {
+	margin: 0 0 var(--space-2);
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+}
+
+.react-removal-dialog p {
+	margin: 0 0 var(--space-3);
+	color: var(--ink-muted);
+}
+
+.react-removal-dialog-pending {
+	font-weight: 600;
+}
+
+.react-removal-dialog-error {
+	border-left: 3px solid var(--danger);
+	border-radius: var(--radius-control);
+	background: var(--danger-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--danger) !important;
+}
+
+.react-removal-dialog-result p:first-child {
+	color: var(--success) !important;
+	font-weight: 600;
+}
+
+.react-removal-dialog-stale {
+	border-left: 3px solid var(--warning);
+	border-radius: var(--radius-control);
+	background: var(--warning-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink) !important;
+}
+
+.react-removal-dialog .react-shell-actions {
+	justify-content: flex-end;
+	margin: 0;
+}
+
+.react-removal-dialog-confirm:disabled {
+	cursor: not-allowed;
+	opacity: .7;
+}
+
+.react-financial-summary-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--space-3);
+}
+
+.react-financial-creation-notice {
+	margin: 0;
+	border-left: 3px solid var(--success);
+	border-radius: var(--radius-control);
+	background: var(--success-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink);
+	font-weight: 600;
+}
+
+.react-financial-creation-notice-warning {
+	border-left-color: var(--warning);
+	background: var(--warning-soft);
+}
+
+/* Outcome notices for the edit and removal mutations. The create notice keeps its own class, so
+   these mirror its shape rather than changing a rule the create flow already depends on. */
+.react-financial-mutation-notice {
+	margin: 0;
+	border-left: 3px solid var(--success);
+	border-radius: var(--radius-control);
+	background: var(--success-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink);
+	font-weight: 600;
+}
+
+.react-financial-mutation-notice-warning {
+	border-left-color: var(--warning);
+	background: var(--warning-soft);
+}
+
+.react-create-expense-dialog {
+	width: min(36rem, calc(100vw - 2 * var(--space-4)));
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-4);
+	color: var(--ink);
+	box-shadow: var(--shadow-panel);
+}
+
+.react-create-expense-dialog::backdrop {
+	background: rgb(15 23 42 / 45%);
+}
+
+.react-create-expense-dialog h2 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+}
+
+.react-create-expense-form,
+.react-create-expense-fields {
+	display: grid;
+	gap: var(--space-3);
+}
+
+.react-create-expense-fields {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.react-create-expense-fields label {
+	display: grid;
+	gap: var(--space-2);
+	color: var(--ink);
+	font-weight: 600;
+}
+
+.react-create-expense-full {
+	grid-column: 1 / -1;
+}
+
+.react-create-expense-fields input,
+.react-create-expense-fields select {
+	width: 100%;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-control);
+	background: var(--surface);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink);
+	font: inherit;
+}
+
+.react-create-expense-fields input:disabled,
+.react-create-expense-fields select:disabled {
+	cursor: not-allowed;
+	opacity: .65;
+}
+
+.react-create-expense-fields small,
+.react-create-expense-catalog {
+	color: var(--ink-muted);
+	font-size: .75rem;
+	font-weight: 400;
+}
+
+.react-create-expense-catalog {
+	grid-column: 1 / -1;
+	margin: 0;
+}
+
+.react-create-expense-catalog-error {
+	grid-column: 1 / -1;
+	margin: 0;
+	border-left: 3px solid var(--warning);
+	border-radius: var(--radius-control);
+	background: var(--warning-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink);
+}
+
+.react-create-expense-catalog-retry {
+	grid-column: 1 / -1;
+	justify-self: start;
+}
+
+.react-create-expense-error {
+	margin: 0;
+	border-left: 3px solid var(--danger);
+	border-radius: var(--radius-control);
+	background: var(--danger-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--danger) !important;
+	font-weight: 600;
+}
+
+.react-create-expense-pending {
+	margin: 0;
+	font-weight: 600;
+}
+
+.react-create-expense-dialog .react-shell-actions {
+	justify-content: flex-end;
+	margin: 0;
+}
+
+.react-create-expense-dialog button[type="submit"]:disabled {
+	cursor: not-allowed;
+	opacity: .7;
+}
+
+.react-edit-movement-dialog {
+	width: min(36rem, calc(100vw - 2 * var(--space-4)));
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-4);
+	color: var(--ink);
+	box-shadow: var(--shadow-panel);
+}
+
+.react-edit-movement-dialog::backdrop {
+	background: rgb(15 23 42 / 45%);
+}
+
+.react-edit-movement-dialog h2 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+}
+
+.react-edit-movement-form,
+.react-edit-movement-fields {
+	display: grid;
+	gap: var(--space-3);
+}
+
+.react-edit-movement-fields {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.react-edit-movement-fields label {
+	display: grid;
+	gap: var(--space-2);
+	color: var(--ink);
+	font-weight: 600;
+}
+
+.react-edit-movement-full {
+	grid-column: 1 / -1;
+}
+
+.react-edit-movement-fields input,
+.react-edit-movement-fields select {
+	width: 100%;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-control);
+	background: var(--surface);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink);
+	font: inherit;
+}
+
+.react-edit-movement-fields input:disabled,
+.react-edit-movement-fields select:disabled {
+	cursor: not-allowed;
+	opacity: .65;
+}
+
+.react-edit-movement-fields small,
+.react-edit-movement-catalog {
+	color: var(--ink-muted);
+	font-size: .75rem;
+	font-weight: 400;
+}
+
+.react-edit-movement-date-locked {
+	color: var(--ink-muted);
+	font-weight: 600;
+}
+
+.react-edit-movement-catalog {
+	grid-column: 1 / -1;
+	margin: 0;
+}
+
+.react-edit-movement-catalog-error {
+	grid-column: 1 / -1;
+	margin: 0;
+	border-left: 3px solid var(--warning);
+	border-radius: var(--radius-control);
+	background: var(--warning-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink);
+}
+
+.react-edit-movement-catalog-retry {
+	grid-column: 1 / -1;
+	justify-self: start;
+}
+
+.react-edit-movement-error {
+	margin: 0;
+	border-left: 3px solid var(--danger);
+	border-radius: var(--radius-control);
+	background: var(--danger-soft);
+	padding: var(--space-2) var(--space-3);
+	color: var(--danger) !important;
+	font-weight: 600;
+}
+
+.react-edit-movement-pending {
+	margin: 0;
+	font-weight: 600;
+}
+
+.react-edit-movement-dialog .react-shell-actions {
+	justify-content: flex-end;
+	margin: 0;
+}
+
+.react-edit-movement-dialog button[type="submit"]:disabled {
+	cursor: not-allowed;
+	opacity: .7;
+}
+
+@media (max-width: 640px) {
+	.react-create-expense-fields {
+		grid-template-columns: 1fr;
+	}
+
+	.react-edit-movement-fields {
+		grid-template-columns: 1fr;
+	}
+}
+
 .demo-dashboard {
 	gap: var(--space-4);
 }
