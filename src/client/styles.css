@@ -1018,7 +1018,56 @@
 	background: var(--warning-soft);
 }
 
-.react-create-expense-dialog {
+/* Closure mark of the configured period. Informational only: the edit path never consults
+   `completed_at`, so nothing on the server blocks an edit, a manual movement or a re-synchronization. */
+.react-financial-cycle-closure {
+	display: inline-block;
+	margin-left: var(--space-2);
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: var(--surface);
+	padding: 0 var(--space-2);
+	color: var(--ink-muted);
+	font-size: .75rem;
+}
+
+.react-financial-cycle-form {
+	display: grid;
+	gap: var(--space-3);
+}
+
+/* The consequence is information, not an error: a closed period is not a problem, and the range
+   change it may lose is what the user has to know before saving. */
+.react-financial-cycle-closure-note {
+	display: grid;
+	gap: var(--space-1);
+	border-left: 3px solid var(--warning);
+	border-radius: var(--radius-control);
+	background: var(--warning-soft);
+	padding: var(--space-2) var(--space-3);
+}
+
+.react-financial-cycle-closure-note p {
+	margin: 0;
+	color: var(--ink);
+	font-weight: 600;
+}
+
+.react-financial-cycle-status {
+	margin: 0;
+	font-weight: 600;
+}
+
+.react-financial-cycle-status-pending {
+	color: var(--ink-muted);
+}
+
+.react-financial-cycle-status-error {
+	color: var(--danger) !important;
+}
+
+.react-create-expense-dialog,
+.react-financial-cycle-dialog {
 	width: min(36rem, calc(100vw - 2 * var(--space-4)));
 	border: 1px solid var(--line-strong);
 	border-radius: var(--radius-card);
@@ -1028,11 +1077,13 @@
 	box-shadow: var(--shadow-panel);
 }
 
-.react-create-expense-dialog::backdrop {
+.react-create-expense-dialog::backdrop,
+.react-financial-cycle-dialog::backdrop {
 	background: rgb(15 23 42 / 45%);
 }
 
-.react-create-expense-dialog h2 {
+.react-create-expense-dialog h2,
+.react-financial-cycle-dialog h2 {
 	margin: 0;
 	font-family: var(--font-display);
 	font-size: 1.15rem;
@@ -1118,12 +1169,14 @@
 	font-weight: 600;
 }
 
-.react-create-expense-dialog .react-shell-actions {
+.react-create-expense-dialog .react-shell-actions,
+.react-financial-cycle-dialog .react-shell-actions {
 	justify-content: flex-end;
 	margin: 0;
 }
 
-.react-create-expense-dialog button[type="submit"]:disabled {
+.react-create-expense-dialog button[type="submit"]:disabled,
+.react-financial-cycle-dialog button:disabled {
 	cursor: not-allowed;
 	opacity: .7;
 }

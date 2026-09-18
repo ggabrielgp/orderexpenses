@@ -49,6 +49,14 @@ import { CategorySettingsDialog } from "../components/settings/CategorySettingsD
 import { CounterpartyRulesDialog } from "../components/settings/CounterpartyRulesDialog";
 import { createCategoryMutationSubmitter } from "../components/settings/categorySettings";
 import { createCounterpartyRuleSubmitter } from "../components/settings/counterpartyRules";
+import { FinancialCycleEditDialog } from "../components/financial-cycle/FinancialCycleEditDialog";
+import {
+	createCycleEditSubmitter,
+	getCycleClosureMark,
+	getCycleEditNotice,
+	parseCycleIncome,
+	type CycleEditNotice,
+} from "../components/financial-cycle/cycleSettings";
 import {
 	formatIncomeInput,
 	formatPeriodLabel,
@@ -294,24 +302,6 @@ function formatClp(amount: number) {
 	return amount < 0 ? `-${formatted}` : formatted;
 }
 
-function parseIncomeAmount(value: string) {
-	const trimmedValue = value.trim();
-	if (!trimmedValue) return null;
-	const unformattedValue = trimmedValue.replaceAll(".", "");
-	const isFormattedClp = /^\d{1,3}(?:\.\d{3})+$/.test(trimmedValue);
-	if (
-		(!/^\d+$/.test(trimmedValue) && !isFormattedClp) ||
-		!/^\d+$/.test(unformattedValue)
-	) {
-		throw new TypeError("Income must be a positive whole safe CLP integer");
-	}
-	const incomeAmount = Number(unformattedValue);
-	if (!Number.isSafeInteger(incomeAmount) || incomeAmount <= 0) {
-		throw new TypeError("Income must be a positive whole safe CLP integer");
-	}
-	return incomeAmount;
-}
-
 export function createFinancialCycleSetupPayload(
 	startDate: string,
 	endDate: string,
@@ -319,7 +309,9 @@ export function createFinancialCycleSetupPayload(
 ): UpdateFinancialCycleRequest {
 	return {
 		selectedPeriod: ReviewPeriod.fromInclusive(startDate, endDate).toJSON(),
-		incomeAmount: parseIncomeAmount(incomeValue),
+		// The same rule the edit draft uses, owned by the cycle module: one income parser for both
+		// surfaces instead of two copies that could drift apart.
+		incomeAmount: parseCycleIncome(incomeValue),
 	};
 }
 
@@ -624,6 +616,45 @@ function DemoKpi({ label, value }: { label: string; value: string }) {
 	);
 }
 
+export interface FinancialPeriodHeadingProps {
+	period: FinancialPeriod;
+	/** Closure record the server reported for this range; `null` when the period is open. */
+	completedAt: string | null;
+	onEdit: () => void;
+}
+
+/**
+ * Ready-state heading: the configured period, its closure mark, and the control that reopens it.
+ *
+ * Exported so the mark and the trigger are provable from markup instead of from a slice of source
+ * text: the summary's ready state needs a live session and effect-driven loads to exist, so a static
+ * render of the summary only ever shows its loading state.
+ */
+export function FinancialPeriodHeading({
+	period,
+	completedAt,
+	onEdit,
+}: FinancialPeriodHeadingProps) {
+	const closureMark = getCycleClosureMark(completedAt);
+	return (
+		<div>
+			<span className="section-kicker">Periodo configurado</span>
+			<h2 id="react-financial-summary-title">Resumen financiero</h2>
+			<p>
+				{formatPeriodLabel(period)}
+				{closureMark !== null && (
+					<span className="react-financial-cycle-closure">{closureMark}</span>
+				)}
+			</p>
+			{/* Legacy hides the month picker once a cycle is configured (`public/app.js:1013-1017`), so
+			    reopening the cycle is the only way to review another range in this surface. */}
+			<button className="secondary" type="button" onClick={onEdit}>
+				Cambiar período
+			</button>
+		</div>
+	);
+}
+
 function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboardHandle | null) => void }) {
 	const [state, setState] = useState<FinancialSummaryState>({ status: "loading" });
 	const [view, setView] = useState<"summary" | "movements">("summary");
@@ -672,6 +703,36 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 		} catch {
 			return false;
 		}
+	}, []);
+
+	/**
+	 * Configured-period edit surface. It reloads through the same helper the summary publishes as
+	 * `FinancialDashboardHandle.reload`, so a saved period and a failed refresh stay two statements
+	 * instead of one invented one.
+	 */
+	const [isCycleEditOpen, setIsCycleEditOpen] = useState(false);
+	const [cycleEditNotice, setCycleEditNotice] = useState<CycleEditNotice | null>(null);
+	/** The C1 synchronous lock, reused for the cycle save. */
+	const cycleEditLock = useRef(false);
+	const submitCycleEdit = useMemo(
+		() =>
+			createCycleEditSubmitter({
+				updateCycle: updateFinancialCycle,
+				reload: reloadFinancialDashboard,
+				lock: cycleEditLock,
+			}),
+		[reloadFinancialDashboard],
+	);
+
+	const openCycleEdit = useCallback(() => {
+		// A previous outcome must not describe the new attempt.
+		setCycleEditNotice(null);
+		setIsCycleEditOpen(true);
+	}, []);
+
+	const handleCycleEdited = useCallback((reloadFailed: boolean) => {
+		setCycleEditNotice(getCycleEditNotice({ status: "saved", reloadFailed }));
+		setIsCycleEditOpen(false);
 	}, []);
 
 	/**
@@ -863,11 +924,11 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 	return (
 		<section className="react-financial-summary" aria-labelledby="react-financial-summary-title">
 			<div className="react-financial-summary-heading">
-				<div>
-					<span className="section-kicker">Periodo configurado</span>
-					<h2 id="react-financial-summary-title">Resumen financiero</h2>
-					<p>{formatPeriodLabel(selectedPeriod!)}</p>
-				</div>
+				<FinancialPeriodHeading
+					period={selectedPeriod!}
+					completedAt={state.data.cycle.completedAt}
+					onEdit={openCycleEdit}
+				/>
 				<div className="react-financial-summary-actions">
 					{state.data.warning && <p className="react-financial-warning" role="status">Advertencia: {state.data.warning}</p>}
 					<button className="button" type="button" onClick={openCreateExpense}>
@@ -897,6 +958,14 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 					role="status"
 				>
 					{removalNotice.message}
+				</p>
+			)}
+			{cycleEditNotice && (
+				<p
+					className={`react-financial-mutation-notice react-financial-mutation-notice-${cycleEditNotice.tone}`}
+					role="status"
+				>
+					{cycleEditNotice.message}
 				</p>
 			)}
 			<div className="react-financial-view-toggle" role="group" aria-label="Vista financiera">
@@ -1014,6 +1083,14 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 				onCancel={dismissMovementRemoval}
 				onConfirm={confirmMovementRemoval}
 			/>
+			{/* Mounted inside the ready state: an unconfigured or failed summary has no period to edit. */}
+			<FinancialCycleEditDialog
+				isOpen={isCycleEditOpen}
+				cycle={state.data.cycle}
+				onClose={() => setIsCycleEditOpen(false)}
+				submitCycle={submitCycleEdit}
+				onSaved={handleCycleEdited}
+			/>
 		</section>
 	);
 }
@@ -1054,7 +1131,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 
 	const formatIncomeOnBlur = () => {
 		try {
-			const incomeAmount = parseIncomeAmount(incomeValue);
+			const incomeAmount = parseCycleIncome(incomeValue);
 			if (incomeAmount !== null) setIncomeValue(formatIncomeInput(incomeAmount));
 		} catch {
 			// Keep the user's value unchanged so it can be corrected.
