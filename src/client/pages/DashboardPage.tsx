@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
+	completeFinancialCycle,
 	createManualExpense,
 	deleteCategory,
 	loadFinancialDashboardData,
@@ -50,6 +51,7 @@ import { CounterpartyRulesDialog } from "../components/settings/CounterpartyRule
 import { createCategoryMutationSubmitter } from "../components/settings/categorySettings";
 import { createCounterpartyRuleSubmitter } from "../components/settings/counterpartyRules";
 import { FinancialCycleEditDialog } from "../components/financial-cycle/FinancialCycleEditDialog";
+import { CompleteCycleDialog } from "../components/financial-cycle/CompleteCycleDialog";
 import {
 	createCycleEditSubmitter,
 	getCycleClosureMark,
@@ -57,6 +59,7 @@ import {
 	parseCycleIncome,
 	type CycleEditNotice,
 } from "../components/financial-cycle/cycleSettings";
+import { createCycleCompletionSubmitter } from "../components/financial-cycle/cycleCompletion";
 import {
 	formatIncomeInput,
 	formatPeriodLabel,
@@ -621,12 +624,14 @@ export interface FinancialPeriodHeadingProps {
 	/** Closure record the server reported for this range; `null` when the period is open. */
 	completedAt: string | null;
 	onEdit: () => void;
+	/** Opens the closure confirmation. The control never closes the period by itself. */
+	onComplete: () => void;
 }
 
 /**
- * Ready-state heading: the configured period, its closure mark, and the control that reopens it.
+ * Ready-state heading: the configured period, its closure mark, and the controls that reopen or close it.
  *
- * Exported so the mark and the trigger are provable from markup instead of from a slice of source
+ * Exported so the mark and the triggers are provable from markup instead of from a slice of source
  * text: the summary's ready state needs a live session and effect-driven loads to exist, so a static
  * render of the summary only ever shows its loading state.
  */
@@ -634,6 +639,7 @@ export function FinancialPeriodHeading({
 	period,
 	completedAt,
 	onEdit,
+	onComplete,
 }: FinancialPeriodHeadingProps) {
 	const closureMark = getCycleClosureMark(completedAt);
 	return (
@@ -648,9 +654,10 @@ export function FinancialPeriodHeading({
 			</p>
 			{/* Legacy hides the month picker once a cycle is configured (`public/app.js:1013-1017`), so
 			    reopening the cycle is the only way to review another range in this surface. */}
-			<button className="secondary" type="button" onClick={onEdit}>
-				Cambiar período
-			</button>
+			<div className="react-shell-actions">
+				<button className="secondary" type="button" onClick={onEdit}>Cambiar período</button>
+				<button className="secondary" type="button" onClick={onComplete}>Cerrar período</button>
+			</div>
 		</div>
 	);
 }
@@ -729,6 +736,11 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 		setCycleEditNotice(null);
 		setIsCycleEditOpen(true);
 	}, []);
+
+	/** Cycle closure surface: it reloads through the same helper the summary publishes. */
+	const [isCycleCompletionOpen, setIsCycleCompletionOpen] = useState(false);
+	/** The C1 synchronous lock, reused for the cycle closure. */
+	const cycleCompletionLock = useRef(false);
 
 	const handleCycleEdited = useCallback((reloadFailed: boolean) => {
 		setCycleEditNotice(getCycleEditNotice({ status: "saved", reloadFailed }));
@@ -824,6 +836,18 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 	const submitRemoval = createMovementRemovalSubmitter({
 		removeMovement: removeTransaction,
 		reload: reloadFinancialDashboard,
+	});
+
+	// Built per render, like the movement submitters above: this point sits after the summary's
+	// loading/failed/unconfigured early returns, so a `useMemo` here would be a hook after an early
+	// return and would break the hook order as soon as the status changes. The only input that can vary
+	// is the loaded closure — the evidence a re-close is compared against — and the dialog reads the
+	// callback at event time, so its identity does not matter and no memo is needed to keep it honest.
+	const submitCycleCompletion = createCycleCompletionSubmitter({
+		complete: completeFinancialCycle,
+		reload: reloadFinancialDashboard,
+		loadedCompletedAt: state.data.cycle.completedAt,
+		lock: cycleCompletionLock,
 	});
 
 	const openMovementEdit = (movement: EditableRecognizedExpenseMovement) => {
@@ -928,6 +952,7 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 					period={selectedPeriod!}
 					completedAt={state.data.cycle.completedAt}
 					onEdit={openCycleEdit}
+					onComplete={() => setIsCycleCompletionOpen(true)}
 				/>
 				<div className="react-financial-summary-actions">
 					{state.data.warning && <p className="react-financial-warning" role="status">Advertencia: {state.data.warning}</p>}
@@ -1090,6 +1115,13 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 				onClose={() => setIsCycleEditOpen(false)}
 				submitCycle={submitCycleEdit}
 				onSaved={handleCycleEdited}
+			/>
+			{/* Also inside the ready state: closing needs the configured period, as does the reload. */}
+			<CompleteCycleDialog
+				isOpen={isCycleCompletionOpen}
+				cycle={state.data.cycle}
+				onClose={() => setIsCycleCompletionOpen(false)}
+				submitCompletion={submitCycleCompletion}
 			/>
 		</section>
 	);

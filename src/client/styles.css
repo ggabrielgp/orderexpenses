@@ -1181,6 +1181,14 @@
 	opacity: .7;
 }
 
+/* The closure confirmation reuses the shipped cycle dialog shell, form stack, closure note box and status tones; only
+   these two tones were missing from the shared set. */
+.react-financial-cycle-status-success { color: var(--success) !important; }
+
+.react-financial-cycle-status-warning {
+	color: var(--warning) !important;
+}
+
 .react-edit-movement-dialog {
 	width: min(36rem, calc(100vw - 2 * var(--space-4)));
 	border: 1px solid var(--line-strong);

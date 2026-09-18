@@ -1,5 +1,6 @@
 import type {
 	CategoriesResponse,
+	CompleteFinancialCycleResponse,
 	CounterpartyRule,
 	CounterpartyRulesResponse,
 	CreateManualExpenseRequest,
@@ -63,6 +64,76 @@ export async function updateFinancialCycle(
 		throw new ApiError(`Request to /api/financial-cycle failed (${response.status})`);
 	}
 	return (await response.json()) as FinancialCycleResponse;
+}
+
+/** Body `POST /api/financial-cycle/complete` answers with; only the documented keys are read. */
+type ClosureResponseBody = {
+	outcome?: unknown; scanned?: unknown; transactions?: unknown; failedCount?: unknown;
+	completedAt?: unknown; retryable?: unknown; action?: { label?: unknown; href?: unknown };
+};
+
+/** A count the server is expected to report; anything else is not a count. */
+function readClosureCount(value: unknown): number | null {
+	return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+function unusableClosure(): never {
+	throw new ApiError("The server did not report a usable closure outcome for /api/financial-cycle/complete.");
+}
+
+/**
+ * Closes the configured period: the server synchronizes Gmail first and writes the closure only if that
+ * synchronization completes (`src/server.js:408-472`). The body key is `period`, not the `selectedPeriod` that
+ * `PUT /api/financial-cycle` takes, and it is the only field this endpoint reads (`src/server.js:415`). The four
+ * outcomes are returned as data, never thrown, because a partial synchronization or a disconnected account would
+ * otherwise have no way to reach the user.
+ *
+ * The status picks the branch and the body has to corroborate it, so the outcomes cannot be confused: a 200 without a
+ * closure timestamp, a 207 that claims one, or an outcome word that contradicts the status throws an `ApiError`. A
+ * refused request throws through the same reader the other mutations use; a network failure rejects the `fetch` before
+ * any outcome exists, and a body this client cannot read throws instead of being reported as one. There is no
+ * `AbortSignal`, because aborting would not stop the sequential Gmail work.
+ */
+export async function completeFinancialCycle(
+	period: FinancialPeriod,
+): Promise<CompleteFinancialCycleResponse> {
+	const path = "/api/financial-cycle/complete";
+	const response = await fetch(path, { method: "POST", credentials: "same-origin",
+		headers: { "content-type": "application/json" }, body: JSON.stringify({ period }) });
+	if (![200, 207, 409, 502].includes(response.status)) {
+		await throwServerError(response, `Request to ${path} failed (${response.status})`);
+	}
+	const body = (await response.json().catch(() => null)) as ClosureResponseBody | null;
+	const scanned = readClosureCount(body?.scanned);
+	const transactions = readClosureCount(body?.transactions);
+
+	if (response.status === 200) {
+		const completedAt = body?.completedAt;
+		if (body?.outcome !== "success" || scanned === null || transactions === null) unusableClosure();
+		if (typeof completedAt !== "string" || !completedAt.trim()) unusableClosure();
+		return { outcome: "success", scanned, transactions, completedAt };
+	}
+
+	// Every non-success outcome carries the documented `retryable: true` with `completedAt: null`; a body
+	// missing either is not readable as one of them. That is a shape corroborating the status, not a
+	// guarantee that nothing was written: two of them are answered before the write, and the 502's catch
+	// also wraps the upsert and the read-back behind it.
+	if (body?.retryable !== true || body?.completedAt !== null) unusableClosure();
+
+	if (response.status === 207) {
+		const failedCount = readClosureCount(body?.failedCount);
+		if (body?.outcome !== "partial" || scanned === null || transactions === null) unusableClosure();
+		if (failedCount === null) unusableClosure();
+		return { outcome: "partial", scanned, transactions, failedCount, retryable: true, completedAt: null };
+	}
+	if (response.status === 409) {
+		const label = body?.action?.label;
+		const href = body?.action?.href;
+		if (body?.outcome !== "disconnected" || typeof label !== "string" || typeof href !== "string") unusableClosure();
+		return { outcome: "disconnected", action: { label, href }, retryable: true, completedAt: null };
+	}
+	if (body?.outcome !== "error") unusableClosure();
+	return { outcome: "error", retryable: true, completedAt: null };
 }
 
 export function getTransactionsForPeriod(period: FinancialPeriod, signal?: AbortSignal) {

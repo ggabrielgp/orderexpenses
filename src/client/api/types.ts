@@ -61,6 +61,24 @@ export interface UpdateFinancialCycleRequest {
 	incomeAmount: number | null;
 }
 
+/**
+ * Response of `POST /api/financial-cycle/complete` (`src/server.js:408-472`).
+ *
+ * The four outcomes are facts the UI has to state, so they are one discriminated union rather than a body of
+ * optional fields: only `success` carries a `completedAt`, and the other three carry the server's own
+ * `retryable: true` with `completedAt: null`. Only for `partial` and `disconnected`, both answered before the write,
+ * is that value the server's report that it recorded no closure; the 502's catch also wraps the upsert and the
+ * read-back behind it (`src/server.js:430-471`, `src/db.js:176-181`), so its copy must not repeat it. `transactions`
+ * is the count the server reports, not a list of movements (`src/server.js:463`). The `action` of a disconnected
+ * account is carried for contract fidelity; the React surface routes the user to its own consent-gated control
+ * instead.
+ */
+export type CompleteFinancialCycleResponse =
+	| { outcome: "success"; scanned: number; transactions: number; completedAt: string }
+	| { outcome: "partial"; scanned: number; transactions: number; failedCount: number; retryable: true; completedAt: null }
+	| { outcome: "disconnected"; action: { label: string; href: string }; retryable: true; completedAt: null }
+	| { outcome: "error"; retryable: true; completedAt: null };
+
 export interface FinancialTransaction {
 	/** Stable movement identity used by the mutation routes. */
 	id?: string;
