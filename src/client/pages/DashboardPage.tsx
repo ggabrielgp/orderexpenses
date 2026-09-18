@@ -69,6 +69,15 @@ import {
 	type EditableRecognizedExpenseMovement,
 	type RecognizedExpenseMovement,
 } from "../components/movements/manualExpense";
+import {
+	createMovementFilterSelection,
+	getMovementFilterView,
+	reconcileMovementFilterSelection,
+	selectMovementFilterCategory,
+	type MovementFilterCount,
+	type MovementFilterOption,
+	type MovementFilterSelection,
+} from "../components/movements/movementFilters";
 import type { DemoDashboardData } from "../demo-data";
 import type {
 	FinancialDashboardData,
@@ -1076,6 +1085,7 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 				</>
 			) : (
 				<MovementsTable
+					period={selectedPeriod!}
 					movements={movements}
 					editableMovements={editableMovements}
 					onEdit={openMovementEdit}
@@ -1230,15 +1240,76 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 }
 
 /**
- * Movements table with the bounded per-row actions.
+ * Movements filter control: the category narrowed over the rows already loaded for the period.
+ *
+ * Exported so both the unfiltered and the active markup are provable from a static render; the live
+ * table only ever reaches the unfiltered one, because a static render has no state to select with.
+ * It shows only what the pure module decided, so it cannot display a category the table is not
+ * applying, and it follows the shipped accessibility conventions: a labelled group, an announced
+ * active state and a visible way to clear.
+ */
+export interface MovementFilterBarProps {
+	options: MovementFilterOption[];
+	count: MovementFilterCount;
+	onSelect: (category: string) => void;
+	onClear: () => void;
+}
+
+export function MovementFilterBar({ options, count, onSelect, onClear }: MovementFilterBarProps) {
+	return (
+		<div className="react-movements-filters" role="group" aria-label="Filtrar tabla por categoría">
+			<div className="react-movements-filter-intro">
+				<strong>Filtrar detalle</strong>
+				<span>
+					{count.isActive ? "Estás viendo solo una categoría." : "Elige una categoría para limpiar el ruido."}
+				</span>
+				{/* The count statement is the announced active state. It renders only while it exists, so a
+				    table that is not narrowing anything claims nothing. */}
+				{count.message !== null && (
+					<p className="react-movements-filter-count" role="status">{count.message}</p>
+				)}
+			</div>
+			<label className="react-movements-filter-field">
+				<span>Categoría</span>
+				<select value={count.category} onChange={(event) => onSelect(event.target.value)}>
+					{options.map((option) => (
+						<option key={option.value || "all"} value={option.value}>
+							{`${option.label} · ${option.count}`}
+						</option>
+					))}
+				</select>
+			</label>
+			{/* Offered only while there is something to clear: a control that cannot change anything is noise. */}
+			{count.isActive && (
+				<button type="button" className="secondary react-movements-filter-clear" onClick={onClear}>
+					Limpiar filtro
+				</button>
+			)}
+		</div>
+	);
+}
+
+/**
+ * Movements table with the bounded per-row actions and the in-memory category filter.
  *
  * The action availability is not a second rule: a row is actionable exactly when the editable
  * projection produced a record for it, which already requires a usable identity and a parseable
  * original date. A row outside that projection therefore renders no control at all instead of a
  * control that could only produce a rejected request.
+ *
+ * The filter narrows the rows already loaded, like legacy (`public/app.js:3621-3668`): it issues no
+ * request and renders the loaded order. Legacy's interactive sorting — sortable headers over date,
+ * amount, counterparty and category (`sortTransactions`, `public/app.js:928-947`) — is required parity
+ * this table does not have yet; it belongs to the follow-up sorting unit.
  */
 export interface MovementsTableProps {
-	/** Read projection: every recognized expense of the period, always visible. */
+	/**
+	 * Period the loaded rows belong to. Together with the rows it owns the reset: a selection made in
+	 * another period, or naming a category these rows do not carry, is replaced before anything renders
+	 * — the empty-rows state included — so a stale category cannot hide rows after the data reloads.
+	 */
+	period: FinancialPeriod;
+	/** Read projection: every recognized expense of the period. */
 	movements: RecognizedExpenseMovement[];
 	/** Records a mutation may target, from `getEditableRecognizedExpenseMovements`. */
 	editableMovements: EditableRecognizedExpenseMovement[];
@@ -1247,11 +1318,28 @@ export interface MovementsTableProps {
 }
 
 export function MovementsTable({
+	period,
 	movements,
 	editableMovements,
 	onEdit,
 	onRemove,
 }: MovementsTableProps) {
+	// Declared before the empty-state return so the hook always runs, and initialised for the period
+	// the rows belong to.
+	const [selection, setSelection] = useState<MovementFilterSelection>(() =>
+		createMovementFilterSelection(period),
+	);
+
+	// Reconciling during render, instead of in an effect, is React's documented way to adjust state
+	// when an input changes: the new period's rows are never rendered under the previous period's
+	// selection. It runs above the empty-rows return as well, so the reset commits in every case — a
+	// period with no rows still replaces the selection it inherited, and a category the loaded rows no
+	// longer carry is cleared instead of only being hidden at render. The module returns the same
+	// object while the selection still applies, so this re-renders only when something really changed
+	// and cannot loop.
+	const currentSelection = reconcileMovementFilterSelection(selection, period, movements);
+	if (currentSelection !== selection) setSelection(currentSelection);
+
 	if (movements.length === 0) {
 		return (
 			<section className="react-financial-empty" role="status">
@@ -1261,11 +1349,13 @@ export function MovementsTable({
 		);
 	}
 
+	const view = getMovementFilterView(currentSelection, period, movements);
 	const editableById = new Map(
 		editableMovements.map((movement) => [movement.id, movement] as const),
 	);
 
-	return (
+	// The table keeps its own scroll container, so the filter bar cannot scroll away with it.
+	const table = (
 		<div className="react-movements-table-wrapper">
 			<table className="react-movements-table">
 				<thead>
@@ -1278,7 +1368,7 @@ export function MovementsTable({
 					</tr>
 				</thead>
 				<tbody>
-					{movements.map((movement, index) => {
+					{view.rows.map((movement, index) => {
 						const editable =
 							movement.id === null ? null : editableById.get(movement.id) ?? null;
 						return (
@@ -1317,5 +1407,17 @@ export function MovementsTable({
 				</tbody>
 			</table>
 		</div>
+	);
+
+	return (
+		<>
+			<MovementFilterBar
+				options={view.options}
+				count={view.count}
+				onSelect={(category) => setSelection(selectMovementFilterCategory(category, period))}
+				onClear={() => setSelection(createMovementFilterSelection(period))}
+			/>
+			{table}
+		</>
 	);
 }
