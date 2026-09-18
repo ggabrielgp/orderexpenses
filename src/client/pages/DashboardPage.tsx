@@ -77,7 +77,17 @@ import {
 	type MovementFilterCount,
 	type MovementFilterOption,
 	type MovementFilterSelection,
+	type MovementFilterView,
 } from "../components/movements/movementFilters";
+import {
+	createMovementSortState,
+	cycleMovementSort,
+	getMovementSortAriaSort,
+	getMovementSortIndicator,
+	sortMovements,
+	type MovementSortKey,
+	type MovementSortState,
+} from "../components/movements/movementSorting";
 import type { DemoDashboardData } from "../demo-data";
 import type {
 	FinancialDashboardData,
@@ -1290,17 +1300,164 @@ export function MovementFilterBar({ options, count, onSelect, onClear }: Movemen
 }
 
 /**
- * Movements table with the bounded per-row actions and the in-memory category filter.
+ * Legacy's sortable columns and their labels (`renderTableHead`, `public/app.js:3506-3520`). The
+ * actions column is deliberately absent: legacy never made it sortable and it carries no value to
+ * order by.
+ */
+const movementSortColumns: { key: MovementSortKey; label: string }[] = [
+	{ key: "counterparty", label: "Contraparte" },
+	{ key: "amount", label: "Monto" },
+	{ key: "date", label: "Fecha" },
+	{ key: "category", label: "Categoría" },
+];
+
+export interface MovementsTableHeaderProps {
+	/** The sort in effect; `createMovementSortState()` is the neutral one. */
+	sort: MovementSortState;
+	onActivate: (key: MovementSortKey) => void;
+}
+
+/**
+ * The table head: one activatable header per legacy-sortable column, carrying the `aria-sort` value
+ * and the `▬/▲/▼` indicator the pure module decided (`renderTableHead`, `public/app.js:3499-3578`).
+ * It only displays that decision, so it cannot disagree with the order of the rows. Exported so both
+ * the neutral and the active markup are provable from a static render, like `MovementFilterBar`.
+ */
+export function MovementsTableHeader({ sort, onActivate }: MovementsTableHeaderProps) {
+	return (
+		<thead>
+			<tr>
+				{movementSortColumns.map((column) => (
+					<th
+						key={column.key}
+						scope="col"
+						aria-sort={getMovementSortAriaSort(sort, column.key)}
+						className={sort.key === column.key ? "react-movement-sort-active" : undefined}
+					>
+						<button
+							type="button"
+							className="react-movement-sort-button"
+							aria-label={`Ordenar por ${column.label}`}
+							onClick={() => onActivate(column.key)}
+						>
+							{column.label} {getMovementSortIndicator(sort, column.key)}
+						</button>
+					</th>
+				))}
+				<th scope="col">Acciones</th>
+			</tr>
+		</thead>
+	);
+}
+
+/**
+ * The movements view for one already-decided state: the filter's rows in the order the sort decided,
+ * the filter bar the table is actually applying, and the actions each row can offer.
  *
  * The action availability is not a second rule: a row is actionable exactly when the editable
  * projection produced a record for it, which already requires a usable identity and a parseable
  * original date. A row outside that projection therefore renders no control at all instead of a
  * control that could only produce a rejected request.
  *
- * The filter narrows the rows already loaded, like legacy (`public/app.js:3621-3668`): it issues no
- * request and renders the loaded order. Legacy's interactive sorting — sortable headers over date,
- * amount, counterparty and category (`sortTransactions`, `public/app.js:928-947`) — is required parity
- * this table does not have yet; it belongs to the follow-up sorting unit.
+ * The filter narrows the rows already loaded, like legacy (`public/app.js:3621-3668`), and the
+ * ordering sorts the rows the filter left visible, like legacy's `renderTableView`
+ * (`sortTransactions(filtered)`, `:1200-1203`). Neither issues a request.
+ *
+ * Exported so both the neutral and an active sort are provable from a static render, like
+ * `MovementsTableHeader`: the container below owns the state and this component only displays the
+ * decision it was handed.
+ */
+export interface MovementsTableViewProps {
+	/** The filter's own view: its options, its rows and its count statement. */
+	filteredView: MovementFilterView;
+	/** The ordering in effect; `createMovementSortState()` renders the loaded order. */
+	sort: MovementSortState;
+	/** Records a mutation may target, from `getEditableRecognizedExpenseMovements`. */
+	editableMovements: EditableRecognizedExpenseMovement[];
+	onActivate: (key: MovementSortKey) => void;
+	onSelect: (category: string) => void;
+	onClear: () => void;
+	onEdit: (movement: EditableRecognizedExpenseMovement) => void;
+	onRemove: (movement: EditableRecognizedExpenseMovement) => void;
+}
+
+export function MovementsTableView({
+	filteredView,
+	sort,
+	editableMovements,
+	onActivate,
+	onSelect,
+	onClear,
+	onEdit,
+	onRemove,
+}: MovementsTableViewProps) {
+	// The rows the table renders: the filter's own rows put in the order the sort decided. Sorting is
+	// applied to the filtered rows, never to the loaded ones, and the count stays the filter's own — it
+	// was computed from the filtered set, so ordering can neither hide nor reveal a row it describes.
+	const visibleRows = sortMovements(filteredView.rows, sort);
+	const editableById = new Map(
+		editableMovements.map((movement) => [movement.id, movement] as const),
+	);
+
+	return (
+		<>
+			<MovementFilterBar
+				options={filteredView.options}
+				count={filteredView.count}
+				onSelect={onSelect}
+				onClear={onClear}
+			/>
+			{/* The table keeps its own scroll container, so the filter bar cannot scroll away with it. */}
+			<div className="react-movements-table-wrapper">
+				<table className="react-movements-table">
+					<MovementsTableHeader sort={sort} onActivate={onActivate} />
+					<tbody>
+						{visibleRows.map((movement, index) => {
+							const editable =
+								movement.id === null ? null : editableById.get(movement.id) ?? null;
+							return (
+								<tr key={`${movement.counterparty}-${movement.date}-${index}`}>
+									<td>{movement.counterparty}</td>
+									<td>{formatClp(movement.amount)}</td>
+									<td>{movement.date}</td>
+									<td>{movement.category}</td>
+									<td className="react-movements-actions">
+										{editable ? (
+											<>
+												<button
+													type="button"
+													className="secondary react-movement-action"
+													onClick={() => onEdit(editable)}
+												>
+													Editar
+												</button>
+												<button
+													type="button"
+													className="secondary react-movement-action"
+													onClick={() => onRemove(editable)}
+												>
+													Eliminar
+												</button>
+											</>
+										) : (
+											<span className="react-movements-read-only">
+												Solo lectura: sin identificación o fecha válida
+											</span>
+										)}
+									</td>
+								</tr>
+							);
+						})}
+					</tbody>
+				</table>
+			</div>
+		</>
+	);
+}
+
+/**
+ * Movements table container: it owns the period-scoped filter selection and the in-memory ordering,
+ * and hands the decided state to `MovementsTableView`, which renders it.
  */
 export interface MovementsTableProps {
 	/**
@@ -1330,6 +1487,11 @@ export function MovementsTable({
 		createMovementFilterSelection(period),
 	);
 
+	// The ordering is its own state, never stored and never persisted, exactly like the filter: a period
+	// reload cannot carry a category the user did not pick, and sorting cannot reset the filter. Legacy
+	// kept `sortKey`/`sortDir` in memory too (`public/app.js:142-143`).
+	const [sort, setSort] = useState<MovementSortState>(() => createMovementSortState());
+
 	// Reconciling during render, instead of in an effect, is React's documented way to adjust state
 	// when an input changes: the new period's rows are never rendered under the previous period's
 	// selection. It runs above the empty-rows return as well, so the reset commits in every case — a
@@ -1349,75 +1511,18 @@ export function MovementsTable({
 		);
 	}
 
-	const view = getMovementFilterView(currentSelection, period, movements);
-	const editableById = new Map(
-		editableMovements.map((movement) => [movement.id, movement] as const),
-	);
-
-	// The table keeps its own scroll container, so the filter bar cannot scroll away with it.
-	const table = (
-		<div className="react-movements-table-wrapper">
-			<table className="react-movements-table">
-				<thead>
-					<tr>
-						<th scope="col">Contraparte</th>
-						<th scope="col">Monto</th>
-						<th scope="col">Fecha</th>
-						<th scope="col">Categoría</th>
-						<th scope="col">Acciones</th>
-					</tr>
-				</thead>
-				<tbody>
-					{view.rows.map((movement, index) => {
-						const editable =
-							movement.id === null ? null : editableById.get(movement.id) ?? null;
-						return (
-							<tr key={`${movement.counterparty}-${movement.date}-${index}`}>
-								<td>{movement.counterparty}</td>
-								<td>{formatClp(movement.amount)}</td>
-								<td>{movement.date}</td>
-								<td>{movement.category}</td>
-								<td className="react-movements-actions">
-									{editable ? (
-										<>
-											<button
-												type="button"
-												className="secondary react-movement-action"
-												onClick={() => onEdit(editable)}
-											>
-												Editar
-											</button>
-											<button
-												type="button"
-												className="secondary react-movement-action"
-												onClick={() => onRemove(editable)}
-											>
-												Eliminar
-											</button>
-										</>
-									) : (
-										<span className="react-movements-read-only">
-											Solo lectura: sin identificación o fecha válida
-										</span>
-									)}
-								</td>
-							</tr>
-						);
-					})}
-				</tbody>
-			</table>
-		</div>
-	);
+	const filteredView = getMovementFilterView(currentSelection, period, movements);
 
 	return (
-		<>
-			<MovementFilterBar
-				options={view.options}
-				count={view.count}
-				onSelect={(category) => setSelection(selectMovementFilterCategory(category, period))}
-				onClear={() => setSelection(createMovementFilterSelection(period))}
-			/>
-			{table}
-		</>
+		<MovementsTableView
+			filteredView={filteredView}
+			sort={sort}
+			editableMovements={editableMovements}
+			onActivate={(key) => setSort(cycleMovementSort(sort, key))}
+			onSelect={(category) => setSelection(selectMovementFilterCategory(category, period))}
+			onClear={() => setSelection(createMovementFilterSelection(period))}
+			onEdit={onEdit}
+			onRemove={onRemove}
+		/>
 	);
 }
