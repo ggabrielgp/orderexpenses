@@ -12,6 +12,10 @@ import {
 	upsertCounterpartyRule,
 } from "../api/client";
 import {
+	getPeriodAnalytics,
+	type PeriodAnalytics,
+} from "../components/analytics/periodAnalytics";
+import {
 	CreateManualExpenseDialog,
 	acquireInFlightLock,
 	createManualExpenseSubmitter,
@@ -681,6 +685,57 @@ export function FinancialPeriodHeading({
 	);
 }
 
+export interface PeriodAnalyticsPanelProps {
+	/** The decided metrics for the loaded period, from `getPeriodAnalytics`. */
+	analytics: PeriodAnalytics;
+}
+
+/**
+ * The three period metrics as one already-decided state.
+ *
+ * Exported so both the populated and the empty markup are provable from a static render: the live
+ * summary only ever shows its loading state without a session, and what these metrics may claim is worth
+ * proving from what the user reads. The panel renders the decisions the pure module made and computes
+ * nothing of its own, so it cannot disagree with them.
+ *
+ * The largest expense is not rendered when there is none: no movement carries an amount this card could
+ * name, and a placeholder amount under that label would be the claim the data does not support.
+ */
+export function PeriodAnalyticsPanel({ analytics }: PeriodAnalyticsPanelProps) {
+	return (
+		<section className="react-period-analytics" aria-labelledby="react-period-analytics-title">
+			<h3 id="react-period-analytics-title">Analítica del periodo</h3>
+			<div className="react-financial-grid">
+				<article className="react-financial-card">
+					<span>{analytics.average.label}</span>
+					{/* No number at all while there is no usable amount: the substitute is copy, not a value. */}
+					<strong>
+						{analytics.average.amount === null
+							? analytics.average.emptyValue
+							: formatClp(analytics.average.amount)}
+					</strong>
+					<p>{analytics.average.detail}</p>
+				</article>
+				{analytics.largest !== null && (
+					<article className="react-financial-card">
+						<span>{analytics.largest.label}</span>
+						<strong>{formatClp(analytics.largest.amount)}</strong>
+						<p>{analytics.largest.counterparty} · {analytics.largest.date}</p>
+					</article>
+				)}
+				<article className="react-financial-card">
+					<span>{analytics.review.label}</span>
+					<strong>{analytics.review.count}</strong>
+					{/* One paragraph per fact: the review count and the unknown-amount count are two statements. */}
+					{analytics.review.details.map((detail) => (
+						<p key={detail}>{detail}</p>
+					))}
+				</article>
+			</div>
+		</section>
+	);
+}
+
 function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboardHandle | null) => void }) {
 	const [state, setState] = useState<FinancialSummaryState>({ status: "loading" });
 	const [view, setView] = useState<"summary" | "movements">("summary");
@@ -839,6 +894,7 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 
 	const { selectedPeriod, incomeAmount } = state.data.cycle;
 	const summary = summarizeRecognizedExpenses(state.data.transactions);
+	const periodAnalytics = getPeriodAnalytics(state.data.transactions);
 	const spendingByKind = summarizeRecognizedExpensesByKind(state.data.transactions);
 	const latestExpense = selectLatestRecognizedExpense(state.data.transactions, selectedPeriod!);
 	const movements = getRecognizedExpenseMovements(state.data.transactions);
@@ -1051,6 +1107,7 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 							<p>Movimientos reconocidos que esperan un monto válido.</p>
 						</article>
 					</div>
+					<PeriodAnalyticsPanel analytics={periodAnalytics} />
 					<section className="react-latest-expense" aria-labelledby="react-latest-expense-title">
 						<h3 id="react-latest-expense-title">Último gasto reconocido</h3>
 						{latestExpense ? (

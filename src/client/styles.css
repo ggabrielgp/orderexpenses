@@ -642,6 +642,17 @@
 	font-weight: 600;
 }
 
+/* The period metrics reuse the shipped card and grid primitives; only the region wrapper is new. */
+.react-period-analytics {
+	display: grid;
+	gap: var(--space-3);
+}
+
+.react-period-analytics h3 {
+	margin: 0;
+	font-size: 1rem;
+}
+
 .react-financial-warning {
 	max-width: 24rem;
 	border-left: 3px solid #bc681b;
