@@ -16,6 +16,12 @@ import {
 	type PeriodAnalytics,
 } from "../components/analytics/periodAnalytics";
 import {
+	findCategoryRankingRow,
+	getCategoryRanking,
+	type CategoryRanking,
+	type CategoryRankingRow,
+} from "../components/analytics/categoryRanking";
+import {
 	CreateManualExpenseDialog,
 	acquireInFlightLock,
 	createManualExpenseSubmitter,
@@ -736,9 +742,154 @@ export function PeriodAnalyticsPanel({ analytics }: PeriodAnalyticsPanelProps) {
 	);
 }
 
+/** Legacy's compact count wording (`renderCategoryLegendItem`, `public/app.js:2984`). */
+function formatMovementCount(count: number): string {
+	return `${count} ${count === 1 ? "movimiento" : "movimientos"}`;
+}
+
+/**
+ * The category ranking as one already-decided state: the ranked rows, and the detail of the selected
+ * row when there is one.
+ *
+ * Exported so both the list and the detail markup are provable from a static render, like
+ * `PeriodAnalyticsPanel`: a live summary only ever reaches the list without a session, and what the
+ * detail claims is worth proving from what the user reads. The component renders the decisions the
+ * pure module made and computes nothing of its own.
+ *
+ * The merged tail offers no jump: `Otras categorías` is not a category the movement filter can
+ * select, so a control that pretended otherwise would narrow the table to nothing. Its detail lists
+ * the categories it merged, which is the part of the distribution a user can still act on.
+ */
+export interface CategoryRankingViewProps {
+	/** The decided ranking, from `getCategoryRanking`. */
+	ranking: CategoryRanking;
+	/** Category whose detail is shown, or `null` for the ranked list. */
+	selectedCategory: string | null;
+	onSelect: (category: string) => void;
+	onClearSelection: () => void;
+	/** Jumps into the movement table filter; never called for the merged tail. */
+	onJumpToCategory: (category: string) => void;
+}
+
+export function CategoryRankingView({
+	ranking,
+	selectedCategory,
+	onSelect,
+	onClearSelection,
+	onJumpToCategory,
+}: CategoryRankingViewProps) {
+	const selectedRow: CategoryRankingRow | null =
+		selectedCategory === null ? null : findCategoryRankingRow(ranking, selectedCategory);
+
+	return (
+		<section className="react-category-ranking" aria-labelledby="react-category-ranking-title">
+			<h3 id="react-category-ranking-title">Gasto reconocido por categoría</h3>
+			{/* The excluded outflows are their own fact, stated only when there is one to state. */}
+			{ranking.disclosure !== null && (
+				<p className="react-category-ranking-disclosure" role="status">{ranking.disclosure}</p>
+			)}
+			{ranking.rows.length === 0 ? (
+				<p className="react-category-ranking-empty" role="status">
+					Aún no hay gastos con monto conocido para distribuir por categoría en este periodo.
+				</p>
+			) : selectedRow === null ? (
+				<ul className="react-category-ranking-list">
+					{ranking.rows.map((row) => (
+						<li key={row.category}>
+							<button
+								type="button"
+								className="react-category-ranking-row"
+								onClick={() => onSelect(row.category)}
+							>
+								<strong>{row.category}</strong>
+								<small>
+									{formatClp(row.total)} · {row.share}% · {formatMovementCount(row.count)}
+								</small>
+							</button>
+						</li>
+					))}
+				</ul>
+			) : (
+				<div className="react-category-detail">
+					<header className="react-category-detail-header">
+						<strong>{selectedRow.category}</strong>
+						<small>
+							{formatClp(selectedRow.total)} · {selectedRow.share}% · {formatMovementCount(selectedRow.count)}
+						</small>
+					</header>
+					<div className="react-category-detail-rows">
+						{selectedRow.mergesTail
+							? selectedRow.children.map((child) => (
+									<article key={child.category} className="react-category-detail-row">
+										<strong>{child.category}</strong>
+										<small>{formatClp(child.total)} · {formatMovementCount(child.count)}</small>
+									</article>
+								))
+							: selectedRow.counterparties.map((counterparty) => (
+									<article key={counterparty.counterparty} className="react-category-detail-row">
+										<strong>{counterparty.counterparty}</strong>
+										<small>{formatClp(counterparty.total)} · {formatMovementCount(counterparty.count)}</small>
+									</article>
+								))}
+					</div>
+					<div className="react-category-detail-actions">
+						{/* No jump for the merged tail: it cannot be the movement filter's category. */}
+						{!selectedRow.mergesTail && (
+							<button
+								type="button"
+								className="secondary react-category-detail-jump"
+								onClick={() => onJumpToCategory(selectedRow.category)}
+							>
+								Ver gastos de esta categoría
+							</button>
+						)}
+						<button
+							type="button"
+							className="secondary react-category-detail-back"
+							onClick={onClearSelection}
+						>
+							← Todas las categorías
+						</button>
+					</div>
+				</div>
+			)}
+		</section>
+	);
+}
+
+/**
+ * The category ranking container: it owns which category is being inspected and hands the decided
+ * state to the view, mirroring the movements table's container/view split. The jump stays the
+ * summary's, because only the summary can switch to the movements view and carry the requested
+ * category into it.
+ */
+export interface CategoryRankingPanelProps {
+	ranking: CategoryRanking;
+	onJumpToCategory: (category: string) => void;
+}
+
+export function CategoryRankingPanel({ ranking, onJumpToCategory }: CategoryRankingPanelProps) {
+	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+	return (
+		<CategoryRankingView
+			ranking={ranking}
+			selectedCategory={selectedCategory}
+			onSelect={setSelectedCategory}
+			onClearSelection={() => setSelectedCategory(null)}
+			onJumpToCategory={onJumpToCategory}
+		/>
+	);
+}
+
 function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboardHandle | null) => void }) {
 	const [state, setState] = useState<FinancialSummaryState>({ status: "loading" });
 	const [view, setView] = useState<"summary" | "movements">("summary");
+	/**
+	 * Category the analytics ranking jumped to, consumed by the movements table on its next mount. It
+	 * is state rather than a ref because the table reads it during its first render, and the jump is
+	 * what switches the view: the table mounts after this state is already set.
+	 */
+	const [requestedCategory, setRequestedCategory] = useState<string | null>(null);
 	const [retryToken, setRetryToken] = useState(0);
 	const retry = useCallback(() => setRetryToken((token) => token + 1), []);
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -899,6 +1050,9 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 	const latestExpense = selectLatestRecognizedExpense(state.data.transactions, selectedPeriod!);
 	const movements = getRecognizedExpenseMovements(state.data.transactions);
 	const editableMovements = getEditableRecognizedExpenseMovements(state.data.transactions);
+	// The ranking reads the rows and the pending count the summary already computed, so it adds no
+	// request and shares the same "recognized finite outflow" projection the table shows.
+	const categoryRanking = getCategoryRanking(movements, summary.pendingAmountCount);
 
 	// Both submitters are rebuilt per render on purpose: the period only exists once the cycle is
 	// configured, and their dependencies (`updateTransaction`, `removeTransaction` and the stable
@@ -1108,6 +1262,13 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 						</article>
 					</div>
 					<PeriodAnalyticsPanel analytics={periodAnalytics} />
+					<CategoryRankingPanel
+						ranking={categoryRanking}
+						onJumpToCategory={(category) => {
+							setRequestedCategory(category);
+							setView("movements");
+						}}
+					/>
 					<section className="react-latest-expense" aria-labelledby="react-latest-expense-title">
 						<h3 id="react-latest-expense-title">Último gasto reconocido</h3>
 						{latestExpense ? (
@@ -1155,6 +1316,7 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 					period={selectedPeriod!}
 					movements={movements}
 					editableMovements={editableMovements}
+					requestedCategory={requestedCategory ?? undefined}
 					onEdit={openMovementEdit}
 					onRemove={openMovementRemoval}
 				/>
@@ -1527,6 +1689,13 @@ export interface MovementsTableProps {
 	movements: RecognizedExpenseMovement[];
 	/** Records a mutation may target, from `getEditableRecognizedExpenseMovements`. */
 	editableMovements: EditableRecognizedExpenseMovement[];
+	/**
+	 * Category the analytics ranking jumped to. It is read only while the state is first created, so it
+	 * is consumed on mount and a later manual choice is never overwritten by it; `undefined` renders
+	 * the unfiltered table. A category these rows no longer carry is cleared by the reconciliation
+	 * below, exactly like a selection made in another period.
+	 */
+	requestedCategory?: string;
 	onEdit: (movement: EditableRecognizedExpenseMovement) => void;
 	onRemove: (movement: EditableRecognizedExpenseMovement) => void;
 }
@@ -1535,13 +1704,17 @@ export function MovementsTable({
 	period,
 	movements,
 	editableMovements,
+	requestedCategory,
 	onEdit,
 	onRemove,
 }: MovementsTableProps) {
 	// Declared before the empty-state return so the hook always runs, and initialised for the period
-	// the rows belong to.
+	// the rows belong to. The requested category is only read here, which is what makes it a mount-time
+	// input instead of a controlled value the table would have to re-adopt on every render.
 	const [selection, setSelection] = useState<MovementFilterSelection>(() =>
-		createMovementFilterSelection(period),
+		requestedCategory
+			? selectMovementFilterCategory(requestedCategory, period)
+			: createMovementFilterSelection(period),
 	);
 
 	// The ordering is its own state, never stored and never persisted, exactly like the filter: a period

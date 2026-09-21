@@ -653,6 +653,97 @@
 	font-size: 1rem;
 }
 
+/* The category ranking reuses the shipped surface primitives; only its detail region is new. */
+.react-category-ranking {
+	display: grid;
+	gap: var(--space-3);
+}
+
+.react-category-ranking h3 {
+	margin: 0;
+	font-size: 1rem;
+}
+
+.react-category-ranking-disclosure {
+	margin: 0;
+	color: var(--ink-muted);
+	font-size: .875rem;
+}
+
+.react-category-ranking-empty {
+	margin: 0;
+	color: var(--ink-muted);
+	font-size: .875rem;
+}
+
+.react-category-ranking-list {
+	display: grid;
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.react-category-ranking-row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-3);
+	width: 100%;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-2) var(--space-3);
+	text-align: left;
+	cursor: pointer;
+}
+
+.react-category-ranking-row:hover {
+	border-color: var(--line-strong);
+}
+
+.react-category-ranking-row small,
+.react-category-detail-header small,
+.react-category-detail-row small {
+	color: var(--ink-muted);
+}
+
+.react-category-detail {
+	display: grid;
+	gap: var(--space-3);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-3);
+}
+
+.react-category-detail-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+
+.react-category-detail-rows {
+	display: grid;
+	gap: var(--space-2);
+}
+
+.react-category-detail-row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-3);
+	border-top: 1px solid var(--line);
+	padding-top: var(--space-2);
+}
+
+.react-category-detail-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
 .react-financial-warning {
 	max-width: 24rem;
 	border-left: 3px solid #bc681b;
