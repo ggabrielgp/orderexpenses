@@ -3,6 +3,7 @@ import {
 	completeFinancialCycle,
 	createManualExpense,
 	deleteCategory,
+	getCategories,
 	loadFinancialDashboardData,
 	removeTransaction,
 	syncGmail,
@@ -23,6 +24,11 @@ import {
 	type CategoryRanking,
 	type CategoryRankingRow,
 } from "../components/analytics/categoryRanking";
+import {
+	CategoryDetailView,
+	CategoryDistributionPanel,
+} from "../components/analytics/CategoryDistribution";
+import { formatMovementCount } from "../components/analytics/categoryDistribution";
 import {
 	getDashboardLead,
 	type DashboardLead,
@@ -120,6 +126,7 @@ import {
 } from "../components/movements/movementSorting";
 import type { DemoDashboardData } from "../demo-data";
 import type {
+	Category,
 	FinancialDashboardData,
 	FinancialPeriod,
 	FinancialTransaction,
@@ -805,11 +812,6 @@ export function PeriodAnalyticsPanel({ analytics }: PeriodAnalyticsPanelProps) {
 	);
 }
 
-/** Legacy's compact count wording (`renderCategoryLegendItem`, `public/app.js:2984`). */
-function formatMovementCount(count: number): string {
-	return `${count} ${count === 1 ? "movimiento" : "movimientos"}`;
-}
-
 /**
  * The category ranking as one already-decided state: the ranked rows, and the detail of the selected
  * row when there is one.
@@ -873,73 +875,37 @@ export function CategoryRankingView({
 					))}
 				</ul>
 			) : (
-				<div className="react-category-detail">
-					<header className="react-category-detail-header">
-						<strong>{selectedRow.category}</strong>
-						<small>
-							{formatClp(selectedRow.total)} · {selectedRow.share}% · {formatMovementCount(selectedRow.count)}
-						</small>
-					</header>
-					<div className="react-category-detail-rows">
-						{selectedRow.mergesTail
-							? selectedRow.children.map((child) => (
-									<article key={child.category} className="react-category-detail-row">
-										<strong>{child.category}</strong>
-										<small>{formatClp(child.total)} · {formatMovementCount(child.count)}</small>
-									</article>
-								))
-							: selectedRow.counterparties.map((counterparty) => (
-									<article key={counterparty.counterparty} className="react-category-detail-row">
-										<strong>{counterparty.counterparty}</strong>
-										<small>{formatClp(counterparty.total)} · {formatMovementCount(counterparty.count)}</small>
-									</article>
-								))}
-					</div>
-					<div className="react-category-detail-actions">
-						{/* No jump for the merged tail: it cannot be the movement filter's category. */}
-						{!selectedRow.mergesTail && (
-							<button
-								type="button"
-								className="secondary react-category-detail-jump"
-								onClick={() => onJumpToCategory(selectedRow.category)}
-							>
-								Ver gastos de esta categoría
-							</button>
-						)}
-						<button
-							type="button"
-							className="secondary react-category-detail-back"
-							onClick={onClearSelection}
-						>
-							← Todas las categorías
-						</button>
-					</div>
-				</div>
+				<CategoryDetailView
+					row={selectedRow}
+					onClearSelection={onClearSelection}
+					onJumpToCategory={onJumpToCategory}
+					formatAmount={formatClp}
+				/>
 			)}
 		</section>
 	);
 }
 
 /**
- * The category ranking container: it owns which category is being inspected and hands the decided
- * state to the view, mirroring the movements table's container/view split. The jump stays the
+ * The legacy `Dónde se fue tu plata` mount point: it hands the decided ranking, the stored colours
+ * and the jump to the distribution container, which owns the selection. The jump stays the
  * summary's, because only the summary can switch to the movements view and carry the requested
  * category into it.
  */
 export interface CategoryRankingPanelProps {
 	ranking: CategoryRanking;
+	/** Stored category catalog, used for the donut and legend colours. */
+	catalog?: readonly Category[];
 	onJumpToCategory: (category: string) => void;
 }
 
-export function CategoryRankingPanel({ ranking, onJumpToCategory }: CategoryRankingPanelProps) {
-	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+export function CategoryRankingPanel({ ranking, catalog, onJumpToCategory }: CategoryRankingPanelProps) {
 	return (
-		<CategoryRankingView
+		<CategoryDistributionPanel
 			ranking={ranking}
-			selectedCategory={selectedCategory}
-			onSelect={setSelectedCategory}
-			onClearSelection={() => setSelectedCategory(null)}
+			catalog={catalog}
 			onJumpToCategory={onJumpToCategory}
+			formatAmount={formatClp}
 		/>
 	);
 }
@@ -1162,6 +1128,12 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	 * what switches the view: the table mounts after this state is already set.
 	 */
 	const [requestedCategory, setRequestedCategory] = useState<string | null>(null);
+	/**
+	 * Stored category catalog for the distribution colours. It is requested only inside the
+	 * authenticated summary — the demo composition never mounts this component — and a failure is not
+	 * an error: the distribution falls back to its deterministic palette instead of failing the summary.
+	 */
+	const [categoryCatalog, setCategoryCatalog] = useState<Category[]>([]);
 	const [retryToken, setRetryToken] = useState(0);
 	const retry = useCallback(() => setRetryToken((token) => token + 1), []);
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -1296,6 +1268,18 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 			})
 			.catch(() => {
 				if (!controller.signal.aborted) setState({ status: "failed" });
+			});
+		return () => controller.abort();
+	}, [retryToken]);
+
+	useEffect(() => {
+		const controller = new AbortController();
+		getCategories(controller.signal)
+			.then((categories) => {
+				if (!controller.signal.aborted) setCategoryCatalog(categories);
+			})
+			.catch(() => {
+				// Palette fallback: stored colours are an enhancement, never a load dependency.
 			});
 		return () => controller.abort();
 	}, [retryToken]);
@@ -1547,6 +1531,7 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 					<DashboardLeadView lead={dashboardLead} />
 					<CategoryRankingPanel
 						ranking={categoryRanking}
+						catalog={categoryCatalog}
 						onJumpToCategory={(category) => {
 							setRequestedCategory(category);
 							onViewChange("movements");

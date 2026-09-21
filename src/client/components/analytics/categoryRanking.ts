@@ -15,10 +15,10 @@ import type { RecognizedExpenseMovement } from "../movements/manualExpense";
  * card.
  *
  * The rows it receives are the recognized expenses the summary already projected and loaded for the
- * configured period, so this module issues no request and adds no endpoint. The donut and the
- * distribution insight are deliberately not ported: the ranked list carries the same data without a
- * charting dependency, and legacy's insight summed already-rounded percentages (`:2925`), which this
- * module must not reproduce.
+ * configured period, so this module issues no request and adds no endpoint. These stay pure decisions:
+ * the React distribution card (`CategoryDistribution.tsx`) draws the ECharts donut from them and
+ * `categoryDistribution.ts` derives the insight. Legacy's insight summed already-rounded percentages
+ * (`:2925`), which this module must not reproduce.
  *
  * No React import: these are decisions, not rendering.
  */
@@ -86,7 +86,7 @@ export interface CategoryRanking {
  * It is a local copy for the same reason `movementFilters` keeps one: the filter module owns its
  * key and this module cannot import a private function from it.
  */
-function getCategoryKey(value: unknown): string {
+export function getCategoryKey(value: unknown): string {
 	const name = String(value ?? "")
 		.trim()
 		.replace(/\s+/g, " ")

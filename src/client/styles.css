@@ -1079,6 +1079,118 @@
 	gap: var(--space-2);
 }
 
+/* The category distribution card reuses the shipped surface primitives; its donut and legend are new. */
+.react-category-distribution {
+	display: grid;
+	gap: var(--space-3);
+}
+
+.react-category-distribution h3 {
+	margin: 0;
+	font-size: 1rem;
+}
+
+.react-category-distribution-copy,
+.react-category-distribution-disclosure,
+.react-category-distribution-empty {
+	margin: 0;
+	color: var(--ink-muted);
+	font-size: .875rem;
+}
+
+.react-category-distribution-insight {
+	margin: 0;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-3);
+	font-size: .875rem;
+}
+
+.react-category-distribution-body {
+	display: grid;
+	gap: var(--space-4);
+	justify-items: center;
+}
+
+.react-category-donut-wrap {
+	display: grid;
+	place-items: center;
+}
+
+.react-category-donut {
+	width: 232px;
+	max-width: 100%;
+	aspect-ratio: 1;
+}
+
+.react-category-donut-chart {
+	width: 100%;
+	height: 100%;
+}
+
+.react-category-donut-fallback {
+	margin: 0;
+	max-width: 232px;
+	color: var(--ink-muted);
+	font-size: .875rem;
+	text-align: center;
+}
+
+.react-category-distribution-legend {
+	display: grid;
+	gap: 6px;
+	width: min(100%, 640px);
+	max-height: 340px;
+	overflow-y: auto;
+}
+
+.react-category-legend-item {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: var(--space-2);
+	align-items: center;
+	width: 100%;
+	border: 0;
+	border-bottom: 1px solid var(--line);
+	border-radius: 0;
+	background: transparent;
+	color: var(--ink);
+	padding: 6px 0;
+	text-align: left;
+	cursor: pointer;
+}
+
+.react-category-legend-item:hover,
+.react-category-legend-item[aria-pressed="true"] {
+	background: var(--accent-soft);
+}
+
+.react-category-legend-item:last-child {
+	border-bottom: 0;
+}
+
+.react-category-legend-marker {
+	width: 10px;
+	height: 10px;
+	border-radius: 999px;
+	background: var(--category-color, var(--accent));
+}
+
+.react-category-legend-item strong {
+	overflow: hidden;
+	font-size: .875rem;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.react-category-legend-item small {
+	color: var(--ink-muted);
+	font-size: .75rem;
+	text-align: right;
+	white-space: nowrap;
+}
+
 /* The spending chart reuses the shipped surface primitives; only its proportional bars are new. */
 .react-spending-chart {
 	display: grid;
