@@ -1716,15 +1716,13 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	});
 	// The bulk category assignment reuses the same PATCH client and the same reload as the single-edit
 	// flow, so a bulk pass and a single edit cannot disagree about how a movement is written or how
-	// the visible list is refreshed.
-	const submitBulkCategory = useMemo(
-		() =>
-			createBulkCategorySubmitter({
-				updateMovement: updateTransaction,
-				reload: reloadFinancialDashboard,
-			}),
-		[reloadFinancialDashboard],
-	);
+	// the visible list is refreshed. This is built per render, like the single-edit/removal submitters,
+	// because this branch sits after loading/failed/unconfigured early returns and must not add a hook
+	// only when the summary is ready.
+	const submitBulkCategory = createBulkCategorySubmitter({
+		updateMovement: updateTransaction,
+		reload: reloadFinancialDashboard,
+	});
 
 	// Built per render, like the movement submitters above: this point sits after the summary's
 	// loading/failed/unconfigured early returns, so a `useMemo` here would be a hook after an early
