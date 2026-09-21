@@ -61,6 +61,7 @@ import {
 	createManualExpenseSubmitter,
 	getManualExpenseCreationNotice,
 	releaseInFlightLock,
+	type CategorySelectOption,
 	type ManualExpenseCreationNotice,
 } from "../components/movements/CreateManualExpenseDialog";
 import {
@@ -70,6 +71,7 @@ import {
 	type MovementEditNotice,
 } from "../components/movements/EditMovementDialog";
 import { RemoveMovementDialog } from "../components/movements/RemoveMovementDialog";
+import { ViewMovementDialog } from "../components/movements/ViewMovementDialog";
 import {
 	canSubmitRemoval,
 	createMovementRemovalSubmitter,
@@ -131,6 +133,23 @@ import {
 	type MovementSortKey,
 	type MovementSortState,
 } from "../components/movements/movementSorting";
+import {
+	createBulkCategorySubmitter,
+	createMovementSelection,
+	getBulkCategoryFeedback,
+	getBulkCategoryTargets,
+	getMovementSelectionView,
+	getSelectableMovementIds,
+	getSimilarCounterpartyAffordance,
+	reconcileMovementSelection,
+	selectMovementIds,
+	toggleAllMovementSelection,
+	toggleMovementSelection,
+	type BulkCategoryFeedback,
+	type BulkCategorySubmitter,
+	type MovementSelection,
+	type MovementSelectionView,
+} from "../components/movements/movementSelection";
 import type { DemoDashboardData } from "../demo-data";
 import type {
 	Category,
@@ -249,6 +268,8 @@ export function getRecognizedExpenseMovements(
 		) {
 			return [];
 		}
+		const rawOccurredAt =
+			typeof transaction.occurredAt === "string" ? transaction.occurredAt : "";
 		return [{
 			id: typeof transaction.id === "string" && transaction.id.trim()
 				? transaction.id.trim()
@@ -257,6 +278,15 @@ export function getRecognizedExpenseMovements(
 			amount: transaction.amount,
 			date: formatMovementDate(transaction.occurredAt),
 			category: getMovementCategory(transaction.category),
+			// The read-only detail projection: the same row, plus the fields the modal names. They
+			// come from the stored values only, so an absent field is reported as unavailable
+			// instead of being filled with a display fallback the user could mistake for data.
+			description: getMovementTextField(transaction.description),
+			kind: transaction.kind as RecognizedExpenseKind,
+			status: typeof transaction.status === "string" ? transaction.status : null,
+			source: typeof transaction.source === "string" ? transaction.source : null,
+			occurredAt: normalizeLocalDateTime(transaction.occurredAt),
+			hasTime: /\d{2}:\d{2}/.test(rawOccurredAt),
 		}];
 	});
 }
@@ -1548,6 +1578,17 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 		removeMovement: removeTransaction,
 		reload: reloadFinancialDashboard,
 	});
+	// The bulk category assignment reuses the same PATCH client and the same reload as the single-edit
+	// flow, so a bulk pass and a single edit cannot disagree about how a movement is written or how
+	// the visible list is refreshed.
+	const submitBulkCategory = useMemo(
+		() =>
+			createBulkCategorySubmitter({
+				updateMovement: updateTransaction,
+				reload: reloadFinancialDashboard,
+			}),
+		[reloadFinancialDashboard],
+	);
 
 	// Built per render, like the movement submitters above: this point sits after the summary's
 	// loading/failed/unconfigured early returns, so a `useMemo` here would be a hook after an early
@@ -1741,6 +1782,8 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 					requestedCategory={requestedCategory ?? undefined}
 					onEdit={openMovementEdit}
 					onRemove={openMovementRemoval}
+					submitBulkCategory={submitBulkCategory}
+					categoryCatalog={categoryCatalog}
 				/>
 			)}
 			{/* Only a configured summary can create an expense: the trigger lives here, and the
@@ -1956,6 +1999,13 @@ export interface MovementsTableHeaderProps {
 	/** The sort in effect; `createMovementSortState()` is the neutral one. */
 	sort: MovementSortState;
 	onActivate: (key: MovementSortKey) => void;
+	/**
+	 * Selection view. When present together with `onToggleAllSelection` the head gains the select-all
+	 * column; a caller that omits both renders the pre-selection head, which is what the standalone
+	 * header proof relies on.
+	 */
+	selection?: MovementSelectionView;
+	onToggleAllSelection?: () => void;
 }
 
 /**
@@ -1964,10 +2014,35 @@ export interface MovementsTableHeaderProps {
  * It only displays that decision, so it cannot disagree with the order of the rows. Exported so both
  * the neutral and the active markup are provable from a static render, like `MovementFilterBar`.
  */
-export function MovementsTableHeader({ sort, onActivate }: MovementsTableHeaderProps) {
+export function MovementsTableHeader({
+	sort,
+	onActivate,
+	selection,
+	onToggleAllSelection,
+}: MovementsTableHeaderProps) {
+	const selectionEnabled = selection !== undefined && onToggleAllSelection !== undefined;
 	return (
 		<thead>
 			<tr>
+				{/* The select-all control only exists while a selection layer is mounted. Its mixed state is
+				    exposed both as the native `indeterminate` property and as `aria-checked="mixed"` so a
+				    static render can prove it without a live DOM. */}
+				{selectionEnabled && selection !== undefined && (
+					<th scope="col" className="react-movements-select-column">
+						<input
+							type="checkbox"
+							className="react-movements-select-all"
+							aria-label="Seleccionar todos los movimientos editables"
+							checked={selection.headerChecked}
+							aria-checked={selection.indeterminate ? "mixed" : undefined}
+							ref={(node) => {
+								if (node) node.indeterminate = selection.indeterminate;
+							}}
+							disabled={selection.selectableCount === 0}
+							onChange={onToggleAllSelection}
+						/>
+					</th>
+				)}
 				{movementSortColumns.map((column) => (
 					<th
 						key={column.key}
@@ -2020,6 +2095,25 @@ export interface MovementsTableViewProps {
 	onClear: () => void;
 	onEdit: (movement: EditableRecognizedExpenseMovement) => void;
 	onRemove: (movement: EditableRecognizedExpenseMovement) => void;
+	/**
+	 * Opens the read-only detail. It is called for every row, including ones with no editable target,
+	 * and is optional only so the standalone sort/filter proofs can render the table without it.
+	 */
+	onView?: (movement: RecognizedExpenseMovement) => void;
+	/** Selection view produced by the container; omitted, the table renders no selection column. */
+	selection?: MovementSelectionView;
+	onToggleSelection?: (id: string) => void;
+	onToggleAllSelection?: () => void;
+	/** Selects exactly the counterparty-similar ids the row's affordance offered. */
+	onSelectSimilar?: (ids: string[]) => void;
+	onClearSelection?: () => void;
+	/** Bulk category control, offered only while a selection layer is mounted. */
+	bulkCategoryOptions?: CategorySelectOption[];
+	bulkCategoryValue?: string;
+	onBulkCategoryChange?: (value: string) => void;
+	onAssignCategory?: () => void;
+	isBulkAssigning?: boolean;
+	bulkNotice?: BulkCategoryFeedback | null;
 }
 
 export function MovementsTableView({
@@ -2031,6 +2125,18 @@ export function MovementsTableView({
 	onClear,
 	onEdit,
 	onRemove,
+	onView,
+	selection,
+	onToggleSelection,
+	onToggleAllSelection,
+	onSelectSimilar,
+	onClearSelection,
+	bulkCategoryOptions,
+	bulkCategoryValue,
+	onBulkCategoryChange,
+	onAssignCategory,
+	isBulkAssigning,
+	bulkNotice,
 }: MovementsTableViewProps) {
 	// The rows the table renders: the filter's own rows put in the order the sort decided. Sorting is
 	// applied to the filtered rows, never to the loaded ones, and the count stays the filter's own — it
@@ -2039,6 +2145,8 @@ export function MovementsTableView({
 	const editableById = new Map(
 		editableMovements.map((movement) => [movement.id, movement] as const),
 	);
+	const selectionEnabled = selection !== undefined && onToggleSelection !== undefined;
+	const selectedIds = new Set(selection?.selectedIds ?? []);
 
 	return (
 		<>
@@ -2048,21 +2156,122 @@ export function MovementsTableView({
 				onSelect={onSelect}
 				onClear={onClear}
 			/>
+			{selectionEnabled && selection !== undefined && (
+				<div className="react-movements-bulk" role="group" aria-label="Acciones sobre la selección">
+					<strong className="react-movements-bulk-count">
+						{selection.message ?? "Ningún movimiento seleccionado"}
+					</strong>
+					{bulkCategoryOptions !== undefined && (
+						<label className="react-movements-bulk-field">
+							<span>Categoría para la selección</span>
+							<select
+								value={bulkCategoryValue ?? ""}
+								onChange={(event) => onBulkCategoryChange?.(event.target.value)}
+								disabled={isBulkAssigning}
+							>
+								{bulkCategoryOptions.map((option) => (
+									<option key={option.value || "none"} value={option.value} disabled={option.disabled}>
+										{option.label}
+									</option>
+								))}
+							</select>
+						</label>
+					)}
+					<div className="react-movements-bulk-actions">
+						<button
+							type="button"
+							className="secondary react-movements-bulk-clear"
+							onClick={onClearSelection}
+							disabled={selection.selectedCount === 0 || isBulkAssigning}
+						>
+							Limpiar selección
+						</button>
+						<button
+							type="button"
+							className="react-movements-bulk-assign"
+							onClick={onAssignCategory}
+							disabled={selection.selectedCount === 0 || isBulkAssigning}
+							aria-busy={isBulkAssigning}
+						>
+							{isBulkAssigning ? "Asignando..." : "Asignar categoría"}
+						</button>
+					</div>
+					{bulkNotice !== null && bulkNotice !== undefined && (
+						<p
+							className={`react-movements-bulk-notice react-movements-bulk-notice-${bulkNotice.tone}`}
+							role="status"
+						>
+							{bulkNotice.message}
+						</p>
+					)}
+				</div>
+			)}
 			{/* The table keeps its own scroll container, so the filter bar cannot scroll away with it. */}
 			<div className="react-movements-table-wrapper">
 				<table className="react-movements-table">
-					<MovementsTableHeader sort={sort} onActivate={onActivate} />
+					<MovementsTableHeader
+						sort={sort}
+						onActivate={onActivate}
+						selection={selection}
+						onToggleAllSelection={onToggleAllSelection}
+					/>
 					<tbody>
 						{visibleRows.map((movement, index) => {
 							const editable =
 								movement.id === null ? null : editableById.get(movement.id) ?? null;
+							const similar =
+								selectionEnabled && selection !== undefined
+									? getSimilarCounterpartyAffordance(
+											movement,
+											visibleRows,
+											selection.selectableIds,
+										)
+									: null;
 							return (
 								<tr key={`${movement.counterparty}-${movement.date}-${index}`}>
-									<td>{movement.counterparty}</td>
+									{selectionEnabled && (
+										<td className="react-movements-select-column">
+											{editable ? (
+												<input
+													type="checkbox"
+													className="react-movement-select"
+													aria-label={`Seleccionar ${movement.counterparty}`}
+													checked={movement.id !== null && selectedIds.has(movement.id)}
+													onChange={() => movement.id !== null && onToggleSelection?.(movement.id)}
+												/>
+											) : (
+												<input
+													type="checkbox"
+													className="react-movement-select react-movement-select-disabled"
+													aria-label={`No seleccionable: ${movement.counterparty}`}
+													disabled
+												/>
+											)}
+										</td>
+									)}
+									<td>
+										{movement.counterparty}
+										{similar !== null && similar.count > 1 && onSelectSimilar !== undefined && (
+											<button
+												type="button"
+												className="react-movement-similar"
+												onClick={() => onSelectSimilar(similar.ids)}
+											>
+												{similar.label}
+											</button>
+										)}
+									</td>
 									<td>{formatClp(movement.amount)}</td>
 									<td>{movement.date}</td>
 									<td>{movement.category}</td>
 									<td className="react-movements-actions">
+										<button
+											type="button"
+											className="secondary react-movement-action"
+											onClick={() => onView?.(movement)}
+										>
+											Ver
+										</button>
 										{editable ? (
 											<>
 												<button
@@ -2120,6 +2329,10 @@ export interface MovementsTableProps {
 	requestedCategory?: string;
 	onEdit: (movement: EditableRecognizedExpenseMovement) => void;
 	onRemove: (movement: EditableRecognizedExpenseMovement) => void;
+	/** Assigns one category to the whole selection through the existing PATCH client. */
+	submitBulkCategory?: BulkCategorySubmitter;
+	/** Read-only category catalog already loaded by the summary; `[]` still offers "Sin categoría". */
+	categoryCatalog?: Category[];
 }
 
 export function MovementsTable({
@@ -2129,6 +2342,8 @@ export function MovementsTable({
 	requestedCategory,
 	onEdit,
 	onRemove,
+	submitBulkCategory,
+	categoryCatalog = [],
 }: MovementsTableProps) {
 	// Declared before the empty-state return so the hook always runs, and initialised for the period
 	// the rows belong to. The requested category is only read here, which is what makes it a mount-time
@@ -2143,6 +2358,17 @@ export function MovementsTable({
 	// reload cannot carry a category the user did not pick, and sorting cannot reset the filter. Legacy
 	// kept `sortKey`/`sortDir` in memory too (`public/app.js:142-143`).
 	const [sort, setSort] = useState<MovementSortState>(() => createMovementSortState());
+
+	// Row selection, the detail modal and the bulk action are table-local state. Every hook is declared
+	// above the empty-rows return so the hook order never changes with the data.
+	const [rowSelection, setRowSelection] = useState<MovementSelection>(() => createMovementSelection());
+	const [detailMovement, setDetailMovement] = useState<RecognizedExpenseMovement | null>(null);
+	const [bulkCategory, setBulkCategory] = useState("");
+	const [bulkNotice, setBulkNotice] = useState<BulkCategoryFeedback | null>(null);
+	const [isBulkAssigning, setIsBulkAssigning] = useState(false);
+	// The single in-flight lock: React state cannot close the async window, so this ref is what keeps
+	// two same-tick clicks from launching two bulk passes.
+	const bulkLock = useRef(false);
 
 	// Reconciling during render, instead of in an effect, is React's documented way to adjust state
 	// when an input changes: the new period's rows are never rendered under the previous period's
@@ -2163,17 +2389,115 @@ export function MovementsTable({
 	}
 
 	const filteredView = getMovementFilterView(currentSelection, period, movements);
+	// The selection is reconciled against the rows the table is actually showing, so a filtered-away
+	// or reloaded-away row cannot stay silently selected. The module returns the same set while nothing
+	// changed, so this only re-renders on a real transition.
+	const visibleRows = sortMovements(filteredView.rows, sort);
+	const selectableIds = getSelectableMovementIds(visibleRows, editableMovements);
+	const reconciledRowSelection = reconcileMovementSelection(rowSelection, selectableIds);
+	if (reconciledRowSelection !== rowSelection) setRowSelection(reconciledRowSelection);
+	const selectionView = getMovementSelectionView(reconciledRowSelection, selectableIds);
+
+	const bulkCategoryOptions: CategorySelectOption[] = [
+		{ value: "", label: "Sin categoría", disabled: false },
+		...categoryCatalog.map((category) => ({
+			value: category.name,
+			label: category.name,
+			disabled: false,
+		})),
+	];
+
+	const openDetail = (movement: RecognizedExpenseMovement) => setDetailMovement(movement);
+	const closeDetail = () => setDetailMovement(null);
+	const detailEditable =
+		detailMovement === null
+			? null
+			: editableMovements.find((movement) => movement.id === detailMovement.id) ?? null;
+
+	const handleDetailEdit = (movement: EditableRecognizedExpenseMovement) => {
+		// The detail view is read-only; handing the row to the existing edit flow closes it first so the
+		// two native dialogs never stack.
+		setDetailMovement(null);
+		onEdit(movement);
+	};
+	const handleDetailRemove = (movement: EditableRecognizedExpenseMovement) => {
+		setDetailMovement(null);
+		onRemove(movement);
+	};
+
+	const assignCategory = async () => {
+		if (selectionView.selectedCount === 0) return;
+		if (!submitBulkCategory) return;
+		const targets = getBulkCategoryTargets(editableMovements, selectionView.selectedIds).flatMap(
+			(movement) => {
+				const target = getMovementUpdateTarget({
+					id: movement.id ?? undefined,
+					occurredAt: movement.occurredAt,
+					isManual: movement.isManual,
+				});
+				return target === null ? [] : [target];
+			},
+		);
+		// No usable targets means no bulk PATCH: the same rule that leaves a row untickable keeps a stale
+		// selection from sending a request the API layer would refuse.
+		if (targets.length === 0) return;
+		if (!acquireInFlightLock(bulkLock)) return;
+		setIsBulkAssigning(true);
+		setBulkNotice(null);
+		try {
+			const outcome = await submitBulkCategory(targets, bulkCategory);
+			setBulkNotice(getBulkCategoryFeedback(outcome));
+			// A fully applied selection has nothing left to act on, so it clears. A partial one keeps the
+			// selection so the user can see and re-run the action deliberately; nothing retries on its own.
+			if (outcome.total > 0 && outcome.succeeded === outcome.total) {
+				setRowSelection(createMovementSelection());
+			}
+		} finally {
+			releaseInFlightLock(bulkLock);
+			setIsBulkAssigning(false);
+		}
+	};
 
 	return (
-		<MovementsTableView
-			filteredView={filteredView}
-			sort={sort}
-			editableMovements={editableMovements}
-			onActivate={(key) => setSort(cycleMovementSort(sort, key))}
-			onSelect={(category) => setSelection(selectMovementFilterCategory(category, period))}
-			onClear={() => setSelection(createMovementFilterSelection(period))}
-			onEdit={onEdit}
-			onRemove={onRemove}
-		/>
+		<>
+			<MovementsTableView
+				filteredView={filteredView}
+				sort={sort}
+				editableMovements={editableMovements}
+				onActivate={(key) => setSort(cycleMovementSort(sort, key))}
+				onSelect={(category) => setSelection(selectMovementFilterCategory(category, period))}
+				onClear={() => setSelection(createMovementFilterSelection(period))}
+				onEdit={onEdit}
+				onRemove={onRemove}
+				onView={openDetail}
+				selection={selectionView}
+				onToggleSelection={(id) =>
+					setRowSelection((current) =>
+						toggleMovementSelection(current, id, selectableIds),
+					)
+				}
+				onToggleAllSelection={() =>
+					setRowSelection((current) =>
+						toggleAllMovementSelection(current, selectableIds),
+					)
+				}
+				onSelectSimilar={(ids) => setRowSelection(selectMovementIds(ids))}
+				onClearSelection={() => setRowSelection(createMovementSelection())}
+				bulkCategoryOptions={bulkCategoryOptions}
+				bulkCategoryValue={bulkCategory}
+				onBulkCategoryChange={setBulkCategory}
+				onAssignCategory={assignCategory}
+				isBulkAssigning={isBulkAssigning}
+				bulkNotice={bulkNotice}
+			/>
+			{/* The detail modal is rendered for every recognized row, editable or not. */}
+			<ViewMovementDialog
+				movement={detailMovement}
+				editableMovement={detailEditable}
+				onClose={closeDetail}
+				onEdit={handleDetailEdit}
+				onRemove={handleDetailRemove}
+			/>
+		</>
 	);
 }

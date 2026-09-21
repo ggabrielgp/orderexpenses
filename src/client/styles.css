@@ -1563,6 +1563,164 @@
 	font-size: .875rem;
 }
 
+/* The bulk action bar sits above the table and only exists while a selection layer is mounted. */
+.react-movements-bulk {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: var(--space-3);
+	align-items: end;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface-alt, var(--surface));
+	padding: var(--space-3);
+}
+
+.react-movements-bulk-count {
+	align-self: center;
+	color: var(--ink);
+	font-size: .95rem;
+}
+
+.react-movements-bulk-field {
+	display: grid;
+	gap: var(--space-1);
+	color: var(--ink-muted);
+	font-size: .8rem;
+	font-weight: 600;
+}
+
+.react-movements-bulk-field select {
+	width: 100%;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-control);
+	background: var(--surface);
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink);
+	font: inherit;
+}
+
+.react-movements-bulk-actions {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: var(--space-2);
+}
+
+.react-movements-bulk-notice {
+	grid-column: 1 / -1;
+	margin: 0;
+	border-left: 3px solid var(--line-strong);
+	border-radius: var(--radius-control);
+	padding: var(--space-2) var(--space-3);
+	font-size: .875rem;
+	font-weight: 600;
+}
+
+.react-movements-bulk-notice-success {
+	border-left-color: var(--success, var(--ink));
+	background: var(--success-soft, var(--surface));
+	color: var(--ink);
+}
+
+.react-movements-bulk-notice-warning {
+	border-left-color: var(--warning);
+	background: var(--warning-soft);
+	color: var(--ink);
+}
+
+.react-movements-bulk-notice-error {
+	border-left-color: var(--danger);
+	background: var(--danger-soft);
+	color: var(--danger) !important;
+}
+
+/* The select-all column is narrow and never wraps on the leading side of the row. */
+.react-movements-select-column {
+	width: 2.5rem;
+	text-align: center;
+}
+
+.react-movement-select-disabled {
+	cursor: not-allowed;
+}
+
+/* The legacy "N similares" affordance: a quiet inline control on the counterparty cell. */
+.react-movement-similar {
+	margin-left: var(--space-2);
+	border: 0;
+	background: none;
+	padding: 0;
+	color: var(--accent, var(--ink));
+	font: inherit;
+	font-size: .8rem;
+	font-weight: 600;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.react-movement-similar:focus-visible {
+	outline: 2px solid var(--accent, var(--ink));
+	outline-offset: 2px;
+}
+
+.react-view-movement-dialog {
+	width: min(32rem, calc(100vw - 2 * var(--space-4)));
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-4);
+	color: var(--ink);
+	box-shadow: var(--shadow-panel);
+}
+
+.react-view-movement-dialog::backdrop {
+	background: rgb(15 23 42 / 45%);
+}
+
+.react-view-movement-dialog h2 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+}
+
+.react-view-movement-fields {
+	display: grid;
+	gap: var(--space-2);
+	margin: var(--space-3) 0 0;
+}
+
+.react-view-movement-field {
+	display: grid;
+	grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+	gap: var(--space-2);
+	border-bottom: 1px solid var(--line);
+	padding-bottom: var(--space-2);
+}
+
+.react-view-movement-field dt {
+	color: var(--ink-muted);
+	font-size: .8rem;
+	font-weight: 600;
+}
+
+.react-view-movement-field dd {
+	margin: 0;
+	font-weight: 600;
+	word-break: break-word;
+}
+
+.react-view-movement-read-only {
+	margin: var(--space-3) 0 0;
+	color: var(--ink-muted);
+	font-size: .875rem;
+}
+
+.react-view-movement-dialog .react-shell-actions {
+	justify-content: flex-end;
+	margin-top: var(--space-3);
+}
+
 .react-removal-dialog {
 	width: min(30rem, calc(100vw - 2 * var(--space-4)));
 	border: 1px solid var(--line-strong);
@@ -2561,7 +2719,8 @@
 		grid-template-columns: 1fr;
 	}
 
-	.react-movements-filters {
+	.react-movements-filters,
+	.react-movements-bulk {
 		grid-template-columns: 1fr;
 	}
 

@@ -32,6 +32,19 @@ export type RecognizedExpenseMovement = {
 	amount: number;
 	date: string;
 	category: string;
+	/**
+	 * The read-only detail fields below are optional so a caller that only renders the table can keep
+	 * passing the five display fields, while the detail dialog reads whatever the projection knows. A
+	 * missing field is stated as unavailable, never invented.
+	 */
+	description?: string;
+	kind?: RecognizedExpenseKind;
+	status?: string | null;
+	source?: string | null;
+	/** Full local `YYYY-MM-DDTHH:mm:ss` when the stored value is parseable; `null` otherwise. */
+	occurredAt?: string | null;
+	/** True when the stored value carried a time of day; a date-only row has no time to show. */
+	hasTime?: boolean;
 };
 
 export type EditableRecognizedExpenseMovement = RecognizedExpenseMovement & {
