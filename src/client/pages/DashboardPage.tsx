@@ -22,6 +22,12 @@ import {
 	type CategoryRankingRow,
 } from "../components/analytics/categoryRanking";
 import {
+	FULL_PERIOD_TAB_ID,
+	getSpendingChart,
+	getSpendingChartSeries,
+	type SpendingChart,
+} from "../components/analytics/spendingChart";
+import {
 	CreateManualExpenseDialog,
 	acquireInFlightLock,
 	createManualExpenseSubmitter,
@@ -881,6 +887,106 @@ export function CategoryRankingPanel({ ranking, onJumpToCategory }: CategoryRank
 	);
 }
 
+/**
+ * The spending chart as one already-decided state: the selected series and its proportional bars.
+ *
+ * Exported so both the populated and the empty markup are provable from a static render, like the
+ * other analytics panels: a live summary only ever reaches the loading state without a session, and
+ * what these bars claim is worth proving from what the user reads. The component renders the heights
+ * the pure module decided and computes nothing of its own.
+ *
+ * The bars are static labels, not controls. There is no per-day detail panel to select into, so a
+ * button per bar would promise an interaction the surface does not have. Only the period tabs are
+ * interactive, and each bar's value, weekday and date stay visible as text for assistive technology.
+ * A padded day outside the period shows no value and an empty track instead of a fabricated zero.
+ */
+export interface SpendingChartViewProps {
+	/** The decided chart, from `getSpendingChart`. */
+	chart: SpendingChart;
+	/** Id of the tab whose series is shown; an unknown id falls back to the full period. */
+	selectedTab: string;
+	onSelectTab: (tabId: string) => void;
+}
+
+export function SpendingChartView({ chart, selectedTab, onSelectTab }: SpendingChartViewProps) {
+	const series = getSpendingChartSeries(chart, selectedTab);
+	return (
+		<section className="react-spending-chart" aria-labelledby="react-spending-chart-title">
+			<h3 id="react-spending-chart-title">Gasto por día de la semana</h3>
+			{/* Each excluded fact is its own statement, only when there is one to state. */}
+			{chart.disclosures.map((disclosure) => (
+				<p key={disclosure} className="react-spending-chart-disclosure" role="status">
+					{disclosure}
+				</p>
+			))}
+			{!chart.hasData ? (
+				<p className="react-spending-chart-empty" role="status">
+					{chart.emptyMessage}
+				</p>
+			) : (
+				<>
+					<div
+						className="react-spending-chart-tabs"
+						role="group"
+						aria-label="Periodo del gráfico de gastos"
+					>
+						{chart.tabs.map((tab) => (
+							<button
+								key={tab.id}
+								type="button"
+								className="react-spending-chart-tab"
+								aria-pressed={tab.id === series.id}
+								onClick={() => onSelectTab(tab.id)}
+							>
+								{tab.label}
+							</button>
+						))}
+					</div>
+					<div className="react-spending-chart-heading">
+						<span>{formatClp(series.total)} · {series.detail}</span>
+					</div>
+					<div className="react-spending-chart-bars" role="region" aria-label={series.ariaLabel}>
+						{series.days.map((day) => (
+							<div key={day.key} className="react-spending-chart-bar">
+								<span className="react-spending-chart-value">
+									{day.isInPeriod ? formatClp(day.total) : ""}
+								</span>
+								<span
+									className={
+										day.isInPeriod
+											? "react-spending-chart-track"
+											: "react-spending-chart-track react-spending-chart-track-empty"
+									}
+								>
+									<span
+										className="react-spending-chart-fill"
+										style={{ height: `${day.heightPercent}%` }}
+									/>
+								</span>
+								<strong className="react-spending-chart-day">{day.label}</strong>
+								<small className="react-spending-chart-detail">{day.detail}</small>
+							</div>
+						))}
+					</div>
+				</>
+			)}
+		</section>
+	);
+}
+
+/**
+ * The spending chart container: it owns which period tab is shown and hands the decided state to the
+ * view. It starts on the full period, like legacy's `chartTab: "month"` (`public/app.js:145`).
+ */
+export interface SpendingChartPanelProps {
+	chart: SpendingChart;
+}
+
+export function SpendingChartPanel({ chart }: SpendingChartPanelProps) {
+	const [selectedTab, setSelectedTab] = useState<string>(FULL_PERIOD_TAB_ID);
+	return <SpendingChartView chart={chart} selectedTab={selectedTab} onSelectTab={setSelectedTab} />;
+}
+
 function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboardHandle | null) => void }) {
 	const [state, setState] = useState<FinancialSummaryState>({ status: "loading" });
 	const [view, setView] = useState<"summary" | "movements">("summary");
@@ -1053,6 +1159,8 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 	// The ranking reads the rows and the pending count the summary already computed, so it adds no
 	// request and shares the same "recognized finite outflow" projection the table shows.
 	const categoryRanking = getCategoryRanking(movements, summary.pendingAmountCount);
+	// The chart reads the same rows and the same pending count, so it adds no request either.
+	const spendingChart = getSpendingChart(movements, selectedPeriod!, summary.pendingAmountCount);
 
 	// Both submitters are rebuilt per render on purpose: the period only exists once the cycle is
 	// configured, and their dependencies (`updateTransaction`, `removeTransaction` and the stable
@@ -1269,6 +1377,7 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 							setView("movements");
 						}}
 					/>
+					<SpendingChartPanel chart={spendingChart} />
 					<section className="react-latest-expense" aria-labelledby="react-latest-expense-title">
 						<h3 id="react-latest-expense-title">Último gasto reconocido</h3>
 						{latestExpense ? (
