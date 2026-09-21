@@ -34,6 +34,10 @@ import {
 	type DashboardLead,
 } from "../components/analytics/dashboardLead";
 import {
+	getDashboardIncomeBudgetPanel,
+	type DashboardIncomeBudgetPanel,
+} from "../components/analytics/dashboardBudget";
+import {
 	getDashboardStory,
 	getSpendingBreakdown,
 	getTopCounterpartyGroup,
@@ -97,6 +101,12 @@ import { createCategoryMutationSubmitter } from "../components/settings/category
 import { createCounterpartyRuleSubmitter } from "../components/settings/counterpartyRules";
 import { FinancialCycleEditDialog } from "../components/financial-cycle/FinancialCycleEditDialog";
 import { CompleteCycleDialog } from "../components/financial-cycle/CompleteCycleDialog";
+import { CycleCalendar } from "../components/financial-cycle/CycleCalendar";
+import {
+	createCalendarRange,
+	selectCalendarDate,
+	validateCalendarRange,
+} from "../components/financial-cycle/cycleCalendar";
 import {
 	createCycleEditSubmitter,
 	getCycleClosureMark,
@@ -150,7 +160,7 @@ import {
 	type MovementSelection,
 	type MovementSelectionView,
 } from "../components/movements/movementSelection";
-import type { DemoDashboardData } from "../demo-data";
+import { getDemoTransactions, type DemoDashboardData } from "../demo-data";
 import type {
 	Category,
 	FinancialDashboardData,
@@ -690,7 +700,72 @@ export function GmailConnectControl({
 }
 
 export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
-	const balance = data.currentPeriodInflow - data.currentPeriodSpending;
+	// Every value below comes from the same pure modules the authenticated summary uses, over the
+	// fixture projected to the server's transaction shape: no API client, no request and no
+	// duplicated calculation. The demo composes the presentational views directly instead of mounting
+	// the authenticated summary container, so the mutation dialogs, the account/settings surface and
+	// Gmail stay absent by construction. Only read-only selection controls are interactive.
+	const transactions = getDemoTransactions(data);
+	const summary = summarizeRecognizedExpenses(transactions);
+	const movements = getRecognizedExpenseMovements(transactions);
+	const detailMovements = getSpendingChartDetailMovements(transactions);
+	const periodAnalytics = getPeriodAnalytics(transactions);
+	const categoryRanking = getCategoryRanking(movements, summary.pendingAmountCount);
+	const spendingChart = getSpendingChart(movements, data.period, summary.pendingAmountCount);
+	const latestExpense = selectLatestRecognizedExpense(transactions, data.period);
+	const topCategoryGroup =
+		categoryRanking.rows[0] === undefined
+			? null
+			: { label: categoryRanking.rows[0].category, total: categoryRanking.rows[0].total };
+	const topCounterpartyGroup = getTopCounterpartyGroup(movements);
+	const topInsights = getTopInsights({
+		category: topCategoryGroup,
+		counterparty: topCounterpartyGroup,
+		latest:
+			latestExpense === null
+				? null
+				: {
+						counterparty: getRecognizedExpenseIdentity(latestExpense),
+						date: formatMovementDate(latestExpense.occurredAt),
+				  },
+	});
+	const dashboardStory = getDashboardStory({
+		totalSpending: summary.totalSpending,
+		knownCount: summary.count,
+		pendingAmountCount: summary.pendingAmountCount,
+		reviewCount: periodAnalytics.review.count,
+		topCategory: topCategoryGroup,
+		topCounterparty: topCounterpartyGroup,
+		largest:
+			periodAnalytics.largest === null
+				? null
+				: { label: periodAnalytics.largest.counterparty, total: periodAnalytics.largest.amount },
+		formatAmount: formatClp,
+	});
+	const spendingBreakdown = getSpendingBreakdown(summarizeRecognizedExpensesByKind(transactions));
+	// The demo has no configured cycle, so the only income it may claim is the fixture's own inflow
+	// sum, and only when that sum is a real positive amount. A zero inflow is the explicit no-income
+	// state, never a fabricated `$0` income or a remaining balance.
+	const demoIncomeAmount =
+		Number.isFinite(data.currentPeriodInflow) && data.currentPeriodInflow > 0
+			? data.currentPeriodInflow
+			: null;
+	const dashboardLead = getDashboardLead({
+		periodLabel: formatPeriodLabel(data.period),
+		totalSpending: summary.totalSpending,
+		expenseCount: summary.count,
+		pendingAmountCount: summary.pendingAmountCount,
+		incomeAmount: demoIncomeAmount,
+		incomeSource: "demo-inflow",
+	});
+	// `demo-inflow` keeps the panel honest: the demo states the fixture's observed inflow sum as demo
+	// data and never claims a configured cycle, unlike the authenticated summary below.
+	const incomeBudgetPanel = getDashboardIncomeBudgetPanel({
+		source: "demo-inflow",
+		incomeAmount: demoIncomeAmount,
+		periodLabel: formatPeriodLabel(data.period),
+		formatAmount: formatClp,
+	});
 	return (
 		<main className="shell react-shell">
 			<section className="panel product-panel react-dashboard-shell demo-dashboard" aria-labelledby="demo-dashboard-title">
@@ -703,11 +778,22 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
 					<span className="demo-read-only-badge">Solo lectura</span>
 				</header>
 
+				{/* Truthful counts only: no fabricated income, balance, percentage or remaining value. */}
 				<div className="demo-kpi-grid" aria-label="Resumen financiero de ejemplo">
-					<DemoKpi label="Ingresos" value={formatClp(data.currentPeriodInflow)} />
-					<DemoKpi label="Gastos" value={formatClp(data.currentPeriodSpending)} />
-					<DemoKpi label="Balance" value={formatClp(balance)} />
+					<DemoKpi label="Movimientos en la demo" value={String(data.movements.length)} />
+					<DemoKpi label="Gastos reconocidos" value={String(summary.count)} />
 				</div>
+
+				<DashboardLeadView lead={dashboardLead} />
+				<DashboardBudgetPanel panel={incomeBudgetPanel} />
+				{/* The jump is inert here: the demo has no movements view to narrow, and the selection
+				    itself stays a read-only detail. */}
+				<CategoryRankingPanel ranking={categoryRanking} onJumpToCategory={() => {}} />
+				<SpendingChartPanel chart={spendingChart} detailMovements={detailMovements} />
+				<DashboardStoryView story={dashboardStory} />
+				<PeriodAnalyticsPanel analytics={periodAnalytics} />
+				<TopInsightsView insights={topInsights} />
+				<SpendingBreakdownView breakdown={spendingBreakdown} />
 
 				<section className="demo-movements" aria-labelledby="demo-movements-title">
 					<div>
@@ -803,8 +889,9 @@ export interface DashboardLeadViewProps {
  * panels: a live summary only ever reaches its loading state without a session. The component renders
  * the decisions the pure module made and formats their amounts; it computes no balance of its own.
  *
- * The balance shows a number only when the module derived one from a configured income. Without an
- * income the value is the shipped sentinel, never a fabricated `$0`, and the detail says why.
+ * The balance shows a number only when the module derived one from an income: the configured cycle
+ * income on the authenticated summary, or the demo's observed inflows. Without one the value is the
+ * shipped sentinel, never a fabricated `$0`, and the detail says why.
  */
 export function DashboardLeadView({ lead }: DashboardLeadViewProps) {
 	return (
@@ -821,14 +908,53 @@ export function DashboardLeadView({ lead }: DashboardLeadViewProps) {
 						? lead.balance.emptyValue
 						: formatClp(lead.balance.amount)}
 				</strong>
-				{/* The derivation only exists when the module had an income to subtract. */}
-				{lead.balance.amount !== null && lead.balance.incomeAmount !== null && (
-					<small className="react-lead-derivation">
-						{formatClp(lead.balance.incomeAmount)} ingreso − {formatClp(lead.spending.amount)} gastos
-					</small>
-				)}
+				{/* The derivation only exists when the module had an income to subtract; its noun comes from
+				    the decision module, so the demo never borrows the configured-income wording. */}
+				{lead.balance.amount !== null &&
+					lead.balance.incomeAmount !== null &&
+					lead.balance.derivationIncomeLabel !== null && (
+						<small className="react-lead-derivation">
+							{formatClp(lead.balance.incomeAmount)} {lead.balance.derivationIncomeLabel} −{" "}
+							{formatClp(lead.spending.amount)} gastos
+						</small>
+					)}
 				<p className="react-lead-detail">{lead.balance.detail}</p>
 			</article>
+		</section>
+	);
+}
+
+export interface DashboardBudgetPanelProps {
+	/** The decided income/budget truth, from `getDashboardIncomeBudgetPanel`. */
+	panel: DashboardIncomeBudgetPanel;
+}
+
+/**
+ * The period-adapted income/budget truth panel, reused by the authenticated summary and the demo.
+ *
+ * It states the configured cycle income (or the demo's observed inflow sum) when one exists and an
+ * explicit absence otherwise, and always reports the budget as not configured, because the product
+ * stores no budget to read. It renders only the decisions the pure module made: no fabricated zero,
+ * percentage, progress or remaining value. The configured-cycle and demo-inflow sources are the same
+ * component with different, truthful copy, so the demo never claims a configured cycle.
+ * Exported so both dashboards mount the same surface and a static render proves both truth states.
+ */
+export function DashboardBudgetPanel({ panel }: DashboardBudgetPanelProps) {
+	return (
+		<section className="react-budget-panel" aria-labelledby="react-budget-panel-title">
+			<h3 id="react-budget-panel-title">{panel.title}</h3>
+			<div className="react-financial-grid">
+				<article className="react-financial-card">
+					<span>{panel.income.label}</span>
+					<strong>{panel.income.value}</strong>
+					<p>{panel.income.detail}</p>
+				</article>
+				<article className="react-financial-card">
+					<span>{panel.budget.label}</span>
+					<strong>{panel.budget.value}</strong>
+					<p>{panel.budget.detail}</p>
+				</article>
+			</div>
 		</section>
 	);
 }
@@ -1519,6 +1645,16 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 		expenseCount: summary.count,
 		pendingAmountCount: summary.pendingAmountCount,
 		incomeAmount,
+		incomeSource: "configured-cycle",
+	});
+	// The budget truth panel reads the same configured income the lead subtracted, so the two
+	// statements cannot disagree. It issues no request and never fabricates a budget, and its
+	// configured-cycle source keeps the stored-income label the authenticated surface has always used.
+	const incomeBudgetPanel = getDashboardIncomeBudgetPanel({
+		source: "configured-cycle",
+		incomeAmount,
+		periodLabel: formatPeriodLabel(selectedPeriod!),
+		formatAmount: formatClp,
 	});
 	const periodAnalytics = getPeriodAnalytics(state.data.transactions);
 	const spendingByKind = summarizeRecognizedExpensesByKind(state.data.transactions);
@@ -1752,6 +1888,8 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 					    The order below approximates the legacy reading: lead, category ranking, chart, story, period
 					    metrics, top insights, breakdown. The grid primitives stay in use for the analytics panels. */}
 					<DashboardLeadView lead={dashboardLead} />
+					{/* The income/budget truth panel sits with the hero: both read the same configured income. */}
+					<DashboardBudgetPanel panel={incomeBudgetPanel} />
 					<CategoryRankingPanel
 						ranking={categoryRanking}
 						catalog={categoryCatalog}
@@ -1832,17 +1970,42 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 }
 
 function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
-	const currentMonth = ReviewPeriod.currentMonth();
-	const [startDate, setStartDate] = useState(currentMonth.startDate);
-	const [endDate, setEndDate] = useState(currentMonth.visibleEndDate);
+	// The configured review period for a first setup is the current month: it is the range the form
+	// starts on, and it bounds the calendar's navigation and selectable days. `useMemo` freezes the
+	// bound for the life of the form so a midnight rollover cannot re-anchor the grid mid-edit.
+	const configuredPeriod = useMemo(() => ReviewPeriod.currentMonth().toJSON(), []);
+	const [startDate, setStartDate] = useState(configuredPeriod.startDate);
+	const [endDate, setEndDate] = useState<string>(ReviewPeriod.create(configuredPeriod).visibleEndDate);
 	const [incomeValue, setIncomeValue] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
 	const saveLock = useRef(false);
 	const [error, setError] = useState<string | null>(null);
+	const [calendarError, setCalendarError] = useState<string | null>(null);
+	/** The legacy two-click range: the first click sets the start, the second sets the end. */
+	const [awaitingRangeEnd, setAwaitingRangeEnd] = useState(false);
+	const calendarRange = { ...createCalendarRange(startDate, endDate), awaitingEnd: awaitingRangeEnd };
+
+	const handleCalendarSelect = (dateKey: string) => {
+		const next = selectCalendarDate(calendarRange, dateKey);
+		setStartDate(next.startDate);
+		setEndDate(next.endDate);
+		setAwaitingRangeEnd(next.awaitingEnd);
+		setCalendarError(null);
+	};
 
 	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (saveLock.current) return;
+
+		// The calendar error is derived here, not rendered on every keystroke: the date half of the
+		// validation is stated inline while the income half keeps the form's existing copy.
+		const dateValidation = validateCalendarRange(startDate, endDate);
+		if (!dateValidation.ok) {
+			setCalendarError(dateValidation.message);
+			setError("Revisa las fechas del periodo antes de guardar.");
+			return;
+		}
+		setCalendarError(null);
 
 		let cycle: UpdateFinancialCycleRequest;
 		try {
@@ -1882,6 +2045,15 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 				<p>Elige las fechas inclusivas del periodo que quieres revisar.</p>
 			</div>
 			<form className="react-financial-setup-form" onSubmit={handleSubmit}>
+				{/* The calendar augments the text inputs; it never replaces them. It is bounded by the same
+				    configured review period the fields start on. */}
+				<CycleCalendar
+					period={configuredPeriod}
+					range={calendarRange}
+					onSelectDate={handleCalendarSelect}
+					disabled={isSaving}
+					error={calendarError}
+				/>
 				<div className="react-financial-setup-fields">
 					<label htmlFor="financial-cycle-start-date">
 						<span>Fecha de inicio</span>
@@ -1889,7 +2061,10 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 							id="financial-cycle-start-date"
 							type="date"
 							value={startDate}
-							onChange={(event) => setStartDate(event.target.value)}
+							onChange={(event) => {
+								setStartDate(event.target.value);
+								setCalendarError(null);
+							}}
 							disabled={isSaving}
 							required
 						/>
@@ -1900,7 +2075,10 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 							id="financial-cycle-end-date"
 							type="date"
 							value={endDate}
-							onChange={(event) => setEndDate(event.target.value)}
+							onChange={(event) => {
+								setEndDate(event.target.value);
+								setCalendarError(null);
+							}}
 							disabled={isSaving}
 							required
 						/>

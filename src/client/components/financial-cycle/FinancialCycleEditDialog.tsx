@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
+import { CycleCalendar } from "./CycleCalendar";
+import {
+	createCalendarRange,
+	selectCalendarDate,
+	validateCalendarRange,
+} from "./cycleCalendar";
 import {
 	createCycleEditDraft,
 	getCycleClosureNotice,
@@ -83,6 +89,10 @@ export function FinancialCycleEditDialog({
 	// fields first and the prefilled values are what the markup shows.
 	const [draft, setDraft] = useState<CycleEditDraft>(() => createCycleEditDraft(cycle));
 	const [status, setStatus] = useState<CycleEditStatus | null>(null);
+	/** The date validation error, shown on the calendar as well as in the status line. */
+	const [calendarError, setCalendarError] = useState<string | null>(null);
+	/** The legacy two-click range: the first click sets the start, the second sets the end. */
+	const [awaitingRangeEnd, setAwaitingRangeEnd] = useState(false);
 	const isSaving = status?.tone === "pending";
 	// The configured bounds are the identity of what the draft describes. Keyed on them instead of on
 	// the `cycle` object, which the dashboard hands out fresh on every reload: an unrelated reload must
@@ -101,11 +111,29 @@ export function FinancialCycleEditDialog({
 		if (!isOpen) return;
 		setDraft(createCycleEditDraft(cycle));
 		setStatus(null);
+		setCalendarError(null);
+		setAwaitingRangeEnd(false);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isOpen, configuredRangeKey]);
 
 	const updateDraft = (patch: Partial<CycleEditDraft>) =>
 		setDraft((current) => ({ ...current, ...patch }));
+
+	const calendarRange = {
+		...createCalendarRange(draft.startDate, draft.endDate),
+		awaitingEnd: awaitingRangeEnd,
+	};
+
+	const handleCalendarSelect = (dateKey: string) => {
+		const next = selectCalendarDate(calendarRange, dateKey);
+		setDraft((current) => ({
+			...current,
+			startDate: next.startDate,
+			endDate: next.endDate,
+		}));
+		setAwaitingRangeEnd(next.awaitingEnd);
+		setCalendarError(null);
+	};
 
 	/**
 	 * Runs the single save and reports exactly what happened.
@@ -119,6 +147,16 @@ export function FinancialCycleEditDialog({
 	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (isSaving) return;
+
+		const dateValidation = validateCalendarRange(draft.startDate, draft.endDate);
+		if (!dateValidation.ok) {
+			// Nothing was sent, so this is an invalid draft rather than a rejected save. The same message
+			// is shown inline on the calendar and in the status line.
+			setCalendarError(dateValidation.message);
+			setStatus({ message: dateValidation.message, tone: "error" });
+			return;
+		}
+		setCalendarError(null);
 
 		const validation = validateCycleEditDraft(draft);
 		if (!validation.ok) {
@@ -161,6 +199,17 @@ export function FinancialCycleEditDialog({
 			<h2 id="react-financial-cycle-edit-title">Cambiar período</h2>
 			<FinancialCycleClosureNote cycle={cycle} draft={draft} />
 			<form className="react-financial-cycle-form" onSubmit={handleSubmit} aria-busy={isSaving}>
+				{/* The calendar augments the text fields and is bounded by the configured review period;
+				    the fields below keep the unchanged submit behaviour. */}
+				{cycle.selectedPeriod && (
+					<CycleCalendar
+						period={cycle.selectedPeriod}
+						range={calendarRange}
+						onSelectDate={handleCalendarSelect}
+						disabled={isSaving}
+						error={calendarError}
+					/>
+				)}
 				{/* The same three fields and ids the setup form uses. The two forms cannot be on screen at
 				    the same time: the setup form is the unconfigured state and this dialog is the ready one. */}
 				<div className="react-financial-setup-fields">
@@ -170,7 +219,10 @@ export function FinancialCycleEditDialog({
 							id="financial-cycle-start-date"
 							type="date"
 							value={draft.startDate}
-							onChange={(event) => updateDraft({ startDate: event.target.value })}
+							onChange={(event) => {
+								updateDraft({ startDate: event.target.value });
+								setCalendarError(null);
+							}}
 							disabled={isSaving}
 							required
 						/>
@@ -181,7 +233,10 @@ export function FinancialCycleEditDialog({
 							id="financial-cycle-end-date"
 							type="date"
 							value={draft.endDate}
-							onChange={(event) => updateDraft({ endDate: event.target.value })}
+							onChange={(event) => {
+								updateDraft({ endDate: event.target.value });
+								setCalendarError(null);
+							}}
 							disabled={isSaving}
 							required
 						/>

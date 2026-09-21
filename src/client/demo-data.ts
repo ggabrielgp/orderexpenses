@@ -15,6 +15,33 @@ export type DemoDashboardData = {
 	currentPeriodInflow: number;
 };
 
+/**
+ * A read-only projection of the demo movements shaped like the server's transaction rows, so the demo
+ * dashboard can reuse the authenticated pure analytics without an API client. It is a pure adapter:
+ * no import from the API layer, no request, no endpoint. Only the fields the analytics read are kept.
+ */
+export type DemoDashboardTransaction = {
+	id: string;
+	amount: number;
+	direction: DemoMovement["direction"];
+	kind: string;
+	occurredAt: string;
+	counterparty: string;
+	category: string | null;
+};
+
+export function getDemoTransactions(data: DemoDashboardData): DemoDashboardTransaction[] {
+	return data.movements.map((movement) => ({
+		id: movement.id,
+		amount: movement.amount,
+		direction: movement.direction,
+		kind: movement.kind,
+		occurredAt: movement.occurredAt,
+		counterparty: movement.counterparty,
+		category: movement.category,
+	}));
+}
+
 type DateParts = {
 	year: number;
 	month: number;
