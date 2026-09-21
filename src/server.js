@@ -88,6 +88,13 @@ const mimeTypes = {
 export default async function handleRequest(req, res) {
 	try {
 		const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
+		if (req.method === "GET") {
+			const redirect = resolveStaticRedirect(url.pathname, url.searchParams);
+			if (redirect) {
+				res.writeHead(302, { location: redirect });
+				return res.end();
+			}
+		}
 		if (isStaticRequest(url.pathname, req.method)) {
 			return await serveStatic(url, res);
 		}
@@ -674,20 +681,34 @@ function currentMonthKey() {
 	return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export function resolveStaticAsset(pathname, searchParams = new URLSearchParams()) {
-	if (pathname === "/") {
+/**
+ * Compatibility redirects for the retired legacy dashboard entry points.
+ *
+ * `/legacy-app` is retired in favor of the canonical React app, and the legacy
+ * `/app?demo` entry point is retired in favor of the explicit `/app/demo` route.
+ * Extra query parameters are intentionally dropped: only the two decided mappings
+ * are preserved, so the OAuth return path (`/app?gmail=connected`) still serves React.
+ */
+export function resolveStaticRedirect(pathname, searchParams = new URLSearchParams()) {
+	if (pathname === "/legacy-app" || pathname === "/legacy-app/") return "/app";
+	if (
+		(pathname === "/app" || pathname === "/app/") &&
+		searchParams.has("demo")
+	) {
+		return "/app/demo";
+	}
+	return null;
+}
+
+export function resolveStaticAsset(pathname) {
+	if (
+		pathname === "/" ||
+		pathname === "/app" ||
+		pathname === "/app/" ||
+		pathname === "/app/demo" ||
+		pathname === "/app/demo/"
+	) {
 		return { directory: "dist", pathname: "/index.html" };
-	}
-	if (pathname === "/app/demo" || pathname === "/app/demo/") {
-		return { directory: "dist", pathname: "/index.html" };
-	}
-	if (pathname === "/app" || pathname === "/app/") {
-		return searchParams.has("demo")
-			? { directory: "public", pathname: "/app.html" }
-			: { directory: "dist", pathname: "/index.html" };
-	}
-	if (pathname === "/legacy-app" || pathname === "/legacy-app/") {
-		return { directory: "public", pathname: "/app.html" };
 	}
 	if (pathname === "/src/shared/review-period.js") {
 		return { directory: "shared", pathname: "/review-period.js" };
@@ -695,14 +716,11 @@ export function resolveStaticAsset(pathname, searchParams = new URLSearchParams(
 	if (pathname.startsWith("/assets/")) {
 		return { directory: "dist", pathname };
 	}
-	return {
-		directory: "public",
-		pathname: pathname === "/" ? "/index.html" : pathname,
-	};
+	return { directory: "public", pathname };
 }
 
 async function serveStatic(url, res) {
-	const asset = resolveStaticAsset(url.pathname, url.searchParams);
+	const asset = resolveStaticAsset(url.pathname);
 	const safePath = normalize(asset.pathname).replace(/^\.\.(?:\/|$)/, "");
 	const root =
 		asset.directory === "dist"

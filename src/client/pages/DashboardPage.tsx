@@ -434,8 +434,7 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 				<section className="panel product-panel react-message" aria-labelledby="react-sign-in-title">
 					<h1 id="react-sign-in-title">Conecta tu cuenta de Gmail</h1>
 					<p className="subtitle">
-						Inicia sesión para cargar tu perfil y el estado de la conexión. El
-						dashboard completo sigue disponible en la aplicación anterior.
+						Inicia sesión para cargar tu perfil y el estado de la conexión.
 					</p>
 					<div className="react-shell-actions">
 						<GmailConnectControl
@@ -443,9 +442,6 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 							accountConnected={session.gmail.connected}
 							className="button"
 						/>
-						<a className="button react-secondary-link" href="/legacy-app">
-							Abrir dashboard anterior
-						</a>
 					</div>
 				</section>
 			</main>
@@ -463,8 +459,7 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 						<h1 id="react-dashboard-title">Resumen de la cuenta</h1>
 						<p className="subtitle">
 							Aquí puedes registrar, editar y eliminar movimientos, administrar las
-							categorías y sincronizar con Gmail. El resto de la administración de la
-							cuenta sigue disponible en el dashboard anterior.
+							categorías y sincronizar con Gmail.
 						</p>
 					</div>
 					<div className="react-shell-actions">
@@ -479,9 +474,6 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 								Configuración
 							</button>
 						</AccountMenu>
-						<a className="button react-secondary-link" href="/legacy-app">
-							Abrir dashboard anterior
-						</a>
 					</div>
 				</header>
 
@@ -1840,7 +1832,6 @@ export function MovementsTable({
 		return (
 			<section className="react-financial-empty" role="status">
 				<p>No hay gastos reconocidos disponibles para este periodo.</p>
-				<a className="button react-secondary-link" href="/legacy-app">Abrir dashboard anterior</a>
 			</section>
 		);
 	}

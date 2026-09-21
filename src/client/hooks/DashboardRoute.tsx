@@ -87,7 +87,6 @@ function AccountDashboardRoute() {
 		return (
 			<ShellMessage title="No se pudo cargar la cuenta" copy={state.message}>
 				<button type="button" onClick={retry}>Reintentar</button>
-				<a className="button react-secondary-link" href="/legacy-app">Abrir dashboard anterior</a>
 			</ShellMessage>
 		);
 	}
