@@ -1234,7 +1234,9 @@
 }
 
 .react-spending-chart-tab:hover {
-	border-color: var(--line-strong);
+	border-color: var(--accent-line);
+	background: var(--accent-soft);
+	color: var(--accent);
 }
 
 .react-spending-chart-tab[aria-pressed="true"] {
