@@ -785,6 +785,52 @@
 	font-size: .875rem;
 }
 
+/* The authenticated hero: the prominent spending total and the configured-income balance. It reuses
+   the shipped tokens and card treatment; the two-column split and the display-size amount are the
+   only layout it adds. */
+.react-dashboard-lead {
+	display: grid;
+	grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+	gap: var(--space-3);
+}
+
+.react-lead-primary,
+.react-lead-answer {
+	display: grid;
+	align-content: start;
+	gap: var(--space-2);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-4);
+}
+
+.react-lead-primary {
+	background: var(--surface-raised);
+}
+
+.react-lead-question {
+	color: var(--ink-muted);
+	font-size: .875rem;
+}
+
+.react-lead-amount {
+	font-family: var(--font-display);
+	font-size: 2rem;
+	line-height: 1.1;
+}
+
+.react-lead-answer .react-lead-amount {
+	font-size: 1.5rem;
+}
+
+.react-lead-detail,
+.react-lead-derivation {
+	margin: 0;
+	color: var(--ink-muted);
+	font-size: .875rem;
+}
+
 .react-latest-expense {
 	display: grid;
 	gap: var(--space-3);
@@ -2210,6 +2256,10 @@
 
 	.react-financial-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.react-dashboard-lead {
+		grid-template-columns: 1fr;
 	}
 
 	.react-movements-filters {

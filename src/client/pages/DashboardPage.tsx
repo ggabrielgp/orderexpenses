@@ -24,6 +24,10 @@ import {
 	type CategoryRankingRow,
 } from "../components/analytics/categoryRanking";
 import {
+	getDashboardLead,
+	type DashboardLead,
+} from "../components/analytics/dashboardLead";
+import {
 	FULL_PERIOD_TAB_ID,
 	getSpendingChart,
 	getSpendingChartSeries,
@@ -698,6 +702,49 @@ export function FinancialPeriodHeading({
 	);
 }
 
+export interface DashboardLeadViewProps {
+	/** The decided lead, from `getDashboardLead`. */
+	lead: DashboardLead;
+}
+
+/**
+ * The authenticated hero: the prominent `¿Cuánto gasté?` total with its period/count detail, and the
+ * `¿Cuánto me queda?` answer.
+ *
+ * Exported so both states of the balance are provable from a static render, like the other analytics
+ * panels: a live summary only ever reaches its loading state without a session. The component renders
+ * the decisions the pure module made and formats their amounts; it computes no balance of its own.
+ *
+ * The balance shows a number only when the module derived one from a configured income. Without an
+ * income the value is the shipped sentinel, never a fabricated `$0`, and the detail says why.
+ */
+export function DashboardLeadView({ lead }: DashboardLeadViewProps) {
+	return (
+		<section className="react-dashboard-lead" aria-label="Resumen principal del periodo">
+			<article className="react-lead-primary">
+				<span className="react-lead-question">{lead.spending.label}</span>
+				<strong className="react-lead-amount">{formatClp(lead.spending.amount)}</strong>
+				<p className="react-lead-detail">{lead.spending.detail}</p>
+			</article>
+			<article className="react-lead-answer">
+				<span className="react-lead-question">{lead.balance.label}</span>
+				<strong className="react-lead-amount">
+					{lead.balance.amount === null
+						? lead.balance.emptyValue
+						: formatClp(lead.balance.amount)}
+				</strong>
+				{/* The derivation only exists when the module had an income to subtract. */}
+				{lead.balance.amount !== null && lead.balance.incomeAmount !== null && (
+					<small className="react-lead-derivation">
+						{formatClp(lead.balance.incomeAmount)} ingreso − {formatClp(lead.spending.amount)} gastos
+					</small>
+				)}
+				<p className="react-lead-detail">{lead.balance.detail}</p>
+			</article>
+		</section>
+	);
+}
+
 export interface PeriodAnalyticsPanelProps {
 	/** The decided metrics for the loaded period, from `getPeriodAnalytics`. */
 	analytics: PeriodAnalytics;
@@ -1159,6 +1206,15 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 
 	const { selectedPeriod, incomeAmount } = state.data.cycle;
 	const summary = summarizeRecognizedExpenses(state.data.transactions);
+	// The hero reads the summary and the configured income the cycle already loaded, so it issues no
+	// request and its balance is exactly the stated income minus the stated total.
+	const dashboardLead = getDashboardLead({
+		periodLabel: formatPeriodLabel(selectedPeriod!),
+		totalSpending: summary.totalSpending,
+		expenseCount: summary.count,
+		pendingAmountCount: summary.pendingAmountCount,
+		incomeAmount,
+	});
 	const periodAnalytics = getPeriodAnalytics(state.data.transactions);
 	const spendingByKind = summarizeRecognizedExpensesByKind(state.data.transactions);
 	const latestExpense = selectLatestRecognizedExpense(state.data.transactions, selectedPeriod!);
@@ -1340,25 +1396,10 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 			)}
 			{view === "summary" ? (
 				<>
-					<div className="react-financial-grid">
-						<article className="react-financial-card">
-							<span>Ingreso configurado</span>
-							<strong>{incomeAmount === null ? "Sin configurar" : formatClp(incomeAmount)}</strong>
-						</article>
-						<article className="react-financial-card">
-							<span>Gastos reconocidos</span>
-							<strong>{summary.count}</strong>
-						</article>
-						<article className="react-financial-card">
-							<span>Gasto total</span>
-							<strong>{formatClp(summary.totalSpending)}</strong>
-						</article>
-						<article className="react-financial-card">
-							<span>Montos pendientes</span>
-							<strong>{summary.pendingAmountCount}</strong>
-							<p>Movimientos reconocidos que esperan un monto válido.</p>
-						</article>
-					</div>
+					{/* The hero consolidates the four look-alike cards this surface used to show: the same total,
+					    count and pending count are stated here with the period, and the balance is the new answer.
+					    The grid primitives below stay in use for the analytics panels. */}
+					<DashboardLeadView lead={dashboardLead} />
 					<PeriodAnalyticsPanel analytics={periodAnalytics} />
 					<CategoryRankingPanel
 						ranking={categoryRanking}
