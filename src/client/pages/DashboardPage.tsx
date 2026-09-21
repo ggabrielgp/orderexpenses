@@ -1216,46 +1216,6 @@ export function SpendingChartView({
 						<span>{formatClp(series.total)} · {series.detail}</span>
 					</div>
 					<div className="react-spending-chart-body">
-						<div className="react-spending-chart-bars" role="region" aria-label={series.ariaLabel}>
-							{series.days.map((day) => {
-								const isSelected = day.key === selectedDayKey;
-								return (
-									<button
-										key={day.key}
-										type="button"
-										className={
-											isSelected
-												? "react-spending-chart-bar react-spending-chart-bar-selected"
-												: "react-spending-chart-bar"
-										}
-										aria-pressed={isSelected}
-										aria-controls={DAY_DETAIL_ID}
-										aria-label={getSpendingChartBarLabel(series, day)}
-										disabled={!day.isInPeriod}
-										onClick={() => onSelectDay(day.key)}
-									>
-										<span className="react-spending-chart-value">
-											{formatClp(day.total)}
-										</span>
-										<span
-											className={
-												day.isInPeriod
-													? "react-spending-chart-track"
-													: "react-spending-chart-track react-spending-chart-track-empty"
-											}
-											title={getSpendingChartBarTitle(day)}
-										>
-											<span
-												className="react-spending-chart-fill"
-												style={{ height: `${day.heightPercent}%` }}
-											/>
-										</span>
-										<strong className="react-spending-chart-day">{day.label}</strong>
-										<small className="react-spending-chart-detail">{day.detail}</small>
-									</button>
-								);
-							})}
-						</div>
 						<aside
 							id={DAY_DETAIL_ID}
 							className="react-spending-chart-day-panel"
@@ -1318,11 +1278,51 @@ export function SpendingChartView({
 								))
 							)}
 						</aside>
+						<div className="react-spending-chart-bars" role="region" aria-label={series.ariaLabel}>
+							{series.days.map((day) => {
+								const isSelected = day.key === selectedDayKey;
+								return (
+									<button
+										key={day.key}
+										type="button"
+										className={
+											isSelected
+												? "react-spending-chart-bar react-spending-chart-bar-selected"
+												: "react-spending-chart-bar"
+										}
+										aria-pressed={isSelected}
+										aria-controls={DAY_DETAIL_ID}
+										aria-label={getSpendingChartBarLabel(series, day)}
+										disabled={!day.isInPeriod}
+										onClick={() => onSelectDay(day.key)}
+									>
+										<span className="react-spending-chart-value">
+											{formatClp(day.total)}
+										</span>
+										<span
+											className={
+												day.isInPeriod
+													? "react-spending-chart-track"
+													: "react-spending-chart-track react-spending-chart-track-empty"
+											}
+											title={getSpendingChartBarTitle(day)}
+										>
+											<span
+												className="react-spending-chart-fill"
+												style={{ height: `${day.heightPercent}%` }}
+											/>
+										</span>
+										<strong className="react-spending-chart-day">{day.label}</strong>
+										<small className="react-spending-chart-detail">{day.detail}</small>
+									</button>
+								);
+							})}
+						</div>
 						<aside
 							className="react-spending-chart-summary"
 							aria-label="Resumen de gastos del periodo"
 						>
-							<h4>Resumen del periodo</h4>
+							<h4>Resumen del mes</h4>
 							{totalsRows.map((row) => (
 								<div
 									key={row.id}
