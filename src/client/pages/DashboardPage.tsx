@@ -11,6 +11,7 @@ import {
 	upsertCategory,
 	upsertCounterpartyRule,
 } from "../api/client";
+import { AccountMenu } from "../components/account/AccountMenu";
 import {
 	getPeriodAnalytics,
 	type PeriodAnalytics,
@@ -468,20 +469,24 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 						</p>
 					</div>
 					<div className="react-shell-actions">
-						<button
-							className="secondary"
-							type="button"
-							onClick={() => setIsCategorySettingsOpen(true)}
-						>
-							Configuración
-						</button>
-						<button
-							className="secondary"
-							type="button"
-							onClick={() => setIsCounterpartyRulesOpen(true)}
-						>
-							Reglas de contraparte
-						</button>
+						{/* The settings actions live under the account menu now; their dialogs and mutation
+						    contracts below are unchanged. */}
+						<AccountMenu profile={profile}>
+							<button
+								type="button"
+								role="menuitem"
+								onClick={() => setIsCategorySettingsOpen(true)}
+							>
+								Configuración
+							</button>
+							<button
+								type="button"
+								role="menuitem"
+								onClick={() => setIsCounterpartyRulesOpen(true)}
+							>
+								Reglas de contraparte
+							</button>
+						</AccountMenu>
 						<a className="button react-secondary-link" href="/legacy-app">
 							Abrir dashboard anterior
 						</a>
