@@ -1,29 +1,31 @@
 import { useMemo, useState } from "react";
-import type { FinancialPeriod } from "../../api/types";
 import {
 	buildCalendarMonthGrid,
 	getCalendarMonthKeys,
 	getCalendarRangeSummary,
 	getCurrentDateKey,
+	type CalendarBounds,
 	type CalendarRange,
 } from "./cycleCalendar";
 
 /**
- * The calendar half of the period wizard: a Monday-first month grid bounded by the configured review
- * period, with a two-click start/end range, a range summary and the date validation error.
+ * The calendar half of the period wizard: a Monday-first month grid bounded by the current calendar
+ * year through the current month, with a two-click start/end range, a range summary and the date
+ * validation error.
  *
  * It renders only the decisions the pure module made (`buildCalendarMonthGrid`, `getCalendarRangeSummary`):
  * the parent owns the range state, so the calendar never edits the draft on its own and the existing
- * date/income inputs keep their unchanged submit behaviour. Days outside the review period or after
+ * date/income inputs keep their unchanged submit behaviour. Days outside the selectable window or after
  * today are disabled; the selected days carry `aria-pressed` and today carries `aria-current`. The
- * visible month is bounded to the period's own months, so navigation never walks past it.
+ * visible month is bounded to the window's own months, so navigation never walks past it, even while the
+ * configured cycle is narrower.
  *
- * Exported so both the setup form and the edit dialog mount the same surface, and so a static render
+ * Exported so both the setup modal and the edit dialog mount the same surface, and so a static render
  * proves the disabled/future/selected states from what the user reads.
  */
 export interface CycleCalendarProps {
-	/** Configured review period that bounds both navigation and the selectable days. */
-	period: FinancialPeriod;
+	/** Selectable/navigation window that bounds both the months and the days. */
+	bounds: CalendarBounds;
 	/** The draft range the calendar reflects. */
 	range: CalendarRange;
 	/** Selects one day; the parent runs `selectCalendarDate` and owns the result. */
@@ -37,7 +39,7 @@ export interface CycleCalendarProps {
 }
 
 export function CycleCalendar({
-	period,
+	bounds,
 	range,
 	onSelectDate,
 	disabled = false,
@@ -45,20 +47,20 @@ export function CycleCalendar({
 	today,
 }: CycleCalendarProps) {
 	const resolvedToday = today ?? getCurrentDateKey();
-	const monthKeys = useMemo(() => getCalendarMonthKeys(period), [period]);
-	// The visible month starts on the range's own month when it is reachable, and on the period's
+	const monthKeys = useMemo(() => getCalendarMonthKeys(bounds), [bounds]);
+	// The visible month starts on the range's own month when it is reachable, and on the window's
 	// first month otherwise. It never leaves the bounded `monthKeys` list.
 	const defaultMonthKey = useMemo(() => {
 		const rangeMonthKey = range.startDate ? range.startDate.slice(0, 7) : "";
 		if (rangeMonthKey && monthKeys.includes(rangeMonthKey)) return rangeMonthKey;
-		return monthKeys[0] ?? period.startDate.slice(0, 7);
-	}, [range.startDate, monthKeys, period.startDate]);
+		return monthKeys[0] ?? bounds.startDate.slice(0, 7);
+	}, [range.startDate, monthKeys, bounds.startDate]);
 	const [requestedMonthKey, setRequestedMonthKey] = useState(defaultMonthKey);
 	const activeMonthKey = monthKeys.includes(requestedMonthKey) ? requestedMonthKey : defaultMonthKey;
 	const monthIndex = monthKeys.indexOf(activeMonthKey);
 	const grid = useMemo(
-		() => buildCalendarMonthGrid(activeMonthKey, { period, range, today: resolvedToday }),
-		[activeMonthKey, period, range, resolvedToday],
+		() => buildCalendarMonthGrid(activeMonthKey, { bounds, range, today: resolvedToday }),
+		[activeMonthKey, bounds, range, resolvedToday],
 	);
 	const summary = getCalendarRangeSummary(range);
 

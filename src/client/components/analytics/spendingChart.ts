@@ -14,9 +14,8 @@ import type { RecognizedExpenseMovement } from "../movements/manualExpense";
  *
  * The rows it receives are the recognized expenses the summary already projected and loaded for the
  * configured period, so this module issues no request and adds no endpoint, and it uses no chart
- * library. The bars are proportional with no minimum height: legacy floored every non-zero fill at
- * 12% (`:2291`), so a small day looked like a sixth of the largest one, and this port must not
- * reproduce that.
+ * library. The bars keep the legacy floor: every positive day is at least 12% tall (`:2291`), so a
+ * small day stays visible next to the largest one instead of collapsing out of sight.
  *
  * All date arithmetic is UTC/date-string based. Legacy mixed local `Date` methods with the passed
  * dates, which can shift a day under a non-local timezone; the buckets here cannot.
@@ -59,6 +58,11 @@ export interface SpendingChartDay {
 	label: string;
 	/** Short date detail inside the period; empty for a padded day. */
 	detail: string;
+	/**
+	 * Legacy tooltip detail for the weekday aggregate (`Total del periodo por lunes`); absent for a
+	 * week day, whose own `detail` already names the date it covers.
+	 */
+	titleDetail?: string;
 	/** False for the padding days a Monday-to-Sunday week adds around the period. */
 	isInPeriod: boolean;
 	/** Raw sum of the recognizable movements that landed on this day. */
@@ -67,8 +71,9 @@ export interface SpendingChartDay {
 
 export interface SpendingChartBar extends SpendingChartDay {
 	/**
-	 * Proportional height against the selected series maximum, 0..100, with no minimum floor. The
-	 * region renders this directly, so a small day is drawn at its real ratio.
+	 * Proportional height against the selected series maximum, 0..100. A positive day keeps the
+	 * legacy floor of 12% (`public/app.js:2291`), so a small bar stays visible and never collapses
+	 * to nothing.
 	 */
 	heightPercent: number;
 }
@@ -180,9 +185,10 @@ function buildWeekRange(weekStart: number, startTimestamp: number, visibleEnd: n
 }
 
 function getHeightPercent(total: number, max: number): number {
-	// No minimum floor: a zero or negative day draws no bar, and a small day draws its real ratio.
+	// Legacy floor: a zero or negative day draws no bar, and every positive day is at least 12% tall
+	// so a small outflow stays visible next to the largest one (`public/app.js:2291`).
 	if (max <= 0 || total <= 0) return 0;
-	return Math.round((total / max) * 100);
+	return Math.max(12, Math.round((total / max) * 100));
 }
 
 function getExitNoun(count: number): string {
@@ -286,6 +292,7 @@ export function getSpendingChart(
 				timestamp,
 				label: shortWeekdayFormatter.format(new Date(timestamp)),
 				detail: "",
+				titleDetail: `Total del periodo por ${longWeekdayFormatter.format(new Date(timestamp))}`,
 				isInPeriod: true,
 				total: 0,
 			});

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import { CycleCalendar } from "./CycleCalendar";
 import {
 	createCalendarRange,
+	getCurrentYearCalendarBounds,
 	selectCalendarDate,
 	validateCalendarRange,
 } from "./cycleCalendar";
@@ -85,6 +86,10 @@ export function FinancialCycleEditDialog({
 	onSaved,
 }: FinancialCycleEditDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	// The calendar's selectable/navigation window is the current calendar year through the current
+	// month, so a stored cycle narrower than the year so far can still be widened. It is frozen for the
+	// life of the dialog so a midnight rollover cannot re-anchor the grid mid-edit.
+	const calendarBounds = useMemo(() => getCurrentYearCalendarBounds(), []);
 	// Derived during render rather than filled by an effect, so an open dialog never renders empty
 	// fields first and the prefilled values are what the markup shows.
 	const [draft, setDraft] = useState<CycleEditDraft>(() => createCycleEditDraft(cycle));
@@ -199,11 +204,12 @@ export function FinancialCycleEditDialog({
 			<h2 id="react-financial-cycle-edit-title">Cambiar período</h2>
 			<FinancialCycleClosureNote cycle={cycle} draft={draft} />
 			<form className="react-financial-cycle-form" onSubmit={handleSubmit} aria-busy={isSaving}>
-				{/* The calendar augments the text fields and is bounded by the configured review period;
-				    the fields below keep the unchanged submit behaviour. */}
+				{/* The calendar augments the text fields and is bounded by the current year through the
+				    current month, not by the stored cycle; the fields below keep the unchanged submit
+				    behaviour. */}
 				{cycle.selectedPeriod && (
 					<CycleCalendar
-						period={cycle.selectedPeriod}
+						bounds={calendarBounds}
 						range={calendarRange}
 						onSelectDate={handleCalendarSelect}
 						disabled={isSaving}

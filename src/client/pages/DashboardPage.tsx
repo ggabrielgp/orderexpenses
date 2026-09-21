@@ -65,6 +65,7 @@ import {
 	createManualExpenseSubmitter,
 	getManualExpenseCreationNotice,
 	releaseInFlightLock,
+	syncNativeModalDialog,
 	type CategorySelectOption,
 	type ManualExpenseCreationNotice,
 } from "../components/movements/CreateManualExpenseDialog";
@@ -104,6 +105,7 @@ import { CompleteCycleDialog } from "../components/financial-cycle/CompleteCycle
 import { CycleCalendar } from "../components/financial-cycle/CycleCalendar";
 import {
 	createCalendarRange,
+	getCurrentYearCalendarBounds,
 	selectCalendarDate,
 	validateCalendarRange,
 } from "../components/financial-cycle/cycleCalendar";
@@ -1113,12 +1115,23 @@ export function CategoryRankingPanel({ ranking, catalog, onJumpToCategory }: Cat
  * A padded day outside the period is stated as outside instead of claiming a zero.
  */
 function getSpendingChartBarLabel(series: SpendingChartSeries, day: SpendingChartBar): string {
-	if (!day.isInPeriod) return `${day.label}, fuera del periodo`;
+	if (!day.isInPeriod) return `${day.label}, fuera del mes`;
 	const prefix =
 		series.mode === "period"
-			? `Ver detalle de ${day.label}`
+			? `Ver detalle de ${day.titleDetail ?? day.label}`
 			: `Ver detalle de ${day.label} ${day.detail}`;
 	return `${prefix}: ${formatClp(day.total)}`;
+}
+
+/**
+ * Native hover tooltip for one bar track, restored from legacy's `track.title`
+ * (`public/app.js:2286-2289`): the weekday label plus the day's date (or the period-wide weekday
+ * detail) and its total, and the explicit "outside the period" wording for a padded day.
+ */
+function getSpendingChartBarTitle(day: SpendingChartBar): string {
+	if (!day.isInPeriod) return `${day.label}: fuera del mes`;
+	const detail = day.titleDetail ?? day.detail;
+	return `${day.label} · ${detail}: ${formatClp(day.total)}`;
 }
 
 /**
@@ -1131,8 +1144,10 @@ function getSpendingChartBarLabel(series: SpendingChartSeries, day: SpendingChar
  *
  * Bars are selectable buttons again, like legacy's `weekly-bar` buttons (`public/app.js:2277`), so
  * each one carries `aria-pressed` and `aria-controls` for the detail panel. A padded day outside the
- * period is disabled and cannot become the selected day. The detail itself is read-only: it names the
- * day, its movements and their amounts, and offers no edit or delete action.
+ * period is disabled and cannot become the selected day. The detail itself offers no edit or delete
+ * action: a row with an identity can open the read-only movement dialog, and a row without one stays
+ * plain text. `onOpenMovement` is optional so the read-only demo can select bars without ever
+ * mounting a dialog.
  */
 export interface SpendingChartViewProps {
 	/** The decided chart, from `getSpendingChart`. */
@@ -1145,6 +1160,8 @@ export interface SpendingChartViewProps {
 	onSelectDay: (dayKey: string) => void;
 	/** Recognized outflow rows the read-only detail reads. */
 	detailMovements: SpendingChartDetailMovement[];
+	/** Opens the read-only movement dialog for a row identity; absent keeps every row inert. */
+	onOpenMovement?: (movementId: string) => void;
 }
 
 const DAY_DETAIL_ID = "react-spending-chart-day-detail";
@@ -1156,6 +1173,7 @@ export function SpendingChartView({
 	selectedDayKey,
 	onSelectDay,
 	detailMovements,
+	onOpenMovement,
 }: SpendingChartViewProps) {
 	const series = getSpendingChartSeries(chart, selectedTab);
 	const selectedDay =
@@ -1217,7 +1235,7 @@ export function SpendingChartView({
 										onClick={() => onSelectDay(day.key)}
 									>
 										<span className="react-spending-chart-value">
-											{day.isInPeriod ? formatClp(day.total) : ""}
+											{formatClp(day.total)}
 										</span>
 										<span
 											className={
@@ -1225,6 +1243,7 @@ export function SpendingChartView({
 													? "react-spending-chart-track"
 													: "react-spending-chart-track react-spending-chart-track-empty"
 											}
+											title={getSpendingChartBarTitle(day)}
 										>
 											<span
 												className="react-spending-chart-fill"
@@ -1255,27 +1274,45 @@ export function SpendingChartView({
 									<div key={group.key} className="react-spending-chart-day-group">
 										<span className="react-spending-chart-day-date">{group.label}</span>
 										<ul className="react-spending-chart-day-list">
-											{group.movements.map((movement) => (
-												<li
-													key={
-														movement.id ??
-														`${movement.dateKey}-${movement.time}-${movement.label}-${movement.amount}`
-													}
-													className="react-spending-chart-day-item"
-												>
-													<span className="react-spending-chart-day-info">
-														<strong>
-															{movement.time
-																? `${movement.time} · ${movement.label}`
-																: movement.label}
+											{group.movements.map((movement) => {
+												const movementId = movement.id;
+												const rowContent = (
+													<>
+														<span className="react-spending-chart-day-info">
+															<strong>
+																{movement.time
+																	? `${movement.time} · ${movement.label}`
+																	: movement.label}
+															</strong>
+															<small>{movement.kindLabel}</small>
+														</span>
+														<strong className="react-spending-chart-day-amount">
+															{formatClp(movement.amount)}
 														</strong>
-														<small>{movement.kindLabel}</small>
-													</span>
-													<strong className="react-spending-chart-day-amount">
-														{formatClp(movement.amount)}
-													</strong>
-												</li>
-											))}
+													</>
+												);
+												return (
+													<li
+														key={
+															movementId ??
+															`${movement.dateKey}-${movement.time}-${movement.label}-${movement.amount}`
+														}
+														className="react-spending-chart-day-item"
+													>
+														{onOpenMovement !== undefined && movementId !== null ? (
+															<button
+																type="button"
+																className="react-spending-chart-day-open"
+																onClick={() => onOpenMovement(movementId)}
+															>
+																{rowContent}
+															</button>
+														) : (
+															rowContent
+														)}
+													</li>
+												);
+											})}
 										</ul>
 									</div>
 								))
@@ -1323,9 +1360,15 @@ export interface SpendingChartPanelProps {
 	chart: SpendingChart;
 	/** Recognized outflow rows for the read-only detail; empty when the caller has none. */
 	detailMovements?: SpendingChartDetailMovement[];
+	/** Opens the read-only movement dialog for a row identity; absent keeps every row inert. */
+	onOpenMovement?: (movementId: string) => void;
 }
 
-export function SpendingChartPanel({ chart, detailMovements = [] }: SpendingChartPanelProps) {
+export function SpendingChartPanel({
+	chart,
+	detailMovements = [],
+	onOpenMovement,
+}: SpendingChartPanelProps) {
 	const [selectedTab, setSelectedTab] = useState<string>(FULL_PERIOD_TAB_ID);
 	const [selectedDayKey, setSelectedDayKey] = useState<string | null>(() =>
 		getSpendingChartDefaultDayKey(getSpendingChartSeries(chart, FULL_PERIOD_TAB_ID)),
@@ -1342,6 +1385,7 @@ export function SpendingChartPanel({ chart, detailMovements = [] }: SpendingChar
 			selectedDayKey={selectedDayKey}
 			onSelectDay={setSelectedDayKey}
 			detailMovements={detailMovements}
+			onOpenMovement={onOpenMovement}
 		/>
 	);
 }
@@ -1477,6 +1521,11 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	/** Movement being edited; `null` keeps the edit dialog closed. */
 	const [editMovement, setEditMovement] = useState<EditableRecognizedExpenseMovement | null>(null);
 	const [editNotice, setEditNotice] = useState<MovementEditNotice | null>(null);
+	/**
+	 * Identity the chart's read-only day detail opened; `null` keeps the dialog closed. Only the id is
+	 * stored, so a reload that drops the row closes the dialog instead of showing stale bytes.
+	 */
+	const [chartDetailMovementId, setChartDetailMovementId] = useState<string | null>(null);
 	/**
 	 * Removal lifecycle owned by unit B. `removal.movementId` is the single source of "which record
 	 * is being removed"; the movement snapshot below is only the data the dialog renders.
@@ -1661,6 +1710,18 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	const latestExpense = selectLatestRecognizedExpense(state.data.transactions, selectedPeriod!);
 	const movements = getRecognizedExpenseMovements(state.data.transactions);
 	const editableMovements = getEditableRecognizedExpenseMovements(state.data.transactions);
+	// The chart's day-detail dialog reads the same loaded lists the table does. The identity is the only
+	// state: the movement is re-resolved every render, so a removed or reloaded row cannot keep a stale
+	// dialog alive. It is read-only here: no edit or remove callback is wired, so the dialog offers only
+	// its fields and `Cerrar`, and the editable record only suppresses the "viewable only" note.
+	const chartDetailMovement =
+		chartDetailMovementId === null
+			? null
+			: movements.find((movement) => movement.id === chartDetailMovementId) ?? null;
+	const chartDetailMovementEditable =
+		chartDetailMovement === null
+			? null
+			: editableMovements.find((movement) => movement.id === chartDetailMovement.id) ?? null;
 	// The ranking reads the rows and the pending count the summary already computed, so it adds no
 	// request and shares the same "recognized finite outflow" projection the table shows.
 	const categoryRanking = getCategoryRanking(movements, summary.pendingAmountCount);
@@ -1899,6 +1960,7 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 					<SpendingChartPanel
 						chart={spendingChart}
 						detailMovements={spendingChartDetailMovements}
+						onOpenMovement={setChartDetailMovementId}
 					/>
 					<DashboardStoryView story={dashboardStory} />
 					<PeriodAnalyticsPanel analytics={periodAnalytics} />
@@ -1948,6 +2010,13 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 				onCancel={dismissMovementRemoval}
 				onConfirm={confirmMovementRemoval}
 			/>
+			{/* The chart's day-detail dialog is read-only: it names the movement and offers only `Cerrar`,
+			    reusing the same native modal the movements table mounts. */}
+			<ViewMovementDialog
+				movement={chartDetailMovement}
+				editableMovement={chartDetailMovementEditable}
+				onClose={() => setChartDetailMovementId(null)}
+			/>
 			{/* Mounted inside the ready state: an unconfigured or failed summary has no period to edit. */}
 			<FinancialCycleEditDialog
 				isOpen={isCycleEditOpen}
@@ -1968,10 +2037,19 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 }
 
 function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
+	// The first setup is a real modal, like the configure/edit dialog: the same `showModal()` helper
+	// gives it the focus trap, `Esc` handling and inert backdrop. The form is the only unconfigured
+	// surface, so the dialog opens on mount and closes with the component.
+	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	useEffect(() => {
+		syncNativeModalDialog(dialogRef.current, true);
+	}, []);
 	// The configured review period for a first setup is the current month: it is the range the form
-	// starts on, and it bounds the calendar's navigation and selectable days. `useMemo` freezes the
-	// bound for the life of the form so a midnight rollover cannot re-anchor the grid mid-edit.
+	// starts on. The calendar's own navigation and selectable bounds are the current year through the
+	// current month, so a historical range the default does not cover is still reachable. Both are
+	// frozen for the life of the form so a midnight rollover cannot re-anchor either mid-edit.
 	const configuredPeriod = useMemo(() => ReviewPeriod.currentMonth().toJSON(), []);
+	const calendarBounds = useMemo(() => getCurrentYearCalendarBounds(), []);
 	const [startDate, setStartDate] = useState(configuredPeriod.startDate);
 	const [endDate, setEndDate] = useState<string>(ReviewPeriod.create(configuredPeriod).visibleEndDate);
 	const [incomeValue, setIncomeValue] = useState("");
@@ -2036,17 +2114,21 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 	};
 
 	return (
-		<section className="react-financial-state" aria-labelledby="react-financial-setup-title">
+		<dialog
+			ref={dialogRef}
+			className="react-financial-setup-dialog react-financial-state"
+			aria-labelledby="react-financial-setup-title"
+		>
 			<div>
 				<span className="section-kicker">Configuración financiera</span>
 				<h2 id="react-financial-setup-title">Configura tu periodo financiero</h2>
 				<p>Elige las fechas inclusivas del periodo que quieres revisar.</p>
 			</div>
 			<form className="react-financial-setup-form" onSubmit={handleSubmit}>
-				{/* The calendar augments the text inputs; it never replaces them. It is bounded by the same
-				    configured review period the fields start on. */}
+				{/* The calendar augments the text inputs; it never replaces them. It is bounded to the current
+				    year through the current month, so any month of the year so far is selectable. */}
 				<CycleCalendar
-					period={configuredPeriod}
+					bounds={calendarBounds}
 					range={calendarRange}
 					onSelectDate={handleCalendarSelect}
 					disabled={isSaving}
@@ -2105,7 +2187,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
 				</div>
 			</form>
 			<p aria-live="polite">{isSaving ? "Guardando periodo financiero..." : ""}</p>
-		</section>
+		</dialog>
 	);
 }
 

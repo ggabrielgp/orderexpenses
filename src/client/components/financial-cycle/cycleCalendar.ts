@@ -1,4 +1,3 @@
-import type { FinancialPeriod } from "../../api/types";
 import {
 	CYCLE_END_BEFORE_START_MESSAGE,
 	CYCLE_END_REQUIRED_MESSAGE,
@@ -13,10 +12,12 @@ import { ReviewPeriod } from "../../../shared/review-period.js";
  *
  * All arithmetic is date-only and UTC based, so a day never shifts with the runner's timezone; "today"
  * is the viewer's local calendar date, read from the local `Date` components, which is the day the
- * person actually sees. The calendar is bounded by the configured review period: it navigates only
- * across the months that period touches, and every day outside it (or in the future) is disabled. The
- * existing text/date inputs remain authoritative for a range the calendar cannot express, which is why
- * the calendar never mutates the draft on its own.
+ * person actually sees. The calendar is bounded by the current calendar year through the current
+ * month (`getCurrentYearCalendarBounds`): it navigates only across those months, and every day outside
+ * that window (including a future day) is disabled. The configured cycle is deliberately not the bound,
+ * so a narrower stored period can still be widened to any month of the year so far. The existing
+ * text/date inputs remain authoritative for a range the calendar cannot express, which is why the
+ * calendar never mutates the draft on its own.
  *
  * No React import: these are decisions, not rendering.
  */
@@ -138,15 +139,33 @@ export function getReadableDate(dateKey: string): string {
 	return READABLE_DATE_FORMATTER.format(Date.UTC(parts.year, parts.month - 1, parts.day));
 }
 
+/** The selectable window of the calendar, inclusive on both ends. */
+export interface CalendarBounds {
+	/** First selectable day, inclusive. */
+	startDate: string;
+	/** Last selectable day, inclusive; never in the future. */
+	endDate: string;
+}
+
 /**
- * The months the configured review period spans, in calendar order. This is the whole of the
- * calendar's navigation: a month outside the period is not reachable, which is how the surface
- * avoids walking a month axis the period model does not have.
+ * The calendar's selectable/navigation window: January 1 of the viewer's current calendar year through
+ * the viewer's local today. The year is derived from the local date and never hard-coded, so the window
+ * rolls forward on its own. Both bounds are date-only strings, so the comparison that uses them never
+ * shifts with a timezone.
  */
-export function getCalendarMonthKeys(period: FinancialPeriod): string[] {
-	const reviewPeriod = ReviewPeriod.create(period);
-	const first = getMonthKey(reviewPeriod.startDate);
-	const last = getMonthKey(reviewPeriod.visibleEndDate);
+export function getCurrentYearCalendarBounds(referenceDate: Date = new Date()): CalendarBounds {
+	const today = getCurrentDateKey(referenceDate);
+	return { startDate: `${today.slice(0, 4)}-01-01`, endDate: today };
+}
+
+/**
+ * The months a window spans, in calendar order. This is the whole of the calendar's navigation: a
+ * month outside the window is not reachable, which is how the surface avoids walking a month axis the
+ * window does not have.
+ */
+export function getCalendarMonthKeys(bounds: CalendarBounds): string[] {
+	const first = getMonthKey(bounds.startDate);
+	const last = getMonthKey(bounds.endDate);
 	const keys: string[] = [];
 	let cursor = first;
 	while (cursor <= last && keys.length < MAX_CALENDAR_MONTHS) {
@@ -190,13 +209,13 @@ export interface CalendarDayCell {
 	day: number;
 	/** Full Spanish date, the button's accessible name. */
 	label: string;
-	/** False for a day outside the configured review period or a padded leading blank cell. */
-	inPeriod: boolean;
+	/** False for a day outside the calendar's selectable window or a padded leading blank cell. */
+	inBounds: boolean;
 	/** True when the day is after today; the port disables it (legacy did not). */
 	isFuture: boolean;
 	/** True while the day is inside the selected range (or is the pending start). */
 	selected: boolean;
-	/** True when the button must be inert: outside the period, in the future, or saving. */
+	/** True when the button must be inert: outside the window, in the future, or saving. */
 	disabled: boolean;
 }
 
@@ -219,16 +238,16 @@ function isSelected(dateKey: string, startDate: string, endDate: string): boolea
 }
 
 /**
- * One month of the calendar. A day is disabled when it falls outside the configured review period
- * or after today, so the surface can never offer a day the period model would reject or a future
- * date the data cannot yet describe.
+ * One month of the calendar. A day is disabled when it falls outside the selectable window or after
+ * today, so the surface can never offer a day outside the current year so far or a future date the
+ * data cannot yet describe.
  */
 export function buildCalendarMonthGrid(
 	monthKey: string,
-	options: { period: FinancialPeriod; range: CalendarRange; today: string },
+	options: { bounds: CalendarBounds; range: CalendarRange; today: string },
 ): CalendarMonthGrid {
 	const { year, month } = parseMonthKey(monthKey);
-	const reviewPeriod = ReviewPeriod.create(options.period);
+	const { bounds } = options;
 	const dayCount = new Date(Date.UTC(year, month, 0)).getUTCDate();
 	const leadingBlanks = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
 	const { startDate, endDate } = options.range;
@@ -236,16 +255,16 @@ export function buildCalendarMonthGrid(
 	const days: CalendarDayCell[] = [];
 	for (let day = 1; day <= dayCount; day += 1) {
 		const dateKey = formatDateOnly(year, month, day);
-		const inPeriod = reviewPeriod.includes(dateKey);
+		const inBounds = dateKey >= bounds.startDate && dateKey <= bounds.endDate;
 		const isFuture = dateKey > options.today;
 		days.push({
 			dateKey,
 			day,
 			label: getReadableDate(dateKey),
-			inPeriod,
+			inBounds,
 			isFuture,
 			selected: isSelected(dateKey, startDate, endDate),
-			disabled: !inPeriod || isFuture,
+			disabled: !inBounds || isFuture,
 		});
 	}
 

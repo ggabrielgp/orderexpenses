@@ -692,6 +692,18 @@
 	padding: var(--space-4);
 }
 
+/* The first-login setup reuses the shipped `.react-financial-state` card as the modal surface; only
+   its viewport width, scroll room and backdrop are new. */
+.react-financial-setup-dialog {
+	width: min(48rem, calc(100vw - 2 * var(--space-4)));
+	max-height: calc(100vh - 2 * var(--space-4));
+	overflow-y: auto;
+}
+
+.react-financial-setup-dialog::backdrop {
+	background: rgb(15 23 42 / 45%);
+}
+
 .react-financial-summary-heading {
 	display: flex;
 	align-items: start;
@@ -1317,7 +1329,7 @@
 	);
 }
 
-/* Height is the real ratio the module decided; there is deliberately no minimum floor. */
+/* Height is the real ratio the module decided, floored at the legacy 12% for every positive day. */
 .react-spending-chart-fill {
 	display: block;
 	align-self: flex-end;
@@ -1392,6 +1404,28 @@
 	align-items: baseline;
 	justify-content: space-between;
 	gap: var(--space-2);
+}
+
+/* The read-only movement dialog is opened by the whole row, so the control fills it while keeping
+   its own reset. */
+.react-spending-chart-day-open {
+	display: flex;
+	flex: 1;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-2);
+	border: 0;
+	background: none;
+	padding: 0;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.react-spending-chart-day-open:hover .react-spending-chart-day-amount,
+.react-spending-chart-day-open:focus-visible .react-spending-chart-day-amount {
+	color: var(--marketing-primary);
 }
 
 .react-spending-chart-day-info {
