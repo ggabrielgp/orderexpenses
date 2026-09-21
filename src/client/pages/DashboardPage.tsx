@@ -28,6 +28,15 @@ import {
 	type DashboardLead,
 } from "../components/analytics/dashboardLead";
 import {
+	getDashboardStory,
+	getSpendingBreakdown,
+	getTopCounterpartyGroup,
+	getTopInsights,
+	type DashboardStory,
+	type DashboardTopInsights,
+	type SpendingBreakdown,
+} from "../components/analytics/dashboardInsights";
+import {
 	FULL_PERIOD_TAB_ID,
 	getSpendingChart,
 	getSpendingChartSeries,
@@ -1035,6 +1044,108 @@ export function SpendingChartPanel({ chart }: SpendingChartPanelProps) {
 	return <SpendingChartView chart={chart} selectedTab={selectedTab} onSelectTab={setSelectedTab} />;
 }
 
+/**
+ * The `Qué pasó este periodo` story as one already-decided state: the summary sentence and the few
+ * facts the pure module chose from the loaded period.
+ *
+ * Exported so both the populated and the empty markup are provable from a static render, like the
+ * other analytics panels: a live summary only ever reaches the loading state without a session, and
+ * what the story claims is worth proving from what the user reads. The component renders the decisions
+ * the pure module made and computes nothing of its own.
+ */
+export interface DashboardStoryViewProps {
+	/** The decided story, from `getDashboardStory`. */
+	story: DashboardStory;
+}
+
+export function DashboardStoryView({ story }: DashboardStoryViewProps) {
+	return (
+		<section className="react-dashboard-story" aria-labelledby="react-dashboard-story-title">
+			<div className="react-dashboard-story-header">
+				<h3 id="react-dashboard-story-title">{story.title}</h3>
+				<p>{story.summary}</p>
+			</div>
+			{story.facts.length > 0 && (
+				<ul className="react-dashboard-story-list">
+					{story.facts.map((fact) => (
+						<li key={fact}>{fact}</li>
+					))}
+				</ul>
+			)}
+		</section>
+	);
+}
+
+/**
+ * The three top insights as one already-decided state: the principal category and comercio/persona
+ * ranked by amount, and the latest movement by recency.
+ *
+ * Exported so both the populated and the placeholder markup are provable from a static render, like
+ * the other analytics panels. A monetary insight shows its formatted total; the latest-movement
+ * insight shows its date and the identity as the detail, because it ranks by recency, not amount.
+ */
+export interface TopInsightsViewProps {
+	/** The decided insights, from `getTopInsights`. */
+	insights: DashboardTopInsights;
+}
+
+export function TopInsightsView({ insights }: TopInsightsViewProps) {
+	const cards = [insights.category, insights.counterparty, insights.latest];
+	return (
+		<section className="react-top-insights" aria-labelledby="react-top-insights-title">
+			<h3 id="react-top-insights-title">Datos clave del periodo</h3>
+			<div className="react-financial-grid">
+				{cards.map((insight) => (
+					<article key={insight.key} className="react-financial-card">
+						<span>{insight.label}</span>
+						<strong>{insight.value}</strong>
+						<p>{insight.amount === null ? insight.note : formatClp(insight.amount)}</p>
+					</article>
+				))}
+			</div>
+		</section>
+	);
+}
+
+/**
+ * The visual spending breakdown as one already-decided state: the proportional bars by kind with the
+ * percentage of the recognized quantified total.
+ *
+ * Exported so both the populated and the empty markup are provable from a static render, like the
+ * other analytics panels. The width is the share the pure module decided, computed from raw amounts;
+ * the percentage is shown as text too, so it is readable without the bar. There is deliberately no
+ * donut or charting dependency, and a zero total shows a truthful message instead of fabricated bars.
+ */
+export interface SpendingBreakdownViewProps {
+	/** The decided bars, from `getSpendingBreakdown`. */
+	breakdown: SpendingBreakdown;
+}
+
+export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps) {
+	return (
+		<section className="react-spending-breakdown" aria-labelledby="react-spending-breakdown-title">
+			<h3 id="react-spending-breakdown-title">Distribución de gastos por tipo</h3>
+			{breakdown.emptyMessage !== null ? (
+				<p className="react-spending-breakdown-empty" role="status">{breakdown.emptyMessage}</p>
+			) : (
+				<ul className="react-spending-breakdown-list">
+					{breakdown.bars.map((bar) => (
+						<li key={bar.key} className="react-breakdown-row">
+							<div className="react-breakdown-header">
+								<span>{bar.label}</span>
+								<strong>{formatClp(bar.amount)} · {bar.percent}%</strong>
+							</div>
+							<div className="react-breakdown-track">
+								<div className="react-breakdown-fill" style={{ width: `${bar.percent}%` }} />
+							</div>
+						</li>
+					))}
+				</ul>
+			)}
+		</section>
+	);
+}
+
 interface FinancialSummaryProps {
 	onHandle?: (handle: FinancialDashboardHandle | null) => void;
 	/** Current view, owned by the page so the header navigation and this body stay in sync. */
@@ -1225,6 +1336,39 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	const categoryRanking = getCategoryRanking(movements, summary.pendingAmountCount);
 	// The chart reads the same rows and the same pending count, so it adds no request either.
 	const spendingChart = getSpendingChart(movements, selectedPeriod!, summary.pendingAmountCount);
+	// The story and the insights reuse the ranking's top row, the principal comercio/persona and the
+	// largest expense the period metrics already decided, so they add no request and cannot disagree
+	// with the panels above them.
+	const topCategoryGroup =
+		categoryRanking.rows[0] === undefined
+			? null
+			: { label: categoryRanking.rows[0].category, total: categoryRanking.rows[0].total };
+	const topCounterpartyGroup = getTopCounterpartyGroup(movements);
+	const topInsights = getTopInsights({
+		category: topCategoryGroup,
+		counterparty: topCounterpartyGroup,
+		latest:
+			latestExpense === null
+				? null
+				: {
+						counterparty: getRecognizedExpenseIdentity(latestExpense),
+						date: formatMovementDate(latestExpense.occurredAt),
+				  },
+	});
+	const dashboardStory = getDashboardStory({
+		totalSpending: summary.totalSpending,
+		knownCount: summary.count,
+		pendingAmountCount: summary.pendingAmountCount,
+		reviewCount: periodAnalytics.review.count,
+		topCategory: topCategoryGroup,
+		topCounterparty: topCounterpartyGroup,
+		largest:
+			periodAnalytics.largest === null
+				? null
+				: { label: periodAnalytics.largest.counterparty, total: periodAnalytics.largest.amount },
+		formatAmount: formatClp,
+	});
+	const spendingBreakdown = getSpendingBreakdown(spendingByKind);
 
 	// Both submitters are rebuilt per render on purpose: the period only exists once the cycle is
 	// configured, and their dependencies (`updateTransaction`, `removeTransaction` and the stable
@@ -1398,9 +1542,9 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 				<>
 					{/* The hero consolidates the four look-alike cards this surface used to show: the same total,
 					    count and pending count are stated here with the period, and the balance is the new answer.
-					    The grid primitives below stay in use for the analytics panels. */}
+					    The order below approximates the legacy reading: lead, category ranking, chart, story, period
+					    metrics, top insights, breakdown. The grid primitives stay in use for the analytics panels. */}
 					<DashboardLeadView lead={dashboardLead} />
-					<PeriodAnalyticsPanel analytics={periodAnalytics} />
 					<CategoryRankingPanel
 						ranking={categoryRanking}
 						onJumpToCategory={(category) => {
@@ -1409,44 +1553,12 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 						}}
 					/>
 					<SpendingChartPanel chart={spendingChart} />
-					<section className="react-latest-expense" aria-labelledby="react-latest-expense-title">
-						<h3 id="react-latest-expense-title">Último gasto reconocido</h3>
-						{latestExpense ? (
-							<dl>
-								<div>
-									<dt>Comercio</dt>
-									<dd>{getRecognizedExpenseIdentity(latestExpense)}</dd>
-								</div>
-								<div>
-									<dt>Monto</dt>
-									<dd>{formatClp(latestExpense.amount)}</dd>
-								</div>
-								<div>
-									<dt>Fecha</dt>
-									<dd>{latestExpense.occurredAt}</dd>
-								</div>
-							</dl>
-						) : (
-							<p>No hay un gasto reconocido con fecha para este periodo.</p>
-						)}
-					</section>
-					<section className="react-spending-breakdown" aria-labelledby="react-spending-breakdown-title">
-						<h3 id="react-spending-breakdown-title">Gasto reconocido por tipo</h3>
-						<dl className="react-spending-breakdown">
-							<div>
-								<dt>Compras</dt>
-								<dd>{formatClp(spendingByKind.purchase)}</dd>
-							</div>
-							<div>
-								<dt>Transferencias</dt>
-								<dd>{formatClp(spendingByKind.transfer)}</dd>
-							</div>
-							<div>
-								<dt>Pagos</dt>
-								<dd>{formatClp(spendingByKind.payment)}</dd>
-							</div>
-						</dl>
-					</section>
+					<DashboardStoryView story={dashboardStory} />
+					<PeriodAnalyticsPanel analytics={periodAnalytics} />
+					<TopInsightsView insights={topInsights} />
+					{/* The visual breakdown replaces the plain definition list, which stated the same three kind
+					    totals twice: once in text and now once as a share of the recognized quantified total. */}
+					<SpendingBreakdownView breakdown={spendingBreakdown} />
 					{summary.count === 0 && (
 						<p className="react-financial-empty" role="status">No se encontraron gastos reconocidos para este periodo.</p>
 					)}

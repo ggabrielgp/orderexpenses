@@ -882,27 +882,99 @@
 	font-size: 1rem;
 }
 
-.react-spending-breakdown dl {
+.react-spending-breakdown-empty {
 	margin: 0;
+	color: var(--ink-muted);
+	font-size: .875rem;
 }
 
-.react-spending-breakdown dl > div {
+.react-spending-breakdown-list {
+	display: grid;
+	gap: var(--space-3);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.react-breakdown-row {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.react-breakdown-header {
 	display: flex;
 	align-items: baseline;
 	justify-content: space-between;
 	gap: var(--space-3);
-	border-top: 1px solid var(--line);
-	padding-top: var(--space-2);
 }
 
-.react-spending-breakdown dt {
+.react-breakdown-header span {
 	color: var(--ink-muted);
 }
 
-.react-spending-breakdown dd {
-	margin: 0;
+.react-breakdown-header strong {
 	font-family: var(--font-display);
-	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.react-breakdown-track {
+	width: 100%;
+	height: 10px;
+	border-radius: var(--radius-pill);
+	background: var(--surface-subtle);
+	overflow: hidden;
+}
+
+/* Width is the share the module decided from the raw kind totals; there is no fabricated minimum. */
+.react-breakdown-fill {
+	display: block;
+	height: 100%;
+	border-radius: var(--radius-pill);
+	background: var(--marketing-primary);
+}
+
+/* The period story reuses the shipped surface primitives; only its reading region is new. */
+.react-dashboard-story {
+	display: grid;
+	gap: var(--space-3);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-3);
+}
+
+.react-dashboard-story-header {
+	display: grid;
+	gap: var(--space-2);
+}
+
+.react-dashboard-story-header h3 {
+	margin: 0;
+	font-size: 1rem;
+}
+
+.react-dashboard-story-header p {
+	margin: 0;
+	color: var(--ink-muted);
+}
+
+.react-dashboard-story-list {
+	display: grid;
+	gap: var(--space-2);
+	margin: 0;
+	padding-left: var(--space-4);
+	color: var(--ink-muted);
+}
+
+/* The top insights reuse the shipped card and grid primitives; only the region wrapper is new. */
+.react-top-insights {
+	display: grid;
+	gap: var(--space-3);
+}
+
+.react-top-insights h3 {
+	margin: 0;
+	font-size: 1rem;
 }
 
 /* The period metrics reuse the shipped card and grid primitives; only the region wrapper is new. */
