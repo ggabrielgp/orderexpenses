@@ -452,6 +452,147 @@
 	box-shadow: var(--shadow-sm);
 }
 
+/* Authenticated product chrome. It mirrors the legacy app header with scoped React classes and the
+   retained design tokens; only the layout the product already had is reproduced. */
+.react-app-header {
+	position: sticky;
+	top: 0;
+	z-index: 30;
+	border-bottom: 1px solid var(--line);
+	background: rgb(255 255 255 / .94);
+	backdrop-filter: blur(18px);
+}
+
+.react-app-header-inner {
+	display: grid;
+	grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr);
+	align-items: center;
+	width: min(1280px, calc(100% - 64px));
+	min-height: 76px;
+	margin: 0 auto;
+}
+
+.react-app-brand-group {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	min-width: 0;
+}
+
+.react-app-brand {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	width: fit-content;
+	color: var(--primary);
+	font-size: var(--text-sm);
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	text-decoration: none;
+}
+
+.react-app-brand-mark {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	border-radius: var(--radius-control);
+	background: var(--primary);
+	color: #ffffff;
+	font-family: "Material Symbols Outlined";
+	font-size: 1.25rem;
+	font-variation-settings: "FILL" 1;
+	line-height: 1;
+}
+
+.react-app-navigation {
+	display: flex;
+	align-self: stretch;
+	gap: 34px;
+}
+
+.react-app-navigation-link {
+	position: relative;
+	min-height: 0;
+	padding: 0 2px;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	color: var(--ink-muted);
+	font-weight: 650;
+}
+
+.react-app-navigation-link:hover {
+	background: transparent;
+	box-shadow: none;
+	color: var(--primary);
+	transform: none;
+}
+
+.react-app-navigation-link::after {
+	position: absolute;
+	right: 0;
+	bottom: -1px;
+	left: 0;
+	height: 3px;
+	border-radius: 3px 3px 0 0;
+	background: var(--primary);
+	content: "";
+	opacity: 0;
+	transform: scaleX(0.45);
+	transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.react-app-navigation-link-active,
+.react-app-navigation-link-active:hover {
+	background: transparent;
+	color: var(--primary);
+	box-shadow: none;
+}
+
+.react-app-navigation-link-active::after {
+	opacity: 1;
+	transform: scaleX(1);
+}
+
+.react-app-account {
+	position: relative;
+	display: flex;
+	justify-content: flex-end;
+	min-width: 0;
+}
+
+@media (max-width: 800px) {
+	.react-app-header-inner {
+		grid-template-columns: 1fr auto;
+		width: calc(100% - 24px);
+		min-height: 68px;
+	}
+
+	.react-app-navigation {
+		grid-column: 1 / -1;
+		grid-row: 2;
+		justify-content: center;
+		min-height: 48px;
+	}
+
+	.react-app-navigation-link {
+		min-height: 48px;
+	}
+}
+
+@media (max-width: 480px) {
+	.react-app-header-inner {
+		width: calc(100% - 16px);
+	}
+
+	.react-app-brand > span:last-child {
+		max-width: 128px;
+		line-height: 1.1;
+	}
+}
+
 .react-account {
 	position: relative;
 }
@@ -612,19 +753,6 @@
 .react-financial-empty {
 	margin: 0;
 	color: var(--ink-muted);
-}
-
-.react-financial-view-toggle {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--space-2);
-}
-
-.react-financial-view-toggle button[aria-pressed="true"] {
-	border-color: var(--line-strong);
-	background: var(--surface);
-	color: var(--ink);
-	box-shadow: var(--shadow-sm);
 }
 
 .react-financial-grid {

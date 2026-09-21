@@ -12,6 +12,7 @@ import {
 	upsertCounterpartyRule,
 } from "../api/client";
 import { AccountMenu } from "../components/account/AccountMenu";
+import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
 import {
 	getPeriodAnalytics,
 	type PeriodAnalytics,
@@ -395,6 +396,11 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 	 * mounts it, so demo writes stay impossible by construction instead of by a guard check.
 	 */
 	const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
+	/**
+	 * Active dashboard view, owned here so the header navigation and the financial body stay in
+	 * sync. It starts on the summary, exactly like the previous in-body toggle default.
+	 */
+	const [view, setView] = useState<DashboardView>("summary");
 	/** The C1 single in-flight lock, reused for the category mutations. */
 	const categorySettingsLock = useRef(false);
 	const submitCategoryMutation = useMemo(
@@ -452,77 +458,85 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 	const connected = session.gmail.connected;
 
 	return (
-		<main className="shell react-shell">
-			<section className="panel product-panel react-dashboard-shell" aria-labelledby="react-dashboard-title">
-				<header className="react-dashboard-header">
-					<div>
-						<h1 id="react-dashboard-title">Resumen de la cuenta</h1>
-						<p className="subtitle">
-							Aquí puedes registrar, editar y eliminar movimientos, administrar las
-							categorías y sincronizar con Gmail.
-						</p>
-					</div>
-					<div className="react-shell-actions">
-						{/* The single settings action lives under the account menu; it opens the unified
-						    surface whose mutation contracts are unchanged. */}
-						<AccountMenu profile={profile}>
-							<button
-								type="button"
-								role="menuitem"
-								onClick={() => setIsAccountSettingsOpen(true)}
-							>
-								Configuración
-							</button>
-						</AccountMenu>
-					</div>
-				</header>
-
-				{/* Mounted only in this authenticated tree: `DemoDashboardPage` is a separate read-only
-				    composition that never mounts the unified settings surface. Gmail keeps its own
-				    connection state machine in the body panel below. */}
-				<AccountSettingsDialog
-					isOpen={isAccountSettingsOpen}
-					onClose={() => setIsAccountSettingsOpen(false)}
-					profile={profile}
-					submitCategoryMutation={submitCategoryMutation}
-					submitCounterpartyRule={submitCounterpartyRule}
-				/>
-
-				<div className="react-status-grid">
-					<article className="react-status-card">
-						<span className="section-kicker">Sesión actual</span>
-						<strong>{profile?.name || "Usuario conectado"}</strong>
-						<p>{profile?.email || "No hay un perfil de Gmail asociado a esta sesión."}</p>
-					</article>
-					<article className="react-status-card">
-						{/* The real connection state lives in the panel: it reads `/api/gmail/status`, offers the
-						    refresh, and owns the disconnection. The connect control stays unit A's and is handed
-						    the effective state, so a stale session snapshot can never refuse a valid reconnection. */}
-						<GmailConnectionPanel
-							authenticated={session.authenticated}
-							initialConnected={connected}
-							connectControl={(accountConnected) => (
-								<GmailConnectControl
-									connectUrl={session.gmail.connectUrl}
-									accountConnected={accountConnected}
-									className="button"
-								/>
-							)}
-							submitSync={submitGmailSync}
-						/>
-					</article>
-				</div>
-
-				<FinancialSummary onHandle={registerFinancialDashboard} />
-
-				<div className="react-shell-actions">
-					<button className="secondary" type="button" onClick={onRetry}>
-						Actualizar estado de la conexión
+		<>
+			{/* Authenticated product chrome. It hosts the one settings action under the shipped
+			    account menu, so the unified settings surface keeps its unchanged mutation contract;
+			    the demo tree never mounts this header, which keeps the account surface out of the
+			    read-only demo by construction. */}
+			<AppHeader view={view} onViewChange={setView}>
+				<AccountMenu profile={profile}>
+					<button
+						type="button"
+						role="menuitem"
+						onClick={() => setIsAccountSettingsOpen(true)}
+					>
+						Configuración
 					</button>
-					<a href="/">Volver al inicio</a>
-				</div>
-			</section>
-		</main>
+				</AccountMenu>
+			</AppHeader>
+			<main className="shell react-shell">
+				<section className="panel product-panel react-dashboard-shell" aria-labelledby="react-dashboard-title">
+					<header className="react-dashboard-header">
+						<div>
+							<h1 id="react-dashboard-title">Resumen de la cuenta</h1>
+							<p className="subtitle">
+								Aquí puedes registrar, editar y eliminar movimientos, administrar las
+								categorías y sincronizar con Gmail.
+							</p>
+						</div>
+					</header>
+
+					{/* Mounted only in this authenticated tree: `DemoDashboardPage` is a separate read-only
+					    composition that never mounts the unified settings surface. Gmail keeps its own
+					    connection state machine in the body panel below. */}
+					<AccountSettingsDialog
+						isOpen={isAccountSettingsOpen}
+						onClose={() => setIsAccountSettingsOpen(false)}
+						profile={profile}
+						submitCategoryMutation={submitCategoryMutation}
+						submitCounterpartyRule={submitCounterpartyRule}
+					/>
+
+					<div className="react-status-grid">
+						<article className="react-status-card">
+							<span className="section-kicker">Sesión actual</span>
+							<strong>{profile?.name || "Usuario conectado"}</strong>
+							<p>{profile?.email || "No hay un perfil de Gmail asociado a esta sesión."}</p>
+						</article>
+						<article className="react-status-card">
+							{/* The real connection state lives in the panel: it reads `/api/gmail/status`, offers the
+							    refresh, and owns the disconnection. The connect control stays unit A's and is handed
+							    the effective state, so a stale session snapshot can never refuse a valid reconnection. */}
+							<GmailConnectionPanel
+								authenticated={session.authenticated}
+								initialConnected={connected}
+								connectControl={(accountConnected) => (
+									<GmailConnectControl
+										connectUrl={session.gmail.connectUrl}
+										accountConnected={accountConnected}
+										className="button"
+									/>
+								)}
+								submitSync={submitGmailSync}
+							/>
+						</article>
+					</div>
+
+					<FinancialSummary
+						onHandle={registerFinancialDashboard}
+						view={view}
+						onViewChange={setView}
+					/>
+
+					<div className="react-shell-actions">
+						<button className="secondary" type="button" onClick={onRetry}>
+							Actualizar estado de la conexión
+						</button>
+						<a href="/">Volver al inicio</a>
+					</div>
+				</section>
+			</main>
+		</>
 	);
 }
 
@@ -974,9 +988,16 @@ export function SpendingChartPanel({ chart }: SpendingChartPanelProps) {
 	return <SpendingChartView chart={chart} selectedTab={selectedTab} onSelectTab={setSelectedTab} />;
 }
 
-function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboardHandle | null) => void }) {
+interface FinancialSummaryProps {
+	onHandle?: (handle: FinancialDashboardHandle | null) => void;
+	/** Current view, owned by the page so the header navigation and this body stay in sync. */
+	view: DashboardView;
+	/** Requests a view change, e.g. when the ranking jumps into the filtered movements table. */
+	onViewChange: (view: DashboardView) => void;
+}
+
+function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProps) {
 	const [state, setState] = useState<FinancialSummaryState>({ status: "loading" });
-	const [view, setView] = useState<"summary" | "movements">("summary");
 	/**
 	 * Category the analytics ranking jumped to, consumed by the movements table on its next mount. It
 	 * is state rather than a ref because the table reads it during its first render, and the jump is
@@ -1317,24 +1338,6 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 					{cycleEditNotice.message}
 				</p>
 			)}
-			<div className="react-financial-view-toggle" role="group" aria-label="Vista financiera">
-				<button
-					className="secondary"
-					type="button"
-					aria-pressed={view === "summary"}
-					onClick={() => setView("summary")}
-				>
-					Resumen
-				</button>
-				<button
-					className="secondary"
-					type="button"
-					aria-pressed={view === "movements"}
-					onClick={() => setView("movements")}
-				>
-					Movimientos
-				</button>
-			</div>
 			{view === "summary" ? (
 				<>
 					<div className="react-financial-grid">
@@ -1361,7 +1364,7 @@ function FinancialSummary({ onHandle }: { onHandle?: (handle: FinancialDashboard
 						ranking={categoryRanking}
 						onJumpToCategory={(category) => {
 							setRequestedCategory(category);
-							setView("movements");
+							onViewChange("movements");
 						}}
 					/>
 					<SpendingChartPanel chart={spendingChart} />
