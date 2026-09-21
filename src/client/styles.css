@@ -375,10 +375,6 @@
 @media (max-width: 420px) { .landing-kpis { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .landing-reveal { opacity: 1; transform: none; transition: none; } .landing-primary-button, .landing-secondary-button { transition: none; } }
 
-.react-shell {
-	max-width: 960px;
-}
-
 .react-dashboard-shell,
 .react-message {
 	display: grid;
@@ -1257,7 +1253,7 @@
    then the totals grid. */
 .react-spending-chart-body {
 	display: grid;
-	grid-template-columns: minmax(200px, 260px) minmax(0, 1fr) minmax(180px, 240px);
+	grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(180px, 240px);
 	align-items: stretch;
 	gap: var(--space-4);
 }
@@ -2818,12 +2814,32 @@
    the final single-column mobile stack. */
 @media (max-width: 1120px) {
 	.react-spending-chart-body {
-		grid-template-columns: minmax(180px, 220px) minmax(300px, 1fr);
+		grid-template-columns: minmax(240px, 280px) minmax(260px, 1fr);
 	}
 
 	.react-spending-chart-summary {
 		grid-column: 1 / -1;
 		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+/* Legacy's narrower tablet breakpoint (`public/app.css` `@media (max-width: 800px)`): once the
+   widened detail column and the seven 44px bars no longer fit side by side, stack the chart body
+   to a single column, reset the spanning totals summary and let the bar strip scroll instead of
+   forcing the page wider than the viewport. */
+@media (max-width: 800px) {
+	.react-spending-chart-body {
+		grid-template-columns: 1fr;
+	}
+
+	.react-spending-chart-summary {
+		grid-column: auto;
+		grid-template-columns: 1fr;
+	}
+
+	.react-spending-chart-bars {
+		justify-content: flex-start;
+		overflow-x: auto;
 	}
 }
 
