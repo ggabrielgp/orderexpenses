@@ -45,10 +45,16 @@ const shortWeekdayFormatter = new Intl.DateTimeFormat("es-CL", {
 	weekday: "short",
 	timeZone: "UTC",
 });
+const longWeekdayFormatter = new Intl.DateTimeFormat("es-CL", {
+	weekday: "long",
+	timeZone: "UTC",
+});
 
 export interface SpendingChartDay {
 	/** Calendar key `YYYY-MM-DD` for a week day, or `weekday-N` for the period aggregate. */
 	key: string;
+	/** UTC timestamp of the bucket, used for weekday labels and day detail; never rendered. */
+	timestamp: number;
 	/** Short Spanish weekday label, always Monday first. */
 	label: string;
 	/** Short date detail inside the period; empty for a padded day. */
@@ -85,6 +91,8 @@ export interface SpendingChartTab {
 
 export interface SpendingChartSeries {
 	id: string;
+	/** `week` for a Monday-to-Sunday slice; `period` for the weekday aggregate. */
+	mode: "week" | "period";
 	label: string;
 	detail: string;
 	/** Accessible name for the bar region. */
@@ -157,6 +165,7 @@ function buildDay(timestamp: number, startTimestamp: number, visibleEnd: number)
 	const date = new Date(timestamp);
 	return {
 		key: formatDateOnly(timestamp),
+		timestamp,
 		label: shortWeekdayFormatter.format(date),
 		detail: isInPeriod ? shortDateFormatter.format(date) : "",
 		isInPeriod,
@@ -216,6 +225,7 @@ function getEmptyMessage(countedCount: number): string {
 
 function buildSeries(
 	id: string,
+	mode: "week" | "period",
 	label: string,
 	detail: string,
 	ariaLabel: string,
@@ -225,6 +235,7 @@ function buildSeries(
 	const total = days.reduce((sum, day) => sum + day.total, 0);
 	return {
 		id,
+		mode,
 		label,
 		detail,
 		ariaLabel,
@@ -272,6 +283,7 @@ export function getSpendingChart(
 			const timestamp = firstWeekStart + index * DAY_MILLISECONDS;
 			periodDays.push({
 				key: `weekday-${index}`,
+				timestamp,
 				label: shortWeekdayFormatter.format(new Date(timestamp)),
 				detail: "",
 				isInPeriod: true,
@@ -356,6 +368,7 @@ export function getSpendingChartSeries(chart: SpendingChart, tabId: string): Spe
 	if (week !== undefined) {
 		return buildSeries(
 			week.id,
+			"week",
 			week.label,
 			week.range,
 			`${week.label}, gasto diario de lunes a domingo`,
@@ -364,9 +377,180 @@ export function getSpendingChartSeries(chart: SpendingChart, tabId: string): Spe
 	}
 	return buildSeries(
 		FULL_PERIOD_TAB_ID,
+		"period",
 		FULL_PERIOD_LABEL,
 		chart.periodLabel,
 		`${FULL_PERIOD_LABEL}, total gastado por cada día de la semana`,
 		chart.periodDays,
 	);
+}
+
+/**
+ * One recognized outflow as the read-only day detail shows it. The identity stays optional on
+ * purpose: a row the server stored without an id is still readable, it just has no edit target, and
+ * this surface never offers one.
+ */
+export interface SpendingChartDetailMovement {
+	/** Movement identity, or `null` when the stored row carries none. */
+	id: string | null;
+	/** Counterparty, description, or the shared unidentified fallback. */
+	label: string;
+	/** Spanish kind label, e.g. `Compras`. */
+	kindLabel: string;
+	/** Raw outflow amount, from the row and never from a rendered height. */
+	amount: number;
+	/** Calendar key `YYYY-MM-DD` the movement belongs to. */
+	dateKey: string;
+	/** Local `HH:mm` when the stored timestamp carried a time; empty for a date-only row. */
+	time: string;
+}
+
+/** The movements that formed one calendar day inside the selected day's detail. */
+export interface SpendingChartDetailGroup {
+	/** Calendar key `YYYY-MM-DD`. */
+	key: string;
+	/** Spanish label `lunes 2 feb`. */
+	label: string;
+	movements: SpendingChartDetailMovement[];
+}
+
+/** The read-only detail of the selected bar, already decided. */
+export interface SpendingChartDayDetail {
+	/** Heading naming the selected day, or the no-selection prompt. */
+	title: string;
+	/** Raw sum of the listed movements. */
+	total: number;
+	/** Calendar groups, ascending; a week selection has at most one group. */
+	groups: SpendingChartDetailGroup[];
+	/** True when a day is selected but no movement can form it. */
+	isEmpty: boolean;
+}
+
+/** One row of the totals summary grid: each week and the full period. */
+export interface SpendingChartTotalsRow {
+	id: string;
+	label: string;
+	total: number;
+	/** True for the row matching the selected tab. */
+	isActive: boolean;
+}
+
+const NO_SELECTION_TITLE = "Selecciona una barra";
+
+const KIND_LABELS: Record<string, string> = {
+	purchase: "Compras",
+	transfer: "Transferencias",
+	payment: "Pagos",
+};
+
+/** Spanish label for a recognized kind; anything else is stated as unclassified, never dropped. */
+export function getSpendingChartKindLabel(kind: unknown): string {
+	const key = typeof kind === "string" ? kind : "";
+	return KIND_LABELS[key] ?? "Sin clasificar";
+}
+
+function compareDetailMovements(
+	a: SpendingChartDetailMovement,
+	b: SpendingChartDetailMovement,
+): number {
+	if (a.dateKey !== b.dateKey) return a.dateKey < b.dateKey ? -1 : 1;
+	if (a.time !== b.time) return a.time < b.time ? -1 : 1;
+	return a.label.localeCompare(b.label, "es");
+}
+
+function formatDetailGroupLabel(dateKey: string): string {
+	const timestamp = parseDateOnly(dateKey);
+	if (timestamp === null) return dateKey;
+	const date = new Date(timestamp);
+	return `${longWeekdayFormatter.format(date)} ${shortDateFormatter.format(date)}`;
+}
+
+/**
+ * The bar a series starts on when the user has not chosen one, matching legacy's
+ * `selectedChartDay` (`public/app.js:2322`): Monday for the weekday aggregate, and the largest day
+ * for a week. Returns `null` only when the series has no selectable day at all.
+ */
+export function getSpendingChartDefaultDayKey(series: SpendingChartSeries): string | null {
+	const selectable = series.days.filter((day) => day.isInPeriod);
+	if (selectable.length === 0) return null;
+	if (series.mode === "period") return selectable[0].key;
+	return selectable.reduce((best, day) => (day.total > best.total ? day : best), selectable[0]).key;
+}
+
+/**
+ * The read-only detail of the selected bar, built from the recognized outflow rows the summary
+ * already loaded. A week selection lists one calendar day; the weekday aggregate groups the whole
+ * period by date. No movement is invented, and a padded day is never selectable.
+ */
+export function getSpendingChartDayDetail(
+	series: SpendingChartSeries,
+	day: SpendingChartDay | null,
+	movements: SpendingChartDetailMovement[],
+): SpendingChartDayDetail {
+	if (day === null || !day.isInPeriod) {
+		return { title: NO_SELECTION_TITLE, total: 0, groups: [], isEmpty: false };
+	}
+
+	const label = longWeekdayFormatter.format(new Date(day.timestamp));
+	const title =
+		series.mode === "period"
+			? `Detalle de ${label} de ${series.detail}`
+			: `Detalle del ${label} ${day.detail}`;
+
+	const weekday = getWeekdayIndex(day.timestamp);
+	const matched = movements.filter((movement) => {
+		if (series.mode === "period") {
+			const timestamp = parseDateOnly(movement.dateKey);
+			return timestamp !== null && getWeekdayIndex(timestamp) === weekday;
+		}
+		return movement.dateKey === day.key;
+	});
+	matched.sort(compareDetailMovements);
+
+	const groups: SpendingChartDetailGroup[] = [];
+	let current: SpendingChartDetailGroup | null = null;
+	for (const movement of matched) {
+		if (current === null || current.key !== movement.dateKey) {
+			current = {
+				key: movement.dateKey,
+				label: formatDetailGroupLabel(movement.dateKey),
+				movements: [],
+			};
+			groups.push(current);
+		}
+		current.movements.push(movement);
+	}
+
+	return {
+		title,
+		total: matched.reduce((sum, movement) => sum + movement.amount, 0),
+		groups,
+		isEmpty: matched.length === 0,
+	};
+}
+
+/**
+ * One totals row per week plus the full period, summing the in-period days only. Padded days carry
+ * no total, so summing every day a week holds never inflates the row.
+ */
+export function getSpendingChartTotalsRows(
+	chart: SpendingChart,
+	selectedId: string,
+): SpendingChartTotalsRow[] {
+	const rows: SpendingChartTotalsRow[] = chart.weeks.map((week) => ({
+		id: week.id,
+		label: week.label,
+		total: week.days.reduce(
+			(sum, day) => sum + (day.isInPeriod ? day.total : 0),
+			0,
+		),
+		isActive: week.id === selectedId,
+	}));
+	rows.push({
+		id: FULL_PERIOD_TAB_ID,
+		label: "Periodo",
+		total: rows.reduce((sum, row) => sum + row.total, 0),
+		isActive: selectedId === FULL_PERIOD_TAB_ID,
+	});
+	return rows;
 }

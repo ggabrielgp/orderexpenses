@@ -45,8 +45,15 @@ import {
 import {
 	FULL_PERIOD_TAB_ID,
 	getSpendingChart,
+	getSpendingChartDayDetail,
+	getSpendingChartDefaultDayKey,
+	getSpendingChartKindLabel,
 	getSpendingChartSeries,
+	getSpendingChartTotalsRows,
 	type SpendingChart,
+	type SpendingChartBar,
+	type SpendingChartDetailMovement,
+	type SpendingChartSeries,
 } from "../components/analytics/spendingChart";
 import {
 	CreateManualExpenseDialog,
@@ -250,6 +257,41 @@ export function getRecognizedExpenseMovements(
 			amount: transaction.amount,
 			date: formatMovementDate(transaction.occurredAt),
 			category: getMovementCategory(transaction.category),
+		}];
+	});
+}
+
+/**
+ * The read-only day-detail rows the spending chart shows for a selected bar. It reuses the same
+ * recognized/finite predicate as the summary projection and keeps the identity and kind text; the
+ * stored timestamp is normalized locally, and a date-only row reports no time instead of a
+ * fabricated midnight. Identity stays optional: a row without an id is still readable here, because
+ * this surface never offers an edit action.
+ */
+export function getSpendingChartDetailMovements(
+	transactions: FinancialTransaction[],
+): SpendingChartDetailMovement[] {
+	return transactions.flatMap((transaction) => {
+		if (
+			!isRecognizedExpense(transaction) ||
+			typeof transaction.amount !== "number" ||
+			!Number.isFinite(transaction.amount)
+		) {
+			return [];
+		}
+		const occurredAt = normalizeLocalDateTime(transaction.occurredAt);
+		if (occurredAt === null) return [];
+		const rawOccurredAt =
+			typeof transaction.occurredAt === "string" ? transaction.occurredAt : "";
+		return [{
+			id: typeof transaction.id === "string" && transaction.id.trim()
+				? transaction.id.trim()
+				: null,
+			label: getRecognizedExpenseIdentity(transaction),
+			kindLabel: getSpendingChartKindLabel(transaction.kind),
+			amount: transaction.amount,
+			dateKey: occurredAt.slice(0, 10),
+			time: /\d{2}:\d{2}/.test(rawOccurredAt) ? occurredAt.slice(11, 16) : "",
 		}];
 	});
 }
@@ -911,17 +953,30 @@ export function CategoryRankingPanel({ ranking, catalog, onJumpToCategory }: Cat
 }
 
 /**
- * The spending chart as one already-decided state: the selected series and its proportional bars.
+ * Accessible name of one bar: it names the day and, when it carries a value, the total it selects.
+ * A padded day outside the period is stated as outside instead of claiming a zero.
+ */
+function getSpendingChartBarLabel(series: SpendingChartSeries, day: SpendingChartBar): string {
+	if (!day.isInPeriod) return `${day.label}, fuera del periodo`;
+	const prefix =
+		series.mode === "period"
+			? `Ver detalle de ${day.label}`
+			: `Ver detalle de ${day.label} ${day.detail}`;
+	return `${prefix}: ${formatClp(day.total)}`;
+}
+
+/**
+ * The spending chart as one already-decided state: the selected series, its proportional bars, the
+ * read-only detail of the selected bar and the totals summary grid.
  *
- * Exported so both the populated and the empty markup are provable from a static render, like the
- * other analytics panels: a live summary only ever reaches the loading state without a session, and
- * what these bars claim is worth proving from what the user reads. The component renders the heights
- * the pure module decided and computes nothing of its own.
+ * Exported so the populated and empty markup are provable from a static render, like the other
+ * analytics panels. The component renders the heights, the detail and the totals the pure module
+ * decided and computes nothing of its own beyond the string labels that need the page formatter.
  *
- * The bars are static labels, not controls. There is no per-day detail panel to select into, so a
- * button per bar would promise an interaction the surface does not have. Only the period tabs are
- * interactive, and each bar's value, weekday and date stay visible as text for assistive technology.
- * A padded day outside the period shows no value and an empty track instead of a fabricated zero.
+ * Bars are selectable buttons again, like legacy's `weekly-bar` buttons (`public/app.js:2277`), so
+ * each one carries `aria-pressed` and `aria-controls` for the detail panel. A padded day outside the
+ * period is disabled and cannot become the selected day. The detail itself is read-only: it names the
+ * day, its movements and their amounts, and offers no edit or delete action.
  */
 export interface SpendingChartViewProps {
 	/** The decided chart, from `getSpendingChart`. */
@@ -929,10 +984,28 @@ export interface SpendingChartViewProps {
 	/** Id of the tab whose series is shown; an unknown id falls back to the full period. */
 	selectedTab: string;
 	onSelectTab: (tabId: string) => void;
+	/** Calendar key of the selected bar, or `null` while none is selected. */
+	selectedDayKey: string | null;
+	onSelectDay: (dayKey: string) => void;
+	/** Recognized outflow rows the read-only detail reads. */
+	detailMovements: SpendingChartDetailMovement[];
 }
 
-export function SpendingChartView({ chart, selectedTab, onSelectTab }: SpendingChartViewProps) {
+const DAY_DETAIL_ID = "react-spending-chart-day-detail";
+
+export function SpendingChartView({
+	chart,
+	selectedTab,
+	onSelectTab,
+	selectedDayKey,
+	onSelectDay,
+	detailMovements,
+}: SpendingChartViewProps) {
 	const series = getSpendingChartSeries(chart, selectedTab);
+	const selectedDay =
+		selectedDayKey === null ? null : series.days.find((day) => day.key === selectedDayKey) ?? null;
+	const detail = getSpendingChartDayDetail(series, selectedDay, detailMovements);
+	const totalsRows = getSpendingChartTotalsRows(chart, series.id);
 	return (
 		<section className="react-spending-chart" aria-labelledby="react-spending-chart-title">
 			<h3 id="react-spending-chart-title">Gasto por día de la semana</h3>
@@ -968,28 +1041,115 @@ export function SpendingChartView({ chart, selectedTab, onSelectTab }: SpendingC
 					<div className="react-spending-chart-heading">
 						<span>{formatClp(series.total)} · {series.detail}</span>
 					</div>
-					<div className="react-spending-chart-bars" role="region" aria-label={series.ariaLabel}>
-						{series.days.map((day) => (
-							<div key={day.key} className="react-spending-chart-bar">
-								<span className="react-spending-chart-value">
-									{day.isInPeriod ? formatClp(day.total) : ""}
-								</span>
-								<span
+					<div className="react-spending-chart-body">
+						<div className="react-spending-chart-bars" role="region" aria-label={series.ariaLabel}>
+							{series.days.map((day) => {
+								const isSelected = day.key === selectedDayKey;
+								return (
+									<button
+										key={day.key}
+										type="button"
+										className={
+											isSelected
+												? "react-spending-chart-bar react-spending-chart-bar-selected"
+												: "react-spending-chart-bar"
+										}
+										aria-pressed={isSelected}
+										aria-controls={DAY_DETAIL_ID}
+										aria-label={getSpendingChartBarLabel(series, day)}
+										disabled={!day.isInPeriod}
+										onClick={() => onSelectDay(day.key)}
+									>
+										<span className="react-spending-chart-value">
+											{day.isInPeriod ? formatClp(day.total) : ""}
+										</span>
+										<span
+											className={
+												day.isInPeriod
+													? "react-spending-chart-track"
+													: "react-spending-chart-track react-spending-chart-track-empty"
+											}
+										>
+											<span
+												className="react-spending-chart-fill"
+												style={{ height: `${day.heightPercent}%` }}
+											/>
+										</span>
+										<strong className="react-spending-chart-day">{day.label}</strong>
+										<small className="react-spending-chart-detail">{day.detail}</small>
+									</button>
+								);
+							})}
+						</div>
+						<aside
+							id={DAY_DETAIL_ID}
+							className="react-spending-chart-day-panel"
+							aria-live="polite"
+						>
+							<h4>{detail.title}</h4>
+							<strong className="react-spending-chart-day-total">{formatClp(detail.total)}</strong>
+							{detail.groups.length === 0 ? (
+								<p className="react-spending-chart-day-empty">
+									{detail.isEmpty
+										? "No hay gastos con monto conocido para este día."
+										: "Elige un día del gráfico para ver qué gastos forman ese total."}
+								</p>
+							) : (
+								detail.groups.map((group) => (
+									<div key={group.key} className="react-spending-chart-day-group">
+										<span className="react-spending-chart-day-date">{group.label}</span>
+										<ul className="react-spending-chart-day-list">
+											{group.movements.map((movement) => (
+												<li
+													key={
+														movement.id ??
+														`${movement.dateKey}-${movement.time}-${movement.label}-${movement.amount}`
+													}
+													className="react-spending-chart-day-item"
+												>
+													<span className="react-spending-chart-day-info">
+														<strong>
+															{movement.time
+																? `${movement.time} · ${movement.label}`
+																: movement.label}
+														</strong>
+														<small>{movement.kindLabel}</small>
+													</span>
+													<strong className="react-spending-chart-day-amount">
+														{formatClp(movement.amount)}
+													</strong>
+												</li>
+											))}
+										</ul>
+									</div>
+								))
+							)}
+						</aside>
+						<aside
+							className="react-spending-chart-summary"
+							aria-label="Resumen de gastos del periodo"
+						>
+							<h4>Resumen del periodo</h4>
+							{totalsRows.map((row) => (
+								<div
+									key={row.id}
 									className={
-										day.isInPeriod
-											? "react-spending-chart-track"
-											: "react-spending-chart-track react-spending-chart-track-empty"
+										row.isActive
+											? "react-spending-chart-summary-row react-spending-chart-summary-row-active"
+											: "react-spending-chart-summary-row"
+									}
+									aria-current={row.isActive ? "true" : undefined}
+									aria-label={
+										row.isActive
+											? `${row.label} seleccionado: ${formatClp(row.total)}`
+											: undefined
 									}
 								>
-									<span
-										className="react-spending-chart-fill"
-										style={{ height: `${day.heightPercent}%` }}
-									/>
-								</span>
-								<strong className="react-spending-chart-day">{day.label}</strong>
-								<small className="react-spending-chart-detail">{day.detail}</small>
-							</div>
-						))}
+									<span>{row.label}:</span>
+									<strong>{formatClp(row.total)}</strong>
+								</div>
+							))}
+						</aside>
 					</div>
 				</>
 			)}
@@ -998,16 +1158,36 @@ export function SpendingChartView({ chart, selectedTab, onSelectTab }: SpendingC
 }
 
 /**
- * The spending chart container: it owns which period tab is shown and hands the decided state to the
- * view. It starts on the full period, like legacy's `chartTab: "month"` (`public/app.js:145`).
+ * The spending chart container: it owns which period tab and which bar are selected and hands that
+ * decided state to the view. It starts on the full period, like legacy's `chartTab: "month"`
+ * (`public/app.js:145`), selects Monday of that aggregate, and reselects the default bar of the new
+ * series whenever the tab changes (`public/app.js:2261`).
  */
 export interface SpendingChartPanelProps {
 	chart: SpendingChart;
+	/** Recognized outflow rows for the read-only detail; empty when the caller has none. */
+	detailMovements?: SpendingChartDetailMovement[];
 }
 
-export function SpendingChartPanel({ chart }: SpendingChartPanelProps) {
+export function SpendingChartPanel({ chart, detailMovements = [] }: SpendingChartPanelProps) {
 	const [selectedTab, setSelectedTab] = useState<string>(FULL_PERIOD_TAB_ID);
-	return <SpendingChartView chart={chart} selectedTab={selectedTab} onSelectTab={setSelectedTab} />;
+	const [selectedDayKey, setSelectedDayKey] = useState<string | null>(() =>
+		getSpendingChartDefaultDayKey(getSpendingChartSeries(chart, FULL_PERIOD_TAB_ID)),
+	);
+	const handleSelectTab = (tabId: string) => {
+		setSelectedTab(tabId);
+		setSelectedDayKey(getSpendingChartDefaultDayKey(getSpendingChartSeries(chart, tabId)));
+	};
+	return (
+		<SpendingChartView
+			chart={chart}
+			selectedTab={selectedTab}
+			onSelectTab={handleSelectTab}
+			selectedDayKey={selectedDayKey}
+			onSelectDay={setSelectedDayKey}
+			detailMovements={detailMovements}
+		/>
+	);
 }
 
 /**
@@ -1318,8 +1498,10 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	// The ranking reads the rows and the pending count the summary already computed, so it adds no
 	// request and shares the same "recognized finite outflow" projection the table shows.
 	const categoryRanking = getCategoryRanking(movements, summary.pendingAmountCount);
-	// The chart reads the same rows and the same pending count, so it adds no request either.
+	// The chart reads the same rows and the same pending count, so it adds no request either. Its
+	// read-only day detail reads the same loaded transactions through the richer projection.
 	const spendingChart = getSpendingChart(movements, selectedPeriod!, summary.pendingAmountCount);
+	const spendingChartDetailMovements = getSpendingChartDetailMovements(state.data.transactions);
 	// The story and the insights reuse the ranking's top row, the principal comercio/persona and the
 	// largest expense the period metrics already decided, so they add no request and cannot disagree
 	// with the panels above them.
@@ -1537,7 +1719,10 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 							onViewChange("movements");
 						}}
 					/>
-					<SpendingChartPanel chart={spendingChart} />
+					<SpendingChartPanel
+						chart={spendingChart}
+						detailMovements={spendingChartDetailMovements}
+					/>
 					<DashboardStoryView story={dashboardStory} />
 					<PeriodAnalyticsPanel analytics={periodAnalytics} />
 					<TopInsightsView insights={topInsights} />
