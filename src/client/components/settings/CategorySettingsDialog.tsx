@@ -1,4 +1,5 @@
 import {
+	useCallback,
 	useEffect,
 	useRef,
 	useState,
@@ -28,16 +29,23 @@ import {
 } from "./categorySettings";
 
 /**
- * `Configuración` dialog for category administration.
+ * Category administration surface.
  *
  * Every decision it renders comes from `categorySettings`: validation happens there (and again
  * inside the submitter), the rows and their labels come from the catalog derivation, and the delete
- * confirmation copy comes from the pure function that states the real consequence. The dialog owns
- * only React state.
+ * confirmation copy comes from the pure function that states the real consequence. These components
+ * own only React state.
  *
- * It is a real modal through the same `syncNativeModalDialog` helper as the movement, Gmail and
- * rename dialogs, so it has the focus trap, `Esc` handling and inert backdrop of every other modal
- * in this surface instead of the bare non-modal markup `<dialog open>` would produce.
+ * The stateful body is extracted as `CategorySettingsContent` so the standalone `Configuración`
+ * dialog and the unified `AccountSettingsDialog` render the exact same section, form and mutation
+ * runner instead of two copies that could drift apart. The standalone dialog keeps its own native
+ * `<dialog>` shell and close control; the unified modal embeds the content and owns a single outer
+ * close control.
+ *
+ * The standalone dialog is a real modal through the same `syncNativeModalDialog` helper as the
+ * movement, Gmail and rename dialogs, so it has the focus trap, `Esc` handling and inert backdrop of
+ * every other modal in this surface instead of the bare non-modal markup `<dialog open>` would
+ * produce.
  *
  * Deletion is confirmed in place, inside the row, rather than through a second nested modal: the
  * surface is already modal, and the confirmation is a single, explicit step whose copy is the one
@@ -131,21 +139,38 @@ export function CategorySettingsRow({
 	);
 }
 
-export interface CategorySettingsDialogProps {
-	/** The parent owns visibility; the dialog only opens or closes the native element. */
+export interface CategorySettingsContentProps {
+	/** The parent owns visibility; the content only loads and mutates while the surface is open. */
 	isOpen: boolean;
-	/** Dismissal intent. It never re-sends a mutation. */
-	onClose: () => void;
 	/** Performs the single in-flight mutation; rejects only through its returned outcome. */
 	submitMutation: CategoryMutationSubmitter;
+	/**
+	 * Renders this section's own close control when provided. The standalone dialog passes its
+	 * dismissal handler; the unified settings modal omits it so a single outer control closes the
+	 * whole surface.
+	 */
+	onClose?: () => void;
+	/**
+	 * Reports the in-flight phase to the owning dialog, which uses it to refuse `Esc` while a
+	 * request is unsettled. It is a callback instead of lifted state so the dialog does not have to
+	 * re-render on every mutation.
+	 */
+	onBusyChange?: (busy: boolean) => void;
 }
 
-export function CategorySettingsDialog({
+/**
+ * The stateful category administration body: catalog load, draft, in-place delete confirmation,
+ * mutation runner and truthful status line.
+ *
+ * It is the reusable half of the surface, so it computes nothing the standalone dialog used to
+ * compute. The mounted surface owns naming and dismissal; this section owns the behaviour.
+ */
+export function CategorySettingsContent({
 	isOpen,
-	onClose,
 	submitMutation,
-}: CategorySettingsDialogProps) {
-	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	onClose,
+	onBusyChange,
+}: CategorySettingsContentProps) {
 	const [catalog, setCatalog] = useState<CategoryCatalogState>(createCategoryCatalogState);
 	const [catalogToken, setCatalogToken] = useState(0);
 	const [draft, setDraft] = useState<CategoryDraft>(createCategoryDraft);
@@ -153,10 +178,6 @@ export function CategorySettingsDialog({
 	const [isMutating, setIsMutating] = useState(false);
 	/** Name awaiting the delete confirmation; `null` while no confirmation is open. */
 	const [confirmingDeleteName, setConfirmingDeleteName] = useState<string | null>(null);
-
-	useEffect(() => {
-		syncNativeModalDialog(dialogRef.current, isOpen);
-	}, [isOpen]);
 
 	// Opening always starts a fresh surface: no previous outcome, draft or confirmation leaks into
 	// a new attempt.
@@ -168,7 +189,7 @@ export function CategorySettingsDialog({
 		setConfirmingDeleteName(null);
 	}, [isOpen]);
 
-	// The catalog is only requested while the dialog is open, so a dashboard that never opens
+	// The catalog is only requested while the surface is open, so a dashboard that never opens
 	// `Configuración` never asks for it.
 	useEffect(() => {
 		if (!isOpen) return;
@@ -188,6 +209,12 @@ export function CategorySettingsDialog({
 			});
 		return () => controller.abort();
 	}, [isOpen, catalogToken]);
+
+	// The owning dialog learns about the in-flight phase so it can refuse dismissal mid-request,
+	// without this section lifting its mutation state into every caller.
+	useEffect(() => {
+		onBusyChange?.(isMutating);
+	}, [isMutating, onBusyChange]);
 
 	const rows = getCategoryDisplayRows(catalog.categories);
 
@@ -252,24 +279,11 @@ export function CategorySettingsDialog({
 		void runMutation({ type: "delete", name });
 	};
 
-	const handleDialogCancel = (event: SyntheticEvent<HTMLDialogElement>) => {
-		// `Esc` must not hide a mutation that is already on its way.
-		if (isMutating) event.preventDefault();
-	};
-
-	// Closed means unmounted, exactly like the Gmail consent and removal dialogs: the native
-	// element only exists while the surface is open, and the effect above opens it on that render.
+	// Closed means nothing to render: the mounted dialog decides when the surface is visible.
 	if (!isOpen) return null;
 
 	return (
-		<dialog
-			ref={dialogRef}
-			className="react-settings-dialog react-category-dialog"
-			aria-labelledby="react-category-settings-title"
-			onCancel={handleDialogCancel}
-			onClose={onClose}
-		>
-			<h2 id="react-category-settings-title">Configuración</h2>
+		<>
 			<section className="react-category-section" aria-labelledby="react-category-list-title">
 				<h3 id="react-category-list-title">Categorías</h3>
 				{/* Loading, loaded-and-empty and failed are three different truths: a failed load must
@@ -368,11 +382,71 @@ export function CategorySettingsDialog({
 					{status.message}
 				</p>
 			)}
-			<div className="react-shell-actions">
-				<button type="button" className="secondary" onClick={onClose} disabled={isMutating}>
-					Cerrar
-				</button>
-			</div>
+			{/* The standalone dialog keeps this section's own dismissal; the unified modal omits it
+			    so a single outer control closes the whole surface. */}
+			{onClose !== undefined && (
+				<div className="react-shell-actions">
+					<button type="button" className="secondary" onClick={onClose} disabled={isMutating}>
+						Cerrar
+					</button>
+				</div>
+			)}
+		</>
+	);
+}
+
+export interface CategorySettingsDialogProps {
+	/** The parent owns visibility; the dialog only opens or closes the native element. */
+	isOpen: boolean;
+	/** Dismissal intent. It never re-sends a mutation. */
+	onClose: () => void;
+	/** Performs the single in-flight mutation; rejects only through its returned outcome. */
+	submitMutation: CategoryMutationSubmitter;
+}
+
+/**
+ * Standalone native modal for category administration. It is the shipped shell around
+ * `CategorySettingsContent`; the unified settings modal renders the same content inside its own
+ * dialog instead of mounting this one.
+ */
+export function CategorySettingsDialog({
+	isOpen,
+	onClose,
+	submitMutation,
+}: CategorySettingsDialogProps) {
+	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	const [isMutating, setIsMutating] = useState(false);
+
+	useEffect(() => {
+		syncNativeModalDialog(dialogRef.current, isOpen);
+	}, [isOpen]);
+
+	// The section reports its in-flight phase so `Esc` cannot hide a mutation already on its way.
+	const handleBusyChange = useCallback((busy: boolean) => setIsMutating(busy), []);
+
+	const handleDialogCancel = (event: SyntheticEvent<HTMLDialogElement>) => {
+		if (isMutating) event.preventDefault();
+	};
+
+	// Closed means unmounted, exactly like the Gmail consent and removal dialogs: the native
+	// element only exists while the surface is open, and the effect above opens it on that render.
+	if (!isOpen) return null;
+
+	return (
+		<dialog
+			ref={dialogRef}
+			className="react-settings-dialog react-category-dialog"
+			aria-labelledby="react-category-settings-title"
+			onCancel={handleDialogCancel}
+			onClose={onClose}
+		>
+			<h2 id="react-category-settings-title">Configuración</h2>
+			<CategorySettingsContent
+				isOpen={isOpen}
+				submitMutation={submitMutation}
+				onClose={onClose}
+				onBusyChange={handleBusyChange}
+			/>
 		</dialog>
 	);
 }

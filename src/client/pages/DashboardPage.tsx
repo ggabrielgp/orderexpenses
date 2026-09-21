@@ -63,8 +63,7 @@ import {
 	type GmailConsentState,
 } from "../components/gmail/gmailConsent";
 import { createGmailSyncSubmitter } from "../components/gmail/gmailSync";
-import { CategorySettingsDialog } from "../components/settings/CategorySettingsDialog";
-import { CounterpartyRulesDialog } from "../components/settings/CounterpartyRulesDialog";
+import { AccountSettingsDialog } from "../components/settings/AccountSettingsDialog";
 import { createCategoryMutationSubmitter } from "../components/settings/categorySettings";
 import { createCounterpartyRuleSubmitter } from "../components/settings/counterpartyRules";
 import { FinancialCycleEditDialog } from "../components/financial-cycle/FinancialCycleEditDialog";
@@ -390,11 +389,12 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 	}, [financialDashboard]);
 
 	/**
-	 * Category administration surface. It is reachable only from this authenticated tree: the demo
-	 * route renders `DemoDashboardPage`, a separate read-only composition that never mounts it, so
-	 * demo writes stay impossible by construction instead of by a guard check.
+	 * Unified account settings surface. It hosts the profile, category administration and
+	 * counterparty rules behind the single menu entry. It is reachable only from this authenticated
+	 * tree: the demo route renders `DemoDashboardPage`, a separate read-only composition that never
+	 * mounts it, so demo writes stay impossible by construction instead of by a guard check.
 	 */
-	const [isCategorySettingsOpen, setIsCategorySettingsOpen] = useState(false);
+	const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
 	/** The C1 single in-flight lock, reused for the category mutations. */
 	const categorySettingsLock = useRef(false);
 	const submitCategoryMutation = useMemo(
@@ -408,15 +408,14 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 	);
 
 	/**
-	 * Counterparty rule surface, reachable only from this authenticated tree for the same structural
-	 * reason as the settings dialog.
+	 * Counterparty rule submitter, reachable only from this authenticated tree for the same
+	 * structural reason as the settings surface.
 	 *
 	 * Its submitter owns the period reload the financial summary publishes: the server applies rules
 	 * while it loads movements, so a stored rule is invisible until the dashboard reloads. While no
 	 * handle has been published yet (`financialDashboard === null`, which is the state before the
 	 * summary mounts) the reload is reported as failed rather than as a refresh that never happened.
 	 */
-	const [isCounterpartyRulesOpen, setIsCounterpartyRulesOpen] = useState(false);
 	/** The C1 single in-flight lock, reused for the counterparty rule mutations. */
 	const counterpartyRulesLock = useRef(false);
 	const submitCounterpartyRule = useMemo(
@@ -469,22 +468,15 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 						</p>
 					</div>
 					<div className="react-shell-actions">
-						{/* The settings actions live under the account menu now; their dialogs and mutation
-						    contracts below are unchanged. */}
+						{/* The single settings action lives under the account menu; it opens the unified
+						    surface whose mutation contracts are unchanged. */}
 						<AccountMenu profile={profile}>
 							<button
 								type="button"
 								role="menuitem"
-								onClick={() => setIsCategorySettingsOpen(true)}
+								onClick={() => setIsAccountSettingsOpen(true)}
 							>
 								Configuración
-							</button>
-							<button
-								type="button"
-								role="menuitem"
-								onClick={() => setIsCounterpartyRulesOpen(true)}
-							>
-								Reglas de contraparte
 							</button>
 						</AccountMenu>
 						<a className="button react-secondary-link" href="/legacy-app">
@@ -494,16 +486,14 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 				</header>
 
 				{/* Mounted only in this authenticated tree: `DemoDashboardPage` is a separate read-only
-				    composition that never mounts the settings or counterparty rule surfaces. */}
-				<CategorySettingsDialog
-					isOpen={isCategorySettingsOpen}
-					onClose={() => setIsCategorySettingsOpen(false)}
-					submitMutation={submitCategoryMutation}
-				/>
-				<CounterpartyRulesDialog
-					isOpen={isCounterpartyRulesOpen}
-					onClose={() => setIsCounterpartyRulesOpen(false)}
-					submitMutation={submitCounterpartyRule}
+				    composition that never mounts the unified settings surface. Gmail keeps its own
+				    connection state machine in the body panel below. */}
+				<AccountSettingsDialog
+					isOpen={isAccountSettingsOpen}
+					onClose={() => setIsAccountSettingsOpen(false)}
+					profile={profile}
+					submitCategoryMutation={submitCategoryMutation}
+					submitCounterpartyRule={submitCounterpartyRule}
 				/>
 
 				<div className="react-status-grid">

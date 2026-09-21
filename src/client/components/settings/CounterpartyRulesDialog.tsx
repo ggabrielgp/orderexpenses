@@ -1,4 +1,5 @@
 import {
+	useCallback,
 	useEffect,
 	useRef,
 	useState,
@@ -28,15 +29,21 @@ import {
 } from "./counterpartyRules";
 
 /**
- * `Reglas de contraparte` dialog.
+ * `Reglas de contraparte` surface.
  *
  * The server applies these rules while it loads movements, so this is a list plus free entry, not a
  * movement editor: the user types a counterparty and picks a category, and the dashboard reloads
  * the configured period so the rule becomes visible. Everything decided here comes from
- * `counterpartyRules`; this file owns only React state.
+ * `counterpartyRules`; these components own only React state.
  *
- * It is a real modal through the shared `syncNativeModalDialog` helper, and it is mounted only in the
- * authenticated tree, so the read-only demo never renders it.
+ * The stateful body is extracted as `CounterpartyRulesContent` so the standalone dialog and the
+ * unified `AccountSettingsDialog` render the exact same list, form and mutation runner instead of
+ * two copies that could drift apart. The standalone dialog keeps its own native `<dialog>` shell,
+ * its heading and its close control; the unified modal embeds the content under its own section
+ * heading and owns a single outer close control.
+ *
+ * The standalone dialog is a real modal through the shared `syncNativeModalDialog` helper, and the
+ * content is mounted only from the authenticated tree, so the read-only demo never renders it.
  */
 
 type CounterpartyStatusTone = "pending" | "success" | "warning" | "error";
@@ -107,21 +114,38 @@ export function CounterpartyRulesList({ state }: CounterpartyRulesListProps) {
 	);
 }
 
-export interface CounterpartyRulesDialogProps {
-	/** The parent owns visibility; the dialog only opens or closes the native element. */
+export interface CounterpartyRulesContentProps {
+	/** The parent owns visibility; the content only loads and mutates while the surface is open. */
 	isOpen: boolean;
-	/** Dismissal intent. It never re-sends a mutation. */
-	onClose: () => void;
 	/** Performs the single in-flight mutation and its follow-up period reload. */
 	submitMutation: CounterpartyRuleSubmitter;
+	/**
+	 * Renders this section's own close control when provided. The standalone dialog passes its
+	 * dismissal handler; the unified settings modal omits it so a single outer control closes the
+	 * whole surface.
+	 */
+	onClose?: () => void;
+	/**
+	 * Reports the in-flight phase to the owning dialog, which uses it to refuse `Esc` while a
+	 * request is unsettled. It is a callback instead of lifted state so the dialog does not have to
+	 * re-render on every mutation.
+	 */
+	onBusyChange?: (busy: boolean) => void;
 }
 
-export function CounterpartyRulesDialog({
+/**
+ * The stateful counterparty-rule body: stored-rule load, category catalog for the select, draft,
+ * mutation runner and truthful status line.
+ *
+ * The mounted surface owns the section heading and dismissal; this section owns the behaviour, so
+ * the unified modal is a new shell around verified logic rather than a second implementation.
+ */
+export function CounterpartyRulesContent({
 	isOpen,
-	onClose,
 	submitMutation,
-}: CounterpartyRulesDialogProps) {
-	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	onClose,
+	onBusyChange,
+}: CounterpartyRulesContentProps) {
 	const [list, setList] = useState<CounterpartyRuleListState>(createCounterpartyRuleListState);
 	const [listToken, setListToken] = useState(0);
 	const [draft, setDraft] = useState<CounterpartyRuleDraft>(createCounterpartyRuleDraft);
@@ -131,10 +155,6 @@ export function CounterpartyRulesDialog({
 	const [categoryCatalogFailed, setCategoryCatalogFailed] = useState(false);
 	const [categoryToken, setCategoryToken] = useState(0);
 
-	useEffect(() => {
-		syncNativeModalDialog(dialogRef.current, isOpen);
-	}, [isOpen]);
-
 	// Opening always starts a fresh surface: no previous outcome or draft leaks into a new attempt.
 	useEffect(() => {
 		if (!isOpen) return;
@@ -143,7 +163,7 @@ export function CounterpartyRulesDialog({
 		setIsMutating(false);
 	}, [isOpen]);
 
-	// The rules are only requested while the dialog is open, so a dashboard that never opens this
+	// The rules are only requested while the surface is open, so a dashboard that never opens this
 	// surface never asks for them. A settled mutation re-runs this effect through `listToken`, which
 	// is what makes the list show what the server now holds.
 	useEffect(() => {
@@ -180,6 +200,12 @@ export function CounterpartyRulesDialog({
 			});
 		return () => controller.abort();
 	}, [isOpen, categoryToken]);
+
+	// The owning dialog learns about the in-flight phase so it can refuse dismissal mid-request,
+	// without this section lifting its mutation state into every caller.
+	useEffect(() => {
+		onBusyChange?.(isMutating);
+	}, [isMutating, onBusyChange]);
 
 	/**
 	 * Runs one mutation and reports exactly what happened.
@@ -224,13 +250,7 @@ export function CounterpartyRulesDialog({
 		void runMutation(draft);
 	};
 
-	const handleDialogCancel = (event: SyntheticEvent<HTMLDialogElement>) => {
-		// `Esc` must not hide a mutation that is already on its way.
-		if (isMutating) event.preventDefault();
-	};
-
-	// Closed means unmounted, exactly like the other dialogs: the native element only exists while
-	// the surface is open, and the effect above opens it on that render.
+	// Closed means nothing to render: the mounted dialog decides when the surface is visible.
 	if (!isOpen) return null;
 
 	// The control names the outcome it will produce, so the clearing choice is visible before it is
@@ -245,14 +265,7 @@ export function CounterpartyRulesDialog({
 			: "Guardar regla";
 
 	return (
-		<dialog
-			ref={dialogRef}
-			className="react-settings-dialog react-counterparty-dialog"
-			aria-labelledby="react-counterparty-rules-title"
-			onCancel={handleDialogCancel}
-			onClose={onClose}
-		>
-			<h2 id="react-counterparty-rules-title">Reglas de contraparte</h2>
+		<>
 			<p className="react-counterparty-intro">
 				Cada regla reemplaza la categoría de los movimientos cuya contraparte coincida. Se
 				aplican al cargar los movimientos, así que el periodo se actualiza al guardar.
@@ -354,11 +367,71 @@ export function CounterpartyRulesDialog({
 					{status.message}
 				</p>
 			)}
-			<div className="react-shell-actions">
-				<button type="button" className="secondary" onClick={onClose} disabled={isMutating}>
-					Cerrar
-				</button>
-			</div>
+			{/* The standalone dialog keeps this section's own dismissal; the unified modal omits it
+			    so a single outer control closes the whole surface. */}
+			{onClose !== undefined && (
+				<div className="react-shell-actions">
+					<button type="button" className="secondary" onClick={onClose} disabled={isMutating}>
+						Cerrar
+					</button>
+				</div>
+			)}
+		</>
+	);
+}
+
+export interface CounterpartyRulesDialogProps {
+	/** The parent owns visibility; the dialog only opens or closes the native element. */
+	isOpen: boolean;
+	/** Dismissal intent. It never re-sends a mutation. */
+	onClose: () => void;
+	/** Performs the single in-flight mutation and its follow-up period reload. */
+	submitMutation: CounterpartyRuleSubmitter;
+}
+
+/**
+ * Standalone native modal for counterparty rules. It is the shipped shell around
+ * `CounterpartyRulesContent`; the unified settings modal renders the same content inside its own
+ * dialog instead of mounting this one.
+ */
+export function CounterpartyRulesDialog({
+	isOpen,
+	onClose,
+	submitMutation,
+}: CounterpartyRulesDialogProps) {
+	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	const [isMutating, setIsMutating] = useState(false);
+
+	useEffect(() => {
+		syncNativeModalDialog(dialogRef.current, isOpen);
+	}, [isOpen]);
+
+	// The section reports its in-flight phase so `Esc` cannot hide a mutation already on its way.
+	const handleBusyChange = useCallback((busy: boolean) => setIsMutating(busy), []);
+
+	const handleDialogCancel = (event: SyntheticEvent<HTMLDialogElement>) => {
+		if (isMutating) event.preventDefault();
+	};
+
+	// Closed means unmounted, exactly like the other dialogs: the native element only exists while
+	// the surface is open, and the effect above opens it on that render.
+	if (!isOpen) return null;
+
+	return (
+		<dialog
+			ref={dialogRef}
+			className="react-settings-dialog react-counterparty-dialog"
+			aria-labelledby="react-counterparty-rules-title"
+			onCancel={handleDialogCancel}
+			onClose={onClose}
+		>
+			<h2 id="react-counterparty-rules-title">Reglas de contraparte</h2>
+			<CounterpartyRulesContent
+				isOpen={isOpen}
+				submitMutation={submitMutation}
+				onClose={onClose}
+				onBusyChange={handleBusyChange}
+			/>
 		</dialog>
 	);
 }
