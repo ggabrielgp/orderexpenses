@@ -5761,6 +5761,12 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.match(weekDetail, /09:30 · Verdulería/);
 	assert.match(weekDetail, /<small>Compras<\/small>/);
 	assert.match(weekDetail, /react-spending-chart-day-amount">\$2\.000<\/strong>/);
+	// Each row leads with the free Font Awesome solid person icon, left of the identity, for the
+	// inert demo rows as well as the clickable dialog rows.
+	assert.match(
+		weekDetail,
+		/class="react-spending-chart-day-identity"><span class="react-spending-chart-day-person" aria-hidden="true"><svg[^>]*class="svg-inline--fa fa-user"/,
+	);
 	// A date-only row reports no fabricated time.
 	const tuesdayDetail = renderView("week-1", chart, "2026-02-03");
 	assert.match(tuesdayDetail, /<strong>Café<\/strong>/);
@@ -5807,6 +5813,10 @@ test("the React spending chart view renders selectable proportional bars, the re
 	);
 	assert.match(clickableDetail, /<button type="button" class="react-spending-chart-day-open"/);
 	assert.match(clickableDetail, /09:30 · Verdulería/);
+	assert.match(
+		clickableDetail,
+		/class="react-spending-chart-day-identity"><span class="react-spending-chart-day-person" aria-hidden="true"><svg[^>]*class="svg-inline--fa fa-user"/,
+	);
 	assert.doesNotMatch(clickableDetail, />Editar<|>Eliminar</);
 
 	// No countable data: an explicit message instead of a row of zero bars, and no tabs to switch.
@@ -5860,6 +5870,9 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.match(styles, /\.react-spending-chart-body \{/);
 	assert.match(styles, /\.react-spending-chart-bar-selected \.react-spending-chart-track \{/);
 	assert.match(styles, /\.react-spending-chart-day-panel,/);
+	// The person icon has its own scoped hook next to the compact identity row it leads.
+	assert.match(styles, /\.react-spending-chart-day-identity \{/);
+	assert.match(styles, /\.react-spending-chart-day-person \{/);
 	assert.match(styles, /\.react-spending-chart-summary-row-active \{/);
 	// The desktop body is a two-column top row (bars, then totals) with the selected-day detail
 	// spanning the full width beneath them.

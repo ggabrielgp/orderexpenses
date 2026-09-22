@@ -1611,7 +1611,7 @@
 }
 
 .react-spending-chart-day-date {
-	margin-top: var(--space-2);
+	margin-top: var(--space-1);
 	color: var(--ink-muted);
 	font-size: var(--text-xs);
 	font-weight: 800;
@@ -1620,7 +1620,7 @@
 
 .react-spending-chart-day-list {
 	display: grid;
-	gap: var(--space-2);
+	gap: 2px;
 	margin: 0;
 	padding: 0;
 	list-style: none;
@@ -1628,11 +1628,11 @@
 
 .react-spending-chart-day-item {
 	display: flex;
-	align-items: start;
+	align-items: center;
 	justify-content: space-between;
 	gap: var(--space-2);
 	border-top: 1px solid var(--line);
-	padding-top: var(--space-2);
+	padding-top: var(--space-1);
 	font-size: var(--text-sm);
 }
 
@@ -1649,7 +1649,7 @@
 	border: 1px solid transparent;
 	border-radius: var(--radius-sm);
 	background: transparent;
-	padding: 8px;
+	padding: 4px 8px;
 	color: inherit;
 	font: inherit;
 	text-align: left;
@@ -1665,6 +1665,26 @@
 .react-spending-chart-day-open:focus-visible {
 	outline: 3px solid var(--focus);
 	outline-offset: 2px;
+}
+
+/* The person icon and the identity text share a flexible row so the icon stays pinned to the left
+   and the name keeps its ellipsis while the amount stays right-aligned. */
+.react-spending-chart-day-identity {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.react-spending-chart-day-person {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	width: 1.25rem;
+	color: var(--ink-muted);
+	font-size: 0.75rem;
 }
 
 .react-spending-chart-day-info {

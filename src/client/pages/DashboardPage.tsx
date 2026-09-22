@@ -7,6 +7,7 @@ import {
 	faLock,
 	faMinus,
 	faPenToSquare,
+	faUser,
 	faWallet,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -1393,13 +1394,18 @@ export function SpendingChartView({
 												const movementId = movement.id;
 												const rowContent = (
 													<>
-														<span className="react-spending-chart-day-info">
-															<strong>
-																{movement.time
-																	? `${movement.time} · ${movement.label}`
-																	: movement.label}
-															</strong>
-															<small>{movement.kindLabel}</small>
+														<span className="react-spending-chart-day-identity">
+															<span className="react-spending-chart-day-person" aria-hidden="true">
+																<FontAwesomeIcon icon={faUser} />
+															</span>
+															<span className="react-spending-chart-day-info">
+																<strong>
+																	{movement.time
+																		? `${movement.time} · ${movement.label}`
+																		: movement.label}
+																</strong>
+																<small>{movement.kindLabel}</small>
+															</span>
 														</span>
 														<strong className="react-spending-chart-day-amount">
 															{formatClp(movement.amount)}
