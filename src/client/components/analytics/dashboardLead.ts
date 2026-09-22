@@ -41,7 +41,11 @@ export const BALANCE_EMPTY_VALUE = "—";
 export type DashboardLeadIncomeSource = "configured-cycle" | "demo-inflow";
 
 export interface DashboardLeadInput {
-	/** Label of the period the summary is showing, e.g. `2026-02-01 – 2026-02-28`. */
+	/**
+	 * Label of the period the summary is showing, e.g. `28/08/2026 a 21/09/2026`. It is accepted for
+	 * callers, but the lead no longer echoes it: every value already belongs to the selected period, so
+	 * the prominent total and the balance are stated without repeating the range.
+	 */
 	periodLabel: string;
 	/** Sum of the recognized expenses that carry a usable amount. */
 	totalSpending: number;
@@ -84,12 +88,15 @@ export interface DashboardBalanceLead {
 	amount: number | null;
 	/** Substitute shown where `amount` is `null`, and `null` while a real amount exists. */
 	emptyValue: string | null;
-	/** Why the value exists or why it does not; always present. */
+	/**
+	 * Why the value is missing, or the pending-amount caveat when a real amount is stated; empty when
+	 * a positive balance needs no caveat, so the surface renders no detail paragraph for it.
+	 */
 	detail: string;
 	/**
-	 * The noun the surface labels the subtracted amount with in the derivation line (`ingreso` for a
-	 * configured cycle, `ingresos de la demo` for observed demo inflow), or `null` when there is no
-	 * amount to derive. Keeping it here means the copy stays in the decision module, not the render.
+	 * The noun the balance's income is described with (`ingreso` for a configured cycle, `ingresos de
+	 * la demo` for observed demo inflow), or `null` when there is no amount. The surface no longer
+	 * renders a derivation line; the field stays as the module's income-source label.
 	 */
 	derivationIncomeLabel: string | null;
 	/**
@@ -164,30 +171,30 @@ function getAvailablePercentTone(
 }
 
 /**
- * Legacy's detail (`renderDashboardLead`, `public/app.js:1399`): the period, how many known-amount
- * expenses the total summed, and — only when there are any — how many were left out for want of an
- * amount. The two counts stay separate clauses instead of one folded number, so a `$0` total next to
- * pending movements cannot read as "you spent nothing".
+ * Legacy's detail (`renderDashboardLead`, `public/app.js:1399`): how many known-amount expenses the
+ * total summed, and — only when there are any — how many were left out for want of an amount. The
+ * selected period is deliberately absent because every value already belongs to it. The two counts
+ * stay separate clauses instead of one folded number, so a `$0` total next to pending movements
+ * cannot read as "you spent nothing".
  */
 function buildSpendingDetail(
-	periodLabel: string,
 	knownCount: number,
 	pendingAmountCount: number,
 ): string {
-	const parts = [
-		periodLabel.trim(),
-		`${knownCount} ${getExpenseNoun(knownCount)} con monto`,
-	];
+	const parts = [`${knownCount} ${getExpenseNoun(knownCount)} con monto`];
 	if (pendingAmountCount > 0) {
 		parts.push(`${pendingAmountCount} sin monto claro`);
 	}
 	return parts.filter((part) => part.length > 0).join(" · ");
 }
 
-/** The pending-only clause shared by both sources: a pending movement is disclosed, never discounted. */
+/**
+ * The pending-only detail shared by both sources: a pending movement is disclosed, never discounted.
+ * It is the whole balance detail when a real amount is stated, so it carries no leading separator.
+ */
 function buildPendingCaveat(pendingAmountCount: number): string {
 	return pendingAmountCount > 0
-		? ` ${pendingAmountCount} ${getMovementNoun(pendingAmountCount)} sin monto conocido no se ${
+		? `${pendingAmountCount} ${getMovementNoun(pendingAmountCount)} sin monto conocido no se ${
 				pendingAmountCount === 1 ? "descuenta" : "descuentan"
 			}.`
 		: "";
@@ -204,7 +211,8 @@ type DashboardBalanceLeadBase = Omit<
  * summary, stated without the budget branch legacy also had: with a configured income the balance is a
  * real subtraction; without one there is no number to show, only the reason it cannot be computed. The
  * known-amount total is what it subtracts, so a pending movement is disclosed as not discounted instead
- * of silently shrinking the answer.
+ * of silently shrinking the answer. The subtraction itself is never explained in prose: the positive
+ * detail is only the pending caveat, and it is empty when every amount is known.
  */
 function buildConfiguredBalance(
 	incomeAmount: number | null,
@@ -227,16 +235,17 @@ function buildConfiguredBalance(
 		incomeAmount,
 		amount: incomeAmount - totalSpending,
 		emptyValue: null,
-		detail: `Ingreso configurado menos los gastos reconocidos del periodo.${buildPendingCaveat(pendingAmountCount)}`,
+		detail: buildPendingCaveat(pendingAmountCount),
 		derivationIncomeLabel: "ingreso",
 	};
 }
 
 /**
  * The demo has no configured cycle, so the only net it may state is the fixture's observed inflow sum
- * minus the recognized expenses. The number is preserved when the fixture carries an inflow, but the
- * label, the detail and the derivation noun all describe observed demo data instead of a configured
- * income; with no inflow the absence is explicit copy, never a fabricated `$0` or a configured claim.
+ * minus the recognized expenses. The number is preserved when the fixture carries an inflow, and the
+ * label and the derivation noun describe observed demo data instead of a configured income, while the
+ * positive detail carries only the shared pending caveat; with no inflow the absence is explicit copy,
+ * never a fabricated `$0` or a configured claim.
  */
 function buildDemoBalance(
 	incomeAmount: number | null,
@@ -259,7 +268,7 @@ function buildDemoBalance(
 		incomeAmount,
 		amount: incomeAmount - totalSpending,
 		emptyValue: null,
-		detail: `Ingresos observados en los datos de la demo menos los gastos reconocidos del periodo.${buildPendingCaveat(pendingAmountCount)}`,
+		detail: buildPendingCaveat(pendingAmountCount),
 		derivationIncomeLabel: "ingresos de la demo",
 	};
 }
@@ -298,7 +307,6 @@ export function getDashboardLead(input: DashboardLeadInput): DashboardLead {
 	const totalSpending = normalizeAmount(input?.totalSpending);
 	const knownCount = normalizeCount(input?.expenseCount);
 	const pendingAmountCount = normalizeCount(input?.pendingAmountCount);
-	const periodLabel = typeof input?.periodLabel === "string" ? input.periodLabel : "";
 	const incomeAmount = normalizeIncomeAmount(input?.incomeAmount ?? null);
 	const incomeSource = normalizeIncomeSource(input?.incomeSource);
 
@@ -308,7 +316,7 @@ export function getDashboardLead(input: DashboardLeadInput): DashboardLead {
 			amount: totalSpending,
 			knownCount,
 			pendingAmountCount,
-			detail: buildSpendingDetail(periodLabel, knownCount, pendingAmountCount),
+			detail: buildSpendingDetail(knownCount, pendingAmountCount),
 		},
 		balance: buildBalance(incomeSource, incomeAmount, totalSpending, pendingAmountCount),
 	};

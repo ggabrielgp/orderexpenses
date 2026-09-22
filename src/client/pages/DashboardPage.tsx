@@ -990,17 +990,11 @@ export function DashboardLeadView({ lead }: DashboardLeadViewProps) {
 						? lead.balance.emptyValue
 						: formatClp(lead.balance.amount)}
 				</strong>
-				{/* The derivation only exists when the module had an income to subtract; its noun comes from
-				    the decision module, so the demo never borrows the configured-income wording. */}
-				{lead.balance.amount !== null &&
-					lead.balance.incomeAmount !== null &&
-					lead.balance.derivationIncomeLabel !== null && (
-						<small className="react-lead-derivation">
-							{formatClp(lead.balance.incomeAmount)} {lead.balance.derivationIncomeLabel} −{" "}
-							{formatClp(lead.spending.amount)} gastos
-						</small>
-					)}
-				<p className="react-lead-detail">{lead.balance.detail}</p>
+				{/* The `ingreso − gastos` derivation is deliberately not rendered and the positive detail is
+				    only the pending caveat: an empty value renders no paragraph and adds no visual spacing. */}
+				{lead.balance.detail.length > 0 && (
+					<p className="react-lead-detail">{lead.balance.detail}</p>
+				)}
 				{/* The percentage row is derived only from the amount and income above; without a truthful
 				    base the module returns `null` and the row is omitted instead of fabricated. */}
 				{lead.balance.availablePercent !== null &&

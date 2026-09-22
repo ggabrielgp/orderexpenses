@@ -351,7 +351,12 @@ test("the React financial summary loads the configured period before transaction
 		});
 		assert.equal(
 			page.formatPeriodLabel(data.cycle.selectedPeriod),
-			"2028-02-29 – 2028-02-29",
+			"29/02/2028 a 29/02/2028",
+		);
+		// The displayed range is `DD/MM/YYYY a DD/MM/YYYY`; the stored period stays ISO.
+		assert.equal(
+			page.formatPeriodLabel({ startDate: "2026-08-28", endDateExclusive: "2026-09-22" }),
+			"28/08/2026 a 21/09/2026",
 		);
 
 		configured = false;
@@ -3025,7 +3030,7 @@ test("the React financial summary offers Cambiar período, marks a closed period
 	// reports a closure record.
 	const openHeading = renderHeading(null);
 	assert.match(openHeading, /<h2 id="react-financial-summary-title">Periodo<\/h2>/);
-	assert.match(openHeading, /2026-02-01 – 2026-02-28/);
+	assert.match(openHeading, /01\/02\/2026 a 28\/02\/2026/);
 	assert.match(openHeading, /Cambiar período<\/button>/);
 	assert.doesNotMatch(openHeading, /react-financial-cycle-closure/);
 	assert.doesNotMatch(openHeading, /Cierre registrado/);
@@ -3767,7 +3772,7 @@ test("the React financial-cycle completion dialog consents to the mailbox read a
 	// on, instead of letting the user discover that closing the period reads the mailbox.
 	assert.match(confirmation, /lee tu correo de Gmail/);
 	assert.match(confirmation, /solo registra el cierre si esa sincronización se completa/);
-	assert.match(confirmation, /2026-02-01 – 2026-02-28/);
+	assert.match(confirmation, /01\/02\/2026 a 28\/02\/2026/);
 	// A re-close keeps the original record, which is said before confirming rather than only after.
 	assert.match(confirmation, /se conserva el registro original/);
 	// The disconnected instruction is text, not a link: this surface gates connecting behind its own
@@ -5592,7 +5597,7 @@ test("the React spending chart buckets the configured period into Monday-to-Sund
 	// Proportional heights per selected series, with the legacy 12% floor: a small positive day stays
 	// visible at 12% instead of collapsing to its raw 3%.
 	const fullSeries = chart.getSpendingChartSeries(view, "period");
-	assert.equal(fullSeries.detail, "2026-02-01 \u2013 2026-02-28");
+	assert.equal(fullSeries.detail, "01/02/2026 a 28/02/2026");
 	assert.equal(fullSeries.ariaLabel, "Periodo completo, total gastado por cada d\u00eda de la semana");
 	assert.deepEqual(fullSeries.days.map((day) => day.heightPercent), [50, 12, 0, 0, 0, 100, 100]);
 	// The weekday aggregate carries the period-wide weekday detail the native tooltip restores.
@@ -5717,7 +5722,7 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.match(full, /2 salidas reconocidas del periodo no tienen monto conocido/);
 	assert.match(full, /1 salida reconocida del periodo con monto conocido no tiene una fecha v\u00e1lida/);
 	// The heading names the selected series total and range.
-	assert.match(full, /\$10\.100 \u00b7 2026-02-01 \u2013 2026-02-28/);
+	assert.match(full, /\$10\.100 \u00b7 01\/02\/2026 a 28\/02\/2026/);
 	// Bars are selectable controls again, like legacy: each one is a button with aria-pressed and
 	// aria-controls for the read-only day detail.
 	assert.match(full, /role="region" aria-label="Periodo completo, total gastado por cada d\u00eda de la semana"/);
@@ -5774,7 +5779,7 @@ test("the React spending chart view renders selectable proportional bars, the re
 
 	// The full-period selection groups the whole period by date for the chosen weekday.
 	const mondayDetail = renderView("period", chart, "weekday-0");
-	assert.match(mondayDetail, /<h4>Detalle de lunes de 2026-02-01 \u2013 2026-02-28<\/h4>/);
+	assert.match(mondayDetail, /<h4>Detalle de lunes de 01\/02\/2026 a 28\/02\/2026<\/h4>/);
 	assert.match(mondayDetail, /<span class="react-spending-chart-day-date">lunes 2 feb<\/span>/);
 
 	// The totals grid states every week plus the full period and marks the selected row. The visible
@@ -6081,7 +6086,7 @@ test("the React spending chart detail and totals read the loaded transactions wi
 	const periodSeries = analytics.getSpendingChartSeries(chart, "period");
 	const monday = periodSeries.days.find((day) => day.key === "weekday-0");
 	const mondayDetail = analytics.getSpendingChartDayDetail(periodSeries, monday, rows);
-	assert.equal(mondayDetail.title, "Detalle de lunes de 2026-02-01 \u2013 2026-02-28");
+	assert.equal(mondayDetail.title, "Detalle de lunes de 01/02/2026 a 28/02/2026");
 	assert.equal(mondayDetail.total, 2500);
 	assert.equal(mondayDetail.isEmpty, false);
 	assert.deepEqual(mondayDetail.groups.map((group) => group.key), ["2026-02-02"]);
@@ -6792,8 +6797,8 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 	assert.doesNotMatch(moduleSource, /Intl\.NumberFormat|new Intl/);
 	assert.doesNotMatch(moduleSource, /\bformatClp\s*\(/);
 
-	// A configured income produces a real subtraction, and the detail states the period, the
-	// known-amount count and the pending count as separate clauses.
+	// A configured income produces a real subtraction, and the detail states only the known-amount
+	// count and the pending count: the selected period is not repeated because every value belongs to it.
 	const configured = lead.getDashboardLead({
 		periodLabel: "2026-02-01 \u2013 2026-02-28",
 		totalSpending: 25000,
@@ -6807,15 +6812,18 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 	assert.equal(configured.spending.pendingAmountCount, 2);
 	assert.equal(
 		configured.spending.detail,
-		"2026-02-01 \u2013 2026-02-28 \u00b7 3 gastos con monto \u00b7 2 sin monto claro",
+		"3 gastos con monto \u00b7 2 sin monto claro",
 	);
+	// The detail carries no period/date text; the range already lives in the visible period control.
+	assert.doesNotMatch(configured.spending.detail, /2026-02-01|01\/02\/2026|2026-02-28|28\/02\/2026/);
 	assert.equal(configured.balance.label, "Saldo disponible");
 	assert.equal(configured.balance.amount, 875000);
 	assert.equal(configured.balance.emptyValue, null);
 	assert.equal(configured.balance.incomeAmount, 900000);
 	assert.equal(configured.balance.derivationIncomeLabel, "ingreso");
-	assert.match(configured.balance.detail, /Ingreso configurado menos los gastos reconocidos del periodo\./);
-	assert.match(configured.balance.detail, /2 movimientos sin monto conocido no se descuentan\./);
+	// The positive balance explains nothing: only the pending caveat remains, with no subtraction prose.
+	assert.equal(configured.balance.detail, "2 movimientos sin monto conocido no se descuentan.");
+	assert.doesNotMatch(configured.balance.detail, /Ingreso configurado menos/);
 
 	// Sensitivity: the balance is the stated income minus the stated total, not the income alone and not
 	// the total alone.
@@ -6841,7 +6849,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 	);
 	// The spending side is unaffected by the missing income.
 	assert.equal(unconfigured.spending.amount, 25000);
-	assert.equal(unconfigured.spending.detail, "2026-02-01 \u2013 2026-02-28 \u00b7 3 gastos con monto");
+	assert.equal(unconfigured.spending.detail, "3 gastos con monto");
 
 	// The demo never claims a configured cycle: its net is the fixture's observed inflow sum minus the
 	// recognized expenses, labelled and described as demo data, and its absent state is explicit copy
@@ -6859,11 +6867,9 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 	assert.equal(demoInflow.balance.incomeAmount, 900000);
 	assert.equal(demoInflow.balance.emptyValue, null);
 	assert.equal(demoInflow.balance.derivationIncomeLabel, "ingresos de la demo");
-	assert.match(
-		demoInflow.balance.detail,
-		/Ingresos observados en los datos de la demo menos los gastos reconocidos del periodo\./,
-	);
-	assert.match(demoInflow.balance.detail, /2 movimientos sin monto conocido no se descuentan\./);
+	// The demo's positive balance stops explaining its observed-inflow subtraction too.
+	assert.equal(demoInflow.balance.detail, "2 movimientos sin monto conocido no se descuentan.");
+	assert.doesNotMatch(demoInflow.balance.detail, /Ingresos observados en los datos de la demo menos/);
 	assert.doesNotMatch(demoInflow.balance.detail, /Ingreso configurado/);
 	assert.doesNotMatch(demoInflow.balance.label, /Cu\u00e1nto me queda/);
 
@@ -6894,7 +6900,8 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 	});
 	assert.equal(defaultedSource.balance.label, "Saldo disponible");
 	assert.equal(defaultedSource.balance.derivationIncomeLabel, "ingreso");
-	assert.match(defaultedSource.balance.detail, /Ingreso configurado/);
+	// A known-amount positive balance carries no detail at all: nothing to explain and nothing pending.
+	assert.equal(defaultedSource.balance.detail, "");
 
 	// A negative balance is a real subtraction result and stays negative.
 	const overspent = lead.getDashboardLead({
@@ -6914,7 +6921,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 		pendingAmountCount: 1,
 		incomeAmount: 5000,
 	});
-	assert.equal(singular.spending.detail, "Periodo \u00b7 1 gasto con monto \u00b7 1 sin monto claro");
+	assert.equal(singular.spending.detail, "1 gasto con monto \u00b7 1 sin monto claro");
 	assert.match(singular.balance.detail, /1 movimiento sin monto conocido no se descuenta\./);
 
 	// Defensive normalization: a non-finite total is not a number to show, and non-counts never print.
@@ -6928,11 +6935,11 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 	assert.equal(guarded.spending.amount, 0);
 	assert.equal(guarded.spending.knownCount, 0);
 	assert.equal(guarded.spending.pendingAmountCount, 0);
-	assert.equal(guarded.spending.detail, "Periodo \u00b7 0 gastos con monto");
+	assert.equal(guarded.spending.detail, "0 gastos con monto");
 	assert.equal(guarded.balance.amount, null);
 	assert.equal(guarded.balance.emptyValue, "\u2014");
 
-	// A blank period label is dropped instead of leaving a dangling separator.
+	// A blank period label is irrelevant: the detail no longer echoes the period at all.
 	const blankPeriod = lead.getDashboardLead({
 		periodLabel: "   ",
 		totalSpending: 0,
@@ -6994,11 +7001,17 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	});
 	assert.match(configured, /<span class="react-lead-question">Total gastado<\/span>/);
 	assert.match(configured, /<strong class="react-lead-amount">\$25\.000<\/strong>/);
-	assert.match(configured, /2026-02-01 \u2013 2026-02-28 \u00b7 3 gastos con monto \u00b7 2 sin monto claro/);
+	assert.match(configured, /3 gastos con monto \u00b7 2 sin monto claro/);
+	// The lead card no longer repeats the selected period; the range lives in the period control only.
+	assert.doesNotMatch(configured, /2026-02-01 \u2013 2026-02-28|01\/02\/2026 a 28\/02\/2026/);
 	assert.match(configured, /<span class="react-lead-question">Saldo disponible<\/span>/);
 	assert.match(configured, /<strong class="react-lead-amount">\$875\.000<\/strong>/);
-	assert.match(configured, /\$900\.000 ingreso \u2212 \$25\.000 gastos/);
-	assert.match(configured, /Ingreso configurado menos los gastos reconocidos del periodo\./);
+	// The positive balance card renders only the pending caveat, never the subtraction prose.
+	assert.match(
+		configured,
+		/<p class="react-lead-detail">2 movimientos sin monto conocido no se descuentan\.<\/p>/,
+	);
+	assert.doesNotMatch(configured, /Ingreso configurado menos los gastos reconocidos del periodo\./);
 
 	// No configured income: the sentinel instead of a number, and the reason instead of a claim.
 	const unconfigured = renderHero({
@@ -7021,12 +7034,14 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	// The prominent total is still shown even without an income.
 	assert.match(unconfigured, /<strong class="react-lead-amount">\$25\.000<\/strong>/);
 
-	// Sensitivity control: the derivation line the unconfigured state lacks really is rendered when
-	// an income is configured, so the absence above observes a real absence.
-	assert.match(configured, /react-lead-derivation/);
+	// The `ingreso − gastos` derivation is gone from the highlighted card: the amount and the
+	// percentage row already state the result, so no redundant subtraction line is rendered in either
+	// income state. The pure module keeps the balance data it always produced.
+	assert.doesNotMatch(configured, /react-lead-derivation|\$900\.000 ingreso \u2212/);
+	assert.doesNotMatch(unconfigured, /react-lead-derivation/);
 
-	// The demo source keeps the truthful net but labels and describes it as observed demo data, so the
-	// rendered hero never claims a configured income even though the number is preserved.
+	// The demo source keeps the truthful net but labels it as observed demo data, so the rendered hero
+	// never claims a configured income even though the number is preserved.
 	const demoInflow = renderHero({
 		periodLabel: "2026-02-01 \u2013 2026-02-28",
 		totalSpending: 25000,
@@ -7037,8 +7052,14 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	});
 	assert.match(demoInflow, /<span class="react-lead-question">Saldo disponible<\/span>/);
 	assert.match(demoInflow, /<strong class="react-lead-amount">\$875\.000<\/strong>/);
-	assert.match(demoInflow, /\$900\.000 ingresos de la demo \u2212 \$25\.000 gastos/);
+	assert.doesNotMatch(demoInflow, /react-lead-derivation|ingresos de la demo \u2212/);
+	// With no pending amounts the positive detail is empty, so the amount is followed by the percentage
+	// row directly instead of an empty paragraph.
 	assert.match(
+		demoInflow,
+		/<strong class="react-lead-amount">\$875\.000<\/strong><div class="react-lead-balance-percent/,
+	);
+	assert.doesNotMatch(
 		demoInflow,
 		/Ingresos observados en los datos de la demo menos los gastos reconocidos del periodo\./,
 	);
@@ -7090,9 +7111,8 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	assert.match(exactIncome, /react-lead-balance-percent-flat/);
 	assert.match(exactIncome, /0% disponible/);
 
-	// The hero replaces the primitive card deck, so it does not repeat those card labels. (The balance
-	// detail's prose legitimately begins "Ingreso configurado menos…", so the check matches the labels
-	// as the removed card spans rendered them.)
+	// The hero replaces the primitive card deck, so it does not repeat those card labels; the check
+	// matches the labels as the removed card spans rendered them.
 	assert.doesNotMatch(
 		configured,
 		/<span>Ingreso configurado<\/span>|<span>Gasto total<\/span>|<span>Gastos reconocidos<\/span>|<span>Montos pendientes<\/span>/,
@@ -8538,6 +8558,9 @@ test("the React dashboard income/budget panel states the configured income and t
 	assert.equal(configured.income.label, "Ingreso configurado");
 	assert.equal(configured.income.hasValue, true);
 	assert.equal(configured.income.value, "$900.000");
+	// The configured income copy is concise and never repeats the selected period.
+	assert.equal(configured.income.detail, "Ingreso guardado.");
+	assert.doesNotMatch(configured.income.detail, /2026-02-01|01\/02\/2026|2026-02-28|28\/02\/2026/);
 	// The budget is always an explicit absence: the product stores no budget to read.
 	assert.equal(configured.budget.hasValue, false);
 	assert.equal(configured.budget.value, "No configurado");
@@ -8550,7 +8573,7 @@ test("the React dashboard income/budget panel states the configured income and t
 	});
 	assert.equal(absent.income.hasValue, false);
 	assert.equal(absent.income.value, "Sin ingreso configurado");
-	assert.match(absent.income.detail, /No hay un ingreso configurado/);
+	assert.equal(absent.income.detail, "No hay un ingreso configurado.");
 	// A zero is not a configured income, so no fabricated `$0` is ever shown.
 	assert.equal(
 		budget.getDashboardIncomeBudgetPanel({
@@ -8563,7 +8586,8 @@ test("the React dashboard income/budget panel states the configured income and t
 	);
 
 	// The demo has no configured cycle: it states the fixture's observed inflow sum as demo data and
-	// never borrows the configured-income label or its stored-in-period detail.
+	// never borrows the configured-income label or its stored-in-period detail. Its copy is concise and
+	// period-independent.
 	const demo = budget.getDashboardIncomeBudgetPanel({
 		source: "demo-inflow",
 		incomeAmount: 900000,
@@ -8573,8 +8597,8 @@ test("the React dashboard income/budget panel states the configured income and t
 	assert.equal(demo.income.label, "Ingresos del periodo");
 	assert.equal(demo.income.hasValue, true);
 	assert.equal(demo.income.value, "$900.000");
-	assert.match(demo.income.detail, /ingresos presentes en los datos de la demo/i);
-	assert.match(demo.income.detail, /no tiene un periodo financiero configurado/i);
+	assert.equal(demo.income.detail, "Ingresos presentes en la demo.");
+	assert.doesNotMatch(demo.income.detail, /periodo financiero|2026-02-01|01\/02\/2026|28\/02\/2026/);
 	assert.doesNotMatch(demo.income.label, /configurado/i);
 
 	// A demo with no inflow is explicit too: copy instead of a fabricated `$0`, and still no configured
@@ -8587,7 +8611,7 @@ test("the React dashboard income/budget panel states the configured income and t
 	});
 	assert.equal(demoAbsent.income.hasValue, false);
 	assert.equal(demoAbsent.income.value, "Sin ingresos en la demo");
-	assert.match(demoAbsent.income.detail, /no registran ingresos/i);
+	assert.equal(demoAbsent.income.detail, "La demo no registra ingresos.");
 	assert.doesNotMatch(demoAbsent.income.value, /\$0/);
 
 	const markup = renderer.renderToStaticMarkup(

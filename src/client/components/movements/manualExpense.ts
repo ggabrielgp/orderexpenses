@@ -127,13 +127,23 @@ export function formatIncomeInput(amount: number) {
 }
 
 /**
+ * `YYYY-MM-DD` to the compact `DD/MM/YYYY` display the dashboard shows. The stored and API dates
+ * stay ISO; only the user-facing period copy is reformatted.
+ */
+function formatPeriodDate(dateOnly: string) {
+	const [year, month, day] = dateOnly.split("-");
+	return `${day}/${month}/${year}`;
+}
+
+/**
  * Single definition of the selected-period label. Both dialogs and the dashboard summary must
  * describe the same period identically, so every consumer imports this one instead of keeping a
- * local copy that could silently disagree.
+ * local copy that could silently disagree. The range reads `DD/MM/YYYY a DD/MM/YYYY`, e.g.
+ * `28/08/2026 a 21/09/2026`.
  */
 export function formatPeriodLabel(period: FinancialPeriod) {
 	const reviewPeriod = ReviewPeriod.create(period);
-	return `${reviewPeriod.startDate} – ${reviewPeriod.visibleEndDate}`;
+	return `${formatPeriodDate(reviewPeriod.startDate)} a ${formatPeriodDate(reviewPeriod.visibleEndDate)}`;
 }
 
 const movementDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/;

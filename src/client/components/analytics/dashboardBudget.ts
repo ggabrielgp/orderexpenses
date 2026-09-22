@@ -62,7 +62,11 @@ export interface DashboardIncomeBudgetInput {
 	source?: DashboardIncomeSource;
 	/** Configured cycle income, or the demo's observed inflow sum; `null`/`undefined` when none. */
 	incomeAmount: number | null | undefined;
-	/** Period label the panel adapts its copy to, e.g. `2026-02-01 – 2026-02-28`. */
+	/**
+	 * Period label the panel used to adapt its copy to, e.g. `28/08/2026 a 21/09/2026`. It is accepted
+	 * for callers, but the income copy no longer repeats the range: every value already belongs to the
+	 * selected period, so the panel states the income or its absence without echoing the dates.
+	 */
 	periodLabel: string;
 	/** Formats a CLP amount; injected so the module stays free of currency formatting. */
 	formatAmount: (amount: number) => string;
@@ -80,12 +84,12 @@ function normalizeSource(source: DashboardIncomeSource | undefined): DashboardIn
 }
 
 /**
- * The income statement for a configured cycle: the stored amount when one exists, and the reason plus
- * the edit affordance when it does not.
+ * The income statement for a configured cycle: the stored amount when one exists, and a concise
+ * reason when it does not. The detail never repeats the selected period, because the panel already
+ * sits inside it.
  */
 function configuredCycleIncome(
 	incomeAmount: number | null,
-	periodLabel: string,
 	formatAmount: (amount: number) => string,
 ): DashboardTruthValue {
 	return incomeAmount === null
@@ -93,23 +97,23 @@ function configuredCycleIncome(
 				label: INCOME_LABEL,
 				hasValue: false,
 				value: INCOME_ABSENT_VALUE,
-				detail: `No hay un ingreso configurado para el periodo ${periodLabel}. Edítalo en el periodo financiero para verlo aquí.`,
+				detail: "No hay un ingreso configurado.",
 			}
 		: {
 				label: INCOME_LABEL,
 				hasValue: true,
 				value: formatAmount(incomeAmount),
-				detail: `Ingreso guardado en el periodo ${periodLabel}.`,
+				detail: "Ingreso guardado.",
 			};
 }
 
 /**
  * The income statement for the demo: the sum of the inflows present in the fixture, stated as demo
- * data. It never claims a configured cycle, and its absence is explicit copy instead of a `$0` amount.
+ * data. It never claims a configured cycle, and its absence is explicit copy instead of a `$0`
+ * amount. Like the authenticated copy, it does not repeat the selected period.
  */
 function demoInflowIncome(
 	incomeAmount: number | null,
-	periodLabel: string,
 	formatAmount: (amount: number) => string,
 ): DashboardTruthValue {
 	return incomeAmount === null
@@ -117,13 +121,13 @@ function demoInflowIncome(
 				label: DEMO_INFLOW_LABEL,
 				hasValue: false,
 				value: DEMO_INFLOW_ABSENT_VALUE,
-				detail: `Los datos de la demo no registran ingresos para el periodo ${periodLabel}.`,
+				detail: "La demo no registra ingresos.",
 			}
 		: {
 				label: DEMO_INFLOW_LABEL,
 				hasValue: true,
 				value: formatAmount(incomeAmount),
-				detail: `Suma de los ingresos presentes en los datos de la demo para el periodo ${periodLabel}. La demo no tiene un periodo financiero configurado.`,
+				detail: "Ingresos presentes en la demo.",
 			};
 }
 
@@ -138,14 +142,11 @@ export function getDashboardIncomeBudgetPanel(
 ): DashboardIncomeBudgetPanel {
 	const formatAmount =
 		typeof input?.formatAmount === "function" ? input.formatAmount : (amount: number) => String(amount);
-	const periodLabel = typeof input?.periodLabel === "string" && input.periodLabel.trim()
-		? input.periodLabel.trim()
-		: "el periodo";
 	const incomeAmount = normalizeIncome(input?.incomeAmount);
 	const income =
 		normalizeSource(input?.source) === "demo-inflow"
-			? demoInflowIncome(incomeAmount, periodLabel, formatAmount)
-			: configuredCycleIncome(incomeAmount, periodLabel, formatAmount);
+			? demoInflowIncome(incomeAmount, formatAmount)
+			: configuredCycleIncome(incomeAmount, formatAmount);
 
 	return {
 		title: INCOME_BUDGET_TITLE,

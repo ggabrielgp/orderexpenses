@@ -43,5 +43,7 @@ Apply the supplied Google Stitch dashboard distribution to both authenticated an
 - [x] Follow-up verification — focused chart/detail tests, build, and diff check pass.
 - [x] Follow-up: mobile chart density — ported only the mobile worktree's thinner bar/gap/vertical-value treatment to the React chart; current below-chart day detail behavior remains intact.
 - [x] Follow-up verification — focused spending-chart tests, build, and diff check pass.
+- [x] Follow-up: concise period copy — displayed ranges now read `DD/MM/YYYY a DD/MM/YYYY`; the lead/income cards drop redundant period dates and the balance card drops the `ingreso − gastos` derivation line while preserving truthful values and the no-income empty state.
+- [x] Follow-up verification — focused period/lead/budget/spending-chart tests, full foundation suite (81/85 with the same four pre-existing failures), build, and diff check pass.
 - [x] Work unit 4: automated verification — 81/85 foundation tests pass with the same four pre-existing failures; build and diff check pass. Visual confirmation remains pending.
 
