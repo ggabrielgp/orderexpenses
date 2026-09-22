@@ -1534,6 +1534,11 @@ interface DashboardAnalyticsBodyProps {
  * detail dialog; the demo passes an inert jump and no detail callback, and omits the stored catalog, so
  * the two differ in capabilities and copy, never in layout. The authenticated movement table and the
  * demo's read-only movements list/footer stay outside this body.
+ *
+ * Two semantic wrappers express the Stitch composition without touching the shipped order: a four-up
+ * KPI band (lead plus income/budget truth) and a two-column region that keeps the chart/history
+ * column beside the category/distribution/insight column. Section order and single mounts are
+ * unchanged, so both trees read the same structure.
  */
 function DashboardAnalyticsBody({
 	lead,
@@ -1550,24 +1555,34 @@ function DashboardAnalyticsBody({
 	onOpenMovement,
 }: DashboardAnalyticsBodyProps) {
 	return (
-		<>
-			<DashboardLeadView lead={lead} />
-			<DashboardBudgetPanel panel={budgetPanel} />
-			<DashboardStoryView story={story} />
-			<PeriodAnalyticsPanel analytics={analytics} />
-			<SpendingChartPanel
-				chart={chart}
-				detailMovements={chartDetailMovements}
-				onOpenMovement={onOpenMovement}
-			/>
-			<CategoryRankingPanel
-				ranking={ranking}
-				catalog={catalog}
-				onJumpToCategory={onJumpToCategory}
-			/>
-			<TopInsightsView insights={insights} />
-			<SpendingBreakdownView breakdown={breakdown} />
-		</>
+		<div className="react-analytics-body">
+			{/* Four-up KPI band: the spending/balance hero and the income/budget truth, side by side. */}
+			<div className="react-analytics-summary">
+				<DashboardLeadView lead={lead} />
+				<DashboardBudgetPanel panel={budgetPanel} />
+			</div>
+			{/* Two-column region: the larger chart/history column and the category/insight column. */}
+			<div className="react-analytics-columns">
+				<div className="react-analytics-main">
+					<DashboardStoryView story={story} />
+					<PeriodAnalyticsPanel analytics={analytics} />
+					<SpendingChartPanel
+						chart={chart}
+						detailMovements={chartDetailMovements}
+						onOpenMovement={onOpenMovement}
+					/>
+				</div>
+				<div className="react-analytics-side">
+					<CategoryRankingPanel
+						ranking={ranking}
+						catalog={catalog}
+						onJumpToCategory={onJumpToCategory}
+					/>
+					<TopInsightsView insights={insights} />
+					<SpendingBreakdownView breakdown={breakdown} />
+				</div>
+			</div>
+		</div>
 	);
 }
 
@@ -2487,7 +2502,7 @@ export function MovementsTableView({
 	const selectedIds = new Set(selection?.selectedIds ?? []);
 
 	return (
-		<>
+		<div className="react-movements-view">
 			<MovementFilterBar
 				options={filteredView.options}
 				count={filteredView.count}
@@ -2639,7 +2654,7 @@ export function MovementsTableView({
 					</tbody>
 				</table>
 			</div>
-		</>
+		</div>
 	);
 }
 
@@ -2720,7 +2735,7 @@ export function MovementsTable({
 
 	if (movements.length === 0) {
 		return (
-			<section className="react-financial-empty" role="status">
+			<section className="react-financial-empty react-movements-empty" role="status">
 				<p>No hay gastos reconocidos disponibles para este periodo.</p>
 			</section>
 		);
