@@ -5933,9 +5933,24 @@ test("the React spending chart view renders selectable proportional bars, the re
 		styles,
 		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-summary \{\s*grid-column: auto;\s*grid-template-columns: 1fr;\s*\}/,
 	);
+	// The same breakpoint ports legacy's compact density: tighter inter-bar gap, scrolling strip,
+	// zero horizontal bar padding, an 18px track and a vertical value label so all seven bars fit
+	// without forcing the page wider than the viewport.
 	assert.match(
 		styles,
-		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-bars \{\s*justify-content: flex-start;\s*overflow-x: auto;\s*\}/,
+		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-bars \{[^}]*gap: 4px;[^}]*overflow-x: auto;[^}]*padding-bottom: var\(--space-2\);/,
+	);
+	assert.match(
+		styles,
+		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-bar \{[^}]*min-width: 44px;[^}]*padding-inline: 0;/,
+	);
+	assert.match(
+		styles,
+		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-track \{[^}]*width: 18px;/,
+	);
+	assert.match(
+		styles,
+		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-value \{[^}]*writing-mode: vertical-rl;[^}]*justify-self: center;/,
 	);
 	// On narrow screens the chart body becomes one column, the summary returns to a single column
 	// and the bar row scrolls, so the detail panel and the seven 44px bars no longer force

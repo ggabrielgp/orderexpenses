@@ -3171,9 +3171,28 @@
 		grid-template-columns: 1fr;
 	}
 
+	/* Legacy's compact density treatment: tighten the inter-bar gap, drop the horizontal bar
+	   padding, thin the track and set the value label vertically so the seven bars stay reachable
+	   by scrolling without forcing the page wider than the viewport. */
 	.react-spending-chart-bars {
 		justify-content: flex-start;
+		gap: 4px;
 		overflow-x: auto;
+		padding-bottom: var(--space-2);
+	}
+
+	.react-spending-chart-bar {
+		min-width: 44px;
+		padding-inline: 0;
+	}
+
+	.react-spending-chart-track {
+		width: 18px;
+	}
+
+	.react-spending-chart-value {
+		writing-mode: vertical-rl;
+		justify-self: center;
 	}
 }
 

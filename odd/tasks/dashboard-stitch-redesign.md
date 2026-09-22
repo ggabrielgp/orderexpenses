@@ -41,5 +41,7 @@ Apply the supplied Google Stitch dashboard distribution to both authenticated an
 - [x] Follow-up: highlighted balance and period controls — the truthful available-income percentage and free Font Awesome trend/wallet icons now live inside a highlighted balance card; compact period/date/actions and `Nuevo gasto` sit beside `Resumen de la cuenta`.
 - [x] Follow-up: compact day expenses — each selected-day expense now has a left-side Font Awesome person icon and tighter row spacing; read-only movement behavior is unchanged.
 - [x] Follow-up verification — focused chart/detail tests, build, and diff check pass.
+- [x] Follow-up: mobile chart density — ported only the mobile worktree's thinner bar/gap/vertical-value treatment to the React chart; current below-chart day detail behavior remains intact.
+- [x] Follow-up verification — focused spending-chart tests, build, and diff check pass.
 - [x] Work unit 4: automated verification — 81/85 foundation tests pass with the same four pre-existing failures; build and diff check pass. Visual confirmation remains pending.
 
