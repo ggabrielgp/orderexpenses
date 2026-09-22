@@ -3024,7 +3024,7 @@ test("the React financial summary offers Cambiar período, marks a closed period
 	// The ready-state control reopens the configured period, and the mark appears only when the server
 	// reports a closure record.
 	const openHeading = renderHeading(null);
-	assert.match(openHeading, /Periodo configurado/);
+	assert.match(openHeading, /<h2 id="react-financial-summary-title">Periodo<\/h2>/);
 	assert.match(openHeading, /2026-02-01 – 2026-02-28/);
 	assert.match(openHeading, /Cambiar período<\/button>/);
 	assert.doesNotMatch(openHeading, /react-financial-cycle-closure/);
@@ -6766,7 +6766,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 		pendingAmountCount: 2,
 		incomeAmount: 900000,
 	});
-	assert.equal(configured.spending.label, "\u00bfCu\u00e1nto gast\u00e9?");
+	assert.equal(configured.spending.label, "Total gastado");
 	assert.equal(configured.spending.amount, 25000);
 	assert.equal(configured.spending.knownCount, 3);
 	assert.equal(configured.spending.pendingAmountCount, 2);
@@ -6774,7 +6774,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 		configured.spending.detail,
 		"2026-02-01 \u2013 2026-02-28 \u00b7 3 gastos con monto \u00b7 2 sin monto claro",
 	);
-	assert.equal(configured.balance.label, "\u00bfCu\u00e1nto me queda?");
+	assert.equal(configured.balance.label, "Saldo disponible");
 	assert.equal(configured.balance.amount, 875000);
 	assert.equal(configured.balance.emptyValue, null);
 	assert.equal(configured.balance.incomeAmount, 900000);
@@ -6819,7 +6819,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 		incomeAmount: 900000,
 		incomeSource: "demo-inflow",
 	});
-	assert.equal(demoInflow.balance.label, "Balance de la demo");
+	assert.equal(demoInflow.balance.label, "Saldo disponible");
 	assert.equal(demoInflow.balance.amount, 875000);
 	assert.equal(demoInflow.balance.incomeAmount, 900000);
 	assert.equal(demoInflow.balance.emptyValue, null);
@@ -6857,7 +6857,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 		pendingAmountCount: 0,
 		incomeAmount: 900000,
 	});
-	assert.equal(defaultedSource.balance.label, "\u00bfCu\u00e1nto me queda?");
+	assert.equal(defaultedSource.balance.label, "Saldo disponible");
 	assert.equal(defaultedSource.balance.derivationIncomeLabel, "ingreso");
 	assert.match(defaultedSource.balance.detail, /Ingreso configurado/);
 
@@ -6957,10 +6957,10 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 		pendingAmountCount: 2,
 		incomeAmount: 900000,
 	});
-	assert.match(configured, /<span class="react-lead-question">\u00bfCu\u00e1nto gast\u00e9\?<\/span>/);
+	assert.match(configured, /<span class="react-lead-question">Total gastado<\/span>/);
 	assert.match(configured, /<strong class="react-lead-amount">\$25\.000<\/strong>/);
 	assert.match(configured, /2026-02-01 \u2013 2026-02-28 \u00b7 3 gastos con monto \u00b7 2 sin monto claro/);
-	assert.match(configured, /<span class="react-lead-question">\u00bfCu\u00e1nto me queda\?<\/span>/);
+	assert.match(configured, /<span class="react-lead-question">Saldo disponible<\/span>/);
 	assert.match(configured, /<strong class="react-lead-amount">\$875\.000<\/strong>/);
 	assert.match(configured, /\$900\.000 ingreso \u2212 \$25\.000 gastos/);
 	assert.match(configured, /Ingreso configurado menos los gastos reconocidos del periodo\./);
@@ -6975,7 +6975,7 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	});
 	assert.match(
 		unconfigured,
-		/<span class="react-lead-question">\u00bfCu\u00e1nto me queda\?<\/span><strong class="react-lead-amount">\u2014<\/strong>/,
+		/<span class="react-lead-question">Saldo disponible<\/span><strong class="react-lead-amount">\u2014<\/strong>/,
 	);
 	assert.match(
 		unconfigured,
@@ -7000,7 +7000,7 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 		incomeAmount: 900000,
 		incomeSource: "demo-inflow",
 	});
-	assert.match(demoInflow, /<span class="react-lead-question">Balance de la demo<\/span>/);
+	assert.match(demoInflow, /<span class="react-lead-question">Saldo disponible<\/span>/);
 	assert.match(demoInflow, /<strong class="react-lead-amount">\$875\.000<\/strong>/);
 	assert.match(demoInflow, /\$900\.000 ingresos de la demo \u2212 \$25\.000 gastos/);
 	assert.match(
@@ -7021,7 +7021,7 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	});
 	assert.match(
 		demoAbsent,
-		/<span class="react-lead-question">Balance de la demo<\/span><strong class="react-lead-amount">\u2014<\/strong>/,
+		/<span class="react-lead-question">Saldo disponible<\/span><strong class="react-lead-amount">\u2014<\/strong>/,
 	);
 	assert.match(demoAbsent, /no registran ingresos en el periodo/);
 	assert.doesNotMatch(demoAbsent, /Ingreso configurado|\$0|react-lead-derivation/);
@@ -7061,7 +7061,7 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	// observed-inflow net labelled as demo data and no demo-only layout modifier appears.
 	assert.match(demoMarkup, /class="react-dashboard-lead"/);
 	assert.match(demoMarkup, /react-lead-answer/);
-	assert.match(demoMarkup, /Balance de la demo/);
+	assert.match(demoMarkup, /Saldo disponible/);
 	assert.doesNotMatch(demoMarkup, /react-dashboard-lead-single|Ingreso configurado/);
 
 	// Scoped styles under the shipped `react-` prefix: one two-column lead and no demo-only modifier.
@@ -7171,7 +7171,7 @@ test("the React dashboard insights module derives a truthful story, top insights
 		largest: { label: "Tienda", total: 12000 },
 		formatAmount: (amount) => `CLP${amount}`,
 	});
-	assert.equal(story.title, "Qué pasó este periodo");
+	assert.equal(story.title, "Lectura rápida");
 	assert.equal(
 		story.summary,
 		"Llevas CLP25000 en gastos reconocidos. La historia principal está en Comida.",
@@ -7392,7 +7392,7 @@ test("the React authenticated summary renders the shared analytics body in the p
 		React.createElement(pageModule.DashboardStoryView, { story }),
 	);
 	assert.match(storyMarkup, /<section class="react-dashboard-story"/);
-	assert.match(storyMarkup, /Qué pasó este periodo/);
+	assert.match(storyMarkup, /Lectura rápida/);
 	assert.match(storyMarkup, /\$25\.000 en gastos reconocidos/);
 	assert.match(storyMarkup, /Comida concentra \$20\.000 del periodo\./);
 	assert.match(storyMarkup, /1 gasto necesita una revisión rápida\./);
@@ -7420,7 +7420,7 @@ test("the React authenticated summary renders the shared analytics body in the p
 		React.createElement(pageModule.SpendingBreakdownView, { breakdown }),
 	);
 	assert.match(breakdownMarkup, /<section class="react-spending-breakdown"/);
-	assert.match(breakdownMarkup, /Distribución de gastos por tipo/);
+	assert.match(breakdownMarkup, /Tipos de gasto/);
 	assert.match(breakdownMarkup, /Compras<\/span><strong>\$5\.000 · 50%<\/strong>/);
 	assert.match(breakdownMarkup, /Transferencias<\/span><strong>\$3\.000 · 30%<\/strong>/);
 	assert.match(breakdownMarkup, /Pagos<\/span><strong>\$2\.000 · 20%<\/strong>/);
@@ -7624,7 +7624,7 @@ test("the React category distribution renders the ECharts donut legend, reuses t
 
 	const list = renderDistribution(null);
 	assert.match(list, /<h3 id="react-category-distribution-title">Dónde se fue tu plata<\/h3>/);
-	assert.match(list, /La aplicación interpreta la distribución del periodo/);
+	assert.match(list, /Distribución por categoría principal\./);
 	assert.match(list, /class="react-category-distribution-insight" role="status"/);
 	// The donut container carries the chart facts as an accessible name because the canvas is not.
 	assert.match(list, /role="img" aria-label="Distribución de gastos por categoría\. Total \$456\.500\./);

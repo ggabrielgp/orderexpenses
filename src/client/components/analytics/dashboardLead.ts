@@ -20,15 +20,16 @@
  * module owns the numbers and the copy.
  */
 
-/** Legacy's lead question (`renderDashboardLead`, `public/app.js:1396`). */
-export const SPENDING_LEAD_LABEL = "¿Cuánto gasté?";
-/** Legacy's balance question (`renderDashboardLead`, `public/app.js:1410`). */
-export const BALANCE_LEAD_LABEL = "¿Cuánto me queda?";
+/** Direct spending label aligned with the reference; supersedes legacy's question (`public/app.js:1396`). */
+export const SPENDING_LEAD_LABEL = "Total gastado";
+/** Direct balance label aligned with the reference; supersedes legacy's question (`public/app.js:1410`). */
+export const BALANCE_LEAD_LABEL = "Saldo disponible";
 /**
  * The demo's net is its observed inflows minus the recognized expenses, never a configured-cycle
- * answer, so it gets its own label instead of borrowing the authenticated question.
+ * answer, but it shares the direct balance label: the demo header, its read-only badge and the detail
+ * copy below the number already supply the demo context.
  */
-export const DEMO_BALANCE_LEAD_LABEL = "Balance de la demo";
+export const DEMO_BALANCE_LEAD_LABEL = "Saldo disponible";
 /** The sentinel the surface shows where a real balance does not exist (`dashboardRemainingSummary`). */
 export const BALANCE_EMPTY_VALUE = "—";
 

@@ -589,8 +589,7 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 							</p>
 							<h1 id="react-dashboard-title">Resumen de la cuenta</h1>
 							<p className="subtitle">
-								Aquí puedes registrar, editar y eliminar movimientos, administrar las
-								categorías y sincronizar con Gmail.
+								Control y análisis de gastos detectados automáticamente.
 							</p>
 						</div>
 					</header>
@@ -864,8 +863,7 @@ export function FinancialPeriodHeading({
 	const closureMark = getCycleClosureMark(completedAt);
 	return (
 		<div>
-			<span className="section-kicker">Periodo configurado</span>
-			<h2 id="react-financial-summary-title">Resumen financiero</h2>
+			<h2 id="react-financial-summary-title">Periodo</h2>
 			<p>
 				{formatPeriodLabel(period)}
 				{closureMark !== null && (
@@ -888,8 +886,8 @@ export interface DashboardLeadViewProps {
 }
 
 /**
- * The hero: the prominent `¿Cuánto gasté?` total with its period/count detail, and the
- * `¿Cuánto me queda?` answer.
+ * The hero: the prominent `Total gastado` total with its period/count detail, and the
+ * `Saldo disponible` answer.
  *
  * Exported so both states of the balance are provable from a static render, like the other analytics
  * panels: a live summary only ever reaches its loading state without a session. The component renders
@@ -985,7 +983,7 @@ export interface PeriodAnalyticsPanelProps {
 export function PeriodAnalyticsPanel({ analytics }: PeriodAnalyticsPanelProps) {
 	return (
 		<section className="react-period-analytics" aria-labelledby="react-period-analytics-title">
-			<h3 id="react-period-analytics-title">Analítica del periodo</h3>
+			<h3 id="react-period-analytics-title">Métricas</h3>
 			<div className="react-financial-grid">
 				<article className="react-financial-card">
 					<span>{analytics.average.label}</span>
@@ -1396,7 +1394,7 @@ export function SpendingChartPanel({
 }
 
 /**
- * The `Qué pasó este periodo` story as one already-decided state: the summary sentence and the few
+ * The `Lectura rápida` story as one already-decided state: the summary sentence and the few
  * facts the pure module chose from the loaded period.
  *
  * Exported so both the populated and the empty markup are provable from a static render, like the
@@ -1444,7 +1442,7 @@ export function TopInsightsView({ insights }: TopInsightsViewProps) {
 	const cards = [insights.category, insights.counterparty, insights.latest];
 	return (
 		<section className="react-top-insights" aria-labelledby="react-top-insights-title">
-			<h3 id="react-top-insights-title">Datos clave del periodo</h3>
+			<h3 id="react-top-insights-title">Destacados</h3>
 			<div className="react-financial-grid">
 				{cards.map((insight) => (
 					<article key={insight.key} className="react-financial-card">
@@ -1475,7 +1473,7 @@ export interface SpendingBreakdownViewProps {
 export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps) {
 	return (
 		<section className="react-spending-breakdown" aria-labelledby="react-spending-breakdown-title">
-			<h3 id="react-spending-breakdown-title">Distribución de gastos por tipo</h3>
+			<h3 id="react-spending-breakdown-title">Tipos de gasto</h3>
 			{breakdown.emptyMessage !== null ? (
 				<p className="react-spending-breakdown-empty" role="status">{breakdown.emptyMessage}</p>
 			) : (

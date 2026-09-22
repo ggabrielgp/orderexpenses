@@ -1,7 +1,7 @@
 import type { RecognizedExpenseMovement } from "../movements/manualExpense";
 
 /**
- * Dashboard insight decisions for the authenticated summary: the `Qué pasó este periodo` story, the
+ * Dashboard insight decisions for the authenticated summary: the `Lectura rápida` story, the
  * three top insights (principal category, principal comercio/persona, último movimiento) and the
  * visual spending breakdown by kind.
  *
@@ -26,8 +26,8 @@ import type { RecognizedExpenseMovement } from "../movements/manualExpense";
  * No request, no endpoint, no currency formatting and no React: these are decisions, not rendering.
  */
 
-/** Legacy's story title (`renderMonthStoryCard`, `public/app.js:1483`). */
-export const STORY_TITLE = "Qué pasó este periodo";
+/** Direct story title aligned with the reference; supersedes legacy's period title (`public/app.js:1483`). */
+export const STORY_TITLE = "Lectura rápida";
 /** Legacy's first insight label (`renderDashboard`, `public/app.js:1317`). */
 export const TOP_CATEGORY_LABEL = "Principal categoría";
 /** Legacy's second insight label (`public/app.js:1322`). */

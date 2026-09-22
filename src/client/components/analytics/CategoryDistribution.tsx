@@ -305,8 +305,7 @@ export function CategoryDistributionView({
 		<>
 			<h3 id="react-category-distribution-title">Dónde se fue tu plata</h3>
 			<p className="react-category-distribution-copy">
-				La aplicación interpreta la distribución del periodo: concentración, categorías
-				principales y detalles útiles.
+				Distribución por categoría principal.
 			</p>
 		</>
 	);
