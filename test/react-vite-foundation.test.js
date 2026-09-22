@@ -3047,8 +3047,15 @@ test("the React financial summary offers Cambiar período, marks a closed period
 	assert.match(page, /createCycleEditSubmitter,/);
 	assert.match(page, /getCycleClosureMark,/);
 	assert.equal((page.match(/<FinancialPeriodHeading/g) ?? []).length, 1);
-	assert.match(page, /<FinancialPeriodHeading[\s\S]{0,200}?onEdit=\{openCycleEdit\}/);
-	assert.match(page, /completedAt=\{state\.data\.cycle\.completedAt\}/);
+	// The heading now renders in the page header over the handle the summary publishes; the summary
+	// still owns the edit trigger and the closure record, so both are asserted where they are wired.
+	assert.match(
+		page,
+		/<FinancialPeriodHeading[\s\S]{0,200}?onEdit=\{financialDashboard\.onEditPeriod\}/,
+	);
+	assert.match(page, /completedAt=\{financialDashboard\.completedAt\}/);
+	assert.match(page, /onEditPeriod: openCycleEdit/);
+	assert.match(page, /completedAt: configuredCompletedAt/);
 	assert.equal((page.match(/<FinancialCycleEditDialog/g) ?? []).length, 1);
 	assert.match(
 		page,
@@ -6975,7 +6982,7 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	});
 	assert.match(
 		unconfigured,
-		/<span class="react-lead-question">Saldo disponible<\/span><strong class="react-lead-amount">\u2014<\/strong>/,
+		/<span class="react-lead-question">Saldo disponible<\/span><\/div><strong class="react-lead-amount">\u2014<\/strong>/,
 	);
 	assert.match(
 		unconfigured,
@@ -7021,10 +7028,39 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	});
 	assert.match(
 		demoAbsent,
-		/<span class="react-lead-question">Saldo disponible<\/span><strong class="react-lead-amount">\u2014<\/strong>/,
+		/<span class="react-lead-question">Saldo disponible<\/span><\/div><strong class="react-lead-amount">\u2014<\/strong>/,
 	);
 	assert.match(demoAbsent, /no registran ingresos en el periodo/);
 	assert.doesNotMatch(demoAbsent, /Ingreso configurado|\$0|react-lead-derivation/);
+
+	// The highlighted balance card states the truthful share of income still available, with a trend
+	// direction, and omits the row entirely rather than fabricating a percentage when there is none.
+	assert.match(configured, /react-lead-balance-percent-positive/);
+	assert.match(configured, /97% disponible/);
+	assert.doesNotMatch(configured, /react-lead-balance-percent-negative/);
+	assert.doesNotMatch(unconfigured, /react-lead-balance-percent/);
+	assert.doesNotMatch(demoAbsent, /react-lead-balance-percent/);
+
+	// Overspending the income and spending exactly the income take the negative and flat icon tones
+	// instead of a positive trend, so the direction is never inferred from the amount alone.
+	const overspent = renderHero({
+		periodLabel: "2026-02-01 \u2013 2026-02-28",
+		totalSpending: 25000,
+		expenseCount: 1,
+		pendingAmountCount: 0,
+		incomeAmount: 10000,
+	});
+	assert.match(overspent, /react-lead-balance-percent-negative/);
+	assert.match(overspent, /-150% disponible/);
+	const exactIncome = renderHero({
+		periodLabel: "2026-02-01 \u2013 2026-02-28",
+		totalSpending: 25000,
+		expenseCount: 1,
+		pendingAmountCount: 0,
+		incomeAmount: 25000,
+	});
+	assert.match(exactIncome, /react-lead-balance-percent-flat/);
+	assert.match(exactIncome, /0% disponible/);
 
 	// The hero replaces the primitive card deck, so it does not repeat those card labels. (The balance
 	// detail's prose legitimately begins "Ingreso configurado menos…", so the check matches the labels

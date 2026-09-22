@@ -70,6 +70,12 @@ export interface DashboardSpendingLead {
 	detail: string;
 }
 
+/**
+ * Sign of the available income percentage. The surface maps it to a matching free trend icon; it is
+ * decided here so the module, not the render, owns which direction the number points.
+ */
+export type DashboardBalancePercentTone = "positive" | "flat" | "negative";
+
 export interface DashboardBalanceLead {
 	label: string;
 	/** The income the balance subtracts, or `null` when there is none to subtract. */
@@ -86,6 +92,15 @@ export interface DashboardBalanceLead {
 	 * amount to derive. Keeping it here means the copy stays in the decision module, not the render.
 	 */
 	derivationIncomeLabel: string | null;
+	/**
+	 * Percentage of the income still available (`amount / incomeAmount * 100`), rounded to the nearest
+	 * integer, or `null` when there is no income to derive it from. A zero or negative income leaves no
+	 * meaningful base, so it yields `null` instead of an infinite or fabricated figure; the render then
+	 * omits the percentage row entirely rather than inventing one.
+	 */
+	availablePercent: number | null;
+	/** Sign of `availablePercent`, so the surface can pick a matching trend icon; `null` when there is none. */
+	availablePercentTone: DashboardBalancePercentTone | null;
 }
 
 export interface DashboardLead {
@@ -124,6 +139,31 @@ function getMovementNoun(count: number): string {
 }
 
 /**
+ * The truthful percentage of income still available, or `null` when it cannot be derived. It divides
+ * only when the income is a positive base: a missing income has nothing to measure against, and a
+ * zero income would produce an infinite figure, so both stay `null`. `-0` is normalized to `0` so the
+ * rendered number never prints a signed zero.
+ */
+function getAvailablePercent(
+	amount: number | null,
+	incomeAmount: number | null,
+): number | null {
+	if (amount === null || incomeAmount === null || !(incomeAmount > 0)) return null;
+	const rounded = Math.round((amount / incomeAmount) * 100);
+	return rounded === 0 ? 0 : rounded;
+}
+
+/** The icon direction for a derived percentage; `null` when there is no percentage to point at. */
+function getAvailablePercentTone(
+	percent: number | null,
+): DashboardBalancePercentTone | null {
+	if (percent === null) return null;
+	if (percent > 0) return "positive";
+	if (percent < 0) return "negative";
+	return "flat";
+}
+
+/**
  * Legacy's detail (`renderDashboardLead`, `public/app.js:1399`): the period, how many known-amount
  * expenses the total summed, and — only when there are any — how many were left out for want of an
  * amount. The two counts stay separate clauses instead of one folded number, so a `$0` total next to
@@ -153,6 +193,12 @@ function buildPendingCaveat(pendingAmountCount: number): string {
 		: "";
 }
 
+/** The balance copy before the derived percentage fields are attached in `buildBalance`. */
+type DashboardBalanceLeadBase = Omit<
+	DashboardBalanceLead,
+	"availablePercent" | "availablePercentTone"
+>;
+
 /**
  * Legacy's balance rule (`dashboardRemainingSummary`, `public/app.js:1420-1440`) for the authenticated
  * summary, stated without the budget branch legacy also had: with a configured income the balance is a
@@ -164,7 +210,7 @@ function buildConfiguredBalance(
 	incomeAmount: number | null,
 	totalSpending: number,
 	pendingAmountCount: number,
-): DashboardBalanceLead {
+): DashboardBalanceLeadBase {
 	if (incomeAmount === null) {
 		return {
 			label: BALANCE_LEAD_LABEL,
@@ -196,7 +242,7 @@ function buildDemoBalance(
 	incomeAmount: number | null,
 	totalSpending: number,
 	pendingAmountCount: number,
-): DashboardBalanceLead {
+): DashboardBalanceLeadBase {
 	if (incomeAmount === null) {
 		return {
 			label: DEMO_BALANCE_LEAD_LABEL,
@@ -229,9 +275,18 @@ function buildBalance(
 	totalSpending: number,
 	pendingAmountCount: number,
 ): DashboardBalanceLead {
-	return source === "demo-inflow"
-		? buildDemoBalance(incomeAmount, totalSpending, pendingAmountCount)
-		: buildConfiguredBalance(incomeAmount, totalSpending, pendingAmountCount);
+	const base =
+		source === "demo-inflow"
+			? buildDemoBalance(incomeAmount, totalSpending, pendingAmountCount)
+			: buildConfiguredBalance(incomeAmount, totalSpending, pendingAmountCount);
+	// The percentage is derived from the same number the card shows, so the row can never disagree
+	// with the amount above it; it stays `null` whenever the base cannot produce a truthful figure.
+	const availablePercent = getAvailablePercent(base.amount, base.incomeAmount);
+	return {
+		...base,
+		availablePercent,
+		availablePercentTone: getAvailablePercentTone(availablePercent),
+	};
 }
 
 /**

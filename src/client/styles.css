@@ -403,6 +403,82 @@
 	gap: var(--space-4);
 }
 
+.react-dashboard-heading {
+	min-width: 0;
+}
+
+/* The period/action group sits beside the dashboard title. It right-aligns while there is room and
+   wraps below the heading on narrow widths instead of squeezing the title. */
+.react-dashboard-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--space-3);
+}
+
+/* Compact period control used in the dashboard heading: a calendar mark, the concise label with its
+   date range, and the two existing cycle actions. It wraps instead of overflowing. */
+.react-period-control {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	box-shadow: var(--card-shadow-soft);
+}
+
+.react-period-control-icon {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border-radius: var(--radius-control);
+	background: var(--accent-soft);
+	color: var(--primary);
+	font-size: .95rem;
+}
+
+.react-period-control-text {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.react-period-control-text h2 {
+	margin: 0;
+	color: var(--ink-muted);
+	font-size: .72rem;
+	font-weight: 700;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+
+.react-period-control-range {
+	margin: 0;
+	color: var(--ink);
+	font-size: .875rem;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.react-period-control-actions {
+	gap: var(--space-2);
+}
+
+.react-period-control-actions button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.react-period-control-actions button svg {
+	font-size: .85rem;
+}
+
 .react-dashboard-header h1,
 .react-message h1 {
 	margin-bottom: var(--space-2);
@@ -841,6 +917,62 @@
 
 .react-lead-primary {
 	background: var(--surface-raised);
+}
+
+/* The balance answer is the highlighted Stitch card: a primary-blue surface with white text, so the
+   remaining balance reads as the lead figure of the period. */
+.react-lead-answer {
+	border-color: transparent;
+	background: linear-gradient(150deg, var(--primary-container), var(--primary));
+	color: #ffffff;
+	box-shadow: var(--shadow-md);
+}
+
+.react-lead-answer .react-lead-question,
+.react-lead-answer .react-lead-detail,
+.react-lead-answer .react-lead-derivation {
+	color: rgb(255 255 255 / .82);
+}
+
+.react-lead-answer-heading {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.react-lead-answer-icon {
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border-radius: var(--radius-control);
+	background: rgb(255 255 255 / .16);
+	color: #ffffff;
+	font-size: .9rem;
+}
+
+/* The available-income percentage is a lower row inside the same highlighted card, with a trend icon
+   that matches the direction the analytics module decided. */
+.react-lead-balance-percent {
+	display: inline-flex;
+	justify-self: start;
+	align-items: center;
+	gap: var(--space-2);
+	margin-top: var(--space-1);
+	padding: var(--space-1) var(--space-3);
+	border-radius: var(--radius-pill);
+	background: rgb(255 255 255 / .16);
+	color: #ffffff;
+	font-size: .8rem;
+	font-weight: 600;
+}
+
+.react-lead-balance-percent svg {
+	font-size: .85rem;
+}
+
+.react-lead-balance-percent-negative {
+	background: rgb(255 255 255 / .22);
 }
 
 .react-lead-question {

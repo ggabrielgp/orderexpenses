@@ -38,5 +38,6 @@ Apply the supplied Google Stitch dashboard distribution to both authenticated an
 - [x] Follow-up verification — focused chart tests, build, and diff check pass.
 - [x] Follow-up: title hierarchy — direct lead labels, a single `Periodo` heading, compact section titles, and shorter category copy now avoid repeated wording without changing data claims.
 - [x] Follow-up verification — focused title/composition tests, build, and diff check pass.
+- [x] Follow-up: highlighted balance and period controls — the truthful available-income percentage and free Font Awesome trend/wallet icons now live inside a highlighted balance card; compact period/date/actions and `Nuevo gasto` sit beside `Resumen de la cuenta`.
 - [x] Work unit 4: automated verification — 81/85 foundation tests pass with the same four pre-existing failures; build and diff check pass. Visual confirmation remains pending.
 

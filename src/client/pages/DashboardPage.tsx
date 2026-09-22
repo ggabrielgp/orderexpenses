@@ -1,4 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { config } from "@fortawesome/fontawesome-svg-core";
+import {
+	faArrowTrendDown,
+	faArrowTrendUp,
+	faCalendarDays,
+	faLock,
+	faMinus,
+	faPenToSquare,
+	faWallet,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+// The base Font Awesome stylesheet is imported once here and runtime injection is disabled, so the
+// icon sizing works in the browser and in the server-rendered markup the tests read.
+import "@fortawesome/fontawesome-svg-core/styles.css";
 import {
 	completeFinancialCycle,
 	createManualExpense,
@@ -32,6 +46,7 @@ import {
 import { formatMovementCount } from "../components/analytics/categoryDistribution";
 import {
 	getDashboardLead,
+	type DashboardBalancePercentTone,
 	type DashboardLead,
 } from "../components/analytics/dashboardLead";
 import {
@@ -176,6 +191,8 @@ import type {
 // @ts-expect-error The shared JavaScript review-period contract has no TypeScript declaration.
 import { ReviewPeriod } from "../../shared/review-period.js";
 
+config.autoAddCss = false;
+
 // The recognized-expense row type is owned by the movements module; it stays re-exported
 // here so the page's public type surface is unchanged. `formatPeriodLabel` is re-exported for
 // the same reason: one shared definition, an unchanged public surface.
@@ -200,6 +217,17 @@ export interface FinancialDashboardHandle {
 	period: FinancialPeriod | null;
 	/** Re-runs the cycle-first dashboard load. Resolves `false` when the reload failed. */
 	reload: () => Promise<boolean>;
+	/** Closure record the server reported for the configured period; `null` while open or not ready. */
+	completedAt: string | null;
+	/**
+	 * Opens the configured-period edit dialog. The dialog and its state stay owned by the summary, so
+	 * the page can render the control in its heading without a second copy of the cycle state.
+	 */
+	onEditPeriod: () => void;
+	/** Opens the cycle-closure confirmation; the summary still owns the closure state and reload. */
+	onCompletePeriod: () => void;
+	/** Opens the manual-expense dialog, which the summary still mounts and submits. */
+	onCreateExpense: () => void;
 }
 
 type FinancialSummaryState =
@@ -581,7 +609,7 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 			<main className="shell react-shell">
 				<section className="panel product-panel react-dashboard-shell" aria-labelledby="react-dashboard-title">
 					<header className="react-dashboard-header">
-						<div>
+						<div className="react-dashboard-heading">
 							<p className="react-dashboard-greeting">
 								{profile?.name?.trim()
 									? `Hola, ${profile.name.trim()}`
@@ -592,6 +620,27 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 								Control y análisis de gastos detectados automáticamente.
 							</p>
 						</div>
+						{/* The period controls sit beside the title instead of repeating them in the summary body.
+						    The summary still owns the cycle state, dialog and reload, and only publishes the
+						    triggers through `FinancialDashboardHandle`, so no cycle state is duplicated here. The
+						    group is absent until a configured period exists, matching the ready state. */}
+						{financialDashboard?.period && (
+							<div className="react-dashboard-controls">
+								<FinancialPeriodHeading
+									period={financialDashboard.period}
+									completedAt={financialDashboard.completedAt}
+									onEdit={financialDashboard.onEditPeriod}
+									onComplete={financialDashboard.onCompletePeriod}
+								/>
+								<button
+									className="button"
+									type="button"
+									onClick={financialDashboard.onCreateExpense}
+								>
+									Nuevo gasto
+								</button>
+							</div>
+						)}
 					</header>
 
 					{/* Mounted only in this authenticated tree: `DemoDashboardPage` is a separate read-only
@@ -862,19 +911,31 @@ export function FinancialPeriodHeading({
 }: FinancialPeriodHeadingProps) {
 	const closureMark = getCycleClosureMark(completedAt);
 	return (
-		<div>
-			<h2 id="react-financial-summary-title">Periodo</h2>
-			<p>
-				{formatPeriodLabel(period)}
-				{closureMark !== null && (
-					<span className="react-financial-cycle-closure">{closureMark}</span>
-				)}
-			</p>
+		<div className="react-period-control">
+			<span className="react-period-control-icon" aria-hidden="true">
+				<FontAwesomeIcon icon={faCalendarDays} />
+			</span>
+			<div className="react-period-control-text">
+				<h2 id="react-financial-summary-title">Periodo</h2>
+				<p className="react-period-control-range">
+					{formatPeriodLabel(period)}
+					{closureMark !== null && (
+						<span className="react-financial-cycle-closure">{closureMark}</span>
+					)}
+				</p>
+			</div>
 			{/* Legacy hides the month picker once a cycle is configured (`public/app.js:1013-1017`), so
-			    reopening the cycle is the only way to review another range in this surface. */}
-			<div className="react-shell-actions">
-				<button className="secondary" type="button" onClick={onEdit}>Cambiar período</button>
-				<button className="secondary" type="button" onClick={onComplete}>Cerrar período</button>
+			    reopening the cycle is the only way to review another range in this surface. Each icon
+			    leads its visible label, which stays the control's accessible name. */}
+			<div className="react-shell-actions react-period-control-actions">
+				<button className="secondary" type="button" onClick={onEdit}>
+					<FontAwesomeIcon icon={faPenToSquare} />
+					Cambiar período
+				</button>
+				<button className="secondary" type="button" onClick={onComplete}>
+					<FontAwesomeIcon icon={faLock} />
+					Cerrar período
+				</button>
 			</div>
 		</div>
 	);
@@ -884,6 +945,16 @@ export interface DashboardLeadViewProps {
 	/** The decided lead, from `getDashboardLead`. */
 	lead: DashboardLead;
 }
+
+/**
+ * The free solid icon each available-income direction uses. The tone is decided by the analytics
+ * module, so the surface only maps it to an icon and never re-interprets the number.
+ */
+const BALANCE_PERCENT_ICONS: Record<DashboardBalancePercentTone, typeof faArrowTrendUp> = {
+	positive: faArrowTrendUp,
+	flat: faMinus,
+	negative: faArrowTrendDown,
+};
 
 /**
  * The hero: the prominent `Total gastado` total with its period/count detail, and the
@@ -907,7 +978,12 @@ export function DashboardLeadView({ lead }: DashboardLeadViewProps) {
 				<p className="react-lead-detail">{lead.spending.detail}</p>
 			</article>
 			<article className="react-lead-answer">
-				<span className="react-lead-question">{lead.balance.label}</span>
+				<div className="react-lead-answer-heading">
+					<span className="react-lead-answer-icon">
+						<FontAwesomeIcon icon={faWallet} />
+					</span>
+					<span className="react-lead-question">{lead.balance.label}</span>
+				</div>
 				<strong className="react-lead-amount">
 					{lead.balance.amount === null
 						? lead.balance.emptyValue
@@ -924,6 +1000,17 @@ export function DashboardLeadView({ lead }: DashboardLeadViewProps) {
 						</small>
 					)}
 				<p className="react-lead-detail">{lead.balance.detail}</p>
+				{/* The percentage row is derived only from the amount and income above; without a truthful
+				    base the module returns `null` and the row is omitted instead of fabricated. */}
+				{lead.balance.availablePercent !== null &&
+					lead.balance.availablePercentTone !== null && (
+						<div
+							className={`react-lead-balance-percent react-lead-balance-percent-${lead.balance.availablePercentTone}`}
+						>
+							<FontAwesomeIcon icon={BALANCE_PERCENT_ICONS[lead.balance.availablePercentTone]} />
+							<span>{lead.balance.availablePercent}% disponible</span>
+						</div>
+					)}
 			</article>
 		</section>
 	);
@@ -1687,10 +1774,22 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	const [isCycleCompletionOpen, setIsCycleCompletionOpen] = useState(false);
 	/** The C1 synchronous lock, reused for the cycle closure. */
 	const cycleCompletionLock = useRef(false);
+	/** Opens the closure confirmation only; the submitter below owns the actual closure. */
+	const openCycleCompletion = useCallback(() => setIsCycleCompletionOpen(true), []);
 
 	const handleCycleEdited = useCallback((reloadFailed: boolean) => {
 		setCycleEditNotice(getCycleEditNotice({ status: "saved", reloadFailed }));
 		setIsCycleEditOpen(false);
+	}, []);
+
+	/**
+	 * The manual-expense trigger, defined here so the publish effect below can hand it to the page
+	 * heading. The dialog, its notice and its submitter all stay owned by this summary.
+	 */
+	const openCreateExpense = useCallback(() => {
+		// A previous outcome must not describe the new attempt.
+		setCreationNotice(null);
+		setIsCreateOpen(true);
 	}, []);
 
 	/**
@@ -1699,17 +1798,37 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	 * states in which there is no period a sync request could carry and no result it could verify.
 	 */
 	const configuredPeriod = state.status === "ready" ? state.data.cycle.selectedPeriod : null;
+	/** The loaded closure record, published alongside the period so the page heading can mark it. */
+	const configuredCompletedAt =
+		state.status === "ready" ? state.data.cycle.completedAt : null;
 
 	/**
-	 * Publishes the period and the reload the Gmail card asks for. A new load re-registers the same
-	 * helper with the fresh period, which is what lets the card sync exactly the range the summary
-	 * is showing. A failed reload is reported to the card as `false`; it never throws.
+	 * Publishes the period and the reload the Gmail card asks for, plus the cycle controls the page
+	 * heading renders. A new load re-registers the same helpers with the fresh period, which is what
+	 * lets the card sync exactly the range the summary is showing. A failed reload is reported to the
+	 * card as `false`; it never throws. The control callbacks are stable `useCallback`s, so the
+	 * registration does not re-run on every render.
 	 */
 	useEffect(() => {
 		if (!onHandle) return;
-		onHandle({ period: configuredPeriod, reload: reloadFinancialDashboard });
+		onHandle({
+			period: configuredPeriod,
+			reload: reloadFinancialDashboard,
+			completedAt: configuredCompletedAt,
+			onEditPeriod: openCycleEdit,
+			onCompletePeriod: openCycleCompletion,
+			onCreateExpense: openCreateExpense,
+		});
 		return () => onHandle(null);
-	}, [onHandle, configuredPeriod, reloadFinancialDashboard]);
+	}, [
+		onHandle,
+		configuredPeriod,
+		configuredCompletedAt,
+		reloadFinancialDashboard,
+		openCycleEdit,
+		openCycleCompletion,
+		openCreateExpense,
+	]);
 
 	const submitManualExpense = useMemo(
 		() =>
@@ -1723,12 +1842,6 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	const handleManualExpenseSaved = useCallback((reloadFailed: boolean) => {
 		setCreationNotice(getManualExpenseCreationNotice(reloadFailed));
 		setIsCreateOpen(false);
-	}, []);
-
-	const openCreateExpense = useCallback(() => {
-		// A previous outcome must not describe the new attempt.
-		setCreationNotice(null);
-		setIsCreateOpen(true);
 	}, []);
 
 	useEffect(() => {
@@ -1992,20 +2105,14 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 
 	return (
 		<section className="react-financial-summary" aria-labelledby="react-financial-summary-title">
-			<div className="react-financial-summary-heading">
-				<FinancialPeriodHeading
-					period={selectedPeriod!}
-					completedAt={state.data.cycle.completedAt}
-					onEdit={openCycleEdit}
-					onComplete={() => setIsCycleCompletionOpen(true)}
-				/>
-				<div className="react-financial-summary-actions">
-					{state.data.warning && <p className="react-financial-warning" role="status">Advertencia: {state.data.warning}</p>}
-					<button className="button" type="button" onClick={openCreateExpense}>
-						Nuevo gasto
-					</button>
+			{/* The period heading and its controls moved into the page heading, so this body keeps only
+			    the truthful warning. The section stays labelled by the same period title, which the page
+			    heading now renders. */}
+			{state.data.warning && (
+				<div className="react-financial-summary-heading">
+					<p className="react-financial-warning" role="status">Advertencia: {state.data.warning}</p>
 				</div>
-			</div>
+			)}
 			{creationNotice && (
 				<p
 					className={`react-financial-creation-notice react-financial-creation-notice-${creationNotice.tone}`}
