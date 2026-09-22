@@ -1221,68 +1221,6 @@ export function SpendingChartView({
 						<span>{formatClp(series.total)} · {series.detail}</span>
 					</div>
 					<div className="react-spending-chart-body">
-						<aside
-							id={DAY_DETAIL_ID}
-							className="react-spending-chart-day-panel"
-							aria-live="polite"
-						>
-							<h4>{detail.title}</h4>
-							<strong className="react-spending-chart-day-total">{formatClp(detail.total)}</strong>
-							{detail.groups.length === 0 ? (
-								<p className="react-spending-chart-day-empty">
-									{detail.isEmpty
-										? "No hay gastos con monto conocido para este día."
-										: "Elige un día del gráfico para ver qué gastos forman ese total."}
-								</p>
-							) : (
-								detail.groups.map((group) => (
-									<div key={group.key} className="react-spending-chart-day-group">
-										<span className="react-spending-chart-day-date">{group.label}</span>
-										<ul className="react-spending-chart-day-list">
-											{group.movements.map((movement) => {
-												const movementId = movement.id;
-												const rowContent = (
-													<>
-														<span className="react-spending-chart-day-info">
-															<strong>
-																{movement.time
-																	? `${movement.time} · ${movement.label}`
-																	: movement.label}
-															</strong>
-															<small>{movement.kindLabel}</small>
-														</span>
-														<strong className="react-spending-chart-day-amount">
-															{formatClp(movement.amount)}
-														</strong>
-													</>
-												);
-												return (
-													<li
-														key={
-															movementId ??
-															`${movement.dateKey}-${movement.time}-${movement.label}-${movement.amount}`
-														}
-														className="react-spending-chart-day-item"
-													>
-														{onOpenMovement !== undefined && movementId !== null ? (
-															<button
-																type="button"
-																className="react-spending-chart-day-open"
-																onClick={() => onOpenMovement(movementId)}
-															>
-																{rowContent}
-															</button>
-														) : (
-															rowContent
-														)}
-													</li>
-												);
-											})}
-										</ul>
-									</div>
-								))
-							)}
-						</aside>
 						<div className="react-spending-chart-bars" role="region" aria-label={series.ariaLabel}>
 							{series.days.map((day) => {
 								const isSelected = day.key === selectedDayKey;
@@ -1347,6 +1285,68 @@ export function SpendingChartView({
 									<strong>{formatClp(row.total)}</strong>
 								</div>
 							))}
+						</aside>
+						<aside
+							id={DAY_DETAIL_ID}
+							className="react-spending-chart-day-panel"
+							aria-live="polite"
+						>
+							<h4>{detail.title}</h4>
+							<strong className="react-spending-chart-day-total">{formatClp(detail.total)}</strong>
+							{detail.groups.length === 0 ? (
+								<p className="react-spending-chart-day-empty">
+									{detail.isEmpty
+										? "No hay gastos con monto conocido para este día."
+										: "Elige un día del gráfico para ver qué gastos forman ese total."}
+								</p>
+							) : (
+								detail.groups.map((group) => (
+									<div key={group.key} className="react-spending-chart-day-group">
+										<span className="react-spending-chart-day-date">{group.label}</span>
+										<ul className="react-spending-chart-day-list">
+											{group.movements.map((movement) => {
+												const movementId = movement.id;
+												const rowContent = (
+													<>
+														<span className="react-spending-chart-day-info">
+															<strong>
+																{movement.time
+																	? `${movement.time} · ${movement.label}`
+																	: movement.label}
+															</strong>
+															<small>{movement.kindLabel}</small>
+														</span>
+														<strong className="react-spending-chart-day-amount">
+															{formatClp(movement.amount)}
+														</strong>
+													</>
+												);
+												return (
+													<li
+														key={
+															movementId ??
+															`${movement.dateKey}-${movement.time}-${movement.label}-${movement.amount}`
+														}
+														className="react-spending-chart-day-item"
+													>
+														{onOpenMovement !== undefined && movementId !== null ? (
+															<button
+																type="button"
+																className="react-spending-chart-day-open"
+																onClick={() => onOpenMovement(movementId)}
+															>
+																{rowContent}
+															</button>
+														) : (
+															rowContent
+														)}
+													</li>
+												);
+											})}
+										</ul>
+									</div>
+								))
+							)}
 						</aside>
 					</div>
 				</>

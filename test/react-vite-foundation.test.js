@@ -5714,13 +5714,14 @@ test("the React spending chart view renders selectable proportional bars, the re
 	// Bars are selectable controls again, like legacy: each one is a button with aria-pressed and
 	// aria-controls for the read-only day detail.
 	assert.match(full, /role="region" aria-label="Periodo completo, total gastado por cada d\u00eda de la semana"/);
-	// The body keeps legacy's three-column reading order: scrollable day detail, bars, summary.
-	const detailIndex = full.indexOf('class="react-spending-chart-day-panel"');
+	// The body reads bars, then the month summary, then the selected-day detail, so the DOM order
+	// matches the visual layout: graph and totals on the top row, detail spanning the full width below.
 	const barsIndex = full.indexOf('class="react-spending-chart-bars"');
 	const summaryIndex = full.indexOf('class="react-spending-chart-summary"');
-	assert.ok(detailIndex > -1);
-	assert.ok(detailIndex < barsIndex);
+	const detailIndex = full.indexOf('class="react-spending-chart-day-panel"');
+	assert.ok(barsIndex > -1);
 	assert.ok(barsIndex < summaryIndex);
+	assert.ok(summaryIndex < detailIndex);
 	const bars = full.slice(barsIndex, summaryIndex);
 	assert.match(bars, /<button/);
 	assert.match(bars, /aria-controls="react-spending-chart-day-detail"/);
@@ -5777,10 +5778,9 @@ test("the React spending chart view renders selectable proportional bars, the re
 	// The default chart keeps every detail row inert: without `onOpenMovement` there is no dialog
 	// trigger, and the read-only detail still offers no edit or delete action.
 	assert.doesNotMatch(mondayDetail, /react-spending-chart-day-open/);
-	// Scope the no-button check to the detail panel itself; the bars that follow are controls.
+	// Scope the no-button check to the detail panel itself; it is the last body region, after the bars.
 	const mondayDetailPanel = mondayDetail.slice(
 		mondayDetail.indexOf('class="react-spending-chart-day-panel"'),
-		mondayDetail.indexOf('class="react-spending-chart-bars"'),
 	);
 	assert.ok(mondayDetailPanel.length > 0);
 	assert.doesNotMatch(mondayDetailPanel, /<button/);
@@ -5854,12 +5854,17 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.match(styles, /\.react-spending-chart-bar-selected \.react-spending-chart-track \{/);
 	assert.match(styles, /\.react-spending-chart-day-panel,/);
 	assert.match(styles, /\.react-spending-chart-summary-row-active \{/);
-	// The legacy three-column distribution: scrollable detail left, bars center, summary right.
+	// The desktop body is a two-column top row (bars, then totals) with the selected-day detail
+	// spanning the full width beneath them.
 	assert.match(
 		styles,
-		/\.react-spending-chart-body \{[^}]*grid-template-columns: minmax\(260px, 320px\) minmax\(0, 1fr\) minmax\(180px, 240px\);/,
+		/\.react-spending-chart-body \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(180px, 260px\);/,
 	);
-	// The detail column is height-limited and scrolls on its own without chaining to the page.
+	assert.match(
+		styles,
+		/\.react-spending-chart-day-panel \{[^}]*grid-column: 1 \/ -1;/,
+	);
+	// The detail panel is height-limited and scrolls on its own without chaining to the page.
 	assert.match(
 		styles,
 		/\.react-spending-chart-day-panel \{[^}]*max-height: 400px;[^}]*overflow-y: auto;[^}]*overscroll-behavior: contain;/,
@@ -5891,15 +5896,11 @@ test("the React spending chart view renders selectable proportional bars, the re
 		styles,
 		/@media \(prefers-reduced-motion: reduce\) \{\s*\.react-spending-chart-fill \{\s*transition: none;\s*\}\s*\}/,
 	);
-	// Legacy's intermediate breakpoint: below a narrower desktop/tablet width the body drops to two
-	// columns and the totals summary spans the full row as three summary columns.
+	// Below the wide desktop the top row narrows its totals column while keeping the bar chart and
+	// the month summary side by side, with the selected-day detail still spanning underneath.
 	assert.match(
 		styles,
-		/@media \(max-width: 1120px\) \{[^@]*?\.react-spending-chart-body \{\s*grid-template-columns: minmax\(240px, 280px\) minmax\(260px, 1fr\);\s*\}/,
-	);
-	assert.match(
-		styles,
-		/@media \(max-width: 1120px\) \{[^@]*?\.react-spending-chart-summary \{\s*grid-column: 1 \/ -1;\s*grid-template-columns: repeat\(3, 1fr\);\s*\}/,
+		/@media \(max-width: 1120px\) \{[^@]*?\.react-spending-chart-body \{\s*grid-template-columns: minmax\(0, 1fr\) minmax\(160px, 220px\);\s*\}/,
 	);
 	// Legacy's 800px tablet breakpoint stacks the chart body before the final 640px mobile stack,
 	// resets the spanning totals summary and lets the bar strip scroll, so the widened detail

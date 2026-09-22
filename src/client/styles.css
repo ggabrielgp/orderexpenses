@@ -1298,11 +1298,11 @@
 	font-variant-numeric: tabular-nums;
 }
 
-/* The body keeps legacy's three-column distribution: scrollable day detail, proportional bars,
-   then the totals grid. */
+/* The top row keeps the proportional bars beside the totals grid; the selected-day detail spans
+   the full chart width beneath them (see `.react-spending-chart-day-panel`). */
 .react-spending-chart-body {
 	display: grid;
-	grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(180px, 240px);
+	grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
 	align-items: stretch;
 	gap: var(--space-4);
 }
@@ -1441,8 +1441,10 @@
 	padding: var(--space-3);
 }
 
-/* The selected-day detail is the tall column; only its own list scrolls. */
+/* The selected-day detail spans the full chart width on the second row; only its own list scrolls
+   so a long day never stretches the card. */
 .react-spending-chart-day-panel {
+	grid-column: 1 / -1;
 	max-height: 400px;
 	overflow-y: auto;
 	overscroll-behavior: contain;
@@ -2995,24 +2997,18 @@
 	margin: 0;
 }
 
-/* Legacy's intermediate breakpoint (`public/app.css`): below this desktop/tablet width the chart
-   drops to two columns and the totals summary spans the full row as three summary columns, before
-   the final single-column mobile stack. */
+/* Below the wide desktop the top row narrows its totals column while the bar chart and the month
+   summary stay side by side, and the selected-day detail keeps spanning the full width under them. */
 @media (max-width: 1120px) {
 	.react-spending-chart-body {
-		grid-template-columns: minmax(240px, 280px) minmax(260px, 1fr);
-	}
-
-	.react-spending-chart-summary {
-		grid-column: 1 / -1;
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
 	}
 }
 
 /* Legacy's narrower tablet breakpoint (`public/app.css` `@media (max-width: 800px)`): once the
-   widened detail column and the seven 44px bars no longer fit side by side, stack the chart body
-   to a single column, reset the spanning totals summary and let the bar strip scroll instead of
-   forcing the page wider than the viewport. */
+   seven 44px bars beside the totals grid no longer fit, stack the chart body to a single column,
+   reset the totals summary to one column and let the bar strip scroll instead of forcing the page
+   wider than the viewport. */
 @media (max-width: 800px) {
 	.react-spending-chart-body {
 		grid-template-columns: 1fr;
@@ -3052,13 +3048,13 @@
 		grid-template-columns: 1fr;
 	}
 
-	/* Stack the detail, bars and totals panels and let only the bar row scroll instead of
-	   forcing the page wider than the viewport. */
+	/* Stack the bars, the totals summary and the day detail panels and let only the bar row scroll
+	   instead of forcing the page wider than the viewport. */
 	.react-spending-chart-body {
 		grid-template-columns: 1fr;
 	}
 
-	/* Reset the intermediate span so the totals summary stacks as a single column again. */
+	/* Keep the totals summary stacked as a single column. */
 	.react-spending-chart-summary {
 		grid-column: auto;
 		grid-template-columns: 1fr;
