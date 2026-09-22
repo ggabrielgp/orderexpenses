@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 
-import { ReviewPeriod } from "../public/review-period.js";
+import { ReviewPeriod } from "../src/shared/review-period.js";
 
 test("creates strict inclusive periods and converts the visible end to exclusive UTC calendar date", () => {
 	const period = ReviewPeriod.fromInclusive("2028-02-29", "2028-02-29");
@@ -89,7 +89,7 @@ test("includes date-only values with an inclusive start and exclusive end", () =
 
 test("does not parse date-only values through the timezone-sensitive Date string constructor", async () => {
 	const source = await readFile(
-		new URL("../public/review-period.js", import.meta.url),
+		new URL("../src/shared/review-period.js", import.meta.url),
 		"utf8",
 	);
 

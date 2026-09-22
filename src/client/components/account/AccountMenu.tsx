@@ -33,8 +33,8 @@ import {
  * already-verified dialogs and mutation contracts); this component only provides the menu shell,
  * its accessibility semantics and its keyboard/pointer behaviour.
  *
- * Only mount it in the authenticated tree: the demo composition never renders it, which keeps the
- * read-only demo free of account surfaces by construction.
+ * Authenticated callers supply the settings actions. The demo may reuse the same shell with a
+ * login-only action and without settings, sync, or mutation surfaces.
  */
 export interface AccountMenuProps {
 	/** `session.profile`; `null` resolves to a safe, labelled fallback identity. */

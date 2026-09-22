@@ -4,7 +4,8 @@ import {
 	createManualExpense,
 	deleteCategory,
 	getCategories,
-	loadFinancialDashboardData,
+	loadFinancialDashboardWithCache,
+	refreshFinancialDashboardData,
 	removeTransaction,
 	syncGmail,
 	updateFinancialCycle,
@@ -90,7 +91,6 @@ import {
 	type RemovalState,
 } from "../components/movements/removalState";
 import { GmailConsentDialog } from "../components/gmail/GmailConsentDialog";
-import { GmailConnectionPanel } from "../components/gmail/GmailConnectionPanel";
 import {
 	createGmailConsentState,
 	reduceGmailConsent,
@@ -169,6 +169,7 @@ import type {
 	FinancialPeriod,
 	FinancialTransaction,
 	RecognizedExpenseKind,
+	SessionProfile,
 	SessionResponse,
 	UpdateFinancialCycleRequest,
 } from "../api/types";
@@ -564,9 +565,8 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 	return (
 		<>
 			{/* Authenticated product chrome. It hosts the one settings action under the shipped
-			    account menu, so the unified settings surface keeps its unchanged mutation contract;
-			    the demo tree never mounts this header, which keeps the account surface out of the
-			    read-only demo by construction. */}
+			    account menu, so the unified settings surface keeps its unchanged mutation contract.
+			    The demo uses the same chrome with a read-only account menu below. */}
 			<AppHeader view={view} onViewChange={setView}>
 				<AccountMenu profile={profile}>
 					<button
@@ -582,6 +582,11 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 				<section className="panel product-panel react-dashboard-shell" aria-labelledby="react-dashboard-title">
 					<header className="react-dashboard-header">
 						<div>
+							<p className="react-dashboard-greeting">
+								{profile?.name?.trim()
+									? `Hola, ${profile.name.trim()}`
+									: "Hola, usuario conectado"}
+							</p>
 							<h1 id="react-dashboard-title">Resumen de la cuenta</h1>
 							<p className="subtitle">
 								Aquí puedes registrar, editar y eliminar movimientos, administrar las
@@ -591,40 +596,26 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 					</header>
 
 					{/* Mounted only in this authenticated tree: `DemoDashboardPage` is a separate read-only
-					    composition that never mounts the unified settings surface. Gmail keeps its own
-					    connection state machine in the body panel below. */}
+					    composition that never mounts the unified settings surface. The one account modal hosts
+					    the session profile and the Gmail connection, so the dashboard body starts at its own
+					    content instead of repeating that chrome. */}
 					<AccountSettingsDialog
 						isOpen={isAccountSettingsOpen}
 						onClose={() => setIsAccountSettingsOpen(false)}
 						profile={profile}
+						authenticated={session.authenticated}
+						initialConnected={connected}
+						connectControl={(accountConnected) => (
+							<GmailConnectControl
+								connectUrl={session.gmail.connectUrl}
+								accountConnected={accountConnected}
+								className="button"
+							/>
+						)}
+						submitSync={submitGmailSync}
 						submitCategoryMutation={submitCategoryMutation}
 						submitCounterpartyRule={submitCounterpartyRule}
 					/>
-
-					<div className="react-status-grid">
-						<article className="react-status-card">
-							<span className="section-kicker">Sesión actual</span>
-							<strong>{profile?.name || "Usuario conectado"}</strong>
-							<p>{profile?.email || "No hay un perfil de Gmail asociado a esta sesión."}</p>
-						</article>
-						<article className="react-status-card">
-							{/* The real connection state lives in the panel: it reads `/api/gmail/status`, offers the
-							    refresh, and owns the disconnection. The connect control stays unit A's and is handed
-							    the effective state, so a stale session snapshot can never refuse a valid reconnection. */}
-							<GmailConnectionPanel
-								authenticated={session.authenticated}
-								initialConnected={connected}
-								connectControl={(accountConnected) => (
-									<GmailConnectControl
-										connectUrl={session.gmail.connectUrl}
-										accountConnected={accountConnected}
-										className="button"
-									/>
-								)}
-								submitSync={submitGmailSync}
-							/>
-						</article>
-					</div>
 
 					<FinancialSummary
 						onHandle={registerFinancialDashboard}
@@ -701,12 +692,24 @@ export function GmailConnectControl({
 	);
 }
 
+/**
+ * The stable identity the demo header shows in the account slot. It is deliberately pictureless:
+ * there is no session behind the demo, so the menu names the demo account instead of pretending a
+ * real profile exists, and its only action is login, which leaves demo mode. No settings, sync or
+ * mutation action is offered here.
+ */
+const DEMO_PROFILE: SessionProfile = {
+	name: "Usuario demo",
+	email: "demo@demo.com",
+};
+
 export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
 	// Every value below comes from the same pure modules the authenticated summary uses, over the
 	// fixture projected to the server's transaction shape: no API client, no request and no
-	// duplicated calculation. The demo composes the presentational views directly instead of mounting
-	// the authenticated summary container, so the mutation dialogs, the account/settings surface and
-	// Gmail stay absent by construction. Only read-only selection controls are interactive.
+	// duplicated calculation. The demo mounts the same shared analytics body as the authenticated
+	// summary instead of the authenticated summary container, so the mutation dialogs, the
+	// account/settings surface and Gmail stay absent by construction. Only read-only selection
+	// controls are interactive.
 	const transactions = getDemoTransactions(data);
 	const summary = summarizeRecognizedExpenses(transactions);
 	const movements = getRecognizedExpenseMovements(transactions);
@@ -760,8 +763,8 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
 		incomeAmount: demoIncomeAmount,
 		incomeSource: "demo-inflow",
 	});
-	// `demo-inflow` keeps the panel honest: the demo states the fixture's observed inflow sum as demo
-	// data and never claims a configured cycle, unlike the authenticated summary below.
+	// The demo shares the authenticated composition, so it mounts the same income/budget truth panel
+	// over the demo-inflow source instead of a demo-only layout.
 	const incomeBudgetPanel = getDashboardIncomeBudgetPanel({
 		source: "demo-inflow",
 		incomeAmount: demoIncomeAmount,
@@ -769,69 +772,70 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
 		formatAmount: formatClp,
 	});
 	return (
-		<main className="shell react-shell">
-			<section className="panel product-panel react-dashboard-shell demo-dashboard" aria-labelledby="demo-dashboard-title">
-				<header className="react-dashboard-header">
-					<div>
-						<span className="section-kicker">Demo</span>
-						<h1 id="demo-dashboard-title">Resumen mensual de ejemplo</h1>
-						<p className="subtitle">Datos sintéticos para conocer Gastos Controlados.</p>
-					</div>
-					<span className="demo-read-only-badge">Solo lectura</span>
-				</header>
+		<>
+			{/* The demo reuses the authenticated chrome so the header matches the dashboard, but the
+			    navigation is inert: it hands the header the fixed summary view and a no-op handler, so
+			    Movimientos can never mount the authenticated body, and the account slot offers only the
+			    login that leaves demo mode. */}
+			<AppHeader view="summary" onViewChange={() => {}}>
+				<AccountMenu profile={DEMO_PROFILE}>
+					<a href="/auth/google" role="menuitem">Iniciar sesión</a>
+				</AccountMenu>
+			</AppHeader>
+			<main className="shell react-shell">
+				<section className="panel product-panel react-dashboard-shell demo-dashboard" aria-labelledby="demo-dashboard-title">
+					<header className="react-dashboard-header">
+						<div>
+							<span className="section-kicker">Demo</span>
+							<h1 id="demo-dashboard-title">Resumen mensual de ejemplo</h1>
+							<p className="subtitle">Datos sintéticos para conocer Gastos Controlados.</p>
+						</div>
+						<span className="demo-read-only-badge">Solo lectura</span>
+					</header>
 
-				{/* Truthful counts only: no fabricated income, balance, percentage or remaining value. */}
-				<div className="demo-kpi-grid" aria-label="Resumen financiero de ejemplo">
-					<DemoKpi label="Movimientos en la demo" value={String(data.movements.length)} />
-					<DemoKpi label="Gastos reconocidos" value={String(summary.count)} />
-				</div>
+					{/* The one shared analytics body: the same sections and order as the authenticated summary.
+					    The demo only supplies dummy data and inert capabilities, so the category jump and the
+					    chart detail stay read-only and the account/mutation surfaces never mount. */}
+					<DashboardAnalyticsBody
+						lead={dashboardLead}
+						budgetPanel={incomeBudgetPanel}
+						story={dashboardStory}
+						analytics={periodAnalytics}
+						chart={spendingChart}
+						chartDetailMovements={detailMovements}
+						ranking={categoryRanking}
+						onJumpToCategory={() => {}}
+						insights={topInsights}
+						breakdown={spendingBreakdown}
+					/>
 
-				<DashboardLeadView lead={dashboardLead} />
-				<DashboardBudgetPanel panel={incomeBudgetPanel} />
-				{/* The jump is inert here: the demo has no movements view to narrow, and the selection
-				    itself stays a read-only detail. */}
-				<CategoryRankingPanel ranking={categoryRanking} onJumpToCategory={() => {}} />
-				<SpendingChartPanel chart={spendingChart} detailMovements={detailMovements} />
-				<DashboardStoryView story={dashboardStory} />
-				<PeriodAnalyticsPanel analytics={periodAnalytics} />
-				<TopInsightsView insights={topInsights} />
-				<SpendingBreakdownView breakdown={spendingBreakdown} />
+					<section className="demo-movements" aria-labelledby="demo-movements-title">
+						<div>
+							<span className="section-kicker">Movimientos</span>
+							<h2 id="demo-movements-title">Actividad del periodo</h2>
+						</div>
+						<ul>
+							{data.movements.slice(0, 6).map((movement) => (
+								<li key={movement.id}>
+									<div>
+										<strong>{movement.counterparty}</strong>
+										<span>{movement.category ?? "Sin categoría"} · {movement.occurredAt.slice(0, 10)}</span>
+									</div>
+									<b className={movement.direction === "inflow" ? "demo-inflow" : ""}>
+										{movement.direction === "inflow" ? "+" : "-"}{formatClp(movement.amount)}
+									</b>
+								</li>
+							))}
+						</ul>
+					</section>
 
-				<section className="demo-movements" aria-labelledby="demo-movements-title">
-					<div>
-						<span className="section-kicker">Movimientos</span>
-						<h2 id="demo-movements-title">Actividad del periodo</h2>
-					</div>
-					<ul>
-						{data.movements.slice(0, 6).map((movement) => (
-							<li key={movement.id}>
-								<div>
-									<strong>{movement.counterparty}</strong>
-									<span>{movement.category ?? "Sin categoría"} · {movement.occurredAt.slice(0, 10)}</span>
-								</div>
-								<b className={movement.direction === "inflow" ? "demo-inflow" : ""}>
-									{movement.direction === "inflow" ? "+" : "-"}{formatClp(movement.amount)}
-								</b>
-							</li>
-						))}
-					</ul>
+					<footer className="demo-dashboard-footer">
+						<p>Esta demo no guarda cambios ni se conecta a tu cuenta.</p>
+						<a className="button" href="/auth/google">Inicia sesión para editar</a>
+					</footer>
 				</section>
-
-				<footer className="demo-dashboard-footer">
-					<p>Esta demo no guarda cambios ni se conecta a tu cuenta.</p>
-					<a className="button" href="/auth/google">Inicia sesión para editar</a>
-				</footer>
-			</section>
-		</main>
-	);
-}
-
-function DemoKpi({ label, value }: { label: string; value: string }) {
-	return (
-		<article className="demo-kpi">
-			<span>{label}</span>
-			<strong>{value}</strong>
-		</article>
+			</main>
+		</>
 	);
 }
 
@@ -884,7 +888,7 @@ export interface DashboardLeadViewProps {
 }
 
 /**
- * The authenticated hero: the prominent `¿Cuánto gasté?` total with its period/count detail, and the
+ * The hero: the prominent `¿Cuánto gasté?` total with its period/count detail, and the
  * `¿Cuánto me queda?` answer.
  *
  * Exported so both states of the balance are provable from a static render, like the other analytics
@@ -893,7 +897,8 @@ export interface DashboardLeadViewProps {
  *
  * The balance shows a number only when the module derived one from an income: the configured cycle
  * income on the authenticated summary, or the demo's observed inflows. Without one the value is the
- * shipped sentinel, never a fabricated `$0`, and the detail says why.
+ * shipped sentinel, never a fabricated `$0`, and the detail says why. Both cards always render, so the
+ * authenticated summary and the read-only demo differ in the income source and its copy, not in layout.
  */
 export function DashboardLeadView({ lead }: DashboardLeadViewProps) {
 	return (
@@ -932,14 +937,14 @@ export interface DashboardBudgetPanelProps {
 }
 
 /**
- * The period-adapted income/budget truth panel, reused by the authenticated summary and the demo.
+ * The period-adapted income/budget truth panel, mounted by the shared analytics body for both the
+ * authenticated summary and the read-only demo.
  *
- * It states the configured cycle income (or the demo's observed inflow sum) when one exists and an
- * explicit absence otherwise, and always reports the budget as not configured, because the product
- * stores no budget to read. It renders only the decisions the pure module made: no fabricated zero,
- * percentage, progress or remaining value. The configured-cycle and demo-inflow sources are the same
- * component with different, truthful copy, so the demo never claims a configured cycle.
- * Exported so both dashboards mount the same surface and a static render proves both truth states.
+ * It states the configured cycle income when one exists and an explicit absence otherwise, and
+ * always reports the budget as not configured, because the product stores no budget to read. It
+ * renders only the decisions the pure module made: no fabricated zero, percentage, progress or
+ * remaining value. Its configured-cycle and demo-inflow sources keep different, truthful copy, so the
+ * demo never borrows the authenticated claim.
  */
 export function DashboardBudgetPanel({ panel }: DashboardBudgetPanelProps) {
 	return (
@@ -1492,6 +1497,80 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
 	);
 }
 
+interface DashboardAnalyticsBodyProps {
+	/** The decided lead, from `getDashboardLead`. */
+	lead: DashboardLead;
+	/** The decided income/budget truth, from `getDashboardIncomeBudgetPanel`. */
+	budgetPanel: DashboardIncomeBudgetPanel;
+	/** The decided month story, from `getDashboardStory`. */
+	story: DashboardStory;
+	/** The decided period metrics, from `getPeriodAnalytics`. */
+	analytics: PeriodAnalytics;
+	/** The decided chart, from `getSpendingChart`. */
+	chart: SpendingChart;
+	/** Recognized outflow rows for the read-only chart detail. */
+	chartDetailMovements: SpendingChartDetailMovement[];
+	/** The decided ranking, from `getCategoryRanking`. */
+	ranking: CategoryRanking;
+	/** Stored category catalog for the donut colours; absent when the caller has none. */
+	catalog?: readonly Category[];
+	/** Jumps into the caller's movement surface; the demo passes an inert callback. */
+	onJumpToCategory: (category: string) => void;
+	/** The decided insights, from `getTopInsights`. */
+	insights: DashboardTopInsights;
+	/** The decided breakdown, from `getSpendingBreakdown`. */
+	breakdown: SpendingBreakdown;
+	/** Opens the read-only chart day detail; absent keeps every row inert in the demo. */
+	onOpenMovement?: (movementId: string) => void;
+}
+
+/**
+ * The one dashboard analytics composition both the authenticated summary and the read-only demo mount:
+ * primary lead, income/budget truth, month story, period metrics, spending chart, category
+ * distribution/ranking, top insights and spending-type breakdown, in that order.
+ *
+ * It is deliberately internal and holds no state, data or request: each caller decides the data and
+ * passes the capabilities it supports. The authenticated summary wires the category jump and the chart
+ * detail dialog; the demo passes an inert jump and no detail callback, and omits the stored catalog, so
+ * the two differ in capabilities and copy, never in layout. The authenticated movement table and the
+ * demo's read-only movements list/footer stay outside this body.
+ */
+function DashboardAnalyticsBody({
+	lead,
+	budgetPanel,
+	story,
+	analytics,
+	chart,
+	chartDetailMovements,
+	ranking,
+	catalog,
+	onJumpToCategory,
+	insights,
+	breakdown,
+	onOpenMovement,
+}: DashboardAnalyticsBodyProps) {
+	return (
+		<>
+			<DashboardLeadView lead={lead} />
+			<DashboardBudgetPanel panel={budgetPanel} />
+			<DashboardStoryView story={story} />
+			<PeriodAnalyticsPanel analytics={analytics} />
+			<SpendingChartPanel
+				chart={chart}
+				detailMovements={chartDetailMovements}
+				onOpenMovement={onOpenMovement}
+			/>
+			<CategoryRankingPanel
+				ranking={ranking}
+				catalog={catalog}
+				onJumpToCategory={onJumpToCategory}
+			/>
+			<TopInsightsView insights={insights} />
+			<SpendingBreakdownView breakdown={breakdown} />
+		</>
+	);
+}
+
 interface FinancialSummaryProps {
 	onHandle?: (handle: FinancialDashboardHandle | null) => void;
 	/** Current view, owned by the page so the header navigation and this body stay in sync. */
@@ -1556,7 +1635,7 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	 */
 	const reloadFinancialDashboard = useCallback(async (): Promise<boolean> => {
 		try {
-			const data = await loadFinancialDashboardData();
+			const data = await refreshFinancialDashboardData();
 			setState(
 				data.cycle.selectedPeriod ? { status: "ready", data } : { status: "unconfigured" },
 			);
@@ -1642,7 +1721,13 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 	useEffect(() => {
 		const controller = new AbortController();
 		setState({ status: "loading" });
-		loadFinancialDashboardData(controller.signal)
+		// The first mount is cache-first, so a browser reload (F5) reuses the tab's stored response
+		// without a request. Every later run is a user-requested retry, which bypasses the cache and
+		// reads current data instead.
+		const load = retryToken > 0
+			? refreshFinancialDashboardData(controller.signal)
+			: loadFinancialDashboardWithCache(controller.signal);
+		load
 			.then((data) => {
 				if (controller.signal.aborted) return;
 				setState(
@@ -1942,32 +2027,27 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 			)}
 			{view === "summary" ? (
 				<>
-					{/* The hero consolidates the four look-alike cards this surface used to show: the same total,
-					    count and pending count are stated here with the period, and the balance is the new answer.
-					    The order below approximates the legacy reading: lead, category ranking, chart, story, period
-					    metrics, top insights, breakdown. The grid primitives stay in use for the analytics panels. */}
-					<DashboardLeadView lead={dashboardLead} />
-					{/* The income/budget truth panel sits with the hero: both read the same configured income. */}
-					<DashboardBudgetPanel panel={incomeBudgetPanel} />
-					<CategoryRankingPanel
+					{/* The shared analytics body owns the section order, so both the authenticated summary and
+					    the read-only demo read the same composition. Here it carries the authenticated
+					    capabilities: the jump switches to the movements view with the requested category, and
+					    the chart detail opens the read-only movement dialog. */}
+					<DashboardAnalyticsBody
+						lead={dashboardLead}
+						budgetPanel={incomeBudgetPanel}
+						story={dashboardStory}
+						analytics={periodAnalytics}
+						chart={spendingChart}
+						chartDetailMovements={spendingChartDetailMovements}
 						ranking={categoryRanking}
 						catalog={categoryCatalog}
 						onJumpToCategory={(category) => {
 							setRequestedCategory(category);
 							onViewChange("movements");
 						}}
-					/>
-					<SpendingChartPanel
-						chart={spendingChart}
-						detailMovements={spendingChartDetailMovements}
+						insights={topInsights}
+						breakdown={spendingBreakdown}
 						onOpenMovement={setChartDetailMovementId}
 					/>
-					<DashboardStoryView story={dashboardStory} />
-					<PeriodAnalyticsPanel analytics={periodAnalytics} />
-					<TopInsightsView insights={topInsights} />
-					{/* The visual breakdown replaces the plain definition list, which stated the same three kind
-					    totals twice: once in text and now once as a share of the recognized quantified total. */}
-					<SpendingBreakdownView breakdown={spendingBreakdown} />
 					{summary.count === 0 && (
 						<p className="react-financial-empty" role="status">No se encontraron gastos reconocidos para este periodo.</p>
 					)}

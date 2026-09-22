@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400..900&family=Sora:wght@400..800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap");
-
 #root {
 	min-height: 100vh;
 }
@@ -375,6 +373,12 @@
 @media (max-width: 420px) { .landing-kpis { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .landing-reveal { opacity: 1; transform: none; transition: none; } .landing-primary-button, .landing-secondary-button { transition: none; } }
 
+.react-shell {
+	width: calc(100% - 64px);
+	margin: 0 auto;
+	padding: 40px 0 56px;
+}
+
 .react-dashboard-shell,
 .react-message {
 	display: grid;
@@ -393,39 +397,13 @@
 	margin-bottom: var(--space-2);
 }
 
-.react-status-grid {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: var(--space-4);
-}
-
-.react-status-card {
-	display: grid;
-	gap: var(--space-2);
-	align-content: start;
-	padding: var(--space-4);
-	border: 1px solid var(--line);
-	border-radius: var(--radius-card);
-	background: var(--surface);
-}
-
-.react-status-card .section-kicker {
-	margin: 0;
-}
-
-.react-status-card strong {
-	font-family: var(--font-display);
-	font-size: 1.2rem;
-}
-
-.react-status-card p {
-	margin: 0;
+/* Friendly session greeting above the dashboard title. It is intentionally quieter than the h1 so
+   it reads as chrome and never competes with the account summary. */
+.react-dashboard-greeting {
+	margin: 0 0 var(--space-1);
 	color: var(--ink-muted);
-}
-
-.react-status-card .button {
-	justify-self: start;
-	margin-top: var(--space-2);
+	font-size: .875rem;
+	font-weight: 600;
 }
 
 .react-shell-actions {
@@ -560,6 +538,11 @@
 }
 
 @media (max-width: 800px) {
+	.react-shell {
+		width: calc(100% - 24px);
+		padding-top: 24px;
+	}
+
 	.react-app-header-inner {
 		grid-template-columns: 1fr auto;
 		width: calc(100% - 24px);
@@ -579,6 +562,15 @@
 }
 
 @media (max-width: 480px) {
+	.react-category-distribution-body {
+		grid-template-columns: 1fr;
+	}
+
+	.react-shell {
+		width: calc(100% - 16px);
+		padding-top: 16px;
+	}
+
 	.react-app-header-inner {
 		width: calc(100% - 16px);
 	}
@@ -793,9 +785,8 @@
 	font-size: .875rem;
 }
 
-/* The authenticated hero: the prominent spending total and the configured-income balance. It reuses
-   the shipped tokens and card treatment; the two-column split and the display-size amount are the
-   only layout it adds. */
+/* The hero: the prominent spending total and the period balance. It reuses the shipped tokens and
+   card treatment; the two-column split and the display-size amount are the only layout it adds. */
 .react-dashboard-lead {
 	display: grid;
 	grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
@@ -1117,8 +1108,13 @@
 
 .react-category-distribution-body {
 	display: grid;
+	grid-template-columns: minmax(230px, .75fr) minmax(260px, 1.25fr);
+	align-items: center;
 	gap: var(--space-4);
-	justify-items: center;
+}
+
+.react-category-distribution-legend {
+	width: 100%;
 }
 
 .react-category-donut-wrap {
@@ -1390,7 +1386,7 @@
 	gap: var(--space-2);
 	border: 1px solid var(--line);
 	border-radius: var(--radius-card);
-	background: rgba(255, 255, 255, 0.76);
+	background: var(--surface-subtle);
 	padding: var(--space-3);
 }
 
@@ -1969,7 +1965,7 @@
 
 /* Connection card. The card body is a grid child list, so every rule here only shapes one line of
    it; the action row is the single place a new control (GS-4's manual sync) can be added. */
-.react-status-card .react-gmail-connection-account {
+.react-account-settings-gmail .react-gmail-connection-account {
 	margin: 0;
 	font-weight: 600;
 	color: var(--ink);
@@ -1979,11 +1975,11 @@
 	margin: 0;
 }
 
-.react-status-card .react-gmail-connection-message-failed {
+.react-account-settings-gmail .react-gmail-connection-message-failed {
 	color: var(--danger);
 }
 
-.react-status-card .react-gmail-connection-notice {
+.react-account-settings-gmail .react-gmail-connection-notice {
 	margin: 0;
 	border-left: 3px solid var(--success);
 	border-radius: var(--radius-control);
@@ -1992,7 +1988,7 @@
 	color: var(--ink);
 }
 
-.react-status-card .react-gmail-connection-notice-warning {
+.react-account-settings-gmail .react-gmail-connection-notice-warning {
 	border-left-color: var(--warning);
 	background: var(--warning-soft);
 }
@@ -2697,6 +2693,45 @@
 	width: min(42rem, calc(100vw - 2 * var(--space-4)));
 }
 
+/* The three grouped surfaces share one modal through a plain tablist. The tabs reuse the global
+   button primitives and only override the accent look so the selected one reads as chrome. */
+.react-account-settings-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-top: var(--space-3);
+	border-bottom: 1px solid var(--line);
+	padding-bottom: var(--space-2);
+}
+
+.react-account-settings-tab {
+	min-height: 0;
+	border: 1px solid transparent;
+	background: none;
+	color: var(--ink-muted);
+	box-shadow: none;
+	padding: var(--space-2) var(--space-3);
+	font-weight: 600;
+}
+
+.react-account-settings-tab:hover {
+	background: var(--surface-raised);
+	color: var(--ink);
+	box-shadow: none;
+}
+
+.react-account-settings-tab[aria-selected="true"] {
+	border-color: var(--line-strong);
+	background: var(--surface-raised);
+	color: var(--ink);
+}
+
+/* Inactive panels keep their state but never render: the `hidden` panel stays mounted so an
+   embedded section does not lose its selection, draft or in-flight lock across tab switches. */
+.react-account-settings-panel[hidden] {
+	display: none;
+}
+
 .react-account-settings-dialog > .react-shell-actions {
 	justify-content: flex-end;
 	margin-top: var(--space-3);
@@ -2722,6 +2757,25 @@
 	margin: 0;
 	color: var(--ink-muted);
 	font-size: .875rem;
+}
+
+/* The Gmail connection section inside the unified account surface. It reuses the shipped
+   connection panel; only the section spacing and its separator are owned here. */
+.react-account-settings-gmail {
+	display: grid;
+	gap: var(--space-2);
+	margin-top: var(--space-3);
+	border-bottom: 1px solid var(--line);
+	padding-bottom: var(--space-3);
+}
+
+.react-account-settings-gmail .section-kicker {
+	margin: 0;
+}
+
+.react-account-settings-gmail .button {
+	justify-self: start;
+	margin-top: var(--space-2);
 }
 
 .demo-dashboard {
@@ -2849,10 +2903,6 @@
 	.react-dashboard-header,
 	.react-financial-summary-heading {
 		flex-direction: column;
-	}
-
-	.react-status-grid {
-		grid-template-columns: 1fr;
 	}
 
 	.react-financial-setup-fields {

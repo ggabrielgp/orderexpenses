@@ -323,6 +323,92 @@ export async function upsertCounterpartyRule(
 	);
 }
 
+/**
+ * Tab-scoped key for the loaded financial dashboard. `sessionStorage` gives each browser tab its own
+ * copy and drops it when the tab closes, so a reload (F5) can reuse the response the tab already
+ * fetched while a new tab always starts clean. Versioned so a future shape change is not read as this
+ * one; the stored response is only trusted after the shape check below.
+ */
+const FINANCIAL_DASHBOARD_CACHE_KEY = "gastos-controlados:financial-dashboard:v1";
+
+/** Returns the tab's storage, or `null` when the browser denies access (private mode, policy). */
+function getFinancialDashboardStorage(): Storage | null {
+	try {
+		return globalThis.sessionStorage ?? null;
+	} catch {
+		return null;
+	}
+}
+
+function isFinancialPeriodValue(value: unknown): value is FinancialPeriod {
+	if (typeof value !== "object" || value === null) return false;
+	const period = value as Record<string, unknown>;
+	return typeof period.startDate === "string" && typeof period.endDateExclusive === "string";
+}
+
+function isFinancialCycleValue(value: unknown): value is FinancialCycleResponse {
+	if (typeof value !== "object" || value === null) return false;
+	const cycle = value as Record<string, unknown>;
+	return (
+		(cycle.selectedPeriod === null || isFinancialPeriodValue(cycle.selectedPeriod)) &&
+		(cycle.incomeAmount === null || typeof cycle.incomeAmount === "number") &&
+		(cycle.completedAt === null || typeof cycle.completedAt === "string")
+	);
+}
+
+/**
+ * A cache entry is trusted only when it still has the shape this client reads. A truncated or
+ * hand-edited entry, or one written by an older build, fails the check and is treated as a cache miss
+ * instead of being rendered as data.
+ */
+function isFinancialDashboardDataValue(value: unknown): value is FinancialDashboardData {
+	if (typeof value !== "object" || value === null) return false;
+	const data = value as Record<string, unknown>;
+	return (
+		isFinancialCycleValue(data.cycle) &&
+		Array.isArray(data.transactions) &&
+		(data.warning === null || typeof data.warning === "string")
+	);
+}
+
+/**
+ * Reads the tab's cached dashboard, or `null` when it is absent, unreadable, or not a valid response.
+ * Every failure mode (missing storage, denied read, invalid JSON, unexpected shape) degrades to `null`
+ * so the caller falls back to the normal request instead of failing.
+ */
+export function readFinancialDashboardCache(): FinancialDashboardData | null {
+	const storage = getFinancialDashboardStorage();
+	if (storage === null) return null;
+	let serialized: string | null;
+	try {
+		serialized = storage.getItem(FINANCIAL_DASHBOARD_CACHE_KEY);
+	} catch {
+		return null;
+	}
+	if (serialized === null) return null;
+	try {
+		const parsed: unknown = JSON.parse(serialized);
+		return isFinancialDashboardDataValue(parsed) ? parsed : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Stores the loaded dashboard for the next reload. Caching is an enhancement, never a dependency: a
+ * browser that denies `sessionStorage`, or a quota error, is swallowed because the caller already has
+ * the response it just fetched.
+ */
+export function writeFinancialDashboardCache(data: FinancialDashboardData): void {
+	const storage = getFinancialDashboardStorage();
+	if (storage === null) return;
+	try {
+		storage.setItem(FINANCIAL_DASHBOARD_CACHE_KEY, JSON.stringify(data));
+	} catch {
+		// Storage unavailable or full: the next reload simply fetches again.
+	}
+}
+
 /** Loads the cycle first so configured users never fall back to a month request. */
 export async function loadFinancialDashboardData(
 	signal?: AbortSignal,
@@ -335,6 +421,35 @@ export async function loadFinancialDashboardData(
 		signal,
 	);
 	return { cycle, transactions, warning };
+}
+
+/**
+ * Cache-first dashboard load for a page mount. A reload (F5) reuses the tab's stored response without
+ * any request, so the configured period and its movements stay exactly as the tab last saw them. The
+ * tab's first load has no stored response and takes the normal cycle-first request, which is then
+ * cached for the next reload. Unavailable or corrupted storage degrades to that same normal request.
+ */
+export async function loadFinancialDashboardWithCache(
+	signal?: AbortSignal,
+): Promise<FinancialDashboardData> {
+	const cached = readFinancialDashboardCache();
+	if (cached) return cached;
+	const data = await loadFinancialDashboardData(signal);
+	writeFinancialDashboardCache(data);
+	return data;
+}
+
+/**
+ * Fresh dashboard load that bypasses the cache and replaces it with the server's current response.
+ * Every explicit mutation, Gmail sync, retry, or period change goes through here, so those actions
+ * always read and store current data instead of the response the tab loaded earlier.
+ */
+export async function refreshFinancialDashboardData(
+	signal?: AbortSignal,
+): Promise<FinancialDashboardData> {
+	const data = await loadFinancialDashboardData(signal);
+	writeFinancialDashboardCache(data);
+	return data;
 }
 
 /**
