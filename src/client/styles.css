@@ -1048,9 +1048,36 @@
 	box-shadow: var(--card-shadow-soft);
 }
 
-.react-spending-breakdown h3 {
+.react-spending-breakdown-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+
+.react-spending-breakdown-header h3 {
 	margin: 0;
 	font-size: 1rem;
+}
+
+.react-spending-breakdown-total {
+	display: grid;
+	justify-items: end;
+	gap: 2px;
+	margin: 0;
+	text-align: right;
+}
+
+.react-spending-breakdown-total strong {
+	color: var(--ink);
+	font-family: var(--font-display);
+	font-size: 1.1rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.react-spending-breakdown-total span {
+	color: var(--ink-muted);
+	font-size: .75rem;
 }
 
 .react-spending-breakdown-empty {
@@ -1059,49 +1086,87 @@
 	font-size: .875rem;
 }
 
-.react-spending-breakdown-list {
+/* One rounded segmented bar: each segment width is the share the module decided from the raw kind
+   totals, and there is no fabricated minimum. */
+.react-spending-breakdown-bar {
+	display: flex;
+	width: 100%;
+	height: 14px;
+	border-radius: var(--radius-pill);
+	background: var(--surface-subtle);
+	overflow: hidden;
+}
+
+.react-spending-breakdown-segment {
+	display: block;
+	height: 100%;
+}
+
+.react-spending-breakdown-segment-purchase {
+	background: var(--color-blue-deep);
+}
+
+.react-spending-breakdown-segment-transfer {
+	background: var(--color-blue-bright);
+}
+
+.react-spending-breakdown-segment-payment {
+	background: var(--color-violet);
+}
+
+/* The legend states every kind as icon plus text, so the bar never relies on colour alone. */
+.react-spending-breakdown-legend {
 	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: var(--space-3);
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
-.react-breakdown-row {
+.react-spending-breakdown-legend-item {
 	display: grid;
 	gap: var(--space-1);
+	min-width: 0;
 }
 
-.react-breakdown-header {
+.react-spending-breakdown-legend-heading {
 	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: var(--space-3);
-}
-
-.react-breakdown-header span {
+	align-items: center;
+	gap: var(--space-1);
+	min-width: 0;
 	color: var(--ink-muted);
+	font-size: .8rem;
 }
 
-.react-breakdown-header strong {
+.react-spending-breakdown-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	font-size: .75rem;
+}
+
+.react-spending-breakdown-kind {
+	overflow-wrap: anywhere;
+}
+
+.react-spending-breakdown-legend-item strong {
 	font-family: var(--font-display);
 	font-variant-numeric: tabular-nums;
 }
 
-.react-breakdown-track {
-	width: 100%;
-	height: 10px;
-	border-radius: var(--radius-pill);
-	background: var(--surface-subtle);
-	overflow: hidden;
+.react-spending-breakdown-percent {
+	color: var(--ink-muted);
+	font-size: .8rem;
+	font-variant-numeric: tabular-nums;
 }
 
-/* Width is the share the module decided from the raw kind totals; there is no fabricated minimum. */
-.react-breakdown-fill {
-	display: block;
-	height: 100%;
-	border-radius: var(--radius-pill);
-	background: var(--marketing-primary);
+/* Narrow screens stack the compact legend instead of squeezing three narrow columns. */
+@media (max-width: 640px) {
+	.react-spending-breakdown-legend {
+		grid-template-columns: 1fr;
+	}
 }
 
 /* The period story reuses the shipped surface primitives; only its reading region is new. */

@@ -543,10 +543,17 @@ test("the React financial summary breaks recognized spending down by kind withou
 		new URL("../src/client/pages/DashboardPage.tsx", import.meta.url),
 		"utf8",
 	);
-	assert.match(source, /<dl className="react-spending-breakdown"/);
-	assert.match(source, /<dt>Purchases<\/dt>/);
-	assert.match(source, /<dt>Transfers<\/dt>/);
-	assert.match(source, /<dt>Payments<\/dt>/);
+	// The section is one Stitch-style card: a segmented distribution bar plus an icon legend, not a
+	// repeated per-kind progress track. The legend names every kind with free solid iconography.
+	assert.match(source, /<section className="react-spending-breakdown"/);
+	assert.match(source, /Distribución de gastos/);
+	assert.match(source, /className="react-spending-breakdown-bar"/);
+	assert.match(source, /react-spending-breakdown-segment-\$\{bar\.key\}/);
+	assert.match(source, /className="react-spending-breakdown-legend"/);
+	assert.match(source, /faCartShopping/);
+	assert.match(source, /faArrowRightArrowLeft/);
+	assert.match(source, /faReceipt/);
+	assert.doesNotMatch(source, /react-breakdown-track|react-breakdown-fill/);
 });
 
 test("the React financial summary selects the latest valid recognized expense within the configured period", async (t) => {
@@ -7498,34 +7505,55 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.match(insightsMarkup, /2026-02-28/);
 	assert.match(insightsMarkup, /Tienda/);
 
-	// The breakdown view draws one proportional bar per kind and shows the percentage as text too.
+	// The breakdown view draws one segmented bar plus an icon legend, keeping every kind's amount and
+	// percentage as readable text.
 	const breakdown = insights.getSpendingBreakdown({ purchase: 5000, transfer: 3000, payment: 2000 });
 	const breakdownMarkup = renderer.renderToStaticMarkup(
 		React.createElement(pageModule.SpendingBreakdownView, { breakdown }),
 	);
 	assert.match(breakdownMarkup, /<section class="react-spending-breakdown"/);
-	assert.match(breakdownMarkup, /Tipos de gasto/);
-	assert.match(breakdownMarkup, /Compras<\/span><strong>\$5\.000 · 50%<\/strong>/);
-	assert.match(breakdownMarkup, /Transferencias<\/span><strong>\$3\.000 · 30%<\/strong>/);
-	assert.match(breakdownMarkup, /Pagos<\/span><strong>\$2\.000 · 20%<\/strong>/);
-	assert.equal((breakdownMarkup.match(/react-breakdown-fill/g) ?? []).length, 3);
+	assert.match(breakdownMarkup, /Distribución de gastos/);
+	assert.match(breakdownMarkup, /\$10\.000/);
+	assert.match(breakdownMarkup, /total registrado/);
+	// The segmented bar carries the distribution and the total as its accessible name.
+	assert.match(breakdownMarkup, /class="react-spending-breakdown-bar"/);
+	assert.match(breakdownMarkup, /role="img"/);
+	assert.match(breakdownMarkup, /aria-label="Distribución de gastos por tipo\. Total registrado \$10\.000\."/);
+	assert.equal((breakdownMarkup.match(/react-spending-breakdown-segment-(purchase|transfer|payment)/g) ?? []).length, 3);
 	assert.match(breakdownMarkup, /style="width:50%"/);
+	assert.match(breakdownMarkup, /style="width:30%"/);
+	assert.match(breakdownMarkup, /style="width:20%"/);
+	assert.equal((breakdownMarkup.match(/react-spending-breakdown-legend-item/g) ?? []).length, 3);
+	assert.match(breakdownMarkup, /fa-cart-shopping/);
+	assert.match(breakdownMarkup, /fa-arrow-right-arrow-left/);
+	assert.match(breakdownMarkup, /fa-receipt/);
+	assert.match(breakdownMarkup, /Compras/);
+	assert.match(breakdownMarkup, /Transferencias/);
+	assert.match(breakdownMarkup, /Pagos/);
+	assert.match(breakdownMarkup, /\$5\.000/);
+	assert.match(breakdownMarkup, /\$3\.000/);
+	assert.match(breakdownMarkup, /\$2\.000/);
+	assert.match(breakdownMarkup, /50%/);
+	assert.match(breakdownMarkup, /30%/);
+	assert.match(breakdownMarkup, /20%/);
 
-	// A zero total shows the truthful message instead of three empty bars.
+	// A zero total shows the truthful message instead of fabricated segments or a fabricated total.
 	const zeroMarkup = renderer.renderToStaticMarkup(
 		React.createElement(pageModule.SpendingBreakdownView, {
 			breakdown: insights.getSpendingBreakdown({ purchase: 0, transfer: 0, payment: 0 }),
 		}),
 	);
 	assert.match(zeroMarkup, /react-spending-breakdown-empty/);
-	assert.doesNotMatch(zeroMarkup, /react-breakdown-fill/);
+	assert.doesNotMatch(zeroMarkup, /react-spending-breakdown-segment/);
+	assert.doesNotMatch(zeroMarkup, /react-spending-breakdown-total/);
 
 	// Scoped styles under the shipped `react-` prefix.
 	assert.match(styles, /\.react-dashboard-story \{/);
 	assert.match(styles, /\.react-dashboard-story-list \{/);
 	assert.match(styles, /\.react-top-insights \{/);
-	assert.match(styles, /\.react-breakdown-fill \{/);
-	assert.match(styles, /\.react-breakdown-track \{/);
+	assert.match(styles, /\.react-spending-breakdown-bar \{/);
+	assert.match(styles, /\.react-spending-breakdown-legend \{/);
+	assert.doesNotMatch(styles, /\.react-breakdown-(fill|track|row) \{/);
 });
 
 test("the React category distribution resolves stored colours with a deterministic fallback and states raw-total insights", async (t) => {

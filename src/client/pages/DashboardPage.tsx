@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { config } from "@fortawesome/fontawesome-svg-core";
 import {
+	faArrowRightArrowLeft,
 	faArrowTrendDown,
 	faArrowTrendUp,
 	faCalendarDays,
+	faCartShopping,
 	faLock,
 	faMinus,
 	faPenToSquare,
+	faReceipt,
 	faUser,
 	faWallet,
 } from "@fortawesome/free-solid-svg-icons";
@@ -62,6 +65,7 @@ import {
 	type DashboardStory,
 	type DashboardTopInsights,
 	type SpendingBreakdown,
+	type SpendingBreakdownBar,
 } from "../components/analytics/dashboardInsights";
 import {
 	FULL_PERIOD_TAB_ID,
@@ -1544,39 +1548,76 @@ export function TopInsightsView({ insights }: TopInsightsViewProps) {
 }
 
 /**
- * The visual spending breakdown as one already-decided state: the proportional bars by kind with the
- * percentage of the recognized quantified total.
+ * The visual spending breakdown as one already-decided state: a single segmented bar whose segments
+ * are the proportional shares by kind, plus a readable icon legend and the recognized quantified
+ * total.
  *
  * Exported so both the populated and the empty markup are provable from a static render, like the
- * other analytics panels. The width is the share the pure module decided, computed from raw amounts;
- * the percentage is shown as text too, so it is readable without the bar. There is deliberately no
- * donut or charting dependency, and a zero total shows a truthful message instead of fabricated bars.
+ * other analytics panels. Each segment width is the share the pure module decided from raw amounts,
+ * and the legend states every kind's amount and percentage as text too, so the distribution is
+ * readable without the bar or its colour. There is deliberately no donut or charting dependency, and
+ * a zero total shows a truthful message instead of fabricated segments.
  */
 export interface SpendingBreakdownViewProps {
 	/** The decided bars, from `getSpendingBreakdown`. */
 	breakdown: SpendingBreakdown;
 }
 
+/**
+ * The one free Font Awesome solid glyph each recognized kind keeps in the legend. The icon is
+ * decorative — the adjacent label names the kind — so it never carries information on its own and
+ * the card never relies on colour alone.
+ */
+const SPENDING_BREAKDOWN_ICONS: Record<SpendingBreakdownBar["key"], typeof faCartShopping> = {
+	purchase: faCartShopping,
+	transfer: faArrowRightArrowLeft,
+	payment: faReceipt,
+};
+
 export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps) {
 	return (
 		<section className="react-spending-breakdown" aria-labelledby="react-spending-breakdown-title">
-			<h3 id="react-spending-breakdown-title">Tipos de gasto</h3>
+			<div className="react-spending-breakdown-header">
+				<h3 id="react-spending-breakdown-title">Distribución de gastos</h3>
+				{breakdown.emptyMessage === null ? (
+					<p className="react-spending-breakdown-total">
+						<strong>{formatClp(breakdown.total)}</strong>
+						<span>total registrado</span>
+					</p>
+				) : null}
+			</div>
 			{breakdown.emptyMessage !== null ? (
 				<p className="react-spending-breakdown-empty" role="status">{breakdown.emptyMessage}</p>
 			) : (
-				<ul className="react-spending-breakdown-list">
-					{breakdown.bars.map((bar) => (
-						<li key={bar.key} className="react-breakdown-row">
-							<div className="react-breakdown-header">
-								<span>{bar.label}</span>
-								<strong>{formatClp(bar.amount)} · {bar.percent}%</strong>
-							</div>
-							<div className="react-breakdown-track">
-								<div className="react-breakdown-fill" style={{ width: `${bar.percent}%` }} />
-							</div>
-						</li>
-					))}
-				</ul>
+				<>
+					<div
+						className="react-spending-breakdown-bar"
+						role="img"
+						aria-label={`Distribución de gastos por tipo. Total registrado ${formatClp(breakdown.total)}.`}
+					>
+						{breakdown.bars.map((bar) => (
+							<span
+								key={bar.key}
+								className={`react-spending-breakdown-segment react-spending-breakdown-segment-${bar.key}`}
+								style={{ width: `${bar.percent}%` }}
+							/>
+						))}
+					</div>
+					<ul className="react-spending-breakdown-legend">
+						{breakdown.bars.map((bar) => (
+							<li key={bar.key} className="react-spending-breakdown-legend-item">
+								<span className="react-spending-breakdown-legend-heading">
+									<span className="react-spending-breakdown-icon" aria-hidden="true">
+										<FontAwesomeIcon icon={SPENDING_BREAKDOWN_ICONS[bar.key]} />
+									</span>
+									<span className="react-spending-breakdown-kind">{bar.label}</span>
+								</span>
+								<strong>{formatClp(bar.amount)}</strong>
+								<span className="react-spending-breakdown-percent">{bar.percent}%</span>
+							</li>
+						))}
+					</ul>
+				</>
 			)}
 		</section>
 	);
