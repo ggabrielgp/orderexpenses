@@ -7257,8 +7257,9 @@ test("the React dashboard insights module derives a truthful story, top insights
 	assert.doesNotMatch(moduleSource, /Intl\.NumberFormat|new Intl/);
 	assert.doesNotMatch(moduleSource, /\bformatClp\s*\(/);
 
-	// The story owns the copy and keeps the currency out: a stub formatter proves the module is the
-	// source of the sentence, and the raw total is what it was handed.
+	// The story is concise and non-redundant: a short preamble, and only the facts `Destacados` does
+	// not already show (the largest expense and the review count). The principal category and
+	// comercio/persona are accepted in the shared shape but never restated.
 	const story = insights.getDashboardStory({
 		totalSpending: 25000,
 		knownCount: 3,
@@ -7270,16 +7271,13 @@ test("the React dashboard insights module derives a truthful story, top insights
 		formatAmount: (amount) => `CLP${amount}`,
 	});
 	assert.equal(story.title, "Lectura rápida");
-	assert.equal(
-		story.summary,
-		"Llevas CLP25000 en gastos reconocidos. La historia principal está en Comida.",
-	);
+	assert.equal(story.summary, "Puntos clave del periodo.");
 	assert.deepEqual(story.facts, [
-		"Comida concentra CLP20000 del periodo.",
-		"Mercado es donde más se repite el gasto.",
 		"El gasto más alto fue CLP12000 en Tienda.",
 		"2 gastos necesitan una revisión rápida.",
 	]);
+	// No fact or summary copy repeats what `Destacados` already states.
+	assert.doesNotMatch(JSON.stringify(story), /Comida|Mercado|CLP25000/);
 
 	// The facts fall back only to what the data supports: with no ranked fact but a known count the
 	// story says the expenses are ready, and it renders no placeholder number.
@@ -7440,10 +7438,10 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.match(page, /const spendingBreakdown = getSpendingBreakdown\(spendingByKind\)/);
 	assert.doesNotMatch(page, /loadDashboardInsights|fetch\("\/api\/insights/);
 
-	// The shared analytics body owns the section order both surfaces read: primary lead, income/budget
-	// truth, spending-type distribution, month story, period metrics, spending chart, category
-	// distribution/ranking and top insights. Each position is a distinct marker, so a reorder is
-	// observable.
+	// The shared analytics body owns the DOM order both surfaces read: primary lead, income/budget
+	// truth, spending-type distribution, period metrics and spending chart (main column), then the
+	// category ranking, `Destacados` and `Lectura rápida` (side column). Each position is a distinct
+	// marker, so a reorder is observable.
 	const bodySource = page.slice(
 		page.indexOf("interface DashboardAnalyticsBodyProps"),
 		page.indexOf("interface FinancialSummaryProps"),
@@ -7453,36 +7451,42 @@ test("the React authenticated summary renders the shared analytics body in the p
 		bodySource.indexOf("<DashboardLeadView lead={lead} />"),
 		bodySource.indexOf("<DashboardBudgetPanel panel={budgetPanel} />"),
 		bodySource.indexOf("<SpendingBreakdownView breakdown={breakdown} />"),
-		bodySource.indexOf("<DashboardStoryView story={story} />"),
 		bodySource.indexOf("<PeriodAnalyticsPanel analytics={analytics} />"),
 		bodySource.indexOf("<SpendingChartPanel"),
 		bodySource.indexOf("<CategoryRankingPanel"),
 		bodySource.indexOf("<TopInsightsView insights={insights} />"),
+		bodySource.indexOf("<DashboardStoryView story={story} />"),
 	];
 	assert.ok(positions.every((position) => position >= 0), "every analytics panel must be mounted exactly once");
 	for (let index = 1; index < positions.length; index += 1) {
 		assert.ok(positions[index] > positions[index - 1], "the shared panels must appear in the production order");
 	}
-	// The distribution card occupies the main-column slot above `Lectura rápida`, so it renders left of
-	// the category card in the side column instead of a narrow sidebar pair.
+	// The distribution card leads the main column, so it renders left of the category card in the side
+	// column instead of a narrow sidebar pair; `Lectura rápida` has left the main column entirely.
 	const mainOpen = bodySource.indexOf('<div className="react-analytics-main">');
 	const sideOpen = bodySource.indexOf('<div className="react-analytics-side">');
 	assert.ok(mainOpen >= 0 && sideOpen > mainOpen, "the analytics body must mount the main column before the side column");
 	const mainSource = bodySource.slice(mainOpen, sideOpen);
 	const breakdownInMain = mainSource.indexOf("<SpendingBreakdownView breakdown={breakdown} />");
-	const storyInMain = mainSource.indexOf("<DashboardStoryView story={story} />");
 	assert.ok(breakdownInMain >= 0, "the distribution card must sit in the analytics main column");
-	assert.ok(
-		storyInMain >= 0 && breakdownInMain < storyInMain,
-		"the distribution card must precede `Lectura rápida` in the main column",
+	assert.equal(
+		mainSource.indexOf("<DashboardStoryView story={story} />"),
+		-1,
+		"`Lectura rápida` must leave the analytics main column",
 	);
-	// The category distribution leads the side column, and the top insights come after it.
+	// The category distribution leads the side column, `Destacados` follows it, and `Lectura rápida`
+	// renders last so the highlights stay primary.
 	const sideSource = bodySource.slice(sideOpen);
 	const categoryInSide = sideSource.indexOf("<CategoryRankingPanel");
 	const insightsInSide = sideSource.indexOf("<TopInsightsView insights={insights} />");
+	const storyInSide = sideSource.indexOf("<DashboardStoryView story={story} />");
 	assert.ok(
 		categoryInSide >= 0 && insightsInSide > categoryInSide,
 		"the category card must lead the side column before the top insights",
+	);
+	assert.ok(
+		storyInSide > insightsInSide,
+		"`Lectura rápida` must render in the side column after `Destacados`",
 	);
 	// The temporary two-card sidebar pair wrapper and its placement rules are gone.
 	assert.doesNotMatch(page, /react-analytics-pair/);
@@ -7499,7 +7503,7 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.doesNotMatch(page, /react-latest-expense/);
 	assert.doesNotMatch(page, /<dl className="react-spending-breakdown"/);
 
-	// The story view renders the decided copy and one list item per fact.
+	// The story view renders the concise preamble and each non-duplicated fact as its own callout.
 	const story = insights.getDashboardStory({
 		totalSpending: 25000,
 		knownCount: 3,
@@ -7515,9 +7519,31 @@ test("the React authenticated summary renders the shared analytics body in the p
 	);
 	assert.match(storyMarkup, /<section class="react-dashboard-story"/);
 	assert.match(storyMarkup, /Lectura rápida/);
-	assert.match(storyMarkup, /\$25\.000 en gastos reconocidos/);
-	assert.match(storyMarkup, /Comida concentra \$20\.000 del periodo\./);
+	assert.match(storyMarkup, /Puntos clave del periodo\./);
+	assert.match(storyMarkup, /El gasto más alto fue \$12\.000 en Tienda\./);
 	assert.match(storyMarkup, /1 gasto necesita una revisión rápida\./);
+	// One list item and one tinted callout per fact, and nothing repeats `Destacados`.
+	assert.equal((storyMarkup.match(/react-dashboard-story-callout/g) ?? []).length, 2);
+	assert.match(storyMarkup, /<li class="react-dashboard-story-callout">/);
+	assert.doesNotMatch(storyMarkup, /Comida|Mercado/);
+
+	// An empty period announces its summary as a status and renders no callout block.
+	const emptyStoryMarkup = renderer.renderToStaticMarkup(
+		React.createElement(pageModule.DashboardStoryView, {
+			story: insights.getDashboardStory({
+				totalSpending: 0,
+				knownCount: 0,
+				pendingAmountCount: 0,
+				reviewCount: 0,
+				topCategory: null,
+				topCounterparty: null,
+				largest: null,
+				formatAmount: formatClp,
+			}),
+		}),
+	);
+	assert.match(emptyStoryMarkup, /role="status"/);
+	assert.doesNotMatch(emptyStoryMarkup, /react-dashboard-story-callout/);
 
 	// The insights view shows the formatted totals and the recency fact with its note.
 	const topInsights = insights.getTopInsights({
@@ -7593,6 +7619,10 @@ test("the React authenticated summary renders the shared analytics body in the p
 	// Scoped styles under the shipped `react-` prefix.
 	assert.match(styles, /\.react-dashboard-story \{/);
 	assert.match(styles, /\.react-dashboard-story-list \{/);
+	// Each fact is a light callout: a blue tint with a matching, slightly stronger border.
+	assert.match(styles, /\.react-dashboard-story-callout \{/);
+	assert.match(styles, /\.react-dashboard-story-callout \{[^}]*background: var\(--color-blue-soft\)/s);
+	assert.match(styles, /\.react-dashboard-story-callout \{[^}]*border: 1px solid var\(--color-blue-standard\)/s);
 	assert.match(styles, /\.react-top-insights \{/);
 	assert.match(styles, /\.react-spending-breakdown-bar \{/);
 	assert.match(styles, /\.react-spending-breakdown-header-icon \{/);

@@ -68,7 +68,10 @@ export interface DashboardGroup {
 }
 
 export interface DashboardStoryInput {
-	/** Sum of the recognized expenses that carry a usable amount. */
+	/**
+	 * Sum of the recognized expenses that carry a usable amount. Kept in the shared summary shape the
+	 * surface passes, but no longer restated by the story: `Destacados` already shows `Total gastado`.
+	 */
 	totalSpending: number;
 	/** Recognized expenses with a usable amount the total summed. */
 	knownCount: number;
@@ -76,9 +79,9 @@ export interface DashboardStoryInput {
 	pendingAmountCount: number;
 	/** Movements the period loaded whose `status` marks them as needing review. */
 	reviewCount: number;
-	/** The principal category, or `null` when there is none. */
+	/** The principal category; kept for the shared shape, but no story fact repeats `Destacados`. */
 	topCategory: DashboardGroup | null;
-	/** The principal comercio/persona, or `null` when there is none. */
+	/** The principal comercio/persona; kept for the shared shape, but no story fact repeats `Destacados`. */
 	topCounterparty: DashboardGroup | null;
 	/** The largest recognized expense, or `null` when there is none. */
 	largest: DashboardGroup | null;
@@ -88,51 +91,42 @@ export interface DashboardStoryInput {
 
 export interface DashboardStory {
 	title: string;
-	/** Concise lead sentence answering what happened in the period. */
+	/** Concise preamble; a populated period keeps it short instead of restating the hero or `Destacados`. */
 	summary: string;
-	/** Up to four already-decided facts; each is present only when its data is. */
+	/** Up to `MAX_STORY_FACTS` facts `Destacados` does not already show; each only when its data is. */
 	facts: string[];
 }
 
-function buildStorySummary(
-	formatAmount: (amount: number) => string,
-	totalSpending: number,
-	knownCount: number,
-	pendingAmountCount: number,
-	topCategory: DashboardGroup | null,
-): string {
+function buildStorySummary(knownCount: number, pendingAmountCount: number): string {
 	if (knownCount === 0) {
 		return pendingAmountCount > 0
 			? "Los gastos reconocidos del periodo todavía no tienen monto conocido: aún no hay una historia que contar."
 			: "Todavía no hay gastos reconocidos para contarte el periodo.";
 	}
-	const topLabel = topCategory === null ? "varias categorías" : topCategory.label;
-	return `Llevas ${formatAmount(totalSpending)} en gastos reconocidos. La historia principal está en ${topLabel}.`;
+	// A concise preamble only: the period total, dates, principal category, counterparty and latest
+	// movement already live in the hero and `Destacados`, so restating them here would be redundant.
+	return "Puntos clave del periodo.";
 }
 
 /**
- * The story the period loaded supports: the legacy summary sentence and the legacy fact list, both
- * capped at the few the surface shows. One fact is emitted only when the data behind it exists, so an
- * empty period states its lack of information instead of a placeholder number.
+ * The story the period loaded supports: a concise period preamble and the few facts the surface shows,
+ * capped at `MAX_STORY_FACTS`. One fact is emitted only when the data behind it exists, so an empty
+ * period states its lack of information instead of a placeholder number.
+ *
+ * The facts deliberately exclude the principal category and the principal comercio/persona, and the
+ * story never restates the period total, its dates or the latest movement: `Destacados` already pairs
+ * those. What remains is what the surface would otherwise lose (the largest expense and the review
+ * count), so `Lectura rápida` summarizes instead of repeating.
  */
 export function getDashboardStory(input: DashboardStoryInput): DashboardStory {
 	const formatAmount =
 		typeof input?.formatAmount === "function" ? input.formatAmount : (amount: number) => String(amount);
-	const totalSpending = normalizeAmount(input?.totalSpending);
 	const knownCount = normalizeCount(input?.knownCount);
 	const pendingAmountCount = normalizeCount(input?.pendingAmountCount);
 	const reviewCount = normalizeCount(input?.reviewCount);
-	const topCategory = normalizeGroup(input?.topCategory);
-	const topCounterparty = normalizeGroup(input?.topCounterparty);
 	const largest = normalizeGroup(input?.largest);
 
 	const facts: string[] = [];
-	if (topCategory !== null) {
-		facts.push(`${topCategory.label} concentra ${formatAmount(topCategory.total)} del periodo.`);
-	}
-	if (topCounterparty !== null) {
-		facts.push(`${topCounterparty.label} es donde más se repite el gasto.`);
-	}
 	if (largest !== null) {
 		facts.push(`El gasto más alto fue ${formatAmount(largest.total)} en ${largest.label}.`);
 	}
@@ -147,7 +141,7 @@ export function getDashboardStory(input: DashboardStoryInput): DashboardStory {
 
 	return {
 		title: STORY_TITLE,
-		summary: buildStorySummary(formatAmount, totalSpending, knownCount, pendingAmountCount, topCategory),
+		summary: buildStorySummary(knownCount, pendingAmountCount),
 		facts: facts.slice(0, MAX_STORY_FACTS),
 	};
 }

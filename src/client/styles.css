@@ -1238,8 +1238,19 @@
 	display: grid;
 	gap: var(--space-2);
 	margin: 0;
-	padding-left: var(--space-4);
-	color: var(--ink-muted);
+	padding: 0;
+	list-style: none;
+}
+
+/* Each fact is a light callout: a subtly tinted blue surface with a matching, slightly stronger
+   border and comfortable padding, so the messages read as alerts without a heavy card. The tint and
+   border accompany the text rather than encode it, so meaning never depends on colour alone. */
+.react-dashboard-story-callout {
+	border: 1px solid var(--color-blue-standard);
+	border-radius: var(--radius-control);
+	background: var(--color-blue-soft);
+	padding: var(--space-3) var(--space-4);
+	color: var(--ink-secondary);
 }
 
 /* The top insights reuse the shipped card and grid primitives; only the region wrapper is new. */

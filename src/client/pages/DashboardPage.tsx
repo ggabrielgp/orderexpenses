@@ -1486,13 +1486,14 @@ export function SpendingChartPanel({
 }
 
 /**
- * The `Lectura rápida` story as one already-decided state: the summary sentence and the few
+ * The `Lectura rápida` story as one already-decided state: a concise period preamble and the few
  * facts the pure module chose from the loaded period.
  *
  * Exported so both the populated and the empty markup are provable from a static render, like the
  * other analytics panels: a live summary only ever reaches the loading state without a session, and
  * what the story claims is worth proving from what the user reads. The component renders the decisions
- * the pure module made and computes nothing of its own.
+ * the pure module made and computes nothing of its own. Each fact renders as its own lightly tinted
+ * callout, and the empty-period summary is announced as a status because it is the only content then.
  */
 export interface DashboardStoryViewProps {
 	/** The decided story, from `getDashboardStory`. */
@@ -1504,12 +1505,14 @@ export function DashboardStoryView({ story }: DashboardStoryViewProps) {
 		<section className="react-dashboard-story" aria-labelledby="react-dashboard-story-title">
 			<div className="react-dashboard-story-header">
 				<h3 id="react-dashboard-story-title">{story.title}</h3>
-				<p>{story.summary}</p>
+				<p role={story.facts.length === 0 ? "status" : undefined}>{story.summary}</p>
 			</div>
 			{story.facts.length > 0 && (
 				<ul className="react-dashboard-story-list">
 					{story.facts.map((fact) => (
-						<li key={fact}>{fact}</li>
+						<li key={fact} className="react-dashboard-story-callout">
+							{fact}
+						</li>
 					))}
 				</ul>
 			)}
@@ -1677,9 +1680,10 @@ interface DashboardAnalyticsBodyProps {
  * Two semantic wrappers express the Stitch composition without changing any shipped data or
  * capability: a four-up KPI band (lead plus income/budget truth) and a two-column region that keeps
  * the chart/history column beside the category/insight column. The spending-type distribution leads
- * the main column above `Lectura rápida`, so it sits physically left of the category distribution,
- * which leads the side column before the top insights. Every panel keeps a single mount, so both
- * trees read the same structure.
+ * the main column, so it sits physically left of the category distribution, which leads the side
+ * column before `Destacados`; `Lectura rápida` follows `Destacados` in that same side column, so the
+ * highlights stay primary and the summary callouts read beside the distribution instead of replacing
+ * it. Every panel keeps a single mount, so both trees read the same structure.
  */
 function DashboardAnalyticsBody({
 	lead,
@@ -1705,10 +1709,9 @@ function DashboardAnalyticsBody({
 			{/* Two-column region: the larger chart/history column and the category/insight column. */}
 			<div className="react-analytics-columns">
 				<div className="react-analytics-main">
-					{/* The distribution card leads the main column, above `Lectura rápida`, so it aligns beside
-					    the category card in the side column at desktop. */}
+					{/* The distribution card leads the main column, so it aligns beside the category card in the
+					    side column at desktop. */}
 					<SpendingBreakdownView breakdown={breakdown} />
-					<DashboardStoryView story={story} />
 					<PeriodAnalyticsPanel analytics={analytics} />
 					<SpendingChartPanel
 						chart={chart}
@@ -1723,6 +1726,9 @@ function DashboardAnalyticsBody({
 						onJumpToCategory={onJumpToCategory}
 					/>
 					<TopInsightsView insights={insights} />
+					{/* `Lectura rápida` follows `Destacados`, so the highlights stay primary and the summary
+					    callouts summarize rather than repeat them. */}
+					<DashboardStoryView story={story} />
 				</div>
 			</div>
 		</div>

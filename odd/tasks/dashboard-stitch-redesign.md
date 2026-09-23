@@ -58,3 +58,6 @@ Apply the supplied Google Stitch dashboard distribution to both authenticated an
 
 - Card icon coverage for the remaining dashboard cards (lead, budget, metrics, chart, story, top insights, category distribution) was an unrequested experimental change and has been removed from the working tree; it is not tracked as a pending task here.
 
+
+- [x] Follow-up: concise Lectura rápida callouts — `Lectura rápida` now renders after `Destacados` in `.react-analytics-side`; its populated summary is a short `Puntos clave del periodo.` preamble and only the largest-expense/review facts remain, rendered as light blue callouts with a stronger border.
+- [x] Follow-up verification — focused story/analytics/dashboard tests pass; build and diff check pass; the full suite retains the same three pre-existing stale English/legacy failures.
