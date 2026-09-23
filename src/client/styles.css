@@ -1050,9 +1050,15 @@
 
 .react-spending-breakdown-header {
 	display: flex;
-	align-items: baseline;
+	align-items: flex-start;
 	justify-content: space-between;
 	gap: var(--space-3);
+}
+
+.react-spending-breakdown-heading {
+	display: grid;
+	gap: var(--space-1);
+	min-width: 0;
 }
 
 .react-spending-breakdown-header h3 {
@@ -1060,12 +1066,26 @@
 	font-size: 1rem;
 }
 
+/* The upper-right decorative chart glyph names the card; it is hidden from assistive tech and is
+   never interactive. */
+.react-spending-breakdown-header-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: var(--radius-pill);
+	background: var(--surface-subtle);
+	color: var(--ink-muted);
+	font-size: 1rem;
+}
+
 .react-spending-breakdown-total {
-	display: grid;
-	justify-items: end;
-	gap: 2px;
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-1);
 	margin: 0;
-	text-align: right;
 }
 
 .react-spending-breakdown-total strong {
@@ -1114,7 +1134,34 @@
 	background: var(--color-violet);
 }
 
-/* The legend states every kind as icon plus text, so the bar never relies on colour alone. */
+/* Every legend marker reuses the exact token of its bar segment, so the legend states which colour
+   belongs to which kind while the adjacent glyph and label keep it readable without colour alone. */
+.react-spending-breakdown-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	width: 1.6rem;
+	height: 1.6rem;
+	border-radius: var(--radius-pill);
+	color: #fff;
+	font-size: .7rem;
+}
+
+.react-spending-breakdown-icon-purchase {
+	background: var(--color-blue-deep);
+}
+
+.react-spending-breakdown-icon-transfer {
+	background: var(--color-blue-bright);
+}
+
+.react-spending-breakdown-icon-payment {
+	background: var(--color-violet);
+}
+
+/* The legend states every kind as a colour-matched marker plus text, so the bar never relies on
+   colour alone. */
 .react-spending-breakdown-legend {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1137,14 +1184,6 @@
 	min-width: 0;
 	color: var(--ink-muted);
 	font-size: .8rem;
-}
-
-.react-spending-breakdown-icon {
-	display: inline-flex;
-	flex-shrink: 0;
-	align-items: center;
-	justify-content: center;
-	font-size: .75rem;
 }
 
 .react-spending-breakdown-kind {
@@ -3528,7 +3567,7 @@
 	gap: var(--space-4);
 }
 
-/* Inside the narrower sidebar the distribution body and the insight cards stack instead of
+/* Inside the narrower sidebar the category distribution body and the insight cards stack instead of
    squeezing their shipped multi-column grids. */
 .react-analytics-side .react-category-distribution-body,
 .react-analytics-side .react-top-insights .react-financial-grid {

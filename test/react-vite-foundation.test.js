@@ -544,7 +544,8 @@ test("the React financial summary breaks recognized spending down by kind withou
 		"utf8",
 	);
 	// The section is one Stitch-style card: a segmented distribution bar plus an icon legend, not a
-	// repeated per-kind progress track. The legend names every kind with free solid iconography.
+	// repeated per-kind progress track. The legend names every kind with free solid iconography, and
+	// each marker reuses its segment's colour token.
 	assert.match(source, /<section className="react-spending-breakdown"/);
 	assert.match(source, /Distribución de gastos/);
 	assert.match(source, /className="react-spending-breakdown-bar"/);
@@ -553,6 +554,12 @@ test("the React financial summary breaks recognized spending down by kind withou
 	assert.match(source, /faCartShopping/);
 	assert.match(source, /faArrowRightArrowLeft/);
 	assert.match(source, /faReceipt/);
+	// The decorative upper-right glyph is a free solid chart icon in its own hidden container.
+	assert.match(source, /faChartPie/);
+	assert.match(source, /className="react-spending-breakdown-header-icon" aria-hidden="true"/);
+	// The legend item and its marker both carry the kind token, so the colour can match the segment.
+	assert.match(source, /react-spending-breakdown-legend-item-\$\{bar\.key\}/);
+	assert.match(source, /react-spending-breakdown-icon-\$\{bar\.key\}/);
 	assert.doesNotMatch(source, /react-breakdown-track|react-breakdown-fill/);
 });
 
@@ -7434,8 +7441,9 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.doesNotMatch(page, /loadDashboardInsights|fetch\("\/api\/insights/);
 
 	// The shared analytics body owns the section order both surfaces read: primary lead, income/budget
-	// truth, month story, period metrics, spending chart, category distribution/ranking, top insights
-	// and spending-type breakdown. Each position is a distinct marker, so a reorder is observable.
+	// truth, spending-type distribution, month story, period metrics, spending chart, category
+	// distribution/ranking and top insights. Each position is a distinct marker, so a reorder is
+	// observable.
 	const bodySource = page.slice(
 		page.indexOf("interface DashboardAnalyticsBodyProps"),
 		page.indexOf("interface FinancialSummaryProps"),
@@ -7444,17 +7452,40 @@ test("the React authenticated summary renders the shared analytics body in the p
 	const positions = [
 		bodySource.indexOf("<DashboardLeadView lead={lead} />"),
 		bodySource.indexOf("<DashboardBudgetPanel panel={budgetPanel} />"),
+		bodySource.indexOf("<SpendingBreakdownView breakdown={breakdown} />"),
 		bodySource.indexOf("<DashboardStoryView story={story} />"),
 		bodySource.indexOf("<PeriodAnalyticsPanel analytics={analytics} />"),
 		bodySource.indexOf("<SpendingChartPanel"),
 		bodySource.indexOf("<CategoryRankingPanel"),
 		bodySource.indexOf("<TopInsightsView insights={insights} />"),
-		bodySource.indexOf("<SpendingBreakdownView breakdown={breakdown} />"),
 	];
 	assert.ok(positions.every((position) => position >= 0), "every analytics panel must be mounted exactly once");
 	for (let index = 1; index < positions.length; index += 1) {
 		assert.ok(positions[index] > positions[index - 1], "the shared panels must appear in the production order");
 	}
+	// The distribution card occupies the main-column slot above `Lectura rápida`, so it renders left of
+	// the category card in the side column instead of a narrow sidebar pair.
+	const mainOpen = bodySource.indexOf('<div className="react-analytics-main">');
+	const sideOpen = bodySource.indexOf('<div className="react-analytics-side">');
+	assert.ok(mainOpen >= 0 && sideOpen > mainOpen, "the analytics body must mount the main column before the side column");
+	const mainSource = bodySource.slice(mainOpen, sideOpen);
+	const breakdownInMain = mainSource.indexOf("<SpendingBreakdownView breakdown={breakdown} />");
+	const storyInMain = mainSource.indexOf("<DashboardStoryView story={story} />");
+	assert.ok(breakdownInMain >= 0, "the distribution card must sit in the analytics main column");
+	assert.ok(
+		storyInMain >= 0 && breakdownInMain < storyInMain,
+		"the distribution card must precede `Lectura rápida` in the main column",
+	);
+	// The category distribution leads the side column, and the top insights come after it.
+	const sideSource = bodySource.slice(sideOpen);
+	const categoryInSide = sideSource.indexOf("<CategoryRankingPanel");
+	const insightsInSide = sideSource.indexOf("<TopInsightsView insights={insights} />");
+	assert.ok(
+		categoryInSide >= 0 && insightsInSide > categoryInSide,
+		"the category card must lead the side column before the top insights",
+	);
+	// The temporary two-card sidebar pair wrapper and its placement rules are gone.
+	assert.doesNotMatch(page, /react-analytics-pair/);
 	// The shared body is the single mount site for both the authenticated summary and the demo.
 	assert.equal((page.match(/<DashboardStoryView/g) ?? []).length, 1);
 	assert.equal((page.match(/<TopInsightsView/g) ?? []).length, 1);
@@ -7513,6 +7544,9 @@ test("the React authenticated summary renders the shared analytics body in the p
 	);
 	assert.match(breakdownMarkup, /<section class="react-spending-breakdown"/);
 	assert.match(breakdownMarkup, /Distribución de gastos/);
+	// The decorative chart glyph sits in its own hidden, non-interactive upper-right container.
+	assert.match(breakdownMarkup, /class="react-spending-breakdown-header-icon" aria-hidden="true"/);
+	assert.match(breakdownMarkup, /fa-chart-pie/);
 	assert.match(breakdownMarkup, /\$10\.000/);
 	assert.match(breakdownMarkup, /total registrado/);
 	// The segmented bar carries the distribution and the total as its accessible name.
@@ -7523,10 +7557,19 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.match(breakdownMarkup, /style="width:50%"/);
 	assert.match(breakdownMarkup, /style="width:30%"/);
 	assert.match(breakdownMarkup, /style="width:20%"/);
-	assert.equal((breakdownMarkup.match(/react-spending-breakdown-legend-item/g) ?? []).length, 3);
+	// The base class plus its kind modifier both contain the base token, so count the standalone
+	// class only: exactly one legend item per recognized kind.
+	assert.equal((breakdownMarkup.match(/(?<![\w-])react-spending-breakdown-legend-item(?![\w-])/g) ?? []).length, 3);
 	assert.match(breakdownMarkup, /fa-cart-shopping/);
 	assert.match(breakdownMarkup, /fa-arrow-right-arrow-left/);
 	assert.match(breakdownMarkup, /fa-receipt/);
+	// Each legend marker reuses the exact class token of its matching bar segment.
+	assert.match(breakdownMarkup, /react-spending-breakdown-legend-item react-spending-breakdown-legend-item-purchase/);
+	assert.match(breakdownMarkup, /react-spending-breakdown-legend-item react-spending-breakdown-legend-item-transfer/);
+	assert.match(breakdownMarkup, /react-spending-breakdown-legend-item react-spending-breakdown-legend-item-payment/);
+	assert.match(breakdownMarkup, /react-spending-breakdown-icon react-spending-breakdown-icon-purchase/);
+	assert.match(breakdownMarkup, /react-spending-breakdown-icon react-spending-breakdown-icon-transfer/);
+	assert.match(breakdownMarkup, /react-spending-breakdown-icon react-spending-breakdown-icon-payment/);
 	assert.match(breakdownMarkup, /Compras/);
 	assert.match(breakdownMarkup, /Transferencias/);
 	assert.match(breakdownMarkup, /Pagos/);
@@ -7552,7 +7595,22 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.match(styles, /\.react-dashboard-story-list \{/);
 	assert.match(styles, /\.react-top-insights \{/);
 	assert.match(styles, /\.react-spending-breakdown-bar \{/);
+	assert.match(styles, /\.react-spending-breakdown-header-icon \{/);
 	assert.match(styles, /\.react-spending-breakdown-legend \{/);
+	// The temporary pair wrapper and its placement rules are gone, so the main/side grid alone
+	// decides the desktop and narrow-screen placement.
+	assert.doesNotMatch(styles, /\.react-analytics-pair/);
+	assert.match(styles, /\.react-analytics-columns \{\s*display: grid;\s*grid-template-columns: minmax\(0, 2fr\) minmax\(0, 1fr\);/);
+	assert.match(styles, /@media \(max-width: 1120px\) \{[\s\S]*?\.react-analytics-columns \{\s*grid-template-columns: 1fr;/);
+	// Every legend marker resolves the same token as its matching bar segment.
+	for (const [kind, token] of [
+		["purchase", "--color-blue-deep"],
+		["transfer", "--color-blue-bright"],
+		["payment", "--color-violet"],
+	]) {
+		assert.match(styles, new RegExp(`\\.react-spending-breakdown-segment-${kind} \\{\\s*background: var\\(${token}\\)`));
+		assert.match(styles, new RegExp(`\\.react-spending-breakdown-icon-${kind} \\{\\s*background: var\\(${token}\\)`));
+	}
 	assert.doesNotMatch(styles, /\.react-breakdown-(fill|track|row) \{/);
 });
 

@@ -6,6 +6,7 @@ import {
 	faArrowTrendUp,
 	faCalendarDays,
 	faCartShopping,
+	faChartPie,
 	faLock,
 	faMinus,
 	faPenToSquare,
@@ -1555,8 +1556,9 @@ export function TopInsightsView({ insights }: TopInsightsViewProps) {
  * Exported so both the populated and the empty markup are provable from a static render, like the
  * other analytics panels. Each segment width is the share the pure module decided from raw amounts,
  * and the legend states every kind's amount and percentage as text too, so the distribution is
- * readable without the bar or its colour. There is deliberately no donut or charting dependency, and
- * a zero total shows a truthful message instead of fabricated segments.
+ * readable without the bar or its colour. Every legend marker reuses its segment's colour token, an
+ * upper-right decorative chart glyph names the card, and there is deliberately no donut or charting
+ * dependency. A zero total shows a truthful message instead of fabricated segments.
  */
 export interface SpendingBreakdownViewProps {
 	/** The decided bars, from `getSpendingBreakdown`. */
@@ -1578,13 +1580,18 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
 	return (
 		<section className="react-spending-breakdown" aria-labelledby="react-spending-breakdown-title">
 			<div className="react-spending-breakdown-header">
-				<h3 id="react-spending-breakdown-title">Distribución de gastos</h3>
-				{breakdown.emptyMessage === null ? (
-					<p className="react-spending-breakdown-total">
-						<strong>{formatClp(breakdown.total)}</strong>
-						<span>total registrado</span>
-					</p>
-				) : null}
+				<div className="react-spending-breakdown-heading">
+					<h3 id="react-spending-breakdown-title">Distribución de gastos</h3>
+					{breakdown.emptyMessage === null ? (
+						<p className="react-spending-breakdown-total">
+							<strong>{formatClp(breakdown.total)}</strong>
+							<span>total registrado</span>
+						</p>
+					) : null}
+				</div>
+				<span className="react-spending-breakdown-header-icon" aria-hidden="true">
+					<FontAwesomeIcon icon={faChartPie} />
+				</span>
 			</div>
 			{breakdown.emptyMessage !== null ? (
 				<p className="react-spending-breakdown-empty" role="status">{breakdown.emptyMessage}</p>
@@ -1605,9 +1612,15 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
 					</div>
 					<ul className="react-spending-breakdown-legend">
 						{breakdown.bars.map((bar) => (
-							<li key={bar.key} className="react-spending-breakdown-legend-item">
+							<li
+								key={bar.key}
+								className={`react-spending-breakdown-legend-item react-spending-breakdown-legend-item-${bar.key}`}
+							>
 								<span className="react-spending-breakdown-legend-heading">
-									<span className="react-spending-breakdown-icon" aria-hidden="true">
+									<span
+										className={`react-spending-breakdown-icon react-spending-breakdown-icon-${bar.key}`}
+										aria-hidden="true"
+									>
 										<FontAwesomeIcon icon={SPENDING_BREAKDOWN_ICONS[bar.key]} />
 									</span>
 									<span className="react-spending-breakdown-kind">{bar.label}</span>
@@ -1652,8 +1665,8 @@ interface DashboardAnalyticsBodyProps {
 
 /**
  * The one dashboard analytics composition both the authenticated summary and the read-only demo mount:
- * primary lead, income/budget truth, month story, period metrics, spending chart, category
- * distribution/ranking, top insights and spending-type breakdown, in that order.
+ * primary lead, income/budget truth, month story, period metrics, spending chart, spending-type
+ * breakdown, category distribution/ranking and top insights, in that order.
  *
  * It is deliberately internal and holds no state, data or request: each caller decides the data and
  * passes the capabilities it supports. The authenticated summary wires the category jump and the chart
@@ -1661,10 +1674,12 @@ interface DashboardAnalyticsBodyProps {
  * the two differ in capabilities and copy, never in layout. The authenticated movement table and the
  * demo's read-only movements list/footer stay outside this body.
  *
- * Two semantic wrappers express the Stitch composition without touching the shipped order: a four-up
- * KPI band (lead plus income/budget truth) and a two-column region that keeps the chart/history
- * column beside the category/distribution/insight column. Section order and single mounts are
- * unchanged, so both trees read the same structure.
+ * Two semantic wrappers express the Stitch composition without changing any shipped data or
+ * capability: a four-up KPI band (lead plus income/budget truth) and a two-column region that keeps
+ * the chart/history column beside the category/insight column. The spending-type distribution leads
+ * the main column above `Lectura rápida`, so it sits physically left of the category distribution,
+ * which leads the side column before the top insights. Every panel keeps a single mount, so both
+ * trees read the same structure.
  */
 function DashboardAnalyticsBody({
 	lead,
@@ -1690,6 +1705,9 @@ function DashboardAnalyticsBody({
 			{/* Two-column region: the larger chart/history column and the category/insight column. */}
 			<div className="react-analytics-columns">
 				<div className="react-analytics-main">
+					{/* The distribution card leads the main column, above `Lectura rápida`, so it aligns beside
+					    the category card in the side column at desktop. */}
+					<SpendingBreakdownView breakdown={breakdown} />
 					<DashboardStoryView story={story} />
 					<PeriodAnalyticsPanel analytics={analytics} />
 					<SpendingChartPanel
@@ -1705,7 +1723,6 @@ function DashboardAnalyticsBody({
 						onJumpToCategory={onJumpToCategory}
 					/>
 					<TopInsightsView insights={insights} />
-					<SpendingBreakdownView breakdown={breakdown} />
 				</div>
 			</div>
 		</div>
