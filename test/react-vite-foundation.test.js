@@ -447,43 +447,102 @@ test("the React financial dashboard cache serves a tab reload without a request 
 	// Cache hit: the stored period and its movements are served exactly, with no request at all.
 	store.clear();
 	calls.length = 0;
-	client.writeFinancialDashboardCache(seeded);
+	client.writeFinancialDashboardCache(" Owner@Example.com ", seeded);
 	const cacheKey = [...store.keys()][0];
 	assert.ok(cacheKey, "the client must have stored the dashboard under some key");
-	assert.deepEqual(client.readFinancialDashboardCache(), seeded);
-	assert.deepEqual(await client.loadFinancialDashboardWithCache(), seeded);
+	assert.deepEqual(client.readFinancialDashboardCache("owner@example.com"), seeded);
+	assert.deepEqual(await client.loadFinancialDashboardWithCache("OWNER@example.com"), seeded);
 	assert.deepEqual(calls, []);
+	assert.deepEqual(JSON.parse(store.get(cacheKey)), { userEmail: "owner@example.com", data: seeded });
+
+	// An identity mismatch evicts the prior user's dashboard before any network request.
+	assert.equal(client.readFinancialDashboardCache("other@example.com"), null);
+	assert.equal(store.has(cacheKey), false);
+	client.writeFinancialDashboardCache("owner@example.com", seeded);
+	calls.length = 0;
+	const other = await client.loadFinancialDashboardWithCache("other@example.com");
+	assert.equal(other.transactions[0].amount, 1200);
+	assert.deepEqual(calls, [
+		"/api/financial-cycle",
+		"/api/transactions?startDate=2028-02-29&endDateExclusive=2028-03-01",
+	]);
+	assert.deepEqual(JSON.parse(store.get(cacheKey)), { userEmail: "other@example.com", data: other });
+
+	// The old identity field cannot authorize an otherwise valid v2 response.
+	store.set(cacheKey, JSON.stringify({ email: "other@example.com", data: seeded }));
+	assert.equal(client.readFinancialDashboardCache("other@example.com"), null);
+	assert.equal(store.has(cacheKey), false);
+	client.writeFinancialDashboardCache("other@example.com", other);
+
+	// Legacy unbound responses are never usable; clear touches only dashboard-owned keys.
+	store.set("gastos-controlados:financial-dashboard:v1", JSON.stringify(seeded));
+	store.set("unrelated", "keep");
+	assert.deepEqual(client.readFinancialDashboardCache("other@example.com"), other);
+	assert.equal(store.has("gastos-controlados:financial-dashboard:v1"), false);
+	client.clearFinancialDashboardCache();
+	assert.equal(store.has(cacheKey), false);
+	assert.equal(store.get("unrelated"), "keep");
+	store.set(cacheKey, JSON.stringify(seeded));
+	assert.equal(client.readFinancialDashboardCache("owner@example.com"), null);
+	assert.equal(store.has(cacheKey), false);
 
 	// Corrupted storage (invalid JSON) falls back to the normal cycle-first request and repairs it.
 	store.set(cacheKey, "{not json");
 	calls.length = 0;
-	const recovered = await client.loadFinancialDashboardWithCache();
+	const recovered = await client.loadFinancialDashboardWithCache("owner@example.com");
 	assert.deepEqual(calls, [
 		"/api/financial-cycle",
 		"/api/transactions?startDate=2028-02-29&endDateExclusive=2028-03-01",
 	]);
 	assert.equal(recovered.transactions[0].amount, 1200);
-	assert.deepEqual(client.readFinancialDashboardCache(), recovered);
+	assert.deepEqual(client.readFinancialDashboardCache("owner@example.com"), recovered);
 
 	// A valid JSON body that is not a dashboard response is still a miss, not data to render.
 	store.set(cacheKey, JSON.stringify({ cycle: { unexpected: true }, transactions: [] }));
 	calls.length = 0;
-	await client.loadFinancialDashboardWithCache();
+	await client.loadFinancialDashboardWithCache("owner@example.com");
 	assert.deepEqual(calls, [
 		"/api/financial-cycle",
 		"/api/transactions?startDate=2028-02-29&endDateExclusive=2028-03-01",
 	]);
 
 	// Force refresh bypasses the cache, reads current data and replaces the stored response.
-	client.writeFinancialDashboardCache(seeded);
+	client.writeFinancialDashboardCache("owner@example.com", seeded);
 	calls.length = 0;
-	const refreshed = await client.refreshFinancialDashboardData();
+	const refreshed = await client.refreshFinancialDashboardData("owner@example.com");
 	assert.deepEqual(calls, [
 		"/api/financial-cycle",
 		"/api/transactions?startDate=2028-02-29&endDateExclusive=2028-03-01",
 	]);
 	assert.equal(refreshed.transactions[0].amount, 1200);
-	assert.deepEqual(client.readFinancialDashboardCache(), refreshed);
+	assert.deepEqual(client.readFinancialDashboardCache("owner@example.com"), refreshed);
+
+	// Even if fetch resolves after an abort, neither fresh nor cache-first loads can repopulate storage.
+	const normalFetch = globalThis.fetch;
+	for (const loader of [client.loadFinancialDashboardWithCache, client.refreshFinancialDashboardData]) {
+		client.clearFinancialDashboardCache();
+		let release;
+		globalThis.fetch = () => new Promise((resolve) => {
+			release = () => resolve({ ok: true, json: async () => ({ ...seeded.cycle, selectedPeriod: null }) });
+		});
+		const controller = new AbortController();
+		const pending = loader("owner@example.com", controller.signal);
+		controller.abort();
+		release();
+		await assert.rejects(pending, { name: "AbortError" });
+		assert.equal(store.has(cacheKey), false);
+	}
+	// Logout also invalidates an already-running fetch even before its component unmounts.
+	let releaseAfterLogout;
+	globalThis.fetch = () => new Promise((resolve) => {
+		releaseAfterLogout = () => resolve({ ok: true, json: async () => ({ ...seeded.cycle, selectedPeriod: null }) });
+	});
+	const pendingLogoutLoad = client.refreshFinancialDashboardData("owner@example.com");
+	client.clearFinancialDashboardCache();
+	releaseAfterLogout();
+	await assert.rejects(pendingLogoutLoad, { name: "AbortError" });
+	assert.equal(store.has(cacheKey), false);
+	globalThis.fetch = normalFetch;
 
 	// Unavailable storage fails safe: reads miss and writes are a no-op, so the load still happens.
 	const deniedStorage = {
@@ -500,14 +559,28 @@ test("the React financial dashboard cache serves a tab reload without a request 
 	};
 	Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: deniedStorage });
 	calls.length = 0;
-	assert.equal(client.readFinancialDashboardCache(), null);
-	assert.doesNotThrow(() => client.writeFinancialDashboardCache(seeded));
-	const fallback = await client.loadFinancialDashboardWithCache();
+	assert.equal(client.readFinancialDashboardCache("owner@example.com"), null);
+	assert.doesNotThrow(() => client.writeFinancialDashboardCache("owner@example.com", seeded));
+	assert.doesNotThrow(() => client.clearFinancialDashboardCache());
+	const fallback = await client.loadFinancialDashboardWithCache("owner@example.com");
 	assert.equal(fallback.transactions[0].amount, 1200);
 	assert.deepEqual(calls, [
 		"/api/financial-cycle",
 		"/api/transactions?startDate=2028-02-29&endDateExclusive=2028-03-01",
 	]);
+});
+
+test("the account route remounts by identity and logout clears the tab cache before navigation", async () => {
+	const route = await readFile(new URL("../src/client/hooks/DashboardRoute.tsx", import.meta.url), "utf8");
+	const page = await readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8");
+	const client = await readFile(new URL("../src/client/api/client.ts", import.meta.url), "utf8");
+	assert.match(route, /<DashboardPage key=\{state\.session\.profile\?\.email\?\.trim\(\)\.toLowerCase\(\) \?\? ""\}/);
+	assert.match(page, /<FinancialSummary[\s\S]*?key=\{profile\?\.email\?\.trim\(\)\.toLowerCase\(\) \?\? ""\}[\s\S]*?email=\{profile\?\.email \?\? ""\}/);
+	assert.match(page, /href="\/auth\/logout"[\s\S]*?onClick=\{clearFinancialDashboardCache\}/);
+	assert.match(page, /refreshFinancialDashboardData\(email, controller\.signal\)/);
+	assert.match(page, /loadFinancialDashboardWithCache\(email, controller\.signal\)/);
+	assert.match(page, /activeLoad\.current\?\.abort\(\)/);
+	assert.match(client, /if \(signal\?\.aborted \|\| generation !== cacheGeneration\) throw new DOMException\("Dashboard load aborted", "AbortError"\);\s*writeFinancialDashboardCache\(email, data\)/);
 });
 
 test("the React financial summary breaks recognized spending down by kind without counting unknown amounts", async (t) => {
@@ -1449,7 +1522,7 @@ test("the React dashboard owns category management instead of redirecting to the
 	// the settings surface or its trigger.
 	const demoTree = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface FinancialPeriodHeadingProps"),
+		page.indexOf("export interface DashboardLeadViewProps"),
 	);
 	assert.ok(demoTree.length > 0);
 	assert.doesNotMatch(demoTree, /AccountSettingsDialog|isAccountSettingsOpen|Configuración/);
@@ -3004,7 +3077,7 @@ test("the React financial-cycle edit dialog renders the prefilled fields and sta
 	assert.match(dialogSource, /validateCycleEditDraft\(draft\)/);
 });
 
-test("the React financial summary offers Cambiar período, marks a closed period and reloads through the dashboard handle", async (t) => {
+test("the React financial summary exposes one period edit trigger and reloads through the dashboard handle", async (t) => {
 	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
@@ -3031,55 +3104,24 @@ test("the React financial summary offers Cambiar período, marks a closed period
 
 	const noop = () => {};
 	const period = { startDate: "2026-02-01", endDateExclusive: "2026-03-01" };
-	const renderHeading = (completedAt) =>
-		renderer.renderToStaticMarkup(
-			React.createElement(pageModule.FinancialPeriodHeading, {
-				period,
-				completedAt,
-				onEdit: noop,
-			}),
-		);
-
-	// The ready-state control reopens the configured period, and the mark appears only when the server
-	// reports a closure record.
-	const openHeading = renderHeading(null);
-	assert.match(openHeading, /<h2 id="react-financial-summary-title">Periodo<\/h2>/);
-	assert.match(openHeading, /01\/02\/2026 a 28\/02\/2026/);
-	assert.match(openHeading, /Cambiar período<\/button>/);
-	assert.doesNotMatch(openHeading, /react-financial-cycle-closure/);
-	assert.doesNotMatch(openHeading, /Cierre registrado/);
-
-	const closedHeading = renderHeading("2026-02-14T02:30:00.000Z");
-	assert.match(closedHeading, /react-financial-cycle-closure/);
-	assert.match(closedHeading, /Cierre registrado/);
-	// Informational, never a lock: the server blocks nothing because a period was completed.
-	assert.match(closedHeading, /sigue siendo editable/);
-	assert.match(closedHeading, /Cambiar período<\/button>/);
-
-	// The summary owns the trigger, the lock, the reload and the outcome notice, and it says "Cambiar
-	// período" rather than duplicating the period in a second read.
+	// The summary publishes one configured-period edit trigger to the dashboard header. The removed
+	// heading and closure action must not leave a duplicate control or stale wiring behind.
 	assert.match(
 		page,
 		/import \{ FinancialCycleEditDialog \} from "\.\.\/components\/financial-cycle\/FinancialCycleEditDialog";/,
 	);
 	assert.match(page, /from "\.\.\/components\/financial-cycle\/cycleSettings";/);
 	assert.match(page, /createCycleEditSubmitter,/);
-	assert.match(page, /getCycleClosureMark,/);
-	assert.equal((page.match(/<FinancialPeriodHeading/g) ?? []).length, 1);
-	// The editable period control now renders in the summary body, keeping `Cambiar período` and
-	// `Cerrar período` reachable while the page header keeps only the Stitch composition. The summary
-	// still owns the edit trigger and the closure record, and both modal actions stay wired.
+	assert.equal((page.match(/className="react-dashboard-period"/g) ?? []).length, 1);
 	assert.match(
 		page,
-		/<FinancialPeriodHeading[\s\S]{0,220}?onEdit=\{openCycleEdit\}/,
+		/<button\s+className="react-dashboard-period"\s+type="button"\s+onClick=\{financialDashboard\.onEditPeriod\}/,
 	);
-	assert.match(
-		page,
-		/<FinancialPeriodHeading[\s\S]{0,260}?onComplete=\{openCycleCompletion\}/,
-	);
-	assert.match(page, /completedAt=\{state\.data\.cycle\.completedAt\}/);
 	assert.match(page, /onEditPeriod: openCycleEdit/);
-	assert.match(page, /completedAt: configuredCompletedAt/);
+	assert.match(page, /<section className="react-financial-summary" aria-label="Resumen financiero del periodo">/);
+	assert.doesNotMatch(page, /react-financial-summary-title|aria-labelledby="react-financial-summary-title"/);
+	assert.doesNotMatch(page, /FinancialPeriodHeading|CompleteCycleDialog|onCompletePeriod|openCycleCompletion/);
+	assert.doesNotMatch(page, /Cerrar período|react-financial-cycle-closure|Cierre registrado/);
 	// The header capsule is a real button that opens the configured-period dialog through the
 	// summary-owned trigger, so the visible range is interactive instead of decorative while the
 	// summary body keeps the full editable control.
@@ -3151,9 +3193,8 @@ test("the React financial summary offers Cambiar período, marks a closed period
 		(demoMarkup.match(/<button type="button"/g) ?? []).length,
 	);
 	assert.doesNotMatch(demoMarkup, /type="submit"|Nuevo gasto|Cambiar período|Cerrar período/);
-	// Sensitivity control: every pattern certified absent above matches the same surface when it is
-	// actually mounted, so each demo assertion observes a real absence.
-	assert.match(openHeading, /Cambiar período/);
+	// Sensitivity control: the mounted edit dialog remains independently reachable, while the removed
+	// heading and closure action stay absent from the dashboard surface.
 	const mountedDialog = renderer.renderToStaticMarkup(
 		React.createElement(dialog.FinancialCycleEditDialog, {
 			isOpen: true,
@@ -3836,42 +3877,18 @@ test("the React financial-cycle completion dialog consents to the mailbox read a
 	assert.equal(renderDialog({ isOpen: false }), "");
 	assert.equal(renderDialog({ cycle: null }), "");
 
-	// The ready state offers the control next to `Cambiar período`, and it owns the lock, the submitter
-	// and the dialog.
+	// The dashboard keeps only the configured-period edit trigger; the removed heading and closure
+	// surface are not imported, mounted, or wired into the summary.
+	assert.equal((page.match(/className="react-dashboard-period"/g) ?? []).length, 1);
 	assert.match(
 		page,
-		/import \{ CompleteCycleDialog \} from "\.\.\/components\/financial-cycle\/CompleteCycleDialog";/,
+		/<button\s+className="react-dashboard-period"\s+type="button"\s+onClick=\{financialDashboard\.onEditPeriod\}/,
 	);
-	assert.match(
+	assert.doesNotMatch(
 		page,
-		/import \{ createCycleCompletionSubmitter \} from "\.\.\/components\/financial-cycle\/cycleCompletion";/,
+		/FinancialPeriodHeading|CompleteCycleDialog|createCycleCompletionSubmitter|cycleCompletionLock|completeFinancialCycle|isCycleCompletionOpen|onCompletePeriod|openCycleCompletion/,
 	);
-	assert.equal((page.match(/<FinancialPeriodHeading/g) ?? []).length, 1);
-	assert.equal((page.match(/<CompleteCycleDialog/g) ?? []).length, 1);
-	assert.match(
-		page,
-		/<CompleteCycleDialog[\s\S]{0,200}?isOpen=\{isCycleCompletionOpen\}/,
-	);
-	assert.match(page, /cycleCompletionLock/);
-	assert.match(page, /complete: completeFinancialCycle/);
-	// The closure reloads through the period the summary publishes as `FinancialDashboardHandle.reload`,
-	// and the closure already loaded is what decides whether the record is new.
-	assert.match(
-		page,
-		/createCycleCompletionSubmitter\(\{[\s\S]{0,300}?reload: reloadFinancialDashboard/,
-	);
-	assert.match(page, /loadedCompletedAt: state\.data\.cycle\.completedAt/);
-
-	const heading = renderer.renderToStaticMarkup(
-		React.createElement(pageModule.FinancialPeriodHeading, {
-			period,
-			completedAt: null,
-			onEdit: noop,
-			onComplete: noop,
-		}),
-	);
-	assert.match(heading, /Cambiar período<\/button>/);
-	assert.match(heading, /Cerrar período<\/button>/);
+	assert.doesNotMatch(page, /Cerrar período|react-financial-cycle-closure|Cierre registrado/);
 
 	// Demo protection is structural: the read-only tree never mounts the control or the dialog.
 	const demoMarkup = renderer.renderToStaticMarkup(
@@ -3905,8 +3922,8 @@ test("the React financial-cycle completion dialog consents to the mailbox read a
 		(demoMarkup.match(/<button type="button"/g) ?? []).length,
 	);
 	assert.doesNotMatch(demoMarkup, /type="submit"|Nuevo gasto|Cambiar período|Cerrar período/);
-	// Sensitivity control: each pattern certified absent above matches the mounted surface.
-	assert.match(heading, /Cerrar período/);
+	// Sensitivity control: the completion dialog remains independently mounted by this test, but not
+	// through the dashboard page.
 	assert.match(confirmation, /<dialog/);
 	assert.match(confirmation, /<button/);
 
@@ -4394,7 +4411,6 @@ test("the React movements view and the demo share the Stitch card header with a 
 		/\.react-movements-header,\s*\n\t\.demo-movements-header \{\s*\n\t\tflex-direction: column;/,
 	);
 });
-
 
 test("the React movement filter reconciliation clears a category the loaded rows no longer carry and never restores it", async (t) => {
 	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
@@ -5770,6 +5786,78 @@ test("the React spending chart buckets the configured period into Monday-to-Sund
 	assert.doesNotMatch(allCopy, /\bvos\b|ten[e\u00e9]s|quer[e\u00e9]s|pod[e\u00e9]s|hac[e\u00e9]|and[a\u00e1]/i);
 });
 
+test("the spending chart shows zero days as $0 and selects without automatic page scrolling", async (t) => {
+	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const loadedConfig = await loadConfigFromFile(
+		{ command: "serve", mode: "test" },
+		configPath,
+	);
+	const vite = await createViteServer({
+		...loadedConfig?.config,
+		configFile: false,
+		appType: "custom",
+		server: { middlewareMode: true },
+	});
+	t.after(() => vite.close());
+
+	const [React, renderer, page, analytics, source, styles] = await Promise.all([
+		import("react"),
+		import("react-dom/server"),
+		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
+		vite.ssrLoadModule("/src/client/components/analytics/spendingChart.ts"),
+		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
+	]);
+	const chart = analytics.getSpendingChart(
+		[{ id: "a", amount: 2000, date: "2026-02-01", counterparty: "Mercado", category: "Comida" }],
+		{ startDate: "2026-02-01", endDateExclusive: "2026-02-04" },
+		0,
+	);
+	const renderDay = (selectedTab, selectedDayKey) => renderer.renderToStaticMarkup(
+		React.createElement(page.SpendingChartView, {
+			chart,
+			selectedTab,
+			onSelectTab: () => {},
+			selectedDayKey,
+			onSelectDay: () => {},
+			detailMovements: [{ id: "a", label: "Mercado", kindLabel: "Compras", amount: 2000, dateKey: "2026-02-01", time: "" }],
+		}),
+	);
+	const week = renderDay("week-1", "2026-02-02");
+	assert.match(week, /aria-label="Ver detalle de lun 2 feb: \$0"/);
+	assert.match(week, /aria-controls="react-spending-chart-day-detail"/);
+	assert.match(week, /<span class="react-spending-chart-value" aria-hidden="true">\$0<\/span>/);
+	assert.match(week, /title="lun · 2 feb: \$0"/);
+	assert.match(week, /<header class="react-spending-chart-day-header"><h4>Detalle del lunes 2 feb<\/h4><strong class="react-spending-chart-day-total">\$0<\/strong><\/header><p class="react-spending-chart-day-empty">/);
+	assert.match(week, /No hay gastos con monto conocido para este día\./);
+	assert.doesNotMatch(week, /Sin gasto cuantificado|sin gasto cuantificado/);
+	const positive = renderDay("week-0", "2026-02-01");
+	assert.match(positive, /<span class="react-spending-chart-value react-spending-chart-value-positive" aria-hidden="true">\$2\.000<\/span>/);
+	assert.match(positive, /title="dom · 1 feb: \$2\.000"/);
+	assert.match(positive, /<header class="react-spending-chart-day-header"><h4>Detalle del domingo 1 feb<\/h4><strong class="react-spending-chart-day-total">\$2\.000<\/strong><\/header><div class="react-spending-chart-day-group">/);
+	const unselected = renderDay("week-0", null);
+	assert.match(unselected, /<header class="react-spending-chart-day-header"><h4>Selecciona una barra<\/h4><\/header>/);
+	assert.doesNotMatch(unselected.slice(unselected.indexOf('class="react-spending-chart-day-panel"')), /react-spending-chart-day-total/);
+	const panelRule = styles.match(/\.react-spending-chart-day-panel \{([^}]*)\}/)?.[1] ?? "";
+	assert.match(panelRule, /overflow-y: auto;/);
+	const headerRule = styles.match(/\.react-spending-chart-day-header \{([^}]*)\}/)?.[1] ?? "";
+	assert.match(headerRule, /position: sticky;/);
+	assert.match(headerRule, /top: 0;/);
+	assert.match(headerRule, /z-index: 1;/);
+	assert.match(headerRule, /background: var\(--surface-subtle\);/);
+	assert.match(positive, /title="lun: fuera del periodo"/);
+	assert.doesNotMatch(positive, /aria-label="Ver detalle de lun 26 ene: \$0"/);
+
+	const chartView = source.slice(
+		source.indexOf("export function SpendingChartView("),
+		source.indexOf("export interface SpendingChartPanelProps"),
+	);
+	assert.ok(chartView.length > 0);
+	assert.match(chartView, /onClick=\{\(\) => onSelectDay\(day\.key\)\}/);
+	assert.match(chartView, /id=\{DAY_DETAIL_ID\}/);
+	assert.doesNotMatch(chartView, /scrollIntoView|scrollToDayDetail|pendingScrollDayRef|dayDetailRef|handleSelectDay/);
+});
+
 test("the React spending chart view renders selectable proportional bars, the read-only day detail and a truthful empty state", async (t) => {
 	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
 	const loadedConfig = await loadConfigFromFile(
@@ -5874,7 +5962,8 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.match(bars, /aria-pressed=/);
 	// No bar is selected while the caller passes no selected key, and the panel states the prompt.
 	assert.doesNotMatch(bars, /aria-pressed="true"/);
-	assert.match(full, /Selecciona una barra/);
+	assert.match(full, /<header class="react-spending-chart-day-header"><h4>Selecciona una barra[^<]*<\/h4><\/header>/);
+	assert.doesNotMatch(full.slice(detailIndex), /react-spending-chart-day-total/);
 	// Proportional fill heights with the legacy 12% floor: the small day is drawn at 12%, not its raw 3%.
 	assert.match(full, /<span class="react-spending-chart-fill" style="height:100%"><\/span>/);
 	assert.match(full, /<span class="react-spending-chart-fill" style="height:12%"><\/span>/);
@@ -5896,7 +5985,7 @@ test("the React spending chart view renders selectable proportional bars, the re
 
 	// A week selection lists exactly that calendar day's movements with time, identity, kind and amount.
 	const weekDetail = renderView("week-1", chart, "2026-02-02");
-	assert.match(weekDetail, /<h4>Detalle del lunes 2 feb<\/h4>/);
+	assert.match(weekDetail, /<aside id="react-spending-chart-day-detail" class="react-spending-chart-day-panel" aria-live="polite"><header class="react-spending-chart-day-header"><h4>Detalle del lunes 2 feb<\/h4><strong class="react-spending-chart-day-total">\$2\.000<\/strong><\/header><div class="react-spending-chart-day-group">/);
 	assert.match(weekDetail, /09:30 · Verdulería/);
 	assert.match(weekDetail, /<small>Compras<\/small>/);
 	assert.match(weekDetail, /react-spending-chart-day-amount">\$2\.000<\/strong>/);
@@ -6023,11 +6112,18 @@ test("the React spending chart view renders selectable proportional bars, the re
 		styles,
 		/\.react-spending-chart-day-panel \{[^}]*grid-column: 1 \/ -1;/,
 	);
-	// The detail panel is height-limited and scrolls on its own without chaining to the page.
+	// The panel remains the sole scroll container; a surface-backed header keeps the title and total
+	// together above the movement groups without hiding them when the panel is scrolled.
 	assert.match(
 		styles,
 		/\.react-spending-chart-day-panel \{[^}]*max-height: 400px;[^}]*overflow-y: auto;[^}]*overscroll-behavior: contain;/,
 	);
+	const dayHeaderStyle = styles.match(/\.react-spending-chart-day-header \{([^}]*)\}/)?.[1] ?? "";
+	assert.match(dayHeaderStyle, /position: sticky;/);
+	assert.match(dayHeaderStyle, /top: 0;/);
+	assert.match(dayHeaderStyle, /z-index: 1;/);
+	assert.match(dayHeaderStyle, /background: var\(--surface-subtle\);/);
+	assert.match(dayHeaderStyle, /padding: var\(--space-3\) var\(--space-3\) var\(--space-2\);/);
 	// The selected bar carries the whole rounded card, not only a track border.
 	assert.match(
 		styles,
@@ -6297,7 +6393,7 @@ test("the React authenticated summary mounts the spending chart without adding a
 	// The demo tree reuses the same chart over its fixture.
 	const demoSource = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface FinancialPeriodHeadingProps"),
+		page.indexOf("export interface DashboardLeadViewProps"),
 	);
 	assert.notEqual(demoSource, "", "the demo tree must be locatable");
 	assert.match(demoSource, /SpendingChart/);
@@ -6553,7 +6649,7 @@ test("the React authenticated header exposes one Configuración action opening t
 	// action, its dialog and every mutation surface stay out of the read-only tree.
 	const demoTree = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface FinancialPeriodHeadingProps"),
+		page.indexOf("export interface DashboardLeadViewProps"),
 	);
 	assert.notEqual(demoTree, "", "the demo tree must be locatable");
 	assert.doesNotMatch(
@@ -6808,7 +6904,10 @@ test("the React DashboardPage keeps the unified settings wiring, submitters and 
 	assert.match(page, /initialConnected=\{connected\}/);
 	assert.match(page, /connectControl=\{\(accountConnected\) =>/);
 	assert.match(page, /submitSync=\{submitGmailSync\}/);
-	assert.doesNotMatch(page, /logout|Logout|Cerrar sesión/);
+	// The only sign-out added to the page is the authorized same-origin anchor under the account
+	// menu; the authenticated body still owns no logout button of its own.
+	assert.equal((page.match(/href="\/auth\/logout"/g) ?? []).length, 1);
+	assert.doesNotMatch(page, />\s*Cerrar sesión\s*<\/button>/);
 });
 
 test("the React app header renders the brand, the bound view navigation and the account slot", async (t) => {
@@ -6922,7 +7021,7 @@ test("the React authenticated page composes the app header over a page-owned vie
 	// summary view and a no-op handler, so Movimientos can never mount the authenticated body.
 	const demoTree = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface FinancialPeriodHeadingProps"),
+		page.indexOf("export interface DashboardLeadViewProps"),
 	);
 	assert.notEqual(demoTree, "", "the demo tree must be locatable");
 	assert.match(demoTree, /<AppHeader view="summary" onViewChange=\{\(\) => \{\}\}>/);
@@ -7226,7 +7325,7 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	// row directly instead of an empty paragraph.
 	assert.match(
 		demoInflow,
-		/<strong class="react-lead-amount">\$875\.000<\/strong><div class="react-lead-balance-percent/,
+		/<strong class="react-lead-amount">\$875\.000<\/strong><div class="react-lead-balance-status-row">/,
 	);
 	assert.doesNotMatch(
 		demoInflow,
@@ -7253,11 +7352,25 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 
 	// The highlighted balance card states the truthful share of income still available, with a trend
 	// direction, and omits the row entirely rather than fabricating a percentage when there is none.
+	// The percentage carries only the number and its tone, without the removed `disponible` suffix, and
+	// the adjacent compact flag names that same tone in Spanish instead of restating the number.
 	assert.match(configured, /react-lead-balance-percent-positive/);
-	assert.match(configured, /97% disponible/);
+	assert.match(configured, /<span>97%<\/span>/);
+	assert.doesNotMatch(configured, /% disponible/);
+	assert.match(configured, /react-lead-balance-status-positive/);
+	assert.match(configured, />En control</);
+	// The status flag stays inside the same bottom row as the percentage.
+	assert.match(
+		configured,
+		/<span class="react-lead-balance-percent react-lead-balance-percent-positive">[\s\S]*?<\/span><span class="react-lead-balance-status react-lead-balance-status-positive">En control<\/span>/,
+	);
+	assert.doesNotMatch(configured, /Al l\u00edmite|Peligro/);
+	assert.doesNotMatch(configured, /react-lead-balance-status-negative/);
 	assert.doesNotMatch(configured, /react-lead-balance-percent-negative/);
 	assert.doesNotMatch(unconfigured, /react-lead-balance-percent/);
+	assert.doesNotMatch(unconfigured, /react-lead-balance-status/);
 	assert.doesNotMatch(demoAbsent, /react-lead-balance-percent/);
+	assert.doesNotMatch(demoAbsent, /react-lead-balance-status/);
 
 	// Overspending the income and spending exactly the income take the negative and flat icon tones
 	// instead of a positive trend, so the direction is never inferred from the amount alone.
@@ -7269,7 +7382,9 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 		incomeAmount: 10000,
 	});
 	assert.match(overspent, /react-lead-balance-percent-negative/);
-	assert.match(overspent, /-150% disponible/);
+	assert.match(overspent, /react-lead-balance-status-negative/);
+	assert.match(overspent, />En peligro</);
+	assert.match(overspent, /<span>-150%<\/span>/);
 	const exactIncome = renderHero({
 		periodLabel: "2026-02-01 \u2013 2026-02-28",
 		totalSpending: 25000,
@@ -7278,7 +7393,9 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 		incomeAmount: 25000,
 	});
 	assert.match(exactIncome, /react-lead-balance-percent-flat/);
-	assert.match(exactIncome, /0% disponible/);
+	assert.match(exactIncome, /react-lead-balance-status-flat/);
+	assert.match(exactIncome, />Al l\u00edmite</);
+	assert.match(exactIncome, /<span>0%<\/span>/);
 
 	// The hero replaces the primitive card deck, so it does not repeat those card labels; the check
 	// matches the labels as the removed card spans rendered them.
@@ -7322,6 +7439,46 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	assert.doesNotMatch(styles, /\.react-dashboard-lead-single/);
 	assert.match(styles, /\.react-lead-primary,/);
 	assert.match(styles, /\.react-lead-amount \{/);
+	// The highlighted balance card is now a light, cool surface: the former dark primary gradient is
+	// replaced by the soft blue token over the base surface, so the tone-coloured percentage and flag
+	// stay legible and the red danger text reads naturally.
+	const answerCardBlock =
+		styles.match(/\.react-lead-answer \{\n\tdisplay: flex;[\s\S]*?\}/)?.[0] ?? "";
+	assert.match(
+		answerCardBlock,
+		/background: linear-gradient\(150deg, var\(--surface\), var\(--color-blue-soft\)\);/,
+	);
+	assert.doesNotMatch(answerCardBlock, /var\(--primary\)|var\(--primary-container\)/);
+	// The card is a column flex so the status row can be pushed to the bottom edge.
+	assert.match(answerCardBlock, /flex-direction: column;/);
+	// The percentage/status row stretches across the card content and anchors to the bottom edge:
+	// the percentage sits at the bottom-left and the flag at the bottom-right of that same row.
+	const balanceStatusRowBlock =
+		styles.match(/\.react-lead-balance-status-row \{[\s\S]*?\}/)?.[0] ?? "";
+	assert.match(balanceStatusRowBlock, /margin-top: auto;/);
+	assert.match(balanceStatusRowBlock, /align-self: stretch;/);
+	assert.match(balanceStatusRowBlock, /display: flex;/);
+	assert.match(balanceStatusRowBlock, /justify-content: space-between;/);
+	assert.doesNotMatch(balanceStatusRowBlock, /align-self: flex-end;/);
+	// The percentage is plain tone-coloured text and glyph, never a chip: the element declares no background.
+	const balancePercentBlock =
+		styles.match(/\.react-lead-balance-percent \{[\s\S]*?\}/)?.[0] ?? "";
+	assert.ok(balancePercentBlock.length > 0);
+	assert.doesNotMatch(balancePercentBlock, /background/);
+	// The flag owns the soft tone surface; the percentage only colours its number and icon.
+	assert.match(styles, /\.react-lead-balance-status \{/);
+	assert.match(
+		styles,
+		/\.react-lead-balance-status-positive \{\s*background: var\(--success-soft\);/,
+	);
+	assert.match(
+		styles,
+		/\.react-lead-balance-status-flat \{\s*background: var\(--warning-soft\);/,
+	);
+	assert.match(
+		styles,
+		/\.react-lead-balance-status-negative \{\s*background: var\(--danger-soft\);/,
+	);
 	assert.match(
 		styles,
 		/@media \(max-width: 640px\) \{[\s\S]*?\.react-dashboard-lead \{\s*grid-template-columns: 1fr;\s*\}/,
@@ -7374,7 +7531,7 @@ test("the React authenticated summary mounts the dashboard lead hero without add
 	// The demo tree reuses the same hero over its fixture.
 	const demoSource = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface FinancialPeriodHeadingProps"),
+		page.indexOf("export interface DashboardLeadViewProps"),
 	);
 	assert.notEqual(demoSource, "", "the demo tree must be locatable");
 	assert.match(demoSource, /DashboardLead/);
@@ -7412,9 +7569,10 @@ test("the React dashboard insights module derives a truthful story, top insights
 	assert.doesNotMatch(moduleSource, /Intl\.NumberFormat|new Intl/);
 	assert.doesNotMatch(moduleSource, /\bformatClp\s*\(/);
 
-	// The story is concise and non-redundant: a short preamble, and only the facts `Destacados` does
-	// not already show (the largest expense and the review count). The principal category and
-	// comercio/persona are accepted in the shared shape but never restated.
+	// The story is concise and non-redundant: a short preamble, and only the facts the intelligence
+	// card does not already show (now just the review count, since `Mayor impacto` states the largest
+	// expense). The principal category, mayor destinatario and largest expense are accepted but never
+	// restated.
 	const story = insights.getDashboardStory({
 		totalSpending: 25000,
 		knownCount: 3,
@@ -7422,17 +7580,13 @@ test("the React dashboard insights module derives a truthful story, top insights
 		reviewCount: 2,
 		topCategory: { label: "Comida", total: 20000 },
 		topCounterparty: { label: "Mercado", total: 15000 },
-		largest: { label: "Tienda", total: 12000 },
-		formatAmount: (amount) => `CLP${amount}`,
 	});
 	assert.equal(story.title, "Lectura rápida");
 	assert.equal(story.summary, "Puntos clave del periodo.");
-	assert.deepEqual(story.facts, [
-		"El gasto más alto fue CLP12000 en Tienda.",
-		"2 gastos necesitan una revisión rápida.",
-	]);
-	// No fact or summary copy repeats what `Destacados` already states.
-	assert.doesNotMatch(JSON.stringify(story), /Comida|Mercado|CLP25000/);
+	assert.deepEqual(story.facts, ["2 gastos necesitan una revisión rápida."]);
+	// No fact or summary copy repeats what `Destacados` already states, including the largest expense
+	// the intelligence card now shows as `Mayor impacto`.
+	assert.doesNotMatch(JSON.stringify(story), /Comida|Mercado|CLP25000|CLP12000|Tienda/);
 
 	// The facts fall back only to what the data supports: with no ranked fact but a known count the
 	// story says the expenses are ready, and it renders no placeholder number.
@@ -7443,8 +7597,6 @@ test("the React dashboard insights module derives a truthful story, top insights
 		reviewCount: 0,
 		topCategory: null,
 		topCounterparty: null,
-		largest: null,
-		formatAmount: (amount) => `CLP${amount}`,
 	});
 	assert.deepEqual(ready.facts, ["Tus gastos ya están listos para explorarse en el detalle."]);
 
@@ -7456,8 +7608,6 @@ test("the React dashboard insights module derives a truthful story, top insights
 		reviewCount: 0,
 		topCategory: null,
 		topCounterparty: null,
-		largest: null,
-		formatAmount: (amount) => `CLP${amount}`,
 	});
 	assert.match(pendingOnly.summary, /todavía no tienen monto conocido/);
 	assert.deepEqual(pendingOnly.facts, []);
@@ -7468,8 +7618,6 @@ test("the React dashboard insights module derives a truthful story, top insights
 		reviewCount: 0,
 		topCategory: null,
 		topCounterparty: null,
-		largest: null,
-		formatAmount: (amount) => `CLP${amount}`,
 	});
 	assert.match(empty.summary, /Todavía no hay gastos reconocidos/);
 	assert.deepEqual(empty.facts, []);
@@ -7486,32 +7634,50 @@ test("the React dashboard insights module derives a truthful story, top insights
 	assert.deepEqual(topCounterparty, { label: "Mercado", total: 500 });
 	assert.equal(insights.getTopCounterpartyGroup([]), null);
 
-	// The three insights carry the raw total so the surface formats it; the latest movement ranks by
+	// The four insights carry the raw total so the surface formats it; the latest movement ranks by
 	// recency, so its value is the date and its note is the identity.
 	const ranked = insights.getTopInsights({
 		category: { label: "Comida", total: 20000 },
 		counterparty: { label: "Mercado", total: 500 },
+		largest: { label: "Tienda", total: 12000 },
 		latest: { counterparty: "Tienda", date: "2026-02-28" },
 	});
 	assert.equal(ranked.category.label, "Principal categoría");
 	assert.equal(ranked.category.value, "Comida");
 	assert.equal(ranked.category.amount, 20000);
-	assert.equal(ranked.counterparty.label, "Principal comercio/persona");
+	assert.equal(ranked.counterparty.label, "Mayor destinatario");
 	assert.equal(ranked.counterparty.value, "Mercado");
 	assert.equal(ranked.counterparty.amount, 500);
+	assert.equal(ranked.largest.label, "Mayor impacto");
+	assert.equal(ranked.largest.value, "Tienda");
+	assert.equal(ranked.largest.amount, 12000);
 	assert.equal(ranked.latest.label, "Último movimiento");
 	assert.equal(ranked.latest.value, "2026-02-28");
 	assert.equal(ranked.latest.amount, null);
 	assert.equal(ranked.latest.note, "Tienda");
+	// Only the aggregate `Mayor destinatario` row carries the clarification that its total accumulates
+	// every movement for the recipient; the other three rows state no hint.
+	assert.equal(ranked.counterparty.hint, "Total acumulado del destinatario");
+	assert.equal(ranked.category.hint, "");
+	assert.equal(ranked.largest.hint, "");
+	assert.equal(ranked.latest.hint, "");
 
 	// No data: the shipped sentinel and a truthful reason instead of a name or an amount.
-	const noData = insights.getTopInsights({ category: null, counterparty: null, latest: null });
+	const noData = insights.getTopInsights({ category: null, counterparty: null, largest: null, latest: null });
 	assert.deepEqual(
-		[noData.category.value, noData.counterparty.value, noData.latest.value],
-		["—", "—", "—"],
+		[noData.category.value, noData.counterparty.value, noData.largest.value, noData.latest.value],
+		["—", "—", "—", "—"],
 	);
-	assert.deepEqual([noData.category.amount, noData.counterparty.amount, noData.latest.amount], [null, null, null]);
+	assert.deepEqual(
+		[noData.category.amount, noData.counterparty.amount, noData.largest.amount, noData.latest.amount],
+		[null, null, null, null],
+	);
+	assert.deepEqual(
+		[noData.category.hint, noData.counterparty.hint, noData.largest.hint, noData.latest.hint],
+		["", "", "", ""],
+	);
 	assert.match(noData.category.note, /Sin gastos con monto conocido/);
+	assert.match(noData.largest.note, /Sin gastos con monto conocido/);
 	assert.match(noData.latest.note, /Sin movimientos/);
 
 	// The breakdown divides by the recognized quantified total and rounds each share once from the raw
@@ -7595,7 +7761,7 @@ test("the React authenticated summary renders the shared analytics body in the p
 
 	// The shared analytics body owns the DOM order both surfaces read: primary lead, income/budget
 	// truth, spending-type distribution, period metrics and spending chart (main column), then the
-	// category ranking, `Destacados` and `Lectura rápida` (side column). Each position is a distinct
+	// category ranking, the intelligence card and `Lectura rápida` (side column). Each position is a distinct
 	// marker, so a reorder is observable.
 	const bodySource = page.slice(
 		page.indexOf("interface DashboardAnalyticsBodyProps"),
@@ -7629,7 +7795,7 @@ test("the React authenticated summary renders the shared analytics body in the p
 		-1,
 		"`Lectura rápida` must leave the analytics main column",
 	);
-	// The category distribution leads the side column, `Destacados` follows it, and `Lectura rápida`
+	// The category distribution leads the side column, the intelligence card follows it, and `Lectura rápida`
 	// renders last so the highlights stay primary.
 	const sideSource = bodySource.slice(sideOpen);
 	const categoryInSide = sideSource.indexOf("<CategoryRankingPanel");
@@ -7641,7 +7807,7 @@ test("the React authenticated summary renders the shared analytics body in the p
 	);
 	assert.ok(
 		storyInSide > insightsInSide,
-		"`Lectura rápida` must render in the side column after `Destacados`",
+		"`Lectura rápida` must render in the side column after the intelligence card",
 	);
 	// The temporary two-card sidebar pair wrapper and its placement rules are gone.
 	assert.doesNotMatch(page, /react-analytics-pair/);
@@ -7666,8 +7832,6 @@ test("the React authenticated summary renders the shared analytics body in the p
 		reviewCount: 1,
 		topCategory: { label: "Comida", total: 20000 },
 		topCounterparty: { label: "Mercado", total: 15000 },
-		largest: { label: "Tienda", total: 12000 },
-		formatAmount: formatClp,
 	});
 	const storyMarkup = renderer.renderToStaticMarkup(
 		React.createElement(pageModule.DashboardStoryView, { story }),
@@ -7675,12 +7839,12 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.match(storyMarkup, /<section class="react-dashboard-story"/);
 	assert.match(storyMarkup, /Lectura rápida/);
 	assert.match(storyMarkup, /Puntos clave del periodo\./);
-	assert.match(storyMarkup, /El gasto más alto fue \$12\.000 en Tienda\./);
 	assert.match(storyMarkup, /1 gasto necesita una revisión rápida\./);
-	// One list item and one tinted callout per fact, and nothing repeats `Destacados`.
-	assert.equal((storyMarkup.match(/react-dashboard-story-callout/g) ?? []).length, 2);
+	// One list item and one tinted callout per fact, and nothing repeats `Destacados` — including the
+	// largest expense the intelligence card now shows as `Mayor impacto`.
+	assert.equal((storyMarkup.match(/react-dashboard-story-callout/g) ?? []).length, 1);
 	assert.match(storyMarkup, /<li class="react-dashboard-story-callout">/);
-	assert.doesNotMatch(storyMarkup, /Comida|Mercado/);
+	assert.doesNotMatch(storyMarkup, /Comida|Mercado|Tienda|\$12\.000/);
 
 	// An empty period announces its summary as a status and renders no callout block.
 	const emptyStoryMarkup = renderer.renderToStaticMarkup(
@@ -7692,30 +7856,50 @@ test("the React authenticated summary renders the shared analytics body in the p
 				reviewCount: 0,
 				topCategory: null,
 				topCounterparty: null,
-				largest: null,
-				formatAmount: formatClp,
 			}),
 		}),
 	);
 	assert.match(emptyStoryMarkup, /role="status"/);
 	assert.doesNotMatch(emptyStoryMarkup, /react-dashboard-story-callout/);
 
-	// The insights view shows the formatted totals and the recency fact with its note.
+	// The intelligence card shows the new title, badge and the four truthful tiles with their totals.
 	const topInsights = insights.getTopInsights({
 		category: { label: "Comida", total: 20000 },
 		counterparty: { label: "Mercado", total: 500 },
+		largest: { label: "Tienda", total: 12000 },
 		latest: { counterparty: "Tienda", date: "2026-02-28" },
 	});
 	const insightsMarkup = renderer.renderToStaticMarkup(
 		React.createElement(pageModule.TopInsightsView, { insights: topInsights }),
 	);
 	assert.match(insightsMarkup, /<section class="react-top-insights"/);
+	assert.match(insightsMarkup, /Lectura rápida · Inteligencia de gastos/);
+	assert.match(insightsMarkup, /Resumen del periodo/);
+	assert.match(insightsMarkup, /Tus datos más relevantes del periodo\./);
 	assert.match(insightsMarkup, /Principal categoría/);
-	assert.match(insightsMarkup, /Principal comercio\/persona/);
+	assert.match(insightsMarkup, /Mayor destinatario/);
+	assert.match(insightsMarkup, /Mayor impacto/);
 	assert.match(insightsMarkup, /Último movimiento/);
 	assert.match(insightsMarkup, /\$20\.000/);
+	assert.match(insightsMarkup, /\$12\.000/);
 	assert.match(insightsMarkup, /2026-02-28/);
 	assert.match(insightsMarkup, /Tienda/);
+	// The card is one uniform 2x2 grid of equal tiles: each keeps the same rhythm and a decorative
+	// hidden glyph, the header leads with the lightbulb title, and only the aggregate `Mayor
+	// destinatario` tile states its hint.
+	assert.match(insightsMarkup, /react-top-insights-header/);
+	assert.match(insightsMarkup, /<h3 id="react-top-insights-title">Lectura rápida · Inteligencia de gastos<\/h3>/);
+	assert.match(insightsMarkup, /<span class="react-top-insights-badge">Resumen del periodo<\/span>/);
+	assert.match(insightsMarkup, /<ul class="react-top-insights-grid">/);
+	assert.doesNotMatch(insightsMarkup, /react-financial-grid|react-financial-card|react-top-insights-list/);
+	assert.equal((insightsMarkup.match(/<li class="react-insight-callout">/g) ?? []).length, 4);
+	assert.equal(
+		(insightsMarkup.match(/class="react-card-icon" aria-hidden="true"/g) ?? []).length,
+		5,
+	);
+	assert.match(insightsMarkup, /fa-lightbulb/);
+	assert.match(insightsMarkup, /react-insight-callout-hint">Total acumulado del destinatario</);
+	assert.equal((insightsMarkup.match(/react-insight-callout-hint/g) ?? []).length, 1);
 
 	// The breakdown view draws one segmented bar plus an icon legend, keeping every kind's amount and
 	// percentage as readable text.
@@ -7779,6 +7963,11 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.match(styles, /\.react-dashboard-story-callout \{[^}]*background: var\(--color-blue-soft\)/s);
 	assert.match(styles, /\.react-dashboard-story-callout \{[^}]*border: 1px solid var\(--color-blue-standard\)/s);
 	assert.match(styles, /\.react-top-insights \{/);
+	// The card carries a stronger left accent and the tiles use a light neutral tint, not white cards.
+	assert.match(styles, /\.react-top-insights \{[^}]*border-left: 4px solid var\(--color-blue-standard\)/s);
+	assert.match(styles, /\.react-top-insights-grid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/s);
+	assert.match(styles, /\.react-insight-callout \{[^}]*background: var\(--color-surface-subtle\)/s);
+	assert.match(styles, /\.react-top-insights-badge \{/);
 	assert.match(styles, /\.react-spending-breakdown-bar \{/);
 	assert.match(styles, /\.react-spending-breakdown-header-icon \{/);
 	assert.match(styles, /\.react-spending-breakdown-legend \{/);
@@ -8485,7 +8674,7 @@ test("the React movements table renders the selection column, the bulk bar and t
 	// Demo isolation: the read-only composition never mounts the table, the detail modal or the bar.
 	const demoSource = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface FinancialPeriodHeadingProps"),
+		page.indexOf("export interface DashboardLeadViewProps"),
 	);
 	assert.doesNotMatch(demoSource, /MovementsTable|ViewMovementDialog|submitBulkCategory|react-movements-bulk/);
 
@@ -9001,7 +9190,7 @@ test("the React demo dashboard composes the read-only analytics without API, Gma
 	// The composition reads no API: the demo tree imports no client and calls no fetch.
 	const demoSource = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface FinancialPeriodHeadingProps"),
+		page.indexOf("export interface DashboardLeadViewProps"),
 	);
 	assert.notEqual(demoSource, "", "the demo tree must be locatable");
 	assert.doesNotMatch(

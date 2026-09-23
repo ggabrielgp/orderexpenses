@@ -1,9 +1,10 @@
-import type { RecognizedExpenseMovement } from "../movements/manualExpense";
+import type { FinancialTransaction } from "../../api/types";
+import { recognizedExpenseKinds, type RecognizedExpenseMovement } from "../movements/manualExpense";
 
 /**
- * Dashboard insight decisions for the authenticated summary: the `Lectura rápida` story, the
- * three top insights (principal category, principal comercio/persona, último movimiento) and the
- * visual spending breakdown by kind.
+ * Dashboard insight decisions for the authenticated summary: the concise `Lectura rápida` story, the
+ * four top insights (mayor impacto, mayor frecuencia, último movimiento, sin clasificar) and
+ * the visual spending breakdown by kind.
  *
  * Legacy rendered these through `renderMonthStoryCard` (`public/app.js:1473-1500`) with
  * `buildMonthStoryItems` (`:1502-1535`), the insights grid in `renderDashboard` (`:1313-1333`) with
@@ -14,8 +15,8 @@ import type { RecognizedExpenseMovement } from "../movements/manualExpense";
  *
  * Everything is derived from the summary, the configured category ranking and the recognized
  * expense rows the summary already loaded, so this module issues no request and adds no endpoint.
- * Currency formatting is injected rather than imported: the surface owns `formatClp`, this module
- * owns the numbers and the copy, exactly like `dashboardLead`.
+ * Currency formatting stays in the surface: the surface owns `formatClp` and this module returns the
+ * raw amounts and the copy, exactly like `dashboardLead`.
  *
  * Legacy is not reproduced where it was untruthful:
  * - the story facts are capped at the few that fit, and no fact is emitted without data to support it;
@@ -28,10 +29,15 @@ import type { RecognizedExpenseMovement } from "../movements/manualExpense";
 
 /** Direct story title aligned with the reference; supersedes legacy's period title (`public/app.js:1483`). */
 export const STORY_TITLE = "Lectura rápida";
-/** Legacy's first insight label (`renderDashboard`, `public/app.js:1317`). */
-export const TOP_CATEGORY_LABEL = "Principal categoría";
-/** Legacy's second insight label (`public/app.js:1322`). */
-export const TOP_COUNTERPARTY_LABEL = "Principal comercio/persona";
+/** Recipient with the most recognized expenses carrying a finite amount. */
+export const TOP_FREQUENCY_LABEL = "Mayor frecuencia";
+/** Recognized expenses without a stored category. */
+export const UNCATEGORIZED_LABEL = "Sin clasificar";
+/**
+ * The one-line insight for the single largest recognized expense. The label names the impact of one
+ * transaction on purpose, so it never reads as an accumulated total.
+ */
+export const TOP_LARGEST_LABEL = "Mayor impacto";
 /** Legacy's third insight label (`public/app.js:1327`). */
 export const LATEST_MOVEMENT_LABEL = "Último movimiento";
 
@@ -81,12 +87,8 @@ export interface DashboardStoryInput {
 	reviewCount: number;
 	/** The principal category; kept for the shared shape, but no story fact repeats `Destacados`. */
 	topCategory: DashboardGroup | null;
-	/** The principal comercio/persona; kept for the shared shape, but no story fact repeats `Destacados`. */
+	/** The mayor destinatario; kept for the shared shape, but no story fact repeats `Destacados`. */
 	topCounterparty: DashboardGroup | null;
-	/** The largest recognized expense, or `null` when there is none. */
-	largest: DashboardGroup | null;
-	/** Formats a CLP amount; injected so the module stays free of currency formatting. */
-	formatAmount: (amount: number) => string;
 }
 
 export interface DashboardStory {
@@ -103,8 +105,7 @@ function buildStorySummary(knownCount: number, pendingAmountCount: number): stri
 			? "Los gastos reconocidos del periodo todavía no tienen monto conocido: aún no hay una historia que contar."
 			: "Todavía no hay gastos reconocidos para contarte el periodo.";
 	}
-	// A concise preamble only: the period total, dates, principal category, counterparty and latest
-	// movement already live in the hero and `Destacados`, so restating them here would be redundant.
+	// A concise preamble only: the period total and the four tile topics are already visible.
 	return "Puntos clave del periodo.";
 }
 
@@ -113,23 +114,15 @@ function buildStorySummary(knownCount: number, pendingAmountCount: number): stri
  * capped at `MAX_STORY_FACTS`. One fact is emitted only when the data behind it exists, so an empty
  * period states its lack of information instead of a placeholder number.
  *
- * The facts deliberately exclude the principal category and the principal comercio/persona, and the
- * story never restates the period total, its dates or the latest movement: `Destacados` already pairs
- * those. What remains is what the surface would otherwise lose (the largest expense and the review
- * count), so `Lectura rápida` summarizes instead of repeating.
+ * The facts exclude the period total and the four tile topics. What remains is the review count,
+ * so the bottom note summarizes instead of repeating the largest expense.
  */
 export function getDashboardStory(input: DashboardStoryInput): DashboardStory {
-	const formatAmount =
-		typeof input?.formatAmount === "function" ? input.formatAmount : (amount: number) => String(amount);
 	const knownCount = normalizeCount(input?.knownCount);
 	const pendingAmountCount = normalizeCount(input?.pendingAmountCount);
 	const reviewCount = normalizeCount(input?.reviewCount);
-	const largest = normalizeGroup(input?.largest);
 
 	const facts: string[] = [];
-	if (largest !== null) {
-		facts.push(`El gasto más alto fue ${formatAmount(largest.total)} en ${largest.label}.`);
-	}
 	if (reviewCount > 0) {
 		facts.push(
 			`${reviewCount} ${reviewCount === 1 ? "gasto necesita" : "gastos necesitan"} una revisión rápida.`,
@@ -146,7 +139,7 @@ export function getDashboardStory(input: DashboardStoryInput): DashboardStory {
 	};
 }
 
-/** The principal comercio/persona, grouped the accent- and case-insensitive way the ranking groups. */
+/** The mayor destinatario, grouped the accent- and case-insensitive way the ranking groups. */
 export function getTopCounterpartyGroup(
 	movements: RecognizedExpenseMovement[],
 ): DashboardGroup | null {
@@ -176,75 +169,140 @@ export function getTopCounterpartyGroup(
 	return ranked[0] ?? null;
 }
 
+/** Locale ordering with a code-point fallback, including labels the locale collator considers equal. */
+function compareNames(a: string, b: string): number {
+	return a.localeCompare(b, "es") || (a < b ? -1 : a > b ? 1 : 0);
+}
+
+/** Count recipient identities the same accent- and case-insensitive way as the existing total grouping. */
+export function getMostFrequentCounterparty(
+	movements: RecognizedExpenseMovement[],
+): { label: string; count: number } | null {
+	const groups = new Map<string, { label: string; count: number }>();
+	for (const movement of movements ?? []) {
+		if (!Number.isFinite(movement?.amount)) continue;
+		const label =
+			typeof movement.counterparty === "string" && movement.counterparty.trim()
+				? movement.counterparty.trim()
+				: NO_IDENTITY_LABEL;
+		// An unidentified expense cannot truthfully be presented as a recipient.
+		if (label === NO_IDENTITY_LABEL) continue;
+		const key = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+		const group = groups.get(key);
+		groups.set(key, {
+			label: group === undefined || compareNames(label, group.label) < 0 ? label : group.label,
+			count: (group?.count ?? 0) + 1,
+		});
+	}
+	return [...groups.entries()]
+		.sort((a, b) => b[1].count - a[1].count || compareNames(a[0], b[0]) ||
+			compareNames(a[1].label, b[1].label))[0]?.[1] ?? null;
+}
+
+/** Raw rows retain whether a category was missing; the display projection cannot distinguish that
+ * from a stored category literally named "Sin categoría". Match its recognized/finite predicate. */
+export function getUncategorizedExpenses(
+	transactions: FinancialTransaction[],
+): { count: number; total: number } {
+	let count = 0;
+	let total = 0;
+	for (const transaction of transactions ?? []) {
+		if (transaction?.direction !== "outflow" ||
+			typeof transaction.kind !== "string" || !recognizedExpenseKinds.has(transaction.kind) ||
+			typeof transaction.amount !== "number" || !Number.isFinite(transaction.amount) ||
+			(typeof transaction.category === "string" && transaction.category.trim().length > 0)) continue;
+		count += 1;
+		total += transaction.amount;
+	}
+	return { count, total };
+}
+
 export interface DashboardInsight {
-	key: "category" | "counterparty" | "latest";
+	key: "frequency" | "uncategorized" | "largest" | "latest";
 	label: string;
-	/** Main text: the category or comercio name, or the date for the latest movement. */
+	/** Main text: the recipient or expense identity, or the uncategorized total. */
 	value: string;
-	/** Raw total when the insight ranks by amount; `null` for the latest-movement fact. */
+	/** Raw amount for largest/uncategorized; `null` when no amount should appear. */
 	amount: number | null;
 	/** Text shown where no amount exists; states the truthful fallback instead of a value. */
 	note: string;
+	/** Optional clarification below the secondary detail. */
+	hint: string;
 }
 
 export interface DashboardTopInsights {
-	category: DashboardInsight;
-	counterparty: DashboardInsight;
+	frequency: DashboardInsight;
+	uncategorized: DashboardInsight;
+	/** Positive only when a real uncategorized outflow can be filtered in the movements view. */
+	uncategorizedCount: number;
+	largest: DashboardInsight;
 	latest: DashboardInsight;
 }
 
 export interface DashboardTopInsightsInput {
-	/** The principal category, or `null` when there is none. */
-	category: DashboardGroup | null;
-	/** The principal comercio/persona, or `null` when there is none. */
-	counterparty: DashboardGroup | null;
+	frequency: { label: string; count: number } | null;
+	uncategorized: { count: number; total: number };
+	/** The single largest recognized expense, or `null` when there is none. */
+	largest: DashboardGroup | null;
 	/** Latest recognized movement of the period, or `null` when there is none. */
 	latest: { counterparty: string; date: string } | null;
 }
 
 /**
- * The three top insights, always present: each falls back to the shipped sentinel and a truthful
- * reason instead of a fabricated name or amount. The monetary facts carry their raw total so the
- * surface formats it; the latest-movement fact carries its date as the value and the identity as the
- * note, because it ranks by recency, not by amount.
+ * The four tile facts, always present with truthful no-data copy. Frequency counts movements,
+ * not visits; the uncategorized amount appears only if one or more eligible rows exist.
  */
 export function getTopInsights(input: DashboardTopInsightsInput): DashboardTopInsights {
-	const category = normalizeGroup(input?.category);
-	const counterparty = normalizeGroup(input?.counterparty);
+	const frequency = input?.frequency;
+	const uncategorized = input?.uncategorized;
+	const uncategorizedCount = normalizeCount(uncategorized?.count ?? 0);
+	const largest = normalizeGroup(input?.largest);
 	const latest = input?.latest ?? null;
 
 	return {
-		category:
-			category === null
+		frequency:
+			frequency === null || frequency === undefined || normalizeCount(frequency.count) === 0
 				? {
-						key: "category",
-						label: TOP_CATEGORY_LABEL,
+						key: "frequency", label: TOP_FREQUENCY_LABEL, value: MISSING_VALUE,
+						amount: null, note: "Sin destinatarios identificados con monto conocido en el periodo.", hint: "",
+					}
+				: {
+						key: "frequency", label: TOP_FREQUENCY_LABEL, value: frequency.label,
+						amount: null,
+						note: `${normalizeCount(frequency.count)} ${normalizeCount(frequency.count) === 1 ? "movimiento" : "movimientos"}`,
+						hint: "",
+					},
+		uncategorized:
+			uncategorizedCount === 0
+				? {
+						key: "uncategorized", label: UNCATEGORIZED_LABEL, value: MISSING_VALUE,
+						amount: null, note: "Sin gastos sin categoría con monto conocido en el periodo.", hint: "",
+					}
+				: {
+						key: "uncategorized", label: UNCATEGORIZED_LABEL,
+						value: MISSING_VALUE,
+						amount: uncategorized && Number.isFinite(uncategorized.total) ? uncategorized.total : null,
+						note: `${uncategorizedCount} ${uncategorizedCount === 1 ? "movimiento" : "movimientos"} sin categoría${uncategorized && Number.isFinite(uncategorized.total) ? "" : "; monto no disponible"}`,
+						hint: "",
+					},
+		uncategorizedCount,
+		largest:
+			largest === null
+				? {
+						key: "largest",
+						label: TOP_LARGEST_LABEL,
 						value: MISSING_VALUE,
 						amount: null,
 						note: "Sin gastos con monto conocido en el periodo.",
+						hint: "",
 					}
 				: {
-						key: "category",
-						label: TOP_CATEGORY_LABEL,
-						value: category.label,
-						amount: category.total,
+						key: "largest",
+						label: TOP_LARGEST_LABEL,
+						value: largest.label,
+						amount: largest.total,
 						note: "",
-					},
-		counterparty:
-			counterparty === null
-				? {
-						key: "counterparty",
-						label: TOP_COUNTERPARTY_LABEL,
-						value: MISSING_VALUE,
-						amount: null,
-						note: "Sin movimientos con monto conocido en el periodo.",
-					}
-				: {
-						key: "counterparty",
-						label: TOP_COUNTERPARTY_LABEL,
-						value: counterparty.label,
-						amount: counterparty.total,
-						note: "",
+						hint: "",
 					},
 		latest:
 			latest === null
@@ -254,16 +312,18 @@ export function getTopInsights(input: DashboardTopInsightsInput): DashboardTopIn
 						value: MISSING_VALUE,
 						amount: null,
 						note: "Sin movimientos en el periodo.",
+						hint: "",
 					}
 				: {
 						key: "latest",
 						label: LATEST_MOVEMENT_LABEL,
-						value: latest.date,
-						amount: null,
-						note:
+						value:
 							typeof latest.counterparty === "string" && latest.counterparty.trim().length > 0
 								? latest.counterparty.trim()
 								: NO_IDENTITY_LABEL,
+						amount: null,
+						note: latest.date,
+						hint: "",
 					},
 	};
 }

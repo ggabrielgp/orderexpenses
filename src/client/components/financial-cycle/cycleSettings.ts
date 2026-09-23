@@ -245,6 +245,14 @@ export interface CycleEditSubmitterDeps {
 	reload: (() => Promise<boolean>) | null;
 	/** The same single in-flight lock the movement dialogs, the sync and the settings use. */
 	lock: InFlightLockRef;
+	/**
+	 * Optional fast path. Prepared before PUT so the saved draft can be compared with the loaded cycle,
+	 * then applied only after PUT with its authoritative response. Returning false requests the normal
+	 * cycle-first reload; callers without this dependency retain that behavior.
+	 */
+	prepareIncomeOnlyReuse?: (
+		payload: UpdateFinancialCycleRequest,
+	) => ((savedCycle: FinancialCycleResponse) => boolean) | null;
 }
 
 const CYCLE_EDIT_FAILURE_MESSAGE = "No se pudo guardar el periodo. Inténtalo de nuevo.";
@@ -298,26 +306,50 @@ export function getCycleEditNotice(outcome: { status: "saved"; reloadFailed: boo
  *
  * The invalid draft is refused and the lock is acquired before the first `await`, so nothing leaves
  * for a bad draft and two clicks in the same tick cannot issue two saves — the second reports `busy`.
- * The lock is released on every settled attempt, so a refusal stays retryable. A settled save always
- * reloads the period, because the summary on screen is the one the user just changed and every other
- * configured-period read is derived from it.
+ * The lock is released on every settled attempt, so a refusal stays retryable. Only a validated
+ * income-only change can reuse the current summary; every other settled save reloads cycle-first.
  */
 export function createCycleEditSubmitter({
 	updateCycle,
 	reload,
 	lock,
+	prepareIncomeOnlyReuse,
 }: CycleEditSubmitterDeps): CycleEditSubmitter {
 	return async (draft) => {
 		const validation = validateCycleEditDraft(draft);
 		if (!validation.ok) return { status: "failed", message: validation.message };
 		if (!acquireInFlightLock(lock)) return { status: "busy" };
 		try {
-			await updateCycle(validation.payload);
-			let reloadFailed: boolean;
+			// Preparation reads the currently loaded cycle, but never changes state or cache before PUT.
+			let reuse: ((savedCycle: FinancialCycleResponse) => boolean) | null = null;
 			try {
-				reloadFailed = reload === null || (await reload()) === false;
+				reuse = prepareIncomeOnlyReuse?.(validation.payload) ?? null;
 			} catch {
-				reloadFailed = true;
+				// A missing or unsafe fast path must not prevent the normal save and reload.
+			}
+			const savedCycle = await updateCycle(validation.payload);
+			let reused = false;
+			const savedPeriod = savedCycle.selectedPeriod;
+			const requestedPeriod = validation.payload.selectedPeriod;
+			if (
+				reuse !== null && savedPeriod !== null &&
+				savedPeriod.startDate === requestedPeriod.startDate &&
+				savedPeriod.endDateExclusive === requestedPeriod.endDateExclusive &&
+				savedCycle.incomeAmount === validation.payload.incomeAmount
+			) {
+				try {
+					reused = reuse(savedCycle);
+				} catch {
+					// A rejected reuse is still a stored save: report a failed refresh only if reload fails.
+				}
+			}
+			let reloadFailed = false;
+			if (!reused) {
+				try {
+					reloadFailed = reload === null || (await reload()) === false;
+				} catch {
+					reloadFailed = true;
+				}
 			}
 			return { status: "saved", reloadFailed };
 		} catch (error) {

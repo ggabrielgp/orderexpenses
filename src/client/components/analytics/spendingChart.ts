@@ -1,5 +1,4 @@
 import type { FinancialPeriod } from "../../api/types";
-import { formatPeriodLabel } from "../movements/manualExpense";
 import type { RecognizedExpenseMovement } from "../movements/manualExpense";
 
 /**
@@ -14,8 +13,8 @@ import type { RecognizedExpenseMovement } from "../movements/manualExpense";
  *
  * The rows it receives are the recognized expenses the summary already projected and loaded for the
  * configured period, so this module issues no request and adds no endpoint, and it uses no chart
- * library. The bars keep the legacy floor: every positive day is at least 12% tall (`:2291`), so a
- * small day stays visible next to the largest one instead of collapsing out of sight.
+ * library. Bar heights follow the selected series maximum, with only a 1% visibility floor for
+ * positive totals too small to draw a perceptible bar.
  *
  * All date arithmetic is UTC/date-string based. Legacy mixed local `Date` methods with the passed
  * dates, which can shift a day under a non-local timezone; the buckets here cannot.
@@ -48,6 +47,12 @@ const longWeekdayFormatter = new Intl.DateTimeFormat("es-CL", {
 	weekday: "long",
 	timeZone: "UTC",
 });
+const longDateFormatter = new Intl.DateTimeFormat("es-CL", {
+	weekday: "long",
+	day: "numeric",
+	month: "long",
+	timeZone: "UTC",
+});
 
 export interface SpendingChartDay {
 	/** Calendar key `YYYY-MM-DD` for a week day, or `weekday-N` for the period aggregate. */
@@ -71,9 +76,8 @@ export interface SpendingChartDay {
 
 export interface SpendingChartBar extends SpendingChartDay {
 	/**
-	 * Proportional height against the selected series maximum, 0..100. A positive day keeps the
-	 * legacy floor of 12% (`public/app.js:2291`), so a small bar stays visible and never collapses
-	 * to nothing.
+	 * Proportional height against the selected series maximum, 0..100, with a 1% minimum
+	 * only for tiny positive totals that would otherwise be invisible.
 	 */
 	heightPercent: number;
 }
@@ -116,7 +120,7 @@ export interface SpendingChart {
 	periodDays: SpendingChartDay[];
 	/** One tab per week plus the full period. */
 	tabs: SpendingChartTab[];
-	/** Configured period label, e.g. `2026-02-01 – 2026-02-28`. */
+	/** Configured period label, e.g. `sábado 1 de febrero a sábado 28 de febrero`. */
 	periodLabel: string;
 	/** Raw total of the countable outflows, from raw amounts and never from heights. */
 	total: number;
@@ -178,17 +182,24 @@ function buildDay(timestamp: number, startTimestamp: number, visibleEnd: number)
 	};
 }
 
+function formatLongDate(timestamp: number): string {
+	return longDateFormatter.format(new Date(timestamp)).replace(", ", " ");
+}
+
+function buildLongDateRange(startTimestamp: number, endTimestamp: number): string {
+	const start = formatLongDate(startTimestamp);
+	return startTimestamp === endTimestamp ? start : `${start} - ${formatLongDate(endTimestamp)}`;
+}
+
 function buildWeekRange(weekStart: number, startTimestamp: number, visibleEnd: number): string {
 	const start = Math.max(weekStart, startTimestamp);
 	const end = Math.min(weekStart + 6 * DAY_MILLISECONDS, visibleEnd);
-	return `${shortDateFormatter.format(new Date(start))} al ${shortDateFormatter.format(new Date(end))}`;
+	return buildLongDateRange(start, end);
 }
 
 function getHeightPercent(total: number, max: number): number {
-	// Legacy floor: a zero or negative day draws no bar, and every positive day is at least 12% tall
-	// so a small outflow stays visible next to the largest one (`public/app.js:2291`).
 	if (max <= 0 || total <= 0) return 0;
-	return Math.max(12, Math.round((total / max) * 100));
+	return Math.max(1, (total / max) * 100);
 }
 
 function getExitNoun(count: number): string {
@@ -317,7 +328,7 @@ export function getSpendingChart(
 			}
 		}
 
-		periodLabel = formatPeriodLabel(period);
+		periodLabel = buildLongDateRange(startTimestamp, visibleEnd);
 	}
 
 	let countedCount = 0;

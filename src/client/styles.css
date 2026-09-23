@@ -417,65 +417,89 @@
 	gap: var(--space-3);
 }
 
-/* Compact period control used in the dashboard heading: a calendar mark, the concise label with its
-   date range, and the two existing cycle actions. It wraps instead of overflowing. */
-.react-period-control {
-	display: flex;
-	flex-wrap: wrap;
+/* Stitch date-range capsule for the dashboard header: the calendar mark and the concise
+   `DD/MM/YYYY a DD/MM/YYYY` range, shaped as one pill beside the title. */
+.react-dashboard-period {
+	display: inline-flex;
 	align-items: center;
-	gap: var(--space-2) var(--space-3);
-	padding: var(--space-2) var(--space-3);
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-4);
 	border: 1px solid var(--line);
-	border-radius: var(--radius-card);
+	border-radius: var(--radius-pill);
 	background: var(--surface);
 	box-shadow: var(--card-shadow-soft);
 }
 
-.react-period-control-icon {
+.react-dashboard-period-icon {
 	display: grid;
 	place-items: center;
-	width: 32px;
-	height: 32px;
-	border-radius: var(--radius-control);
-	background: var(--accent-soft);
 	color: var(--primary);
 	font-size: .95rem;
 }
 
-.react-period-control-text {
-	display: grid;
-	gap: 2px;
-	min-width: 0;
-}
-
-.react-period-control-text h2 {
-	margin: 0;
-	color: var(--ink-muted);
-	font-size: .72rem;
-	font-weight: 700;
-	letter-spacing: .06em;
-	text-transform: uppercase;
-}
-
-.react-period-control-range {
-	margin: 0;
+.react-dashboard-period-range {
 	color: var(--ink);
 	font-size: .875rem;
 	font-weight: 600;
 	white-space: nowrap;
 }
 
-.react-period-control-actions {
-	gap: var(--space-2);
+.react-dashboard-period:hover,
+.react-dashboard-period:active,
+.react-dashboard-period:focus-visible {
+	border-color: var(--primary);
+	background: var(--primary);
+	color: #ffffff;
 }
 
-.react-period-control-actions button {
+.react-dashboard-period:hover .react-dashboard-period-icon,
+.react-dashboard-period:hover .react-dashboard-period-range,
+.react-dashboard-period:active .react-dashboard-period-icon,
+.react-dashboard-period:active .react-dashboard-period-range,
+.react-dashboard-period:focus-visible .react-dashboard-period-icon,
+.react-dashboard-period:focus-visible .react-dashboard-period-range {
+	color: #ffffff;
+}
+
+.react-dashboard-period:focus-visible {
+	outline: 3px solid var(--focus);
+	outline-offset: 3px;
+}
+
+/* The header refresh keeps its icon and label on one line with the same spacing the period
+   actions use. */
+.react-dashboard-refresh {
+	position: relative;
 	display: inline-flex;
 	align-items: center;
 	gap: var(--space-2);
+	overflow: hidden;
 }
 
-.react-period-control-actions button svg {
+.react-dashboard-refresh[aria-busy="true"]::after {
+	content: "";
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	width: 30%;
+	height: 2px;
+	background: var(--primary);
+	animation: dashboard-refresh-progress 1s linear infinite;
+}
+
+@keyframes dashboard-refresh-progress {
+	from { transform: translateX(-100%); }
+	to { transform: translateX(334%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.react-dashboard-refresh[aria-busy="true"]::after {
+		width: 100%;
+		animation: none;
+	}
+}
+
+.react-dashboard-refresh svg {
 	font-size: .85rem;
 }
 
@@ -628,6 +652,30 @@
 	display: flex;
 	justify-content: flex-end;
 	min-width: 0;
+}
+
+.react-gmail-connected-badge {
+	display: inline-flex;
+	align-items: center;
+	align-self: center;
+	gap: var(--space-2);
+	margin-right: var(--space-2);
+	border: 1px solid #cdf9e4;
+	border-radius: var(--radius-pill);
+	background: #ecfdf5;
+	padding: var(--space-1) var(--space-2);
+	color: #047857;
+	font-size: .75rem;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.react-gmail-connected-badge-dot {
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: var(--radius-pill);
+	background: #71d7b4;
 }
 
 @media (max-width: 800px) {
@@ -887,7 +935,24 @@
 	gap: var(--space-3);
 }
 
+/* One shared decorative card glyph: a compact, neutral tinted, rounded container that names its
+   card. It is hidden from assistive tech because the adjacent label or title already names the
+   surface, so it never carries information on its own. */
+.react-card-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: var(--radius-pill);
+	background: var(--surface-subtle);
+	color: var(--ink-muted);
+	font-size: 1rem;
+}
+
 .react-financial-card {
+	position: relative;
 	display: grid;
 	gap: var(--space-2);
 	border: 1px solid var(--line);
@@ -895,6 +960,19 @@
 	background: var(--surface);
 	padding: var(--space-4);
 	box-shadow: var(--card-shadow-soft);
+}
+
+/* The glyph sits at the upper-right of the card, like the Stitch reference, and the label row keeps
+   its reserved space so the two never overlap. */
+.react-financial-card .react-card-icon {
+	position: absolute;
+	top: var(--space-4);
+	right: var(--space-4);
+	font-size: 1rem;
+}
+
+.react-financial-card > span:first-child {
+	padding-right: 3rem;
 }
 
 .react-financial-card span {
@@ -937,24 +1015,35 @@
 	background: var(--surface-raised);
 }
 
-/* The balance answer is the highlighted Stitch card: a primary-blue surface with white text, so the
-   remaining balance reads as the lead figure of the period. */
+/* The balance answer is the highlighted Stitch card, but on a light, cool blue surface instead of the
+   former dark gradient: the deep-blue amount and the tone-coloured percentage/status flag stay legible,
+   and the danger-tone text reads naturally against a pale surface. The column flex lets the status row
+   sit at the bottom-right of the card without a wrapper. */
 .react-lead-answer {
+	display: flex;
+	flex-direction: column;
 	border-color: transparent;
-	background: linear-gradient(150deg, var(--primary-container), var(--primary));
-	color: #ffffff;
-	box-shadow: var(--shadow-md);
+	background: linear-gradient(150deg, var(--surface), var(--color-blue-soft));
+	color: var(--ink);
+	box-shadow: var(--card-shadow-soft);
 }
 
 .react-lead-answer .react-lead-question,
 .react-lead-answer .react-lead-detail,
 .react-lead-answer .react-lead-derivation {
-	color: rgb(255 255 255 / .82);
+	color: var(--ink-muted);
 }
 
 .react-lead-answer-heading {
 	display: flex;
 	align-items: center;
+	gap: var(--space-2);
+}
+
+.react-lead-primary-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
 	gap: var(--space-2);
 }
 
@@ -964,33 +1053,77 @@
 	width: 28px;
 	height: 28px;
 	border-radius: var(--radius-control);
-	background: rgb(255 255 255 / .16);
-	color: #ffffff;
+	background: var(--surface);
+	color: var(--color-blue-deep);
 	font-size: .9rem;
 }
 
-/* The available-income percentage is a lower row inside the same highlighted card, with a trend icon
-   that matches the direction the analytics module decided. */
+/* The available-income row spans the full content width at the bottom of the highlighted card: the
+   tone-coloured percentage with its trend icon on the bottom-left, and the compact flag naming the
+   same status on the bottom-right. `margin-top: auto` pushes the row down inside the column flex and
+   `align-self: stretch` widens it to the card content, so `space-between` separates the two ends. */
+.react-lead-balance-status-row {
+	display: flex;
+	justify-content: space-between;
+	align-self: stretch;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-top: auto;
+}
+
+/* The number and its trend icon are plain tone-coloured text and glyph, with no chip or background:
+   they sit directly on the pale card. The percentage itself is never inferred here; the row only
+   renders when the module derived a truthful value. */
 .react-lead-balance-percent {
 	display: inline-flex;
-	justify-self: start;
 	align-items: center;
-	gap: var(--space-2);
-	margin-top: var(--space-1);
-	padding: var(--space-1) var(--space-3);
-	border-radius: var(--radius-pill);
-	background: rgb(255 255 255 / .16);
-	color: #ffffff;
+	gap: var(--space-1);
 	font-size: .8rem;
-	font-weight: 600;
+	font-weight: 700;
 }
 
 .react-lead-balance-percent svg {
 	font-size: .85rem;
 }
 
+.react-lead-balance-percent-positive {
+	color: var(--success);
+}
+
+.react-lead-balance-percent-flat {
+	color: var(--warning);
+}
+
 .react-lead-balance-percent-negative {
-	background: rgb(255 255 255 / .22);
+	color: var(--danger);
+}
+
+/* The status flag beside the percentage: the matching soft tone surface and colour, kept compact so
+   it reads as a badge next to the figure rather than a second number. */
+.react-lead-balance-status {
+	display: inline-flex;
+	align-items: center;
+	padding: 1px var(--space-2);
+	border-radius: var(--radius-pill);
+	font-size: .7rem;
+	font-weight: 600;
+	line-height: 1.5;
+}
+
+.react-lead-balance-status-positive {
+	background: var(--success-soft);
+	color: var(--success);
+}
+
+.react-lead-balance-status-flat {
+	background: var(--warning-soft);
+	color: var(--warning);
+}
+
+.react-lead-balance-status-negative {
+	background: var(--danger-soft);
+	color: var(--danger);
 }
 
 .react-lead-question {
@@ -1226,10 +1359,11 @@
 	}
 }
 
-/* The period story reuses the shipped surface primitives; only its reading region is new. */
-.react-dashboard-story {
+/* Ranked named counterparties share the existing dashboard side column with the insight card. */
+.react-counterparty-ranking {
 	display: grid;
 	gap: var(--space-3);
+	min-width: 0;
 	border: 1px solid var(--line);
 	border-radius: var(--radius-card);
 	background: var(--surface);
@@ -1237,22 +1371,60 @@
 	box-shadow: var(--card-shadow-soft);
 }
 
-.react-dashboard-story-header {
-	display: grid;
+.react-counterparty-ranking-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
 	gap: var(--space-2);
 }
 
-.react-dashboard-story-header h3 {
+.react-counterparty-ranking-heading {
+	display: flex;
+	flex: 1 1 12rem;
+	align-items: center;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+/* Keep the period badge at the header's right edge when space is tight. */
+.react-counterparty-ranking-header-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--space-1) var(--space-2);
+	min-width: 0;
+	margin-left: auto;
+}
+
+.react-counterparty-ranking-heading-icon {
+	color: var(--color-blue-deep);
+}
+
+.react-counterparty-ranking-header h3 {
 	margin: 0;
 	font-size: 1rem;
 }
 
-.react-dashboard-story-header p {
-	margin: 0;
+.react-counterparty-ranking-header p,
+.react-counterparty-ranking-empty,
+.react-counterparty-ranking-denominator {
+	margin: var(--space-1) 0 0;
 	color: var(--ink-muted);
+	font-size: .8rem;
 }
 
-.react-dashboard-story-list {
+.react-counterparty-ranking-badge {
+	border-radius: var(--radius-pill);
+	background: var(--color-blue-soft);
+	color: var(--color-blue-deep);
+	padding: var(--space-1) var(--space-2);
+	font-size: .7rem;
+	font-weight: 600;
+}
+
+.react-counterparty-ranking-list {
 	display: grid;
 	gap: var(--space-2);
 	margin: 0;
@@ -1260,37 +1432,298 @@
 	list-style: none;
 }
 
-/* Each fact is a light callout: a subtly tinted blue surface with a matching, slightly stronger
-   border and comfortable padding, so the messages read as alerts without a heavy card. The tint and
-   border accompany the text rather than encode it, so meaning never depends on colour alone. */
-.react-dashboard-story-callout {
-	border: 1px solid var(--color-blue-standard);
+.react-counterparty-ranking-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-width: 0;
+	border: 1px solid var(--line);
 	border-radius: var(--radius-control);
+	padding: var(--space-2);
+}
+
+.react-counterparty-ranking-avatar {
+	position: relative;
+	display: grid;
+	flex: 0 0 2.25rem;
+	place-items: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: .7rem;
+	font-size: .75rem;
+	font-weight: 700;
+}
+
+/* The ordinal comes from the row's actual sorted index, pinned to its initials avatar. */
+.react-counterparty-ranking-rank {
+	position: absolute;
+	right: -.35rem;
+	bottom: -.3rem;
+	display: grid;
+	place-items: center;
+	min-width: 1.2rem;
+	height: 1.2rem;
+	box-sizing: border-box;
+	border: 1px solid var(--surface);
+	border-radius: var(--radius-pill);
+	background: var(--color-blue-deep);
+	padding: 0 2px;
+	color: #fff;
+	font-size: .625rem;
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+}
+
+.react-counterparty-ranking-avatar-0 { background: #e6efff; color: #315eaa; }
+.react-counterparty-ranking-avatar-1 { background: #e8f5ef; color: #28765c; }
+.react-counterparty-ranking-avatar-2 { background: #fff1e6; color: #a5602b; }
+.react-counterparty-ranking-avatar-3 { background: #f1eafb; color: #7656a4; }
+
+.react-counterparty-ranking-detail { flex: 1; min-width: 0; }
+.react-counterparty-ranking-line,
+.react-counterparty-ranking-meta {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 0 var(--space-2);
+}
+
+.react-counterparty-ranking-line { font-size: .85rem; }
+.react-counterparty-ranking-line strong { min-width: 0; overflow-wrap: anywhere; }
+.react-counterparty-ranking-line b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.react-counterparty-ranking-meta { color: var(--ink-muted); font-size: .72rem; }
+
+.react-counterparty-ranking-track {
+	height: .25rem;
+	margin-top: var(--space-2);
+	border-radius: var(--radius-pill);
 	background: var(--color-blue-soft);
-	padding: var(--space-3) var(--space-4);
+	overflow: hidden;
+}
+
+.react-counterparty-ranking-track span {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--color-blue-standard);
+}
+
+/* The `Lectura rápida · Inteligencia de gastos` card: one bordered, rounded dashboard card with a
+   stronger left accent and a soft shadow, holding a compact header above a uniform 2x2 insight grid. */
+.react-top-insights {
+	display: grid;
+	gap: var(--space-4);
+	border: 1px solid var(--line);
+	border-left: 4px solid var(--color-blue-standard);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-4);
+	box-shadow: var(--card-shadow-soft);
+}
+
+.react-top-insights-header {
+	display: grid;
+	gap: var(--space-2);
+}
+
+.react-top-insights-heading {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.react-top-insights-heading h3 {
+	margin: 0;
+	font-size: 1rem;
+}
+
+/* The header glyph names the intelligence card, so it carries the accent of the left edge. */
+.react-top-insights-heading .react-card-icon {
+	color: var(--color-blue-deep);
+}
+
+.react-top-insights-subtitle {
+	margin: 0;
+	color: var(--ink-muted);
+}
+
+/* The compact badge names what the card summarizes; it claims no capability the data cannot support. */
+.react-top-insights-badge {
+	justify-self: start;
+	border: 1px solid var(--color-blue-standard);
+	border-radius: var(--radius-pill);
+	background: var(--color-blue-soft);
+	color: var(--color-blue-deep);
+	padding: var(--space-1) var(--space-3);
+	font-size: .75rem;
+	font-weight: 600;
+	letter-spacing: .02em;
+}
+
+/* The uniform 2x2 grid: every tile is equal, so no insight reads as more important by size. */
+.react-top-insights-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* The story keeps its existing summary and facts in one quiet note below the four tiles. */
+.react-top-insights-note {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	border: 1px solid #e5ecf4;
+	border-radius: var(--radius-control);
+	background: #f6f8fc;
+	padding: var(--space-2) var(--space-3);
+	color: var(--ink-muted);
+	font-size: .8125rem;
+}
+
+/* The note glyph is an inline accent, not a chip: it sits beside the first text line and the copy
+   remains the full available width. */
+.react-top-insights-note-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	margin-top: .15rem;
+	color: var(--color-blue-deep);
+	font-size: .875rem;
+	line-height: 1;
+}
+
+.react-top-insights-note-copy {
+	display: grid;
+	gap: var(--space-1);
+	min-width: 0;
+}
+
+.react-top-insights-note-copy p {
+	margin: 0;
+}
+
+/* Each insight is one equal tile on a light neutral tint with the same padding and rhythm, so the
+   four read as a compact intelligence grid rather than four separate white cards. The tint and border
+   accompany the text instead of encoding it, so meaning never depends on colour alone. */
+.react-insight-callout {
+	display: grid;
+	gap: var(--space-1);
+	min-width: 0;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-control);
+	background: var(--color-surface-subtle);
+	padding: var(--space-3);
 	color: var(--ink-secondary);
 }
 
-/* The top insights reuse the shipped card and grid primitives; only the region wrapper is new. */
-.react-top-insights {
-	display: grid;
-	gap: var(--space-3);
+/* Key-specific accents leave the tile rhythm and value size unchanged. */
+.react-insight-callout-largest .react-insight-callout-icon,
+.react-insight-callout-largest .react-insight-callout-detail {
+	color: var(--danger);
 }
 
-.react-top-insights h3 {
+.react-insight-callout-frequency .react-insight-callout-icon,
+.react-insight-callout-frequency .react-insight-callout-detail {
+	color: var(--color-blue-deep);
+}
+
+.react-insight-callout-latest .react-insight-callout-icon {
+	color: var(--ink-muted);
+}
+
+.react-insight-callout-uncategorized {
+	border-color: #ecd9a9;
+	background: var(--warning-soft);
+}
+
+.react-insight-callout-uncategorized .react-insight-callout-label,
+.react-insight-callout-uncategorized .react-insight-callout-icon {
+	color: var(--warning);
+}
+
+/* The label and decorative glyph share one full-width header row; the value and detail below remain
+   unconfined by an icon column. */
+.react-insight-callout-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.react-insight-callout-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	color: var(--color-blue-deep);
+	font-size: .875rem;
+	line-height: 1;
+}
+
+.react-insight-callout-label {
+	min-width: 0;
+	color: var(--ink-muted);
+	font-size: .8125rem;
+	font-weight: 600;
+	letter-spacing: .02em;
+}
+
+.react-insight-callout-value {
+	font-family: var(--font-display);
+	font-size: .9rem;
+	color: var(--ink);
+	overflow-wrap: anywhere;
+}
+
+.react-insight-callout-detail {
 	margin: 0;
-	font-size: 1rem;
+	color: var(--ink-muted);
+	font-size: .875rem;
 }
 
-/* The period metrics reuse the shipped card and grid primitives; only the region wrapper is new. */
-.react-period-analytics {
-	display: grid;
-	gap: var(--space-3);
+/* The short clarification stacks under the detail as a block, so the row keeps one uniform structure
+   and the explanation only appears where the copy needs it. */
+.react-insight-callout-hint {
+	display: block;
+	margin-top: var(--space-1);
+	font-size: .8125rem;
 }
 
-.react-period-analytics h3 {
-	margin: 0;
-	font-size: 1rem;
+/* Keep the authenticated category jump a real button, but visually a plain, stable inline link.
+   The qualified states override global button hover shadows and press transforms without hiding focus. */
+.react-top-insights button.react-insight-category-action,
+.react-top-insights button.react-insight-category-action:hover,
+.react-top-insights button.react-insight-category-action:active {
+	display: inline;
+	justify-self: start;
+	min-height: 0;
+	margin-top: var(--space-1);
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	color: var(--color-blue-deep);
+	font: inherit;
+	font-size: .8125rem;
+	font-weight: 600;
+	line-height: 1.5;
+	text-align: left;
+	text-decoration: underline;
+	white-space: normal;
+	transform: none;
+	transition: none;
+	cursor: pointer;
+}
+
+.react-top-insights button.react-insight-category-action:focus-visible {
+	outline: 2px solid var(--focus);
+	outline-offset: 3px;
 }
 
 /* The category ranking reuses the shipped surface primitives; only its detail region is new. */
@@ -1351,6 +1784,7 @@
 .react-category-detail {
 	display: grid;
 	gap: var(--space-3);
+	min-width: 0;
 	border: 1px solid var(--line);
 	border-radius: var(--radius-card);
 	background: var(--surface);
@@ -1367,6 +1801,7 @@
 .react-category-detail-rows {
 	display: grid;
 	gap: var(--space-2);
+	min-width: 0;
 }
 
 .react-category-detail-row {
@@ -1374,8 +1809,55 @@
 	align-items: baseline;
 	justify-content: space-between;
 	gap: var(--space-3);
+	min-width: 0;
 	border-top: 1px solid var(--line);
 	padding-top: var(--space-2);
+}
+
+/* Keep the formatted amount at the right; when the legend becomes too narrow the two cells
+   wrap rather than pushing the amount under its scrolling edge. */
+.react-category-movement-open,
+.react-category-movement-static {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-2);
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
+	padding: 4px 8px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--ink);
+	font: inherit;
+	text-align: left;
+	white-space: normal;
+	box-shadow: none;
+}
+
+.react-category-movement-open { cursor: pointer; }
+.react-category-movement-open:hover {
+	border-color: var(--accent-line);
+	background: var(--accent-soft);
+	box-shadow: none;
+	transform: none;
+}
+.react-category-movement-open:active { box-shadow: none; transform: none; }
+.react-category-movement-open:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.react-category-movement-static { cursor: default; }
+.react-category-movement-identity { display: grid; flex: 1 1 8rem; min-width: min(100%, 8rem); gap: 2px; }
+.react-category-movement-identity strong { overflow-wrap: anywhere; }
+.react-category-movement-identity small { color: var(--ink-muted); overflow-wrap: anywhere; }
+.react-category-movement-amount {
+	flex: 0 1 auto;
+	min-width: 0;
+	margin-left: auto;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+	overflow-wrap: anywhere;
 }
 
 .react-category-detail-actions {
@@ -1384,10 +1866,51 @@
 	gap: var(--space-2);
 }
 
+/* Only the donut detail promotes its filter jump; the shared ranking detail keeps its own actions. */
+.react-category-distribution .react-category-detail-actions {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.react-category-distribution .react-category-detail-actions button {
+	width: 100%;
+	min-width: 0;
+	padding: var(--space-2) var(--space-3);
+	line-height: 1.35;
+	white-space: normal;
+	text-align: center;
+}
+
+.react-category-distribution button.react-category-detail-jump {
+	border: 0;
+	background: var(--accent);
+	color: #ffffff;
+	box-shadow: var(--shadow-sm);
+}
+
+.react-category-distribution button.react-category-detail-jump:hover {
+	background: var(--accent-hover);
+	box-shadow: var(--shadow-card);
+}
+
+.react-category-distribution button.react-category-detail-back {
+	border-color: var(--line);
+	background: transparent;
+	color: var(--ink-secondary);
+	box-shadow: none;
+}
+
+.react-category-distribution button.react-category-detail-back:hover {
+	border-color: var(--line-strong);
+	background: var(--surface-subtle);
+	box-shadow: none;
+}
+
 /* The category distribution card reuses the shipped surface primitives; its donut and legend are new. */
 .react-category-distribution {
 	display: grid;
 	gap: var(--space-3);
+	min-width: 0;
 	border: 1px solid var(--line);
 	border-radius: var(--radius-card);
 	background: var(--surface);
@@ -1398,6 +1921,13 @@
 .react-category-distribution h3 {
 	margin: 0;
 	font-size: 1rem;
+}
+
+.react-category-distribution-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
 }
 
 .react-category-distribution-copy,
@@ -1422,6 +1952,7 @@
 	grid-template-columns: minmax(230px, .75fr) minmax(260px, 1.25fr);
 	align-items: center;
 	gap: var(--space-4);
+	min-width: 0;
 }
 
 .react-category-distribution-legend {
@@ -1455,6 +1986,7 @@
 .react-category-distribution-legend {
 	display: grid;
 	gap: 6px;
+	min-width: 0;
 	width: min(100%, 640px);
 	max-height: 340px;
 	overflow-y: auto;
@@ -1462,9 +1994,9 @@
 
 .react-category-legend-item {
 	display: grid;
-	grid-template-columns: auto minmax(0, 1fr) auto;
-	gap: var(--space-2);
-	align-items: center;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 2px var(--space-2);
+	align-items: start;
 	width: 100%;
 	border: 0;
 	border-bottom: 1px solid var(--line);
@@ -1472,6 +2004,7 @@
 	background: transparent;
 	color: var(--ink);
 	padding: 6px 0;
+	line-height: 1.35;
 	text-align: left;
 	cursor: pointer;
 }
@@ -1486,33 +2019,38 @@
 }
 
 .react-category-legend-marker {
+	grid-row: 1 / span 2;
 	width: 10px;
 	height: 10px;
+	margin-top: .25rem;
 	border-radius: 999px;
 	background: var(--category-color, var(--accent));
 }
 
 .react-category-legend-item strong {
-	overflow: hidden;
+	min-width: 0;
 	font-size: .875rem;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 
 .react-category-legend-item small {
+	grid-column: 2;
+	min-width: 0;
 	color: var(--ink-muted);
 	font-size: .75rem;
-	text-align: right;
-	white-space: nowrap;
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 
-/* The spending chart card reuses the shipped surface primitives; only its proportional bars are new. */
+/* A light chart panel keeps the actual period controls and day detail in one surface. */
 .react-spending-chart {
 	display: grid;
 	gap: var(--space-3);
+	min-width: 0;
 	border: 1px solid var(--line);
 	border-radius: var(--radius-card);
-	background: var(--surface);
+	background: #f7f9ff;
 	padding: var(--space-4);
 	box-shadow: var(--card-shadow-soft);
 }
@@ -1520,6 +2058,13 @@
 .react-spending-chart h3 {
 	margin: 0;
 	font-size: 1rem;
+}
+
+.react-spending-chart-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
 }
 
 .react-spending-chart-disclosure,
@@ -1532,79 +2077,103 @@
 .react-spending-chart-tabs {
 	display: flex;
 	flex-wrap: wrap;
-	gap: var(--space-2);
+	gap: 6px;
+	border-bottom: 1px solid var(--line);
+	padding-bottom: var(--space-2);
 }
 
 .react-spending-chart-tab {
-	border: 1px solid var(--line);
-	border-radius: var(--radius-pill);
-	background: var(--surface);
-	padding: 6px 12px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	background: transparent;
+	padding: 7px 11px;
 	color: var(--ink-muted);
 	font-size: .8125rem;
+	font-weight: 600;
 	cursor: pointer;
 }
 
 .react-spending-chart-tab:hover {
-	border-color: var(--accent-line);
-	background: var(--accent-soft);
+	background: #e8efff;
 	color: var(--accent);
 }
 
+.react-spending-chart-tab:focus-visible {
+	outline: 3px solid var(--focus);
+	outline-offset: 2px;
+}
+
 .react-spending-chart-tab[aria-pressed="true"] {
-	border-color: var(--marketing-primary);
-	background: var(--marketing-primary);
-	color: #ffffff;
+	border-color: var(--accent-line);
+	background: #e3ecff;
+	color: var(--accent);
 }
 
 .react-spending-chart-heading {
-	color: var(--ink-muted);
-	font-size: .875rem;
-	font-variant-numeric: tabular-nums;
-}
-
-/* The top row keeps the proportional bars beside the totals grid; the selected-day detail spans
-   the full chart width beneath them (see `.react-spending-chart-day-panel`). */
-.react-spending-chart-body {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
-	align-items: stretch;
-	gap: var(--space-4);
-}
-
-.react-spending-chart-bars {
 	display: flex;
 	justify-content: center;
-	align-items: end;
-	gap: 10px;
-	min-height: 230px;
-	padding-top: var(--space-2);
+	color: var(--ink-muted);
+	font-size: .875rem;
+	font-style: italic;
+	font-variant-numeric: tabular-nums;
+	text-align: center;
 }
 
-/* Each bar is a selectable card again, like legacy; the button reset keeps its bar layout. */
+/* The compact desktop row keeps the seven days left and the real period totals on the right.
+   The selected-day detail spans both columns below. */
+.react-spending-chart-body {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
+	align-items: stretch;
+	gap: var(--space-4);
+	min-width: 0;
+}
+
+/* Badges establish the minimum width of each day; excess stays scrollable inside this card. */
+.react-spending-chart-bars {
+	display: flex;
+	align-items: end;
+	gap: 4px;
+	min-width: 0;
+	overflow-x: auto;
+	padding: var(--space-3) var(--space-2) var(--space-2);
+	border: 1px solid #e5eaf5;
+	border-radius: var(--radius-card);
+	background: #ffffff;
+	box-sizing: border-box;
+}
+
+/* The thin centered tracks share a baseline; the badge never widens the track itself. */
 .react-spending-chart-bar {
 	display: grid;
-	grid-template-rows: auto 1fr auto;
-	gap: var(--space-2);
-	min-width: 44px;
-	min-height: 230px;
+	flex: 1 0 auto;
+	grid-template-rows: 2.4rem 160px auto auto;
+	justify-items: center;
+	align-content: end;
+	gap: 6px;
+	min-width: 70px;
 	border: 1px solid transparent;
-	border-radius: 14px;
+	border-radius: 10px;
 	background: transparent;
-	padding: 8px 6px;
+	padding: 4px 2px;
 	color: inherit;
 	font: inherit;
 	text-align: center;
 	cursor: pointer;
-	transition:
-		border-color 140ms ease,
-		background 140ms ease,
-		box-shadow 140ms ease;
 }
 
-.react-spending-chart-bar:hover {
+/* Hover and selection have the same quiet tint and hairline, with no frame or motion. */
+.react-spending-chart-bar:not(:disabled):hover,
+.react-spending-chart-bar-selected {
 	border-color: var(--accent-line);
-	background: rgba(255, 255, 255, 0.62);
+	background: var(--accent-soft);
+	box-shadow: none;
+	transform: none;
+}
+
+.react-spending-chart-bar:not(:disabled):active {
+	box-shadow: none;
+	transform: none;
 }
 
 .react-spending-chart-bar:disabled {
@@ -1613,46 +2182,51 @@
 
 .react-spending-chart-bar:focus-visible {
 	outline: 3px solid var(--focus);
-	outline-offset: 4px;
+	outline-offset: 2px;
 }
 
-/* The selected bar is the whole rounded card, not only its track. */
-.react-spending-chart-bar-selected,
-.react-spending-chart-bar-selected:hover {
-	border-color: var(--accent);
-	background: var(--accent-soft);
-	box-shadow: inset 0 0 0 1px rgba(0, 53, 148, 0.14);
+.react-spending-chart-bar-selected .react-spending-chart-track,
+.react-spending-chart-bar:not(:disabled):hover .react-spending-chart-track {
+	border-color: #9eb8f0;
+	background: #e1eafa;
 }
 
-.react-spending-chart-bar-selected .react-spending-chart-track {
-	box-shadow: inset 0 0 0 1px var(--accent-line);
+.react-spending-chart-bar-selected .react-spending-chart-day {
+	color: #173f9b;
+	font-weight: 800;
 }
 
-.react-spending-chart-bar-selected .react-spending-chart-value,
-.react-spending-chart-bar-selected strong {
-	color: var(--accent);
-}
-
+/* Only a known positive amount receives the blue/white pill. Zero stays neutral. */
 .react-spending-chart-value {
-	min-height: 1.1rem;
+	align-self: center;
 	color: var(--ink-muted);
-	font-size: var(--text-xs);
+	font-size: .68rem;
 	font-weight: 700;
 	font-variant-numeric: tabular-nums;
+	max-width: 70px;
+	overflow-wrap: anywhere;
+	pointer-events: none;
+}
+
+.react-spending-chart-value-positive,
+.react-spending-chart-bar-selected .react-spending-chart-value-positive {
+	border-radius: var(--radius-pill);
+	background: #2055b0;
+	max-width: none;
+	padding: 4px 7px;
+	color: #ffffff;
+	white-space: nowrap;
 }
 
 .react-spending-chart-track {
-	display: flex;
-	align-items: end;
-	justify-content: center;
-	justify-self: center;
-	width: 40px;
+	position: relative;
+	box-sizing: border-box;
+	width: 24px;
 	height: 160px;
-	border: 1px solid var(--line);
-	border-radius: 10px 10px 5px 5px;
-	background: rgba(255, 255, 255, 0.78);
+	border: 1px solid #e1e9f8;
+	border-radius: 10px;
+	background: #eef3fc;
 	overflow: hidden;
-	box-shadow: inset 0 0 0 1px rgba(30, 52, 100, 0.05);
 }
 
 .react-spending-chart-track-empty {
@@ -1663,22 +2237,36 @@
 		#f8f9ff 6px,
 		#f8f9ff 12px
 	);
-	box-shadow: inset 0 0 0 1px rgba(30, 52, 100, 0.06);
 }
 
-/* Height is the real ratio the module decided, floored at the legacy 12% for every positive day. */
+/* Pin the percentage-height fill to the track's definite height and bottom edge. A flex child
+   with a cross-axis percentage here can resolve to auto and appear full-height at every value. */
 .react-spending-chart-fill {
-	display: block;
-	align-self: flex-end;
+	position: absolute;
+	bottom: 0;
+	left: 0;
 	width: 100%;
-	border-radius: 8px 8px 3px 3px;
-	background: linear-gradient(
-		180deg,
-		var(--primary-container) 0%,
-		var(--primary) 100%
-	);
-	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+	border-radius: 8px 8px 0 0;
 	transition: height 180ms ease;
+}
+
+/* On narrow screens the real summary moves below the chart; badge overflow remains card-local. */
+@media (max-width: 800px) {
+	.react-spending-chart-body {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.react-spending-chart-bar {
+		min-width: 56px;
+	}
+
+	.react-spending-chart-track {
+		width: 14px;
+	}
+
+	.react-spending-chart-summary {
+		grid-template-columns: minmax(0, 1fr);
+	}
 }
 
 .react-spending-chart-day {
@@ -1706,13 +2294,26 @@
 	padding: var(--space-3);
 }
 
-/* The selected-day detail spans the full chart width on the second row; only its own list scrolls
-   so a long day never stretches the card. */
+/* The selected-day detail follows the summary; its own panel scrolls while the title and total
+   remain together above the movement groups. */
 .react-spending-chart-day-panel {
 	grid-column: 1 / -1;
 	max-height: 400px;
 	overflow-y: auto;
 	overscroll-behavior: contain;
+	scroll-margin-top: var(--space-4);
+}
+
+.react-spending-chart-day-header {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	display: grid;
+	gap: var(--space-1);
+	margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) 0;
+	border-bottom: 1px solid var(--line);
+	background: var(--surface-subtle);
+	padding: var(--space-3) var(--space-3) var(--space-2);
 }
 
 .react-spending-chart-day-panel h4,
@@ -1969,12 +2570,13 @@
 	overflow: hidden;
 }
 
-/* The movement card follows the dashboard hierarchy: kicker, title and supporting copy on the left,
-   with the shared decorative glyph on the right above the filter band. */
+/* The card header follows the dashboard hierarchy: a kicker, the section title and its supporting
+   line on the left, and the shared decorative glyph on the right, as its own band above the filter
+   control band. It wraps on narrow widths instead of squeezing the title. */
 .react-movements-header {
 	display: flex;
 	flex-wrap: wrap;
-	align-items: flex-start;
+	align-items: start;
 	justify-content: space-between;
 	gap: var(--space-3) var(--space-4);
 	border-bottom: 1px solid var(--line);
@@ -3254,10 +3856,12 @@
 	box-shadow: var(--card-shadow-soft);
 }
 
+/* The demo header mirrors the authenticated movement card: kicker and title on the left, the shared
+   decorative glyph on the right, as its own band over the list. */
 .demo-movements-header {
 	display: flex;
 	flex-wrap: wrap;
-	align-items: flex-start;
+	align-items: start;
 	justify-content: space-between;
 	gap: var(--space-3) var(--space-4);
 	border-bottom: 1px solid var(--line);
@@ -3325,53 +3929,6 @@
 	margin: 0;
 }
 
-/* Below the wide desktop the top row narrows its totals column while the bar chart and the month
-   summary stay side by side, and the selected-day detail keeps spanning the full width under them. */
-@media (max-width: 1120px) {
-	.react-spending-chart-body {
-		grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
-	}
-}
-
-/* Legacy's narrower tablet breakpoint (`public/app.css` `@media (max-width: 800px)`): once the
-   seven 44px bars beside the totals grid no longer fit, stack the chart body to a single column,
-   reset the totals summary to one column and let the bar strip scroll instead of forcing the page
-   wider than the viewport. */
-@media (max-width: 800px) {
-	.react-spending-chart-body {
-		grid-template-columns: 1fr;
-	}
-
-	.react-spending-chart-summary {
-		grid-column: auto;
-		grid-template-columns: 1fr;
-	}
-
-	/* Legacy's compact density treatment: tighten the inter-bar gap, drop the horizontal bar
-	   padding, thin the track and set the value label vertically so the seven bars stay reachable
-	   by scrolling without forcing the page wider than the viewport. */
-	.react-spending-chart-bars {
-		justify-content: flex-start;
-		gap: 4px;
-		overflow-x: auto;
-		padding-bottom: var(--space-2);
-	}
-
-	.react-spending-chart-bar {
-		min-width: 44px;
-		padding-inline: 0;
-	}
-
-	.react-spending-chart-track {
-		width: 18px;
-	}
-
-	.react-spending-chart-value {
-		writing-mode: vertical-rl;
-		justify-self: center;
-	}
-}
-
 @media (max-width: 640px) {
 	.react-dashboard-header,
 	.react-financial-summary-heading {
@@ -3395,26 +3952,11 @@
 		grid-template-columns: 1fr;
 	}
 
+	/* The movement card headers let the decorative glyph drop below the title instead of squeezing
+	   it, and the table keeps its own horizontal scroll within the card. */
 	.react-movements-header,
 	.demo-movements-header {
 		flex-direction: column;
-	}
-
-	/* Stack the bars, the totals summary and the day detail panels and let only the bar row scroll
-	   instead of forcing the page wider than the viewport. */
-	.react-spending-chart-body {
-		grid-template-columns: 1fr;
-	}
-
-	/* Keep the totals summary stacked as a single column. */
-	.react-spending-chart-summary {
-		grid-column: auto;
-		grid-template-columns: 1fr;
-	}
-
-	.react-spending-chart-bars {
-		justify-content: flex-start;
-		overflow-x: auto;
 	}
 
 	.demo-kpi-grid {
@@ -3567,6 +4109,89 @@
 	font-weight: 600;
 }
 
+/* Only the edit-period dialog compacts the shared calendar; setup keeps its original dimensions. */
+.react-financial-cycle-edit-dialog {
+	width: min(31rem, calc(100vw - 2 * var(--space-4)));
+}
+
+.react-financial-cycle-edit-dialog .react-financial-cycle-form {
+	gap: var(--space-2);
+}
+
+.react-financial-cycle-edit-dialog .react-cycle-calendar {
+	gap: var(--space-2);
+	padding: var(--space-2);
+}
+
+.react-financial-cycle-edit-dialog .react-cycle-calendar-grid {
+	gap: 3px;
+}
+
+.react-financial-cycle-edit-dialog .react-cycle-calendar-nav-button,
+.react-financial-cycle-edit-dialog .react-cycle-calendar-day,
+.react-financial-cycle-edit-dialog .react-cycle-calendar-blank {
+	min-height: 30px;
+	height: 30px;
+}
+
+.react-financial-cycle-edit-dialog .react-cycle-calendar-nav-button {
+	width: 30px;
+	padding: 0;
+}
+
+.react-financial-cycle-edit-dialog .react-cycle-calendar-day {
+	padding: 0;
+	border-radius: 8px;
+	box-shadow: none;
+}
+
+.react-financial-cycle-edit-dialog .react-cycle-calendar-nav-button:hover:not(:disabled) {
+	background: var(--surface);
+	box-shadow: none;
+}
+
+.react-financial-cycle-edit-dialog .react-cycle-calendar-day:hover:not(:disabled):not(.react-cycle-calendar-day-selected) {
+	background: transparent;
+	box-shadow: none;
+}
+
+.react-financial-cycle-edit-dialog .react-cycle-calendar-day-selected:hover:not(:disabled) {
+	background: var(--marketing-primary);
+	box-shadow: none;
+}
+
+.react-financial-cycle-edit-dialog .react-cycle-calendar-summary dl {
+	gap: var(--space-2);
+}
+
+/* Equal date columns and native input boxes; the optional income keeps a full-width row. */
+.react-financial-cycle-edit-dialog .react-financial-setup-fields {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-2);
+}
+
+.react-financial-cycle-edit-dialog .react-financial-setup-fields label {
+	min-width: 0;
+	gap: var(--space-1);
+}
+
+.react-financial-cycle-edit-dialog .react-financial-setup-fields label:last-child {
+	grid-column: 1 / -1;
+}
+
+.react-financial-cycle-edit-dialog .react-financial-setup-fields input[type="date"] {
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 42px;
+	height: 42px;
+}
+
+@media (max-width: 420px) {
+	.react-financial-cycle-edit-dialog .react-financial-setup-fields {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
 /* The income/budget truth panel, reused by the authenticated summary and the demo. */
 .react-budget-panel {
 	display: grid;
@@ -3644,10 +4269,9 @@
 	gap: var(--space-4);
 }
 
-/* Inside the narrower sidebar the category distribution body and the insight cards stack instead of
-   squeezing their shipped multi-column grids. */
-.react-analytics-side .react-category-distribution-body,
-.react-analytics-side .react-top-insights .react-financial-grid {
+/* Inside the narrower sidebar the category distribution body stacks instead of squeezing its shipped
+   multi-column grid. The insight tile grid remains a compact 2x2. */
+.react-analytics-side .react-category-distribution-body {
 	grid-template-columns: 1fr;
 }
 

@@ -196,7 +196,7 @@ export function FinancialCycleEditDialog({
 	return (
 		<dialog
 			ref={dialogRef}
-			className="react-financial-cycle-dialog"
+			className="react-financial-cycle-dialog react-financial-cycle-edit-dialog"
 			aria-labelledby="react-financial-cycle-edit-title"
 			onCancel={handleDialogCancel}
 			onClose={onClose}

@@ -855,7 +855,10 @@ function isAuthPath(pathname, suffix) {
 }
 
 function sendJson(res, payload, status = 200) {
-	res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+	res.writeHead(status, {
+		"content-type": "application/json; charset=utf-8",
+		"cache-control": "no-store",
+	});
 	res.end(JSON.stringify(payload));
 }
 

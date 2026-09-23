@@ -90,7 +90,8 @@ function AccountDashboardRoute() {
 			</ShellMessage>
 		);
 	}
-	return <DashboardPage session={state.session}  />;
+	// A different account must never inherit page-owned handles, dialogs or summary state.
+	return <DashboardPage key={state.session.profile?.email?.trim().toLowerCase() ?? ""} session={state.session} />;
 }
 
 function ShellMessage({ title, copy, children }: { title: string; copy: string; children?: ReactNode }) {

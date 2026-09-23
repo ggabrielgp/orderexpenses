@@ -329,7 +329,29 @@ export async function upsertCounterpartyRule(
  * fetched while a new tab always starts clean. Versioned so a future shape change is not read as this
  * one; the stored response is only trusted after the shape check below.
  */
-const FINANCIAL_DASHBOARD_CACHE_KEY = "gastos-controlados:financial-dashboard:v1";
+const LEGACY_FINANCIAL_DASHBOARD_CACHE_KEY = "gastos-controlados:financial-dashboard:v1";
+const FINANCIAL_DASHBOARD_CACHE_KEY = "gastos-controlados:financial-dashboard:v2";
+// A logout invalidates even a request that resolves before navigation unmounts the page.
+let cacheGeneration = 0;
+
+/** The session profile's email is the sole cache identity. Empty identities are never cacheable. */
+function normalizeDashboardEmail(email: string): string {
+	return email.trim().toLowerCase();
+}
+
+/** Evicts only dashboard entries, leaving other tab storage untouched. */
+export function clearFinancialDashboardCache(): void {
+	cacheGeneration += 1;
+	const storage = getFinancialDashboardStorage();
+	if (!storage) return;
+	for (const key of [FINANCIAL_DASHBOARD_CACHE_KEY, LEGACY_FINANCIAL_DASHBOARD_CACHE_KEY]) {
+		try {
+			storage.removeItem(key);
+		} catch {
+			// Storage can be denied even after it was obtained.
+		}
+	}
+}
 
 /** Returns the tab's storage, or `null` when the browser denies access (private mode, policy). */
 function getFinancialDashboardStorage(): Storage | null {
@@ -376,11 +398,14 @@ function isFinancialDashboardDataValue(value: unknown): value is FinancialDashbo
  * Every failure mode (missing storage, denied read, invalid JSON, unexpected shape) degrades to `null`
  * so the caller falls back to the normal request instead of failing.
  */
-export function readFinancialDashboardCache(): FinancialDashboardData | null {
+export function readFinancialDashboardCache(email: string): FinancialDashboardData | null {
 	const storage = getFinancialDashboardStorage();
 	if (storage === null) return null;
+	const identity = normalizeDashboardEmail(email);
 	let serialized: string | null;
 	try {
+		// An older entry has no owner and cannot safely be assigned to this session.
+		storage.removeItem(LEGACY_FINANCIAL_DASHBOARD_CACHE_KEY);
 		serialized = storage.getItem(FINANCIAL_DASHBOARD_CACHE_KEY);
 	} catch {
 		return null;
@@ -388,10 +413,18 @@ export function readFinancialDashboardCache(): FinancialDashboardData | null {
 	if (serialized === null) return null;
 	try {
 		const parsed: unknown = JSON.parse(serialized);
-		return isFinancialDashboardDataValue(parsed) ? parsed : null;
+		if (typeof parsed === "object" && parsed !== null) {
+			const entry = parsed as Record<string, unknown>;
+			if (identity && typeof entry.userEmail === "string" &&
+				normalizeDashboardEmail(entry.userEmail) === identity &&
+				isFinancialDashboardDataValue(entry.data)) return entry.data;
+		}
 	} catch {
-		return null;
+		// Invalid JSON is an untrusted entry too.
 	}
+	cacheGeneration += 1;
+	try { storage.removeItem(FINANCIAL_DASHBOARD_CACHE_KEY); } catch { /* Storage denied. */ }
+	return null;
 }
 
 /**
@@ -399,11 +432,13 @@ export function readFinancialDashboardCache(): FinancialDashboardData | null {
  * browser that denies `sessionStorage`, or a quota error, is swallowed because the caller already has
  * the response it just fetched.
  */
-export function writeFinancialDashboardCache(data: FinancialDashboardData): void {
+export function writeFinancialDashboardCache(email: string, data: FinancialDashboardData): void {
+	const identity = normalizeDashboardEmail(email);
+	if (!identity) return;
 	const storage = getFinancialDashboardStorage();
 	if (storage === null) return;
 	try {
-		storage.setItem(FINANCIAL_DASHBOARD_CACHE_KEY, JSON.stringify(data));
+		storage.setItem(FINANCIAL_DASHBOARD_CACHE_KEY, JSON.stringify({ userEmail: identity, data }));
 	} catch {
 		// Storage unavailable or full: the next reload simply fetches again.
 	}
@@ -430,12 +465,16 @@ export async function loadFinancialDashboardData(
  * cached for the next reload. Unavailable or corrupted storage degrades to that same normal request.
  */
 export async function loadFinancialDashboardWithCache(
+	email: string,
 	signal?: AbortSignal,
 ): Promise<FinancialDashboardData> {
-	const cached = readFinancialDashboardCache();
+	if (signal?.aborted) throw new DOMException("Dashboard load aborted", "AbortError");
+	const cached = readFinancialDashboardCache(email);
 	if (cached) return cached;
+	const generation = cacheGeneration;
 	const data = await loadFinancialDashboardData(signal);
-	writeFinancialDashboardCache(data);
+	if (signal?.aborted || generation !== cacheGeneration) throw new DOMException("Dashboard load aborted", "AbortError");
+	writeFinancialDashboardCache(email, data);
 	return data;
 }
 
@@ -445,10 +484,14 @@ export async function loadFinancialDashboardWithCache(
  * always read and store current data instead of the response the tab loaded earlier.
  */
 export async function refreshFinancialDashboardData(
+	email: string,
 	signal?: AbortSignal,
 ): Promise<FinancialDashboardData> {
+	if (signal?.aborted) throw new DOMException("Dashboard load aborted", "AbortError");
+	const generation = cacheGeneration;
 	const data = await loadFinancialDashboardData(signal);
-	writeFinancialDashboardCache(data);
+	if (signal?.aborted || generation !== cacheGeneration) throw new DOMException("Dashboard load aborted", "AbortError");
+	writeFinancialDashboardCache(email, data);
 	return data;
 }
 

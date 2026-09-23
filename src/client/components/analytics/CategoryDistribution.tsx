@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type Ref } from "react";
 import type { EChartsOption, EChartsType } from "echarts";
+import { faLayerGroup } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { Category } from "../../api/types";
+import type { RecognizedExpenseMovement } from "../movements/manualExpense";
 import {
 	findCategoryRankingRow,
+	getCategoryKey,
 	type CategoryRanking,
 	type CategoryRankingRow,
 } from "./categoryRanking";
@@ -28,8 +32,8 @@ import {
  * The donut container carries the same facts as text through `aria-label`, because the canvas itself
  * is not readable by assistive technology.
  *
- * The card renders nothing of its own: the rows, their colours and the insight sentence all come from
- * the pure modules, so a static render proves what the user reads.
+ * Ranking rows and colours come from the pure modules; the selected detail receives the same period's
+ * recognized movements and displays individual records without treating grouped recipients as records.
  */
 
 /** Legacy's darker slice border (`darkenColor`, `public/app.js:2712-2718`). */
@@ -50,10 +54,20 @@ interface CategoryLegendEntry {
 	color: string;
 }
 
+function escapeHtml(value: string): string {
+	return value.replace(/[&<>"']/g, (character) => ({
+		"&": "&amp;",
+		"<": "&lt;",
+		">": "&gt;",
+		'"': "&quot;",
+		"'": "&#39;",
+	})[character] ?? character);
+}
+
 /**
- * The category detail panel, extracted from the ranking view so both the ranked list and the donut
- * card render the same markup for the counterparties inside a category (and the categories the merged
- * tail absorbed). The jump is withheld for the merged tail, exactly as before.
+ * The category detail panel is shared with the ranking view. When given period movements, it lists
+ * individual expenses rather than presenting aggregated counterparties as movements. The merged tail
+ * matches its real child categories; it is never itself used as a movement category filter.
  */
 export interface CategoryDetailViewProps {
 	row: CategoryRankingRow;
@@ -61,6 +75,12 @@ export interface CategoryDetailViewProps {
 	/** Jumps into the movement table filter; never called for the merged tail. */
 	onJumpToCategory: (category: string) => void;
 	formatAmount: (amount: number) => string;
+	/** Recognized finite expenses from the current period; omitted by the standalone ranking view. */
+	movements?: readonly RecognizedExpenseMovement[];
+	/** Only ID-bearing rows can open the authenticated detail dialog. */
+	onOpenMovement?: (movementId: string) => void;
+	/** When provided, the category title is a programmatic focus target. */
+	headingRef?: Ref<HTMLElement>;
 }
 
 export function CategoryDetailView({
@@ -68,17 +88,49 @@ export function CategoryDetailView({
 	onClearSelection,
 	onJumpToCategory,
 	formatAmount,
+	movements,
+	onOpenMovement,
+	headingRef,
 }: CategoryDetailViewProps) {
+	const categoryKeys = new Set(
+		(row.mergesTail ? row.children.map((child) => child.category) : [row.category])
+			.map(getCategoryKey),
+	);
+	const categoryMovements = movements?.filter((movement) =>
+		Number.isFinite(movement.amount) && categoryKeys.has(getCategoryKey(movement.category)),
+	);
 	return (
 		<div className="react-category-detail">
 			<header className="react-category-detail-header">
-				<strong>{row.category}</strong>
+				<strong ref={headingRef} role="heading" aria-level={4} tabIndex={headingRef ? -1 : undefined}>{row.category}</strong>
 				<small>
 					{formatAmount(row.total)} · {row.share}% · {formatMovementCount(row.count)}
 				</small>
 			</header>
 			<div className="react-category-detail-rows">
-				{row.mergesTail
+				{categoryMovements ? (
+					categoryMovements.map((movement, index) => {
+						const movementId = movement.id;
+						const content = (
+							<>
+								<span className="react-category-movement-identity">
+									<strong>{movement.counterparty}</strong>
+									<small>{movement.date === "—" ? "Fecha no disponible" : movement.date}{row.mergesTail ? ` · ${movement.category}` : ""}</small>
+								</span>
+								<strong className="react-category-movement-amount">{formatAmount(movement.amount)}</strong>
+							</>
+						);
+						return (
+							<div key={movementId ?? `unidentified-${index}`} className="react-category-detail-row">
+								{movementId && onOpenMovement ? (
+									<button type="button" className="react-category-movement-open" onClick={() => onOpenMovement(movementId)}>
+										{content}
+									</button>
+								) : <div className="react-category-movement-static">{content}</div>}
+							</div>
+						);
+					})
+				) : row.mergesTail
 					? row.children.map((child) => (
 							<article key={child.category} className="react-category-detail-row">
 								<strong>{child.category}</strong>
@@ -119,11 +171,14 @@ export function CategoryDetailView({
 function buildDonutOption(
 	legend: readonly CategoryLegendEntry[],
 	formatAmount: (amount: number) => string,
+	reducedMotion: boolean,
+	selectedRow: CategoryRankingRow | null,
 ): EChartsOption {
 	const total = legend.reduce((sum, entry) => sum + entry.total, 0);
+	const centerAmount = formatAmount(selectedRow?.total ?? total);
 	const option = {
-		animation: true,
-		animationDuration: 800,
+		animation: !reducedMotion,
+		animationDuration: reducedMotion ? 0 : 800,
 		animationEasing: "cubicOut",
 		tooltip: {
 			trigger: "item",
@@ -131,7 +186,7 @@ function buildDonutOption(
 				const count = params.data?.count ?? 0;
 				const percent = params.percent ?? 0;
 				const value = typeof params.value === "number" ? params.value : 0;
-				return `${params.name ?? ""}<br/>${formatAmount(value)} · ${percent}%<br/>${formatMovementCount(count)}`;
+				return `${escapeHtml(params.name ?? "")}<br/>${escapeHtml(formatAmount(value))} · ${escapeHtml(String(percent))}%<br/>${escapeHtml(formatMovementCount(count))}`;
 			},
 		},
 		graphic: [
@@ -140,7 +195,10 @@ function buildDonutOption(
 				left: "center",
 				top: "40%",
 				style: {
-					text: "Total",
+					text: selectedRow?.category ?? "Total",
+					width: 108,
+					overflow: "truncate",
+					ellipsis: "…",
 					fontSize: 12,
 					fill: "#7a827b",
 					textAlign: "center",
@@ -151,8 +209,10 @@ function buildDonutOption(
 				left: "center",
 				top: "52%",
 				style: {
-					text: formatAmount(total),
-					fontSize: 20,
+					text: centerAmount,
+					width: 108,
+					overflow: "breakAll",
+					fontSize: centerAmount.length > 16 ? 11 : centerAmount.length > 10 ? 14 : 18,
 					fill: "#17211d",
 					fontWeight: 700,
 					textAlign: "center",
@@ -200,6 +260,8 @@ export interface CategoryDistributionViewProps {
 	/** Jumps into the movement table filter; never called for the merged tail. */
 	onJumpToCategory: (category: string) => void;
 	formatAmount: (amount: number) => string;
+	movements?: readonly RecognizedExpenseMovement[];
+	onOpenMovement?: (movementId: string) => void;
 }
 
 export function CategoryDistributionView({
@@ -210,14 +272,28 @@ export function CategoryDistributionView({
 	onClearSelection,
 	onJumpToCategory,
 	formatAmount,
+	movements,
+	onOpenMovement,
 }: CategoryDistributionViewProps) {
 	const chartRef = useRef<HTMLDivElement | null>(null);
 	const instanceRef = useRef<EChartsType | null>(null);
+	const detailHeadingRef = useRef<HTMLElement | null>(null);
+	const legendButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+	const returnCategoryRef = useRef<string | null>(null);
+	const [reducedMotion, setReducedMotion] = useState(() =>
+		typeof window !== "undefined" &&
+		typeof window.matchMedia === "function" &&
+		window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+	);
 	// The click handlers are registered once, so they read the latest callbacks through refs instead of
 	// capturing the first render's identities.
 	const selectRef = useRef(onSelect);
 	const clearRef = useRef(onClearSelection);
-	selectRef.current = onSelect;
+	const selectCategory = (category: string) => {
+		returnCategoryRef.current = category;
+		onSelect(category);
+	};
+	selectRef.current = selectCategory;
 	clearRef.current = onClearSelection;
 	// A failed dynamic import is a fact the card can state instead of an unhandled rejection.
 	const [chartUnavailable, setChartUnavailable] = useState(false);
@@ -237,6 +313,29 @@ export function CategoryDistributionView({
 	const selectedRow: CategoryRankingRow | null =
 		selectedCategory === null ? null : findCategoryRankingRow(ranking, selectedCategory);
 	const activeCategory = selectedRow?.category ?? null;
+	const previousCategoryRef = useRef(activeCategory);
+	useEffect(() => {
+		const previousCategory = previousCategoryRef.current;
+		previousCategoryRef.current = activeCategory;
+		if (activeCategory === previousCategory) return;
+		if (activeCategory !== null) {
+			detailHeadingRef.current?.focus();
+		} else if (previousCategory !== null) {
+			const buttons = legendButtonRefs.current;
+			(buttons.get(returnCategoryRef.current ?? previousCategory) ??
+				buttons.get(previousCategory) ?? buttons.values().next().value)?.focus();
+			returnCategoryRef.current = null;
+		}
+	}, [activeCategory]);
+
+	useEffect(() => {
+		if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+		const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+		const update = () => setReducedMotion(preference.matches);
+		update();
+		preference.addEventListener("change", update);
+		return () => preference.removeEventListener("change", update);
+	}, []);
 
 	const insight = useMemo(
 		() => getCategoryDistributionInsight(ranking.rows, ranking.total, formatAmount),
@@ -267,7 +366,7 @@ export function CategoryDistributionView({
 				setChartUnavailable(false);
 				const chart = instanceRef.current ?? echarts.init(container);
 				instanceRef.current = chart;
-				chart.setOption(buildDonutOption(legend, formatAmount), true);
+				chart.setOption(buildDonutOption(legend, formatAmount, reducedMotion, selectedRow), true);
 				chart.dispatchAction({ type: "downplay", seriesIndex: 0 });
 				if (activeCategory !== null) {
 					chart.dispatchAction({ type: "highlight", seriesIndex: 0, name: activeCategory });
@@ -291,7 +390,23 @@ export function CategoryDistributionView({
 		return () => {
 			disposed = true;
 		};
-	}, [legend, activeCategory, formatAmount]);
+	}, [legend, activeCategory, formatAmount, reducedMotion, chartUnavailable]);
+
+	useEffect(() => {
+		const container = chartRef.current;
+		if (container === null || legend.length === 0) return;
+		const resize = () => {
+			const chart = instanceRef.current;
+			if (chart && !chart.isDisposed() && chart.getDom() === container) chart.resize();
+		};
+		if (typeof ResizeObserver !== "undefined") {
+			const observer = new ResizeObserver(resize);
+			observer.observe(container);
+			return () => observer.disconnect();
+		}
+		window.addEventListener("resize", resize);
+		return () => window.removeEventListener("resize", resize);
+	}, [legend.length, chartUnavailable]);
 
 	useEffect(
 		() => () => {
@@ -303,7 +418,13 @@ export function CategoryDistributionView({
 
 	const heading = (
 		<>
-			<h3 id="react-category-distribution-title">Dónde se fue tu plata</h3>
+			<div className="react-category-distribution-heading">
+				<h3 id="react-category-distribution-title">Dónde se fue tu plata</h3>
+				{/* Decorative: the adjacent title names the card, so the glyph is hidden. */}
+				<span className="react-card-icon" aria-hidden="true">
+					<FontAwesomeIcon icon={faLayerGroup} />
+				</span>
+			</div>
 			<p className="react-category-distribution-copy">
 				Distribución por categoría principal.
 			</p>
@@ -317,6 +438,9 @@ export function CategoryDistributionView({
 				<p className="react-category-distribution-empty" role="status">
 					Aún no hay gastos con monto conocido para distribuir por categoría en este periodo.
 				</p>
+				{ranking.disclosure !== null && (
+					<p className="react-category-distribution-disclosure" role="status">{ranking.disclosure}</p>
+				)}
 			</section>
 		);
 	}
@@ -352,7 +476,11 @@ export function CategoryDistributionView({
 								className="react-category-legend-item"
 								style={{ "--category-color": entry.color } as CSSProperties}
 								aria-pressed={activeCategory === entry.category}
-								onClick={() => onSelect(entry.category)}
+								ref={(button) => {
+									if (button) legendButtonRefs.current.set(entry.category, button);
+									else legendButtonRefs.current.delete(entry.category);
+								}}
+								onClick={() => selectCategory(entry.category)}
 							>
 								<span className="react-category-legend-marker" aria-hidden="true" />
 								<strong>{entry.category}</strong>
@@ -362,6 +490,9 @@ export function CategoryDistributionView({
 					) : (
 						<CategoryDetailView
 							row={selectedRow}
+							movements={movements}
+							onOpenMovement={onOpenMovement}
+							headingRef={detailHeadingRef}
 							onClearSelection={onClearSelection}
 							onJumpToCategory={onJumpToCategory}
 							formatAmount={formatAmount}
@@ -379,6 +510,8 @@ export interface CategoryDistributionPanelProps {
 	catalog?: readonly Category[];
 	onJumpToCategory: (category: string) => void;
 	formatAmount: (amount: number) => string;
+	movements?: readonly RecognizedExpenseMovement[];
+	onOpenMovement?: (movementId: string) => void;
 }
 
 /**
@@ -390,6 +523,8 @@ export function CategoryDistributionPanel({
 	catalog,
 	onJumpToCategory,
 	formatAmount,
+	movements,
+	onOpenMovement,
 }: CategoryDistributionPanelProps) {
 	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 	return (
@@ -403,6 +538,8 @@ export function CategoryDistributionPanel({
 			onClearSelection={() => setSelectedCategory(null)}
 			onJumpToCategory={onJumpToCategory}
 			formatAmount={formatAmount}
+			movements={movements}
+			onOpenMovement={onOpenMovement}
 		/>
 	);
 }

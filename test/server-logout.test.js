@@ -70,6 +70,20 @@ test("GET /auth/logout clears the session user and redirects to the unauthentica
 	);
 });
 
+test("private JSON responses prohibit HTTP caching, including session and financial data", async () => {
+	await ensureDbInitialized();
+	const sessionId = randomUUID();
+	await createSession(sessionId, null);
+	for (const path of ["/api/session/profile", "/api/transactions", "/api/income-candidates", "/api/gmail/status"]) {
+		const response = await request(path, sessionId);
+		assert.equal(response.status, 200, path);
+		assert.equal(response.headers["cache-control"], "no-store", path);
+		assert.match(response.headers["content-type"], /application\/json/, path);
+	}
+	const source = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+	assert.match(source, /function sendJson\(res, payload, status = 200\)[\s\S]*?"cache-control": "no-store"/);
+});
+
 test("the logout route reuses clearSessionUser without deleting finance data or Google credentials", async () => {
 	const source = await readFile(
 		new URL("../src/server.js", import.meta.url),
