@@ -61,3 +61,6 @@ Apply the supplied Google Stitch dashboard distribution to both authenticated an
 
 - [x] Follow-up: concise Lectura rápida callouts — `Lectura rápida` now renders after `Destacados` in `.react-analytics-side`; its populated summary is a short `Puntos clave del periodo.` preamble and only the largest-expense/review facts remain, rendered as light blue callouts with a stronger border.
 - [x] Follow-up verification — focused story/analytics/dashboard tests pass; build and diff check pass; the full suite retains the same three pre-existing stale English/legacy failures.
+
+- [x] Follow-up: movement surface alignment — authenticated and demo movement cards now share the dashboard header hierarchy, kicker/title spacing, decorative receipt icon, card bands, and responsive header behavior without changing table/filter/actions or demo read-only behavior.
+- [x] Follow-up verification — focused movement/demo tests, build, and diff check pass; the suite retains the existing stale English/legacy baseline failures.

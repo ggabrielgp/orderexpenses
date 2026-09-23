@@ -4276,6 +4276,97 @@ test("the React movements filter control renders the labelled group, the active 
 	assert.match(styles, /\.react-movements-filter-count \{/);
 });
 
+test("the React movements view and the demo share the Stitch card header with a decorative glyph", async (t) => {
+	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const loadedConfig = await loadConfigFromFile(
+		{ command: "serve", mode: "test" },
+		configPath,
+	);
+	const vite = await createViteServer({
+		...loadedConfig?.config,
+		configFile: false,
+		appType: "custom",
+		server: { middlewareMode: true },
+	});
+	t.after(() => vite.close());
+
+	const [pageModule, React, renderer, styles] = await Promise.all([
+		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
+		import("react"),
+		import("react-dom/server"),
+		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
+	]);
+
+	const noop = () => {};
+	const period = { startDate: "2026-02-01", endDateExclusive: "2026-03-01" };
+	const rows = [
+		{ id: "a", counterparty: "Mercado", amount: 25000, date: "2026-02-02", category: "Comida" },
+	];
+	const table = renderer.renderToStaticMarkup(
+		React.createElement(pageModule.MovementsTable, {
+			period,
+			movements: rows,
+			editableMovements: [],
+			onEdit: noop,
+			onRemove: noop,
+		}),
+	);
+
+	// Positive marker first: the authenticated card opens with the shared header band, before the filter
+	// control band it used to open with, and the glyph is decorative.
+	assert.match(table, /<div class="react-movements-view"><header class="react-movements-header">/);
+	assert.match(table, /class="section-kicker">Movimientos<\/span>/);
+	assert.match(table, /<h2>Actividad del periodo<\/h2>/);
+	assert.match(table, /<span class="react-card-icon" aria-hidden="true">/);
+	assert.ok(
+		table.indexOf("react-movements-header") < table.indexOf("react-movements-filters"),
+		"the header band must render before the filter control band",
+	);
+	// The table semantics are untouched: the header adds no column and no cell-level glyph.
+	assert.match(table, /<table class="react-movements-table">/);
+	assert.doesNotMatch(table, /<th[^>]*react-card-icon/);
+
+	// The demo card keeps its exact class name, reuses the glyph, and stays read-only.
+	const demo = renderer.renderToStaticMarkup(
+		React.createElement(pageModule.DemoDashboardPage, {
+			data: {
+				period,
+				currentPeriodSpending: 25000,
+				currentPeriodInflow: 900000,
+				movements: [
+					{
+						id: "expense",
+						occurredAt: "2026-02-28T12:30:00",
+						amount: 25000,
+						direction: "outflow",
+						kind: "purchase",
+						counterparty: "Mercado",
+						category: "Comida",
+					},
+				],
+			},
+		}),
+	);
+	assert.match(demo, /class="demo-movements"/);
+	assert.match(demo, /<header class="demo-movements-header">/);
+	assert.match(demo, /<h2 id="demo-movements-title">Actividad del periodo<\/h2>/);
+	assert.match(demo, /<span class="react-card-icon" aria-hidden="true">/);
+	assert.doesNotMatch(demo, /<form|<input|<select|<dialog/);
+
+	// Scoped movement/demo CSS only, aligned to the shipped card tokens and the shared glyph.
+	assert.match(styles, /\.react-movements-header \{/);
+	assert.match(styles, /\.react-movements-header-copy h2 \{/);
+	assert.match(styles, /\.react-movements-header-copy p \{/);
+	assert.match(styles, /\.demo-movements-header \{/);
+	assert.match(styles, /\.demo-movements-heading \{/);
+	assert.match(styles, /\.react-card-icon \{/);
+	assert.match(
+		styles,
+		/\.react-movements-header,\s*\n\t\.demo-movements-header \{\s*\n\t\tflex-direction: column;/,
+	);
+});
+
+
 test("the React movement filter reconciliation clears a category the loaded rows no longer carry and never restores it", async (t) => {
 	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
 	const loadedConfig = await loadConfigFromFile(

@@ -864,10 +864,15 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
 					/>
 
 					<section className="demo-movements" aria-labelledby="demo-movements-title">
-						<div>
-							<span className="section-kicker">Movimientos</span>
-							<h2 id="demo-movements-title">Actividad del periodo</h2>
-						</div>
+						<header className="demo-movements-header">
+							<div className="demo-movements-heading">
+								<span className="section-kicker">Movimientos</span>
+								<h2 id="demo-movements-title">Actividad del periodo</h2>
+							</div>
+							<span className="react-card-icon" aria-hidden="true">
+								<FontAwesomeIcon icon={faReceipt} />
+							</span>
+						</header>
 						<ul>
 							{data.movements.slice(0, 6).map((movement) => (
 								<li key={movement.id}>
@@ -2672,6 +2677,16 @@ export function MovementsTableView({
 
 	return (
 		<div className="react-movements-view">
+			<header className="react-movements-header">
+				<div className="react-movements-header-copy">
+					<span className="section-kicker">Movimientos</span>
+					<h2>Actividad del periodo</h2>
+					<p>Revisa, filtra y categoriza los gastos reconocidos del periodo.</p>
+				</div>
+				<span className="react-card-icon" aria-hidden="true">
+					<FontAwesomeIcon icon={faReceipt} />
+				</span>
+			</header>
 			<MovementFilterBar
 				options={filteredView.options}
 				count={filteredView.count}
