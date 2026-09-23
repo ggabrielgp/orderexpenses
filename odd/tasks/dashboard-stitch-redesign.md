@@ -67,3 +67,6 @@ Apply the supplied Google Stitch dashboard distribution to both authenticated an
 
 - [x] Follow-up: functional period header — the header period range is now a button opening the existing edit modal, `Actualizar` calls the financial-dashboard reload for the selected period, and the full `.react-period-control` with Cambiar/Cerrar actions remains mounted.
 - [x] Follow-up verification — focused period/dashboard tests and build pass; diff check clean.
+
+- [x] Added authenticated account-menu logout: red `Cerrar sesión` action with Font Awesome sign-out icon, GET `/auth/logout` session identity clearing, and redirect to `/app`; demo remains login-only.
+- [x] Logout verification — focused menu/server tests, build, and diff check pass; finance data, Google credentials, and session cookie remain intact.

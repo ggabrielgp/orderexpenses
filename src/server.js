@@ -290,6 +290,15 @@ export default async function handleRequest(req, res) {
 			return res.end();
 		}
 
+		// The authorized sign-out route. It drops only the session's user association and returns
+		// the unauthenticated app route, so the session row, its cookie and the stored finance/Gmail
+		// data all survive: signing out never deletes data and never touches Google credentials.
+		if (url.pathname === "/auth/logout" && req.method === "GET") {
+			await clearSessionUser(session.sessionId);
+			res.writeHead(302, { location: "/app" });
+			return res.end();
+		}
+
 		if (url.pathname === "/api/gmail/sync" && req.method === "POST") {
 			const user = await requireActiveUser(session);
 			const body = await readJson(req);

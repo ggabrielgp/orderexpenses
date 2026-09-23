@@ -763,6 +763,24 @@
 	background: var(--surface-subtle);
 }
 
+/* The sign-out action is the menu's only destructive item: it takes the danger token and a
+   separator line sets it apart from the settings action above it. Role, tab stop and hover
+   behaviour stay on the shared menu-item contract; only the colour and the separator are local. */
+.react-account-menu .react-account-logout {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin-top: var(--space-1);
+	border-top: 1px solid var(--line);
+	color: var(--danger);
+}
+
+.react-account-menu .react-account-logout:hover,
+.react-account-menu .react-account-logout:focus-visible {
+	background: var(--danger-soft);
+	color: var(--danger);
+}
+
 .react-financial-summary,
 .react-financial-state {
 	display: grid;

@@ -27,7 +27,7 @@ import type { CounterpartyRuleSubmitter } from "./counterpartyRules";
  * the verified contracts instead of a second implementation of any of them.
  *
  * It is a real modal through the shared `syncNativeModalDialog` helper, mounted only in the
- * authenticated tree. It offers no logout because parity does not invent a session endpoint.
+ * authenticated tree. Logout belongs to the authenticated account menu, so this settings modal remains focused on configuration.
  *
  * The three surfaces are grouped behind a simple tablist (`Perfil`, `Categorías`,
  * `Reglas de contraparte`) so the modal shows one configuration area at a time. The panels stay

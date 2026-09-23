@@ -6509,6 +6509,27 @@ test("the React authenticated header exposes one Configuración action opening t
 	assert.doesNotMatch(accountMenuSource, /Reglas de contraparte/);
 	assert.match(accountMenuSource, /role="menuitem"/);
 
+	// The authorized sign-out action sits immediately below Configuración in the same menu: it is a
+	// plain same-origin anchor to the server route, tagged for the danger styling, and the settings
+	// action stays the first menuitem.
+	assert.match(
+		accountMenuSource,
+		/<a\s+href="\/auth\/logout"\s+role="menuitem"\s+className="react-account-logout"\s*>/,
+	);
+	assert.match(accountMenuSource, /Cerrar sesión/);
+	assert.ok(
+		accountMenuSource.indexOf("Configuración") <
+			accountMenuSource.indexOf("Cerrar sesión"),
+		"Configuración must stay above Cerrar sesión in the authenticated menu",
+	);
+	// The icon is the free solid `faRightFromBracket`, imported once and hidden from the
+	// accessibility tree so the visible label keeps naming the action.
+	assert.match(page, /\bfaRightFromBracket,/);
+	assert.match(
+		accountMenuSource,
+		/<FontAwesomeIcon icon=\{faRightFromBracket\} aria-hidden="true" \/>/,
+	);
+
 	// Gmail keeps its single state-machine owner, but the owner now lives in the one account modal:
 	// the dashboard no longer mounts the panel directly and instead hands the modal the session,
 	// connect and sync inputs. The menu still offers no connection control.
@@ -6557,6 +6578,20 @@ test("the React authenticated header exposes one Configuración action opening t
 	assert.match(styles, /\.react-account-trigger \{/);
 	assert.match(styles, /\.react-account-settings-dialog \{/);
 	assert.doesNotMatch(styles, /\.account-menu\s*\{/);
+
+	// Only the logout item is coloured with the danger token and separated from the settings action;
+	// the shared menu-item rule stays neutral, so demo and every other item are unaffected.
+	const logoutRule = styles.match(
+		/\.react-account-menu \.react-account-logout \{([^}]*)\}/,
+	);
+	assert.notEqual(logoutRule, null, "the logout menu-item rule must exist");
+	assert.match(logoutRule[1], /color:\s*var\(--danger\)/);
+	assert.match(logoutRule[1], /border-top:\s*1px solid var\(--line\)/);
+	const menuItemRule = styles.match(
+		/\.react-account-menu \[role="menuitem"\] \{([^}]*)\}/,
+	);
+	assert.notEqual(menuItemRule, null, "the shared menu-item rule must exist");
+	assert.doesNotMatch(menuItemRule[1], /--danger/);
 });
 
 test("the React unified account settings dialog hosts the profile and both verified sections behind one close control", async (t) => {

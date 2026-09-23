@@ -12,6 +12,7 @@ import {
 	faMinus,
 	faPenToSquare,
 	faReceipt,
+	faRightFromBracket,
 	faUser,
 	faWallet,
 } from "@fortawesome/free-solid-svg-icons";
@@ -610,6 +611,18 @@ export function DashboardPage({ session }: DashboardPageProps) {
 					>
 						Configuración
 					</button>
+					{/* The authorized sign-out action. It is a plain same-origin anchor, so ending the
+					    session is one server GET that clears the user association and returns the
+					    unauthenticated app route. The menu keeps its shared keyboard and menuitem
+					    semantics; only the danger styling below is specific to this item. */}
+					<a
+						href="/auth/logout"
+						role="menuitem"
+						className="react-account-logout"
+					>
+						<FontAwesomeIcon icon={faRightFromBracket} aria-hidden="true" />
+						Cerrar sesión
+					</a>
 				</AccountMenu>
 			</AppHeader>
 			<main className="shell react-shell">
