@@ -3066,15 +3066,44 @@ test("the React financial summary offers Cambiar período, marks a closed period
 	assert.match(page, /createCycleEditSubmitter,/);
 	assert.match(page, /getCycleClosureMark,/);
 	assert.equal((page.match(/<FinancialPeriodHeading/g) ?? []).length, 1);
-	// The heading now renders in the page header over the handle the summary publishes; the summary
-	// still owns the edit trigger and the closure record, so both are asserted where they are wired.
+	// The editable period control now renders in the summary body, keeping `Cambiar período` and
+	// `Cerrar período` reachable while the page header keeps only the Stitch composition. The summary
+	// still owns the edit trigger and the closure record, and both modal actions stay wired.
 	assert.match(
 		page,
-		/<FinancialPeriodHeading[\s\S]{0,200}?onEdit=\{financialDashboard\.onEditPeriod\}/,
+		/<FinancialPeriodHeading[\s\S]{0,220}?onEdit=\{openCycleEdit\}/,
 	);
-	assert.match(page, /completedAt=\{financialDashboard\.completedAt\}/);
+	assert.match(
+		page,
+		/<FinancialPeriodHeading[\s\S]{0,260}?onComplete=\{openCycleCompletion\}/,
+	);
+	assert.match(page, /completedAt=\{state\.data\.cycle\.completedAt\}/);
 	assert.match(page, /onEditPeriod: openCycleEdit/);
 	assert.match(page, /completedAt: configuredCompletedAt/);
+	// The header capsule is a real button that opens the configured-period dialog through the
+	// summary-owned trigger, so the visible range is interactive instead of decorative while the
+	// summary body keeps the full editable control.
+	assert.match(
+		page,
+		/<button\s+className="react-dashboard-period"\s+type="button"\s+onClick=\{financialDashboard\.onEditPeriod\}/,
+	);
+	assert.match(
+		page,
+		/react-dashboard-controls[\s\S]{0,900}?react-dashboard-period-range[\s\S]{0,300}?formatPeriodLabel\(financialDashboard\.period\)/,
+	);
+	// The header refresh calls the cycle-first reload, not the route/session retry, and names its
+	// scope for assistive tech.
+	assert.match(
+		page,
+		/<button\s+className="secondary react-dashboard-refresh"\s+type="button"\s+onClick=\{financialDashboard\.reload\}\s+aria-label="Actualizar gastos del periodo"/,
+	);
+	assert.match(
+		page,
+		/className="secondary react-dashboard-refresh"[\s\S]{0,300}?faArrowsRotate[\s\S]{0,200}?Actualizar/,
+	);
+	// The route retry prop is unused by the ready page after this correction, so it is gone entirely.
+	assert.doesNotMatch(page, /onRetry/);
+	assert.doesNotMatch(page, /Actualizar estado de la conexión|Volver al inicio/);
 	assert.equal((page.match(/<FinancialCycleEditDialog/g) ?? []).length, 1);
 	assert.match(
 		page,

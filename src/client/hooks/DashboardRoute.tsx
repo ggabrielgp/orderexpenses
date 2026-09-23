@@ -90,7 +90,7 @@ function AccountDashboardRoute() {
 			</ShellMessage>
 		);
 	}
-	return <DashboardPage session={state.session} onRetry={retry} />;
+	return <DashboardPage session={state.session}  />;
 }
 
 function ShellMessage({ title, copy, children }: { title: string; copy: string; children?: ReactNode }) {

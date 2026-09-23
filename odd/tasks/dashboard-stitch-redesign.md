@@ -64,3 +64,6 @@ Apply the supplied Google Stitch dashboard distribution to both authenticated an
 
 - [x] Follow-up: movement surface alignment — authenticated and demo movement cards now share the dashboard header hierarchy, kicker/title spacing, decorative receipt icon, card bands, and responsive header behavior without changing table/filter/actions or demo read-only behavior.
 - [x] Follow-up verification — focused movement/demo tests, build, and diff check pass; the suite retains the existing stale English/legacy baseline failures.
+
+- [x] Follow-up: functional period header — the header period range is now a button opening the existing edit modal, `Actualizar` calls the financial-dashboard reload for the selected period, and the full `.react-period-control` with Cambiar/Cerrar actions remains mounted.
+- [x] Follow-up verification — focused period/dashboard tests and build pass; diff check clean.

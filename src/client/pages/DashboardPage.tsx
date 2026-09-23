@@ -4,6 +4,7 @@ import {
 	faArrowRightArrowLeft,
 	faArrowTrendDown,
 	faArrowTrendUp,
+	faArrowsRotate,
 	faCalendarDays,
 	faCartShopping,
 	faChartPie,
@@ -207,7 +208,6 @@ export { formatPeriodLabel };
 
 interface DashboardPageProps {
 	session: SessionResponse;
-	onRetry: () => void;
 }
 
 /**
@@ -493,7 +493,7 @@ export function createFinancialCycleSetupPayload(
 	};
 }
 
-export function DashboardPage({ session, onRetry }: DashboardPageProps) {
+export function DashboardPage({ session }: DashboardPageProps) {
 	/**
 	 * The financial summary publishes its configured period and its reload here, in state rather
 	 * than in a ref, so the Gmail card's own render sees the period as soon as the summary knows it.
@@ -626,18 +626,38 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 								Control y análisis de gastos detectados automáticamente.
 							</p>
 						</div>
-						{/* The period controls sit beside the title instead of repeating them in the summary body.
-						    The summary still owns the cycle state, dialog and reload, and only publishes the
-						    triggers through `FinancialDashboardHandle`, so no cycle state is duplicated here. The
-						    group is absent until a configured period exists, matching the ready state. */}
+						{/* The Stitch header composition: the configured range as an edit trigger, the
+						    cycle-first reload as `Actualizar`, and the manual-expense trigger. The full editable
+						    period control, with `Cambiar período` and `Cerrar período`, lives in the summary body
+						    instead, so the header keeps only this composition. The group is absent until a
+						    configured period exists, matching the ready state. */}
 						{financialDashboard?.period && (
 							<div className="react-dashboard-controls">
-								<FinancialPeriodHeading
-									period={financialDashboard.period}
-									completedAt={financialDashboard.completedAt}
-									onEdit={financialDashboard.onEditPeriod}
-									onComplete={financialDashboard.onCompletePeriod}
-								/>
+								{/* The visible range is the edit trigger: it opens the configured-period dialog the summary
+								    owns, so the header needs no duplicate cycle state. */}
+								<button
+									className="react-dashboard-period"
+									type="button"
+									onClick={financialDashboard.onEditPeriod}
+								>
+									<span className="react-dashboard-period-icon" aria-hidden="true">
+										<FontAwesomeIcon icon={faCalendarDays} />
+									</span>
+									<span className="react-dashboard-period-range">
+										{formatPeriodLabel(financialDashboard.period)}
+									</span>
+								</button>
+								{/* The cycle-first reload the summary publishes: it refetches the selected period's
+								    expenses, unlike the route retry that only reloads the session shell. */}
+								<button
+									className="secondary react-dashboard-refresh"
+									type="button"
+									onClick={financialDashboard.reload}
+									aria-label="Actualizar gastos del periodo"
+								>
+									<FontAwesomeIcon icon={faArrowsRotate} aria-hidden="true" />
+									Actualizar
+								</button>
 								<button
 									className="button"
 									type="button"
@@ -677,12 +697,6 @@ export function DashboardPage({ session, onRetry }: DashboardPageProps) {
 						onViewChange={setView}
 					/>
 
-					<div className="react-shell-actions">
-						<button className="secondary" type="button" onClick={onRetry}>
-							Actualizar estado de la conexión
-						</button>
-						<a href="/">Volver al inicio</a>
-					</div>
 				</section>
 			</main>
 		</>
@@ -2174,9 +2188,16 @@ function FinancialSummary({ onHandle, view, onViewChange }: FinancialSummaryProp
 
 	return (
 		<section className="react-financial-summary" aria-labelledby="react-financial-summary-title">
-			{/* The period heading and its controls moved into the page heading, so this body keeps only
-			    the truthful warning. The section stays labelled by the same period title, which the page
-			    heading now renders. */}
+			{/* The editable period control lives here rather than in the page heading, which keeps only
+			    the Stitch capsule, `Actualizar` and `Nuevo gasto`. It still owns the `Periodo` heading the
+			    section is labelled by, so `Cambiar período` and `Cerrar período` stay reachable without
+			    adding actions the header composition does not include. */}
+			<FinancialPeriodHeading
+				period={state.data.cycle.selectedPeriod!}
+				completedAt={state.data.cycle.completedAt}
+				onEdit={openCycleEdit}
+				onComplete={openCycleCompletion}
+			/>
 			{state.data.warning && (
 				<div className="react-financial-summary-heading">
 					<p className="react-financial-warning" role="status">Advertencia: {state.data.warning}</p>
