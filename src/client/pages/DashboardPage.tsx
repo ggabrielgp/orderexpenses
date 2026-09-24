@@ -651,7 +651,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
           </a>
         </AccountMenu>
       </AppHeader>
-      <main className="shell react-shell">
+      <main className={`shell react-shell${view === "movements" ? " react-movements-page" : ""}`}>
         <section className="panel product-panel react-dashboard-shell" aria-labelledby="react-dashboard-title">
           <header className="react-dashboard-header">
             <div className="react-dashboard-heading">
@@ -660,10 +660,12 @@ export function DashboardPage({ session }: DashboardPageProps) {
                   ? `Hola, ${profile.name.trim()}`
                   : "Hola, usuario conectado"}
               </p>
-              <h1 id="react-dashboard-title">Resumen de la cuenta</h1>
-              <p className="subtitle">
-                Control y análisis de gastos detectados automáticamente.
-              </p>
+              <h1 id="react-dashboard-title">
+                {view === "movements" ? "Movimientos" : "Resumen de la cuenta"}
+              </h1>
+              {view !== "movements" && (
+                <p className="subtitle">Control y análisis de gastos detectados automáticamente.</p>
+              )}
             </div>
             {/* The Stitch header composition: the configured range as an edit trigger, the
 						    cycle-first reload as `Actualizar`, and the manual-expense trigger. The group is
@@ -676,6 +678,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
                   className="react-dashboard-period"
                   type="button"
                   onClick={financialDashboard.onEditPeriod}
+                  aria-label={`Editar periodo: ${formatPeriodLabel(financialDashboard.period)}`}
                 >
                   <span className="react-dashboard-period-icon" aria-hidden="true">
                     <FontAwesomeIcon icon={faCalendarDays} />
@@ -2397,8 +2400,10 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
         </>
       ) : (
         <MovementsTable
+          key={`${selectedPeriod!.startDate}..${selectedPeriod!.endDateExclusive}`}
           period={selectedPeriod!}
           movements={movements}
+          pendingAmountCount={summary.pendingAmountCount}
           editableMovements={editableMovements}
           requestedCategory={requestedCategory ?? undefined}
           onEdit={openMovementEdit}
@@ -2623,9 +2628,9 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
  *
  * Exported so both the unfiltered and the active markup are provable from a static render; the live
  * table only ever reaches the unfiltered one, because a static render has no state to select with.
- * It shows only what the pure module decided, so it cannot display a category the table is not
- * applying, and it follows the shipped accessibility conventions: a labelled group, an announced
- * active state and a visible way to clear.
+ * It shows the category decision and the table's current count (which also reflects search and kind),
+ * so it cannot display a category the table is not applying. It keeps a labelled group, an announced
+ * count when filters are active, and a visible way to clear the category.
  */
 export interface MovementFilterBarProps {
   options: MovementFilterOption[];
@@ -2637,17 +2642,6 @@ export interface MovementFilterBarProps {
 export function MovementFilterBar({ options, count, onSelect, onClear }: MovementFilterBarProps) {
   return (
     <div className="react-movements-filters" role="group" aria-label="Filtrar tabla por categoría">
-      <div className="react-movements-filter-intro">
-        <strong>Filtrar detalle</strong>
-        <span>
-          {count.isActive ? "Estás viendo solo una categoría." : "Elige una categoría para limpiar el ruido."}
-        </span>
-        {/* The count statement is the announced active state. It renders only while it exists, so a
-				    table that is not narrowing anything claims nothing. */}
-        {count.message !== null && (
-          <p className="react-movements-filter-count" role="status">{count.message}</p>
-        )}
-      </div>
       <label className="react-movements-filter-field">
         <span>Categoría</span>
         <select value={count.category} onChange={(event) => onSelect(event.target.value)}>
@@ -2658,6 +2652,10 @@ export function MovementFilterBar({ options, count, onSelect, onClear }: Movemen
           ))}
         </select>
       </label>
+      {/* Announce the current table count when any filter narrows the rows. */}
+      {count.message !== null && (
+        <p className="react-movements-filter-count" role="status">{count.message}</p>
+      )}
       {/* Offered only while there is something to clear: a control that cannot change anything is noise. */}
       {count.isActive && (
         <button type="button" className="secondary react-movements-filter-clear" onClick={onClear}>
@@ -2771,6 +2769,13 @@ export function MovementsTableHeader({
 export interface MovementsTableViewProps {
   /** The filter's own view: its options, its rows and its count statement. */
   filteredView: MovementFilterView;
+  /** All finite recognized expenses, used only for period-wide KPI totals. */
+  periodMovements?: RecognizedExpenseMovement[];
+  pendingAmountCount?: number;
+  search?: string;
+  onSearchChange?: (value: string) => void;
+  kind?: string;
+  onKindChange?: (value: string) => void;
   /** The ordering in effect; `createMovementSortState()` renders the loaded order. */
   sort: MovementSortState;
   /** Records a mutation may target, from `getEditableRecognizedExpenseMovements`. */
@@ -2803,6 +2808,12 @@ export interface MovementsTableViewProps {
 
 export function MovementsTableView({
   filteredView,
+  periodMovements,
+  pendingAmountCount = 0,
+  search = "",
+  onSearchChange,
+  kind = "",
+  onKindChange,
   sort,
   editableMovements,
   onActivate,
@@ -2832,36 +2843,82 @@ export function MovementsTableView({
   );
   const selectionEnabled = selection !== undefined && onToggleSelection !== undefined;
   const selectedIds = new Set(selection?.selectedIds ?? []);
+  const periodRows = periodMovements ?? filteredView.rows;
+  const uncategorized = periodRows.filter((movement) => movement.category === "Sin categoría");
+  const classified = periodRows.filter((movement) => movement.category !== "Sin categoría");
+  const total = (rows: RecognizedExpenseMovement[]) =>
+    rows.reduce((sum, movement) => sum + movement.amount, 0);
+  const kindTabs = [
+    { value: "", label: "Todos" },
+    { value: "purchase", label: "Compras" },
+    { value: "transfer", label: "Transferencias" },
+    { value: "payment", label: "Pagos" },
+  ];
 
   return (
     <div className="react-movements-view">
-      {/* The movements card keeps the dashboard header hierarchy: the kicker, the section title and
-			    its decorative glyph above the filter control band. The glyph is hidden because the heading
-			    already names the card, so it never carries information on its own. */}
+      {/* Keep the section title and its decorative, screen-reader-hidden glyph. */}
       <header className="react-movements-header">
-        <div className="react-movements-header-copy">
-          <span className="section-kicker">Movimientos</span>
-          <h2>Actividad del periodo</h2>
-          <p>Revisa, filtra y categoriza los gastos reconocidos del periodo.</p>
-        </div>
+        <h2>Actividad del periodo</h2>
         <span className="react-card-icon" aria-hidden="true">
           <FontAwesomeIcon icon={faReceipt} />
         </span>
       </header>
-      <MovementFilterBar
-        options={filteredView.options}
-        count={filteredView.count}
-        onSelect={onSelect}
-        onClear={onClear}
-      />
+      <section className="react-movements-metrics" aria-label="Indicadores del periodo">
+        <article className="react-movements-metric">
+          <span>Gastos reconocidos</span><strong>{periodRows.length}</strong>
+        </article>
+        <article className="react-movements-metric">
+          <span>Total gastado</span><strong>{formatClp(total(periodRows))}</strong>
+          <small>Periodo completo, sin filtros</small>
+        </article>
+        <article className="react-movements-metric react-movements-metric-pending">
+          <span>Sin categoría</span><strong>{uncategorized.length}</strong>
+          <small>{formatClp(total(uncategorized))}</small>
+        </article>
+        <article className="react-movements-metric react-movements-metric-classified">
+          <span>Clasificados</span><strong>{classified.length}</strong>
+          <small>{formatClp(total(classified))}</small>
+        </article>
+      </section>
+      {pendingAmountCount > 0 && (
+        <p className="react-movements-pending-note" role="status">
+          {pendingAmountCount} gastos reconocidos sin monto conocido no figuran en estos indicadores ni en la tabla.
+        </p>
+      )}
+      <div className="react-movements-toolbar" role="group" aria-label="Buscar y filtrar movimientos">
+        {onSearchChange && (
+          <label className="react-movements-search">
+            <span>Buscar movimientos</span>
+            <input type="search" value={search} onChange={(event) => onSearchChange(event.target.value)}
+              placeholder="Buscar contraparte, descripción o categoría" />
+          </label>
+        )}
+        <MovementFilterBar
+          options={filteredView.options}
+          count={filteredView.count}
+          onSelect={onSelect}
+          onClear={onClear}
+        />
+      </div>
+      {onKindChange && (
+        <div className="react-movements-kind-tabs" role="group" aria-label="Filtrar por tipo de gasto">
+          {kindTabs.map((tab) => (
+            <button key={tab.value || "all"} type="button" className="react-movements-kind-tab"
+              aria-pressed={kind === tab.value} onClick={() => onKindChange(tab.value)}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
       {selectionEnabled && selection !== undefined && (
         <div className="react-movements-bulk" role="group" aria-label="Acciones sobre la selección">
           <strong className="react-movements-bulk-count">
-            {selection.message ?? "Ningún movimiento seleccionado"}
+            {selection.message ?? "Sin selección"}
           </strong>
           {bulkCategoryOptions !== undefined && (
             <label className="react-movements-bulk-field">
-              <span>Categoría para la selección</span>
+              <span>Categoría de la selección</span>
               <select
                 value={bulkCategoryValue ?? ""}
                 onChange={(event) => onBulkCategoryChange?.(event.target.value)}
@@ -2904,8 +2961,15 @@ export function MovementsTableView({
           )}
         </div>
       )}
-      {/* The table keeps its own scroll container, so the filter bar cannot scroll away with it. */}
-      <div className="react-movements-table-wrapper">
+      <section className="react-movements-table-card" aria-label="Detalle de movimientos">
+        <header className="react-movements-table-heading">
+          <h3>Detalle de movimientos</h3>
+          {filteredView.count.message === null && (
+            <span className="react-movements-table-count">{visibleRows.length} de {periodRows.length} movimientos</span>
+          )}
+        </header>
+        {/* The table keeps its own scroll container, so the filter bar cannot scroll away with it. */}
+        <div className="react-movements-table-wrapper">
         <table className="react-movements-table">
           <MovementsTableHeader
             sort={sort}
@@ -2914,6 +2978,13 @@ export function MovementsTableView({
             onToggleAllSelection={onToggleAllSelection}
           />
           <tbody>
+            {visibleRows.length === 0 && (
+              <tr><td colSpan={selectionEnabled ? 6 : 5} className="react-movements-no-results">
+                {periodRows.length === 0
+                  ? "No hay gastos reconocidos disponibles para este periodo."
+                  : "No hay movimientos que coincidan con los filtros actuales."}
+              </td></tr>
+            )}
             {visibleRows.map((movement, index) => {
               const editable =
                 movement.id === null ? null : editableById.get(movement.id) ?? null;
@@ -2949,6 +3020,9 @@ export function MovementsTableView({
                   )}
                   <td>
                     {movement.counterparty}
+                    {movement.kind && (
+                      <span className="react-movement-kind-badge">{getSpendingChartKindLabel(movement.kind)}</span>
+                    )}
                     {similar !== null && similar.count > 1 && onSelectSimilar !== undefined && (
                       <button
                         type="button"
@@ -2959,9 +3033,9 @@ export function MovementsTableView({
                       </button>
                     )}
                   </td>
-                  <td>{formatClp(movement.amount)}</td>
-                  <td>{movement.date}</td>
-                  <td>{movement.category}</td>
+                  <td className="react-movement-amount">{formatClp(movement.amount)}</td>
+                  <td className="react-movement-date">{movement.date}</td>
+                  <td><span className={`react-movement-category${movement.category === "Sin categoría" ? " react-movement-category-unassigned" : ""}`}>{movement.category}</span></td>
                   <td className="react-movements-actions">
                     <button
                       type="button"
@@ -2998,7 +3072,8 @@ export function MovementsTableView({
             })}
           </tbody>
         </table>
-      </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -3016,6 +3091,7 @@ export interface MovementsTableProps {
   period: FinancialPeriod;
   /** Read projection: every recognized expense of the period. */
   movements: RecognizedExpenseMovement[];
+  pendingAmountCount?: number;
   /** Records a mutation may target, from `getEditableRecognizedExpenseMovements`. */
   editableMovements: EditableRecognizedExpenseMovement[];
   /**
@@ -3036,6 +3112,7 @@ export interface MovementsTableProps {
 export function MovementsTable({
   period,
   movements,
+  pendingAmountCount = 0,
   editableMovements,
   requestedCategory,
   onEdit,
@@ -3043,7 +3120,7 @@ export function MovementsTable({
   submitBulkCategory,
   categoryCatalog = [],
 }: MovementsTableProps) {
-  // Declared before the empty-state return so the hook always runs, and initialised for the period
+  // Initialised for the period the rows belong to; the unified view also renders for empty periods.
   // the rows belong to. The requested category is only read here, which is what makes it a mount-time
   // input instead of a controlled value the table would have to re-adopt on every render.
   const [selection, setSelection] = useState<MovementFilterSelection>(() =>
@@ -3056,9 +3133,10 @@ export function MovementsTable({
   // reload cannot carry a category the user did not pick, and sorting cannot reset the filter. Legacy
   // kept `sortKey`/`sortDir` in memory too (`public/app.js:142-143`).
   const [sort, setSort] = useState<MovementSortState>(() => createMovementSortState());
+  const [search, setSearch] = useState("");
+  const [kind, setKind] = useState("");
 
-  // Row selection, the detail modal and the bulk action are table-local state. Every hook is declared
-  // above the empty-rows return so the hook order never changes with the data.
+  // Row selection, the detail modal and the bulk action are table-local state.
   const [rowSelection, setRowSelection] = useState<MovementSelection>(() => createMovementSelection());
   const [detailMovement, setDetailMovement] = useState<RecognizedExpenseMovement | null>(null);
   const [bulkCategory, setBulkCategory] = useState("");
@@ -3070,7 +3148,7 @@ export function MovementsTable({
 
   // Reconciling during render, instead of in an effect, is React's documented way to adjust state
   // when an input changes: the new period's rows are never rendered under the previous period's
-  // selection. It runs above the empty-rows return as well, so the reset commits in every case — a
+  // selection. It runs even for empty rows, so the reset commits in every case — a
   // period with no rows still replaces the selection it inherited, and a category the loaded rows no
   // longer carry is cleared instead of only being hidden at render. The module returns the same
   // object while the selection still applies, so this re-renders only when something really changed
@@ -3078,15 +3156,24 @@ export function MovementsTable({
   const currentSelection = reconcileMovementFilterSelection(selection, period, movements);
   if (currentSelection !== selection) setSelection(currentSelection);
 
-  if (movements.length === 0) {
-    return (
-      <section className="react-financial-empty react-movements-empty" role="status">
-        <p>No hay gastos reconocidos disponibles para este periodo.</p>
-      </section>
-    );
-  }
-
-  const filteredView = getMovementFilterView(currentSelection, period, movements);
+  const categoryView = getMovementFilterView(currentSelection, period, movements);
+  const query = search.trim().toLocaleLowerCase("es");
+  const matchingRows = categoryView.rows.filter((movement) =>
+    (!kind || movement.kind === kind) &&
+    (!query || [movement.counterparty, movement.description, movement.category]
+      .some((value) => value?.toLocaleLowerCase("es").includes(query))),
+  );
+  const filteredView: MovementFilterView = {
+    ...categoryView,
+    rows: matchingRows,
+    count: query || kind
+      ? {
+        ...categoryView.count,
+        shown: matchingRows.length,
+        message: `${categoryView.count.isActive ? `Filtro: ${categoryView.activeCategory} · ` : ""}${matchingRows.length} de ${movements.length} movimientos con los filtros actuales.`,
+      }
+      : categoryView.count,
+  };
   // The selection is reconciled against the rows the table is actually showing, so a filtered-away
   // or reloaded-away row cannot stay silently selected. The module returns the same set while nothing
   // changed, so this only re-renders on a real transition.
@@ -3160,6 +3247,12 @@ export function MovementsTable({
     <>
       <MovementsTableView
         filteredView={filteredView}
+        periodMovements={movements}
+        pendingAmountCount={pendingAmountCount}
+        search={search}
+        onSearchChange={setSearch}
+        kind={kind}
+        onKindChange={setKind}
         sort={sort}
         editableMovements={editableMovements}
         onActivate={(key) => setSort(cycleMovementSort(sort, key))}

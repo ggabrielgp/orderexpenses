@@ -3118,6 +3118,7 @@ test("the React financial summary exposes one period edit trigger and reloads th
 		/<button\s+className="react-dashboard-period"\s+type="button"\s+onClick=\{financialDashboard\.onEditPeriod\}/,
 	);
 	assert.match(page, /onEditPeriod: openCycleEdit/);
+	assert.match(page, /aria-label=\{`Editar periodo: \$\{formatPeriodLabel\(financialDashboard\.period\)\}`\}/);
 	assert.match(page, /<section className="react-financial-summary" aria-label="Resumen financiero del periodo">/);
 	assert.doesNotMatch(page, /react-financial-summary-title|aria-labelledby="react-financial-summary-title"/);
 	assert.doesNotMatch(page, /FinancialPeriodHeading|CompleteCycleDialog|onCompletePeriod|openCycleCompletion/);
@@ -3133,15 +3134,17 @@ test("the React financial summary exposes one period edit trigger and reloads th
 		page,
 		/react-dashboard-controls[\s\S]{0,900}?react-dashboard-period-range[\s\S]{0,300}?formatPeriodLabel\(financialDashboard\.period\)/,
 	);
-	// The header refresh calls the cycle-first reload, not the route/session retry, and names its
-	// scope for assistive tech.
+	// The header refresh uses a guarded progress handler that delegates to the cycle-first reload,
+	// not the route/session retry, and names its state for assistive tech.
+	assert.match(page, /const refreshFromHeader = async \(\) => \{[\s\S]{0,250}?await financialDashboard\.reload\(\)/);
 	assert.match(
 		page,
-		/<button\s+className="secondary react-dashboard-refresh"\s+type="button"\s+onClick=\{financialDashboard\.reload\}\s+aria-label="Actualizar gastos del periodo"/,
+		/<button\s+className="secondary react-dashboard-refresh"\s+type="button"\s+onClick=\{refreshFromHeader\}\s+disabled=\{isRefreshing\}\s+aria-busy=\{isRefreshing\}/,
 	);
+	assert.match(page, /aria-label=\{isRefreshing \? "Actualizando gastos del periodo" : "Actualizar gastos del periodo"\}/);
 	assert.match(
 		page,
-		/className="secondary react-dashboard-refresh"[\s\S]{0,300}?faArrowsRotate[\s\S]{0,200}?Actualizar/,
+		/className="secondary react-dashboard-refresh"[\s\S]{0,700}?<FontAwesomeIcon icon=\{faArrowsRotate\} aria-hidden="true" \/>[\s\S]{0,50}?Actualizar/,
 	);
 	// The route retry prop is unused by the ready page after this correction, so it is gone entirely.
 	assert.doesNotMatch(page, /onRetry/);
@@ -4177,14 +4180,10 @@ test("the React movement filter count states the filtered rows out of the period
 	assert.equal(filtered.category, "Comida");
 	assert.equal(filtered.shown, 3);
 	assert.equal(filtered.total, 4);
-	// Legacy's own `{n} de {total}` detail (`renderTableSummary`, `public/app.js:3590-3618`), with the
-	// React row projection named instead of legacy's "salidas con monto".
-	assert.match(filtered.message, /3 de 4 gastos reconocidos del periodo/);
-	assert.match(filtered.message, /Filtro activo: Comida\./);
-	// The narrowed table and the period-wide financial summary are two different statements, so the
-	// copy names which is which instead of letting a filtered table imply the summary moved with it.
-	assert.match(filtered.message, /solo afecta a esta tabla/);
-	assert.match(filtered.message, /el resumen financiero sigue considerando el periodo completo/);
+	// The active status describes the table's subset, not the period-wide financial metrics (whose
+	// separate "Periodo completo, sin filtros" label is checked in the rendered card test below).
+	assert.match(filtered.message, /^Filtro activo: Comida\. 3 de 4 movimientos\.$/);
+	assert.doesNotMatch(filtered.message, /resumen financiero|total gastado/i);
 	assert.notEqual(filtered.message, unfiltered.message);
 });
 
@@ -4230,33 +4229,29 @@ test("the React movements filter control renders the labelled group, the active 
 			}),
 		);
 
-	// The unfiltered control: a labelled group, the shipped copy, and the loaded rows' categories as
-	// the only options — each with the rows it would show.
+	// The unfiltered control keeps its labelled category select and only the loaded rows' categories,
+	// each with the number of rows it would show, without an introductory heading or instructions.
 	const idle = renderBar(viewOf(filters.createMovementFilterSelection(period)).count);
 	assert.match(idle, /role="group" aria-label="Filtrar tabla por categoría"/);
-	assert.match(idle, /Filtrar detalle/);
 	assert.match(idle, /Categoría<\/span>/);
-	assert.match(idle, /Elige una categoría para limpiar el ruido\./);
-	assert.match(idle, /<select/);
-	assert.match(idle, /Todas las categorías · 4/);
+	assert.match(idle, /<select><option/);
+	assert.match(idle, /<option[^>]*value="" selected="">Todas las categorías · 4<\/option>/);
 	assert.match(idle, /Comida · 3/);
 	assert.match(idle, /Arriendo · 1/);
 	assert.doesNotMatch(idle, /Vacaciones/);
+	assert.doesNotMatch(idle, /Filtrar detalle|Elige una categoría para limpiar el ruido\./);
 	// Nothing to clear and nothing to state while no filter is active.
 	assert.doesNotMatch(idle, /Limpiar filtro/);
-	assert.doesNotMatch(idle, /Filtro activo/);
+	assert.doesNotMatch(idle, /role="status"/);
 
-	// The active control: the option is the selected one, the state is announced, and the visible
-	// clear action appears only now.
+	// The active control selects the category, announces exactly the table subset, and offers a clear
+	// action without the old instruction or a sentence about the period-wide summary.
 	const activeCount = viewOf(filters.selectMovementFilterCategory("Comida", period)).count;
 	const active = renderBar(activeCount);
-	assert.match(active, /Estás viendo solo una categoría\./);
-	assert.match(active, /<option[^>]*value="Comida" selected=""/);
+	assert.match(active, /<option[^>]*value="Comida" selected="">Comida · 3<\/option>/);
 	assert.match(active, /Limpiar filtro<\/button>/);
-	// The count statement is the module's own copy, announced politely, and it states the count out of
-	// the period's total without claiming the summary above the toggle was filtered.
-	assert.match(active, /Filtro activo: Comida\. Se muestran 3 de 4 gastos reconocidos del periodo\./);
-	assert.match(active, /El filtro solo afecta a esta tabla: el resumen financiero sigue considerando el periodo completo\./);
+	assert.match(active, /<p class="react-movements-filter-count" role="status">Filtro activo: Comida\. 3 de 4 movimientos\.<\/p>/);
+	assert.doesNotMatch(active, /Estás viendo solo una categoría\.|Se muestran 3 de 4 gastos reconocidos del periodo|El filtro solo afecta a esta tabla/);
 
 	// The table itself owns the selection, derives the view from the loaded rows on every render, and
 	// states the count only while the statement exists. The loaded period and rows are what make a
@@ -4316,10 +4311,11 @@ test("the React movements filter control renders the labelled group, the active 
 
 	// Scoped styles under the shipped `react-` prefix.
 	assert.match(styles, /\.react-movements-filters \{/);
-	assert.match(styles, /\.react-movements-filter-intro strong \{/);
+	assert.match(styles, /\.react-movements-filter-field \{/);
 	assert.match(styles, /\.react-movements-filter-field select \{/);
 	assert.match(styles, /\.react-movements-filter-clear \{/);
 	assert.match(styles, /\.react-movements-filter-count \{/);
+	assert.doesNotMatch(styles, /\.react-movements-filter-intro\b/);
 });
 
 test("the React movements view and the demo share the Stitch card header with a decorative glyph", async (t) => {
@@ -4361,7 +4357,7 @@ test("the React movements view and the demo share the Stitch card header with a 
 	// Positive marker first: the authenticated card opens with the shared header band, before the filter
 	// control band it used to open with, and the glyph is decorative.
 	assert.match(table, /<div class="react-movements-view"><header class="react-movements-header">/);
-	assert.match(table, /class="section-kicker">Movimientos<\/span>/);
+	assert.match(table, /<section class="react-movements-metrics" aria-label="Indicadores del periodo">[\s\S]*?<span>Total gastado<\/span><strong>\$25\.000<\/strong><small>Periodo completo, sin filtros<\/small>/);
 	assert.match(table, /<h2>Actividad del periodo<\/h2>/);
 	assert.match(table, /<span class="react-card-icon" aria-hidden="true">/);
 	assert.ok(
@@ -4401,8 +4397,8 @@ test("the React movements view and the demo share the Stitch card header with a 
 
 	// Scoped movement/demo CSS only, aligned to the shipped card tokens and the shared glyph.
 	assert.match(styles, /\.react-movements-header \{/);
-	assert.match(styles, /\.react-movements-header-copy h2 \{/);
-	assert.match(styles, /\.react-movements-header-copy p \{/);
+	assert.match(styles, /\.react-movements-header h2 \{/);
+	assert.match(styles, /\.react-movements-metrics \{/);
 	assert.match(styles, /\.demo-movements-header \{/);
 	assert.match(styles, /\.demo-movements-heading \{/);
 	assert.match(styles, /\.react-card-icon \{/);
@@ -4816,7 +4812,7 @@ test("the React movement sorting orders the filtered rows without changing the f
 	assert.equal(view.count.category, "Comida");
 	assert.equal(view.count.shown, 3);
 	assert.equal(view.count.total, 4);
-	assert.match(view.count.message, /3 de 4 gastos reconocidos del periodo/);
+	assert.match(view.count.message, /3 de 4 movimientos\./);
 	assert.equal(view.count.shown, descRows.length);
 	const recount = filters.getMovementFilterView(selection, period, rows).count;
 	assert.deepEqual(recount, view.count);

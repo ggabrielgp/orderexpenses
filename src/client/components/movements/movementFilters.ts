@@ -211,12 +211,8 @@ function getFilteredMovements(
 }
 
 /**
- * The count statement the table owes the user while it narrows rows. Legacy stated the same thing in
- * the table's own summary (`renderTableSummary`, `public/app.js:3590-3618`): label
- * `{category} en {period}`, detail `{n} de {total}`. The rows here are recognized expenses rather
- * than legacy's "salidas con monto", so the statement names that projection, and it says in words
- * that the financial summary still covers the whole period: a filtered table next to unchanged
- * totals is only honest when it says which is which.
+ * The category and current count for the narrowed table. The visible KPI context identifies the
+ * period-wide totals, so the filter status only describes the table rows.
  */
 function buildMovementFilterCount(
 	activeCategory: string,
@@ -231,9 +227,7 @@ function buildMovementFilterCount(
 		category: activeCategory,
 		shown,
 		total,
-		message:
-			`Filtro activo: ${activeCategory}. Se muestran ${shown} de ${total} gastos reconocidos del periodo. ` +
-			"El filtro solo afecta a esta tabla: el resumen financiero sigue considerando el periodo completo.",
+		message: `Filtro activo: ${activeCategory}. ${shown} de ${total} movimientos.`,
 	};
 }
 
