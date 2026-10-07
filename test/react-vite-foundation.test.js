@@ -6506,7 +6506,7 @@ test("the React account menu view renders the labelled trigger, the safe avatar 
 	const [React, renderer, menuModule] = await Promise.all([
 		import("react"),
 		import("react-dom/server"),
-		vite.ssrLoadModule("/src/client/components/account/AccountMenu.tsx"),
+		vite.ssrLoadModule("/src/client/components/account/AccountMenuComponent.tsx"),
 	]);
 
 	const noop = () => {};
@@ -6578,14 +6578,14 @@ test("the React authenticated header exposes one Configuración action opening t
 	const [page, menuSource, styles] = await Promise.all([
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
 		readFile(
-			new URL("../src/client/components/account/AccountMenu.tsx", import.meta.url),
+			new URL("../src/client/components/account/AccountMenuComponent.tsx", import.meta.url),
 			"utf8",
 		),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 
 	// The authenticated header gains the account menu as the settings entry point.
-	assert.match(page, /import \{ AccountMenu \} from "\.\.\/components\/account\/AccountMenu";/);
+	assert.match(page, /import \{ AccountMenu \} from "\.\.\/components\/account\/AccountMenuComponent";/);
 	assert.match(page, /<AccountMenu profile=\{profile\}>/);
 
 	// The consolidated settings entry lives under the account menu and opens the unified surface;
@@ -8120,9 +8120,9 @@ test("the React category distribution renders the ECharts donut legend, reuses t
 			import("react-dom/server"),
 			vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 			vite.ssrLoadModule("/src/client/components/analytics/categoryRanking.ts"),
-			vite.ssrLoadModule("/src/client/components/analytics/CategoryDistribution.tsx"),
+			vite.ssrLoadModule("/src/client/components/analytics/CategoryDistributionPanel.tsx"),
 			readFile(
-				new URL("../src/client/components/analytics/CategoryDistribution.tsx", import.meta.url),
+				new URL("../src/client/components/analytics/CategoryDistributionPanel.tsx", import.meta.url),
 				"utf8",
 			),
 			readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
@@ -8841,7 +8841,7 @@ test("the React cycle calendar renders the year-to-date grid, the range summary 
 	const [React, renderer, calendar] = await Promise.all([
 		import("react"),
 		import("react-dom/server"),
-		vite.ssrLoadModule("/src/client/components/financial-cycle/CycleCalendar.tsx"),
+		vite.ssrLoadModule("/src/client/components/financial-cycle/FinancialCycleCalendar.tsx"),
 	]);
 	const render = (props) =>
 		renderer.renderToStaticMarkup(React.createElement(calendar.CycleCalendar, props));

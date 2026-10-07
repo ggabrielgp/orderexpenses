@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
-import { CycleCalendar } from "./CycleCalendar";
+import { CycleCalendar } from "./FinancialCycleCalendar";
 import {
 	createCalendarRange,
 	getCurrentYearCalendarBounds,

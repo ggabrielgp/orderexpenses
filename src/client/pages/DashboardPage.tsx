@@ -42,7 +42,7 @@ import {
   upsertCategory,
   upsertCounterpartyRule,
 } from "../api/client";
-import { AccountMenu } from "../components/account/AccountMenu";
+import { AccountMenu } from "../components/account/AccountMenuComponent";
 import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
 import { getPeriodAnalytics } from "../components/analytics/periodAnalytics";
 import {
@@ -58,7 +58,7 @@ import {
 import {
   CategoryDetailView,
   CategoryDistributionPanel,
-} from "../components/analytics/CategoryDistribution";
+} from "../components/analytics/CategoryDistributionPanel";
 import { formatMovementCount } from "../components/analytics/categoryDistribution";
 import {
   getDashboardLead,
@@ -135,7 +135,7 @@ import { AccountSettingsDialog } from "../components/settings/AccountSettingsDia
 import { createCategoryMutationSubmitter } from "../components/settings/categorySettings";
 import { createCounterpartyRuleSubmitter } from "../components/settings/counterpartyRules";
 import { FinancialCycleEditDialog } from "../components/financial-cycle/FinancialCycleEditDialog";
-import { CycleCalendar } from "../components/financial-cycle/CycleCalendar";
+import { CycleCalendar } from "../components/financial-cycle/FinancialCycleCalendar";
 import {
   createCalendarRange,
   getCurrentYearCalendarBounds,
