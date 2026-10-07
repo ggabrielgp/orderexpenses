@@ -822,6 +822,9 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
   // account/settings surface and Gmail stay absent by construction. Only read-only selection
   // controls are interactive.
   const transactions = getDemoTransactions(data);
+  const recentMovements = [...data.movements]
+    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+    .slice(0, 6);
   const summary = summarizeRecognizedExpenses(transactions);
   const movements = getRecognizedExpenseMovements(transactions);
   const detailMovements = getSpendingChartDetailMovements(transactions);
@@ -934,7 +937,7 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
               </span>
             </header>
             <ul>
-              {data.movements.slice(0, 6).map((movement) => (
+              {recentMovements.map((movement) => (
                 <li key={movement.id}>
                   <div>
                     <strong>{movement.counterparty}</strong>
