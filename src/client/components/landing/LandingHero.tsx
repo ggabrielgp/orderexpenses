@@ -19,26 +19,51 @@ export function LandingHero() {
 					</dl>
 				</RevealOnScroll>
 				<RevealOnScroll className="landing-stage-reveal">
-					<div className="landing-stage" aria-label="Vista ilustrativa del dashboard mensual de Gastos Controlados">
-						<div className="landing-stage-window">
-							<div className="landing-stage-topbar"><strong><span className="material-symbols-outlined" aria-hidden="true">account_balance_wallet</span>Gastos Controlados</strong><span className="landing-connected"><i />Gmail conectado</span></div>
-							<div className="landing-stage-body">
-								<div className="landing-stage-title"><div><span>Resumen mensual</span><h2>Agosto 2026</h2></div><em>Periodo seleccionado</em></div>
-								<div className="landing-kpis">
-									<Kpi label="Gastos" value="$684.920" featured />
-									<Kpi label="Ingresos" value="$920.000" />
-									<Kpi label="Balance" value="+$235.080" success />
+					<figure className="landing-stage" aria-label="Vista ilustrativa del dashboard mensual de Gastos Controlados">
+						<div className="landing-phone">
+							<div className="landing-stage-window">
+								<div className="landing-phone-island" aria-hidden="true" />
+								<div className="landing-stage-topbar">
+									<strong><span className="material-symbols-outlined" aria-hidden="true">account_balance_wallet</span>Gastos Controlados</strong>
 								</div>
-								<div className="landing-stage-columns">
-									<div className="landing-stage-card"><div className="landing-card-heading"><h3>Distribución por categoría</h3><span>Total del mes</span></div><Bars /></div>
-									<div className="landing-stage-card landing-budget"><h3>Presupuesto</h3><div className="landing-budget-ring"><b>68%<small>utilizado</small></b></div><p>$315.080 disponibles</p></div>
+								<div className="landing-stage-body">
+									<div className="landing-stage-title">
+										<span>Resumen mensual</span>
+										<h2>Agosto 2026</h2>
+										<em>Periodo seleccionado</em>
+									</div>
+									<div className="landing-kpis">
+										<Kpi label="Gastos" value="$684.920" featured />
+										<Kpi label="Ingresos" value="$920.000" />
+										<Kpi label="Balance" value="+$235.080" success />
+									</div>
+									<div className="landing-stage-card landing-categories">
+										<div className="landing-card-heading"><h3>Distribución por categoría</h3><span>Total del mes</span></div>
+										<Bars />
+									</div>
+									<div className="landing-stage-card landing-movements">
+										<div className="landing-card-heading"><h3>Movimientos recientes</h3><span>Ver detalle</span></div>
+										<Movement name="Supermercado" detail="Alimentación · 18 ago" value="-$42.580" />
+										<Movement name="Transferencia recibida" detail="Ingreso · 16 ago" value="+$120.000" success />
+									</div>
 								</div>
-								<div className="landing-stage-card landing-movements"><div className="landing-card-heading"><h3>Movimientos recientes</h3><span>Ver detalle</span></div><Movement name="Supermercado" detail="Alimentación · 18 ago" value="-$42.580" /><Movement name="Transferencia recibida" detail="Ingreso · 16 ago" value="+$120.000" success /></div>
+								<div className="landing-phone-home" aria-hidden="true" />
 							</div>
 						</div>
-						<div className="landing-sync-note"><span className="material-symbols-outlined" aria-hidden="true">sync</span>12 movimientos sincronizados</div>
-						<div className="landing-stage-caption">Vista ilustrativa · datos de ejemplo</div>
-					</div>
+						<div className="landing-info-card landing-connected">
+							<span className="landing-info-icon material-symbols-outlined" aria-hidden="true">mail</span>
+							<div className="landing-info-copy"><h3>Gmail</h3><p><i aria-hidden="true" />Conectado</p></div>
+						</div>
+						<div className="landing-info-card landing-budget">
+							<div className="landing-budget-ring" aria-hidden="true" />
+							<div className="landing-info-copy"><h3>Presupuesto</h3><p><span>68% utilizado</span><span>$315.080 disponibles</span></p></div>
+						</div>
+						<div className="landing-info-card landing-sync-note">
+							<span className="landing-info-icon material-symbols-outlined" aria-hidden="true">sync</span>
+							<div className="landing-info-copy"><h3>12 movimientos</h3><p>Sincronizados</p></div>
+						</div>
+						<figcaption className="landing-stage-caption">Vista ilustrativa · datos de ejemplo</figcaption>
+					</figure>
 				</RevealOnScroll>
 			</div>
 		</section>
