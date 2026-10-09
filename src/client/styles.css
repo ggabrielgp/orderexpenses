@@ -263,6 +263,27 @@
 .landing-sync-note { grid-column: 1 / -1; grid-row: 3; justify-self: start; margin-left: 12px; animation: landing-panel-float 5s ease-in-out -.4s infinite; }
 .landing-stage-caption { grid-column: 1 / -1; color: var(--marketing-muted); font-size: .6875rem; font-weight: 500; letter-spacing: .025em; text-align: center; }
 
+@media (width < 640px) {
+	/* Overlay separate phone bands without extending cards beyond the stage. */
+	.landing-info-card {
+		position: absolute;
+		z-index: 2;
+		grid-area: auto;
+		gap: 8px;
+		width: 160px;
+		min-height: 52px;
+		border-radius: 14px;
+		padding: 8px;
+	}
+	.landing-info-icon { width: 28px; height: 28px; border-radius: 9px; font-size: 18px; }
+	.landing-budget-ring { width: 28px; height: 28px; }
+	.landing-budget-ring::before { inset: 3px; }
+	.landing-connected { top: 16px; left: 0; width: 128px; }
+	.landing-budget { top: 52%; right: 0; width: 176px; }
+	.landing-sync-note { bottom: 56px; left: 0; margin-left: 0; }
+	.landing-stage-caption { grid-row: 2; }
+}
+
 @keyframes landing-phone-float {
 	0%, 100% { transform: translateY(0); }
 	50% { transform: translateY(-6px); }
@@ -426,7 +447,7 @@
 	.landing-feature-section { padding: 112px 0; }
 	.landing-section-heading h2 { font-size: 2.45rem; }
 	.landing-problem-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-	.landing-hero { padding: 96px 0; }
+	.landing-hero { padding: 32px 0 96px; }
 	.landing-hero h1 { font-size: 4rem; }
 	.landing-hero-description { font-size: 1.125rem; line-height: 1.78; }
 	/* Reserve a right foreground, without widening the hero or shrinking the phone. */
@@ -475,7 +496,7 @@
 @media (min-width: 1024px) {
 	.landing-problem-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 	.landing-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-	.landing-hero { padding: 112px 0; }
+	.landing-hero { padding: 24px 0 112px; }
 	.landing-hero-grid { grid-template-columns: .82fr 1.18fr; gap: 64px; }
 	.landing-hero h1 { font-size: 4.35rem; }
 	.landing-compatibility-panel { display: flex; align-items: center; justify-content: space-between; gap: 64px; }
