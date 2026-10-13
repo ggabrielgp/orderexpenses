@@ -1,56 +1,21 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import test from "node:test";
-
-// The sign-out route is exercised against an isolated database, so the focused run never reads or
-// mutates the developer's `data/finance.db`. `VERCEL=1` also keeps the module from binding a port.
-process.env.VERCEL = "1";
-process.env.TURSO_DATABASE_URL = `file:${join(
-	tmpdir(),
-	`gastos-controlados-logout-${randomUUID()}.db`,
-)}`;
+import "./helpers/isolation.js";
+import { request as handlerRequest } from "./helpers/request.js";
 
 const { default: handleRequest } = await import("../src/server.js");
 const { createSession, ensureDbInitialized, getSession, linkSessionToUser } =
 	await import("../src/db.js");
 
-function request(pathname, sessionId) {
-	return new Promise((resolve, reject) => {
-		const headers = { host: "localhost:3000" };
-		if (sessionId) headers.cookie = `finance_session=${sessionId}`;
-
-		const response = {
-			headers: {},
-			setHeader(name, value) {
-				this.headers[name.toLowerCase()] = value;
-			},
-			writeHead(status, responseHeaders = {}) {
-				this.status = status;
-				Object.assign(this.headers, responseHeaders);
-			},
-			end(body = "") {
-				resolve({
-					status: this.status,
-					headers: this.headers,
-					body: String(body),
-				});
-			},
-		};
-
-		Promise.resolve(
-			handleRequest({ url: pathname, method: "GET", headers }, response),
-		).catch(reject);
-	});
-}
+const request = (pathname, sessionId) => handlerRequest(handleRequest, pathname, { sessionId });
 
 test("GET /auth/logout clears the session user and redirects to the unauthenticated app route", async () => {
 	await ensureDbInitialized();
 
 	const sessionId = randomUUID();
-	await createSession(sessionId, null);
+	await createSession(sessionId, new Date(Date.now() + 86_400_000).toISOString());
 	await linkSessionToUser(sessionId, "owner@example.com");
 	assert.equal((await getSession(sessionId)).userEmail, "owner@example.com");
 
@@ -73,7 +38,7 @@ test("GET /auth/logout clears the session user and redirects to the unauthentica
 test("private JSON responses prohibit HTTP caching, including session and financial data", async () => {
 	await ensureDbInitialized();
 	const sessionId = randomUUID();
-	await createSession(sessionId, null);
+	await createSession(sessionId, new Date(Date.now() + 86_400_000).toISOString());
 	for (const path of ["/api/session/profile", "/api/transactions", "/api/income-candidates", "/api/gmail/status"]) {
 		const response = await request(path, sessionId);
 		assert.equal(response.status, 200, path);

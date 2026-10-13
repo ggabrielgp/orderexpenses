@@ -201,6 +201,22 @@ Configura esas variables para los ambientes que usarás:
 - **Preview** si vas a probar branches/PRs
 - **Development** solo si usarás `vercel dev`
 
+### Caducidad absoluta de sesiones
+
+- Una sesión es válida solo antes de su `expires_at` persistido. Al alcanzar ese instante queda invalidada; navegar o refrescar la cookie **no extiende** el plazo.
+- La cookie conserva `HttpOnly`, `SameSite=Lax`, `Path=/` y `Secure` según la configuración. Su `Max-Age` se redondea hacia abajo a segundos y nunca supera la vigencia restante; con menos de un segundo restante puede ser `0`.
+- Las sesiones antiguas sin fecha de vencimiento, con fecha inválida o ya vencidas se rechazan **inmediatamente**, sin periodo de gracia. La siguiente solicitud crea una identidad anónima: el usuario debe iniciar sesión/conectar Gmail otra vez.
+- La limpieza diferida elimina solo la sesión rechazada y sus estados OAuth huérfanos. Conserva cuentas, tokens de Google, movimientos, categorías, reglas, overrides, preferencias, periodos financieros y otras sesiones activas. No es una desconexión de Gmail ni una eliminación de datos.
+
+| `SESSION_TTL_DAYS` | Regla |
+|---|---|
+| Ausente | **30 días**; es el único caso que usa el valor predeterminado. |
+| Válido | Número decimal positivo, fracciones (por ejemplo `0.5`) o notación científica; plazos grandes solo si generan una fecha futura representable por JavaScript `Date`. |
+| Inválido | Vacío, malformado, no finito, cero, negativo, demasiado pequeño para producir una fecha futura o fuera del rango de `Date`: falla al iniciar con `Invalid SESSION_TTL_DAYS`. |
+| Corrección | Configura, por ejemplo, `30` o `0.5`, o elimina la variable para usar el valor predeterminado. |
+
+La fecha también se valida al crear cada sesión. No se ajustan valores inválidos ni se crean sesiones sin vencimiento.
+
 ## 6. Deploy
 
 Desde local:

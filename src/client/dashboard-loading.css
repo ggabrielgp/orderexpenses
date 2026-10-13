@@ -1,0 +1,102 @@
+/* Presentational only: the existing dashboard owns loading, retry and refresh lifecycles. */
+.react-dashboard-loading-status {
+	margin: 0 0 var(--space-4);
+	color: var(--ink);
+	font-size: var(--text-sm);
+	font-weight: 600;
+}
+
+.react-dashboard-loading-status > span {
+	display: block;
+	margin-top: var(--space-1);
+	color: var(--ink-muted);
+	font-size: .8125rem;
+	font-weight: 400;
+}
+
+.react-loading-kpi {
+	min-height: 148px;
+}
+
+.react-loading-card {
+	display: grid;
+	align-content: start;
+	gap: var(--space-4);
+	min-width: 0;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-4);
+	box-shadow: var(--card-shadow-soft);
+}
+
+.react-loading-placeholder {
+	position: relative;
+	display: block;
+	overflow: hidden;
+	width: 100%;
+	max-width: 100%;
+	height: 14px;
+	flex: none;
+	border-radius: 6px;
+	background: var(--surface-subtle);
+}
+
+.react-loading-placeholder::after {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, transparent, rgb(255 255 255 / 55%), transparent);
+	content: "";
+	transform: translateX(-100%);
+	animation: dashboard-skeleton-shimmer 1.8s ease-in-out infinite;
+}
+
+.react-loading-placeholder-label { width: 48%; }
+.react-loading-placeholder-value { width: 64%; height: 36px; margin: var(--space-2) 0; }
+.react-loading-placeholder-detail { width: 76%; height: 12px; }
+.react-loading-placeholder-row { height: 18px; }
+.react-loading-placeholder-chart { height: 210px; border-radius: var(--radius-control); }
+.react-loading-chart { min-height: 310px; }
+
+.react-loading-category {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	min-height: 160px;
+}
+
+.react-loading-circle { width: 112px; height: 112px; border-radius: 50%; }
+.react-loading-rows { display: grid; flex: 1; gap: var(--space-4); min-width: 0; }
+.react-loading-movements { min-height: 340px; }
+.react-loading-movement-row { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: var(--space-4); }
+
+/* The content is immediately usable: no delayed reveals, counters or render gates. */
+.react-dashboard-shell .react-financial-summary {
+	animation: dashboard-content-reveal 180ms ease-out;
+}
+
+@keyframes dashboard-skeleton-shimmer {
+	to { transform: translateX(100%); }
+}
+
+@keyframes dashboard-content-reveal {
+	from { opacity: .6; }
+	to { opacity: 1; }
+}
+
+@media (max-width: 640px) {
+	.react-loading-category { gap: var(--space-3); }
+	.react-loading-circle { width: 88px; height: 88px; }
+	.react-loading-placeholder-chart { height: 180px; }
+	.react-loading-movement-row { grid-template-columns: 1fr 2fr; gap: var(--space-3); }
+	.react-loading-movement-row > :last-child { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.react-loading-placeholder::after,
+	.react-dashboard-shell .react-financial-summary {
+		animation: none !important;
+	}
+
+	.react-loading-placeholder::after { content: none; }
+}

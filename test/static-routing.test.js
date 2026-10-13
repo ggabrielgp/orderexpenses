@@ -2,34 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-process.env.VERCEL = "1";
-process.env.TURSO_DATABASE_URL = "file:./data/finance.db";
+import "./helpers/isolation.js";
+import { request as handlerRequest } from "./helpers/request.js";
+import { configureGoogleFixtures, googleCalls } from "./helpers/fixtures.js";
 const { default: handleRequest } = await import("../src/server.js");
-
-function request(pathname) {
-	return new Promise((resolve, reject) => {
-		const response = {
-			headers: {},
-			setHeader(name, value) {
-				this.headers[name.toLowerCase()] = value;
-			},
-			writeHead(status, headers = {}) {
-				this.status = status;
-				Object.assign(this.headers, headers);
-			},
-			end(body = "") {
-				resolve({ status: this.status, headers: this.headers, body: String(body) });
-			},
-		};
-
-		Promise.resolve(
-			handleRequest(
-				{ url: pathname, method: "GET", headers: { host: "localhost:3000" } },
-				response,
-			),
-		).catch(reject);
-	});
-}
+const request = (pathname) => handlerRequest(handleRequest, pathname);
 
 test("serves the React shell at the production root", async () => {
 	const response = await request("/");
@@ -221,10 +198,20 @@ test("view switch options keep the shared control radius in the final cascade", 
 	assert.doesNotMatch(optionRules.at(-1)[1], /border-radius:\s*8px/);
 });
 
-test("OAuth success returns users to the dashboard with auto-sync enabled", async () => {
-	const source = await readFile(
-		new URL("../src/server.js", import.meta.url),
-		"utf8",
-	);
-	assert.match(source, /location: "\/app\?gmail=connected"/);
+test("OAuth success without a return origin retains the relative dashboard connection marker", async () => {
+	configureGoogleFixtures({
+		exchange: { tokens: { access_token: "synthetic-static-route-token" } },
+		profile: { data: { email: "static-route-callback@example.com" } },
+	});
+	const started = await request("/auth/google");
+	assert.equal(started.status, 302);
+	const state = new URL(started.headers.location).searchParams.get("state");
+	const response = await request(`/auth/google/callback?code=synthetic&state=${encodeURIComponent(state)}`);
+	assert.equal(response.status, 302);
+	assert.equal(response.headers.location, "/app?gmail=connected");
+	assert.equal(googleCalls.exchange.length, 1);
+	const id = decodeURIComponent(String(started.headers["set-cookie"]).match(/^finance_session=([^;]+)/)[1]);
+	const profile = await handlerRequest(handleRequest, "/api/session/profile", { sessionId: id });
+	assert.equal(profile.status, 200);
+	assert.equal(JSON.parse(profile.body).authenticated, true);
 });

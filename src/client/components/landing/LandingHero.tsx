@@ -1,4 +1,5 @@
 import { RevealOnScroll } from "./RevealOnScroll";
+import { getGoogleLoginUrl } from "../../api/googleLogin";
 
 export function LandingHero() {
 	return (
@@ -9,7 +10,7 @@ export function LandingHero() {
 					<h1 id="hero-title"><span>Controla tus gastos</span><span>sin mover un dedo.</span></h1>
 					<p className="landing-hero-description">Organiza los comprobantes de Banco de Chile que llegan a tu Gmail. Elige un periodo y obtén una vista mensual clara, categorizada y editable.</p>
 					<div className="landing-hero-actions">
-						<a className="landing-primary-button" href="/auth/google">Comenzar ahora<span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>
+						<a className="landing-primary-button" href={getGoogleLoginUrl()}>Comenzar ahora<span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>
 						<a className="landing-secondary-button" href="/app/demo">Ver dashboard</a>
 					</div>
 					<dl className="landing-hero-facts">

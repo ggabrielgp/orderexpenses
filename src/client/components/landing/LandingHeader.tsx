@@ -1,4 +1,7 @@
+import { useEffect, useRef, useState } from "react";
 import type { SessionResponse } from "../../api/types";
+import { getGoogleLoginUrl } from "../../api/googleLogin";
+import { watchLandingSections } from "./landingNavigation";
 
 interface LandingHeaderProps {
 	session: SessionResponse | null;
@@ -8,28 +11,45 @@ export function LandingHeader({ session }: LandingHeaderProps) {
 	const profile = session?.authenticated ? session.profile : null;
 	const isAuthenticated = Boolean(profile);
 	const identity = profile?.name || profile?.email || null;
+	const headerRef = useRef<HTMLElement>(null);
+	const [activeSection, setActiveSection] = useState<string | null>(null);
+
+	useEffect(() => {
+		const header = headerRef.current;
+		if (!header) return;
+		const sections = Array.from(document.querySelectorAll<HTMLElement>(
+			".landing-page section[id]",
+		)).filter((section) => header.querySelector(`a[href="#${section.id}"]`));
+		return watchLandingSections(
+			sections,
+			() => header.getBoundingClientRect().bottom + 16,
+			setActiveSection,
+			window,
+			header,
+		);
+	}, []);
 
 	return (
 		<>
 			<a className="landing-skip-link" href="#contenido">Ir al contenido</a>
-			<header className="landing-header">
+			<header ref={headerRef} className="landing-header">
 				<div className="landing-shell landing-header-content">
 					<a className="landing-brand" href="/" aria-label="Gastos Controlados, inicio">
 						<span className="material-symbols-outlined landing-brand-icon" aria-hidden="true">account_balance_wallet</span>
 						<span>Gastos Controlados</span>
 					</a>
 					<nav className="landing-nav" aria-label="Navegación principal">
-						<a className="is-current" href="#producto">Producto</a>
-						<a href="#como-funciona">Cómo funciona</a>
-						<a href="#compatibilidad">Compatibilidad</a>
-						<a href="#seguridad">Seguridad</a>
+						<a className={activeSection === "producto" ? "is-current" : undefined} aria-current={activeSection === "producto" ? "location" : undefined} href="#producto">Producto</a>
+						<a className={activeSection === "como-funciona" ? "is-current" : undefined} aria-current={activeSection === "como-funciona" ? "location" : undefined} href="#como-funciona">Cómo funciona</a>
+						<a className={activeSection === "compatibilidad" ? "is-current" : undefined} aria-current={activeSection === "compatibilidad" ? "location" : undefined} href="#compatibilidad">Compatibilidad</a>
+						<a className={activeSection === "seguridad" ? "is-current" : undefined} aria-current={activeSection === "seguridad" ? "location" : undefined} href="#seguridad">Seguridad</a>
 					</nav>
 					<a
 						className="landing-primary-button"
-						href={isAuthenticated ? "/app" : "/auth/google"}
+						href={isAuthenticated ? "/app" : getGoogleLoginUrl()}
 						aria-label={isAuthenticated ? "Ir al dashboard" : "Acceder con Google"}
 					>
-						{!isAuthenticated && <GoogleIcon />}
+						{!isAuthenticated && <span className="landing-google-badge" aria-hidden="true"><GoogleIcon /></span>}
 						<span className="landing-session-action-label">
 							{isAuthenticated ? "Ir al dashboard" : "Acceder con Google"}
 						</span>

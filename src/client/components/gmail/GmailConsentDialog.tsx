@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { getGoogleLoginUrl } from "../../api/googleLogin";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import {
 	acceptGmailConsent,
@@ -13,8 +14,8 @@ export interface GmailConsentDialogProps {
 	/** State produced by `reduceGmailConsent`; the dialog never keeps a second copy. */
 	state: GmailConsentState;
 	/**
-	 * Server-owned OAuth entry point, passed straight to the pure accept decision. The dialog never
-	 * builds, parses, or rewrites it, so the server's `state` contract is preserved.
+	 * Server-owned OAuth entry point, passed unchanged to the pure accept decision. After consent,
+	 * the navigation boundary adds the browser origin; only the server issues OAuth state.
 	 */
 	connectUrl: string;
 	/** Acknowledgement intent, answered by the checkbox. */
@@ -57,9 +58,8 @@ export function GmailConsentDialog({
 	const canAccept = canAcceptGmailConsent(state);
 
 	const handleAccept = () => {
-		// The only navigation in this flow, and its target is the pure decision's output: the exact
-		// server-provided URL, or nothing at all when acceptance has not been given.
-		acceptGmailConsent(state, connectUrl, (url) => window.location.assign(url));
+		// Consent remains unchanged; only an accepted navigation carries the browser return origin.
+		acceptGmailConsent(state, connectUrl, (url) => window.location.assign(getGoogleLoginUrl(url)));
 	};
 
 	return (

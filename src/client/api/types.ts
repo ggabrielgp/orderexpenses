@@ -40,7 +40,8 @@ export interface GmailSyncResponse {
 	query?: string;
 	outcome?: "success" | "partial";
 	scanned: number;
-	transactions: unknown[];
+	/** Display-ready period rows, including manual movements, rules and overrides. */
+	transactions: FinancialTransaction[];
 	failedCount?: number;
 	completedAt?: string | null;
 }

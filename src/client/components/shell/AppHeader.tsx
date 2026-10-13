@@ -44,7 +44,7 @@ export function AppHeader({ view, onViewChange, children }: AppHeaderProps) {
 						<span>Gastos Controlados</span>
 					</a>
 				</div>
-				<nav className="react-app-navigation" aria-label="Vistas del panel">
+				<nav className="react-app-navigation" data-view={view} aria-label="Vistas del panel">
 					{DASHBOARD_NAVIGATION.map((item) => {
 						const isActive = item.view === view;
 						return (

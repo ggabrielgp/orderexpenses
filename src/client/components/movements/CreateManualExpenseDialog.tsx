@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
 import { getCategories } from "../../api/client";
+import { registerNativeBackdropDismiss } from "../dialog/nativeBackdropDismiss";
 import type {
 	Category,
 	CreateManualExpenseRequest,
@@ -365,6 +366,7 @@ export interface NativeModalDialog {
  */
 export function syncNativeModalDialog(dialog: NativeModalDialog | null, isOpen: boolean): void {
 	if (!dialog) return;
+	registerNativeBackdropDismiss(dialog);
 	if (isOpen) {
 		if (!dialog.open) dialog.showModal();
 		return;

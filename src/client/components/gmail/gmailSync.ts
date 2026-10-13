@@ -8,11 +8,10 @@ import {
 /**
  * Manual synchronization decisions for the Gmail card.
  *
- * A sync is a long, opaque request: the server performs up to 200 sequential Gmail fetches
- * (`src/gmail.js:153-171`) and exposes no progress signal at all, so nothing here produces a
- * percentage, an ETA, or a count of downloaded messages. The only facts this module reports are
- * the ones the settled response carries, plus the one honest extra step the card owes the user:
- * whether the financial dashboard could be refreshed afterwards.
+ * A sync is an opaque request: the server reads the complete configured period with bounded
+ * downloads and exposes no progress signal, so nothing here produces a percentage or an ETA.
+ * The only facts reported are the settled response and whether the dashboard was updated by
+ * reusing its assembled movements or by falling back to a fresh cycle-first load.
  *
  * This repository's panel harness has no DOM, so the rules that keep the control honest — one
  * request in flight, an anonymous session that never syncs, and copy that matches what the server
@@ -152,6 +151,14 @@ export type GmailSyncSource = (
 /** Re-runs the cycle-first dashboard load; resolves `false` when the reload failed. */
 export type GmailFinancialReload = () => Promise<boolean>;
 
+/** An invalidated account/unmount must not start a new fallback load. */
+export type GmailSyncResultReuse = (payload: GmailSyncResponse) => boolean | "invalidated";
+
+/** Prepared before POST so a later response cannot overwrite intervening dashboard changes. */
+export type GmailSyncResultReusePreparation = (
+	period: FinancialPeriod,
+) => GmailSyncResultReuse | null;
+
 export type GmailSyncSubmitOutcome =
 	| { status: "success"; scanned: number | null; reloadFailed: boolean }
 	| { status: "partial"; scanned: number | null; failedCount: number | null; reloadFailed: boolean }
@@ -166,6 +173,8 @@ export interface GmailSyncSubmitterDeps {
 	sync: GmailSyncSource;
 	/** Re-runs the cycle-first dashboard load. Resolves `false` when the reload failed. */
 	reload: GmailFinancialReload;
+	/** Optional response reuse; a declined or unavailable reuse retains the normal reload. */
+	prepareResultReuse?: GmailSyncResultReusePreparation;
 	/**
 	 * The configured financial period, always sent. Period mode is the only mode that reports
 	 * per-query failures, so a request without it could not be described truthfully.
@@ -183,19 +192,22 @@ export interface GmailSyncSubmitterDeps {
  * every settled attempt, so a failed sync stays retryable.
  *
  * A rejected request is a real failure and no reload follows it: nothing was confirmed, so a
- * reload would present the same list as if the sync had worked. A completed request always
- * resolves — a reload that failed (or threw) means the visible financial data may be stale, never
- * that the sync did not happen, so the request is never repeated for it.
+ * reload would present the same list as if the sync had worked. A settled response first tries
+ * its prepared reuse, then reloads if reuse is unsafe. A reload failure means visible data may
+ * be stale, never that the sync did not happen, so the sync is not repeated for it.
  */
 export function createGmailSyncSubmitter({
 	sync,
 	reload,
+	prepareResultReuse,
 	period,
 	lock,
 }: GmailSyncSubmitterDeps): GmailSyncSubmitter {
 	return async () => {
 		if (!acquireInFlightLock(lock)) return { status: "busy" };
 		try {
+			let reuse: GmailSyncResultReuse | null = null;
+			try { reuse = prepareResultReuse?.(period) ?? null; } catch { /* Reload remains available. */ }
 			let payload: GmailSyncResponse;
 			try {
 				payload = await sync(period);
@@ -203,9 +215,12 @@ export function createGmailSyncSubmitter({
 				return { status: "failed", message: GMAIL_SYNC_FAILURE_MESSAGE };
 			}
 			const result = readGmailSyncResult(payload);
+			let reuseResult: boolean | "invalidated" = false;
+			try { reuseResult = reuse?.(payload) ?? false; } catch { /* Fall back to the normal reload. */ }
 			let reloadFailed: boolean;
 			try {
-				reloadFailed = (await reload()) === false;
+				reloadFailed = reuseResult === "invalidated" ? true
+					: reuseResult === true ? false : (await reload()) === false;
 			} catch {
 				reloadFailed = true;
 			}

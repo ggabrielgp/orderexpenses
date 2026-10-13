@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
+import "./helpers/isolation.js";
+import { configureGoogleFixtures, google, googleCalls } from "./helpers/fixtures.js";
+
+const {
 	bancoChileQueriesForPayTiming,
 	bancoChileQueriesForRange,
 	collectMessagesForQueries,
-} from "../src/gmail.js";
+} = await import("../src/gmail.js");
 
 test("discovers the supported incoming funds transfer template precisely", () => {
 	const [, incomeQuery] = bancoChileQueriesForPayTiming("varies", "2026-08");
@@ -35,24 +38,18 @@ test("builds Gmail after and before queries for the complete canonical range", (
 });
 
 test("exhausts every Gmail page for each selected-range query", async () => {
-	const calls = [];
-	const gmail = {
-		users: {
-			messages: {
-				list: async ({ q, pageToken }) => {
-					calls.push({ q, pageToken });
-					if (!pageToken) return { data: { messages: [{ id: `${q}-1` }], nextPageToken: "next" } };
-					return { data: { messages: [{ id: `${q}-2` }] } };
-				},
-			},
+	configureGoogleFixtures({
+		list: ({ q, pageToken }) => {
+			if (!pageToken) return { data: { messages: [{ id: `${q}-1` }], nextPageToken: "next" } };
+			return { data: { messages: [{ id: `${q}-2` }] } };
 		},
-	};
+	});
 
-	const result = await collectMessagesForQueries(gmail, ["first", "second"]);
+	const result = await collectMessagesForQueries(google.gmail(), ["first", "second"]);
 
 	assert.equal(result.messages.length, 4);
 	assert.equal(result.failedCount, 0);
-	assert.deepEqual(calls, [
+	assert.deepEqual(googleCalls.list.map(({ q, pageToken }) => ({ q, pageToken })), [
 		{ q: "first", pageToken: undefined },
 		{ q: "first", pageToken: "next" },
 		{ q: "second", pageToken: undefined },

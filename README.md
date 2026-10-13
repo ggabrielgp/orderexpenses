@@ -16,6 +16,79 @@ Privacy-first personal expense dashboard for Banco de Chile Gmail movements.
   - custom categories and colors
   - view/budget preferences where applicable
 
+## Dashboard loading
+
+The first financial load shows layout-matched skeleton cards and charts with the message
+“Preparando los movimientos de tu período...”. Placeholders are decorative: they do not show
+estimated progress, provisional balances or pretend that an empty period has been confirmed.
+The navigation remains available, and the existing retry and financial-cycle setup states are preserved.
+
+“Gmail conectado” means Gmail authorization is available, not that all movements have been read.
+Refreshes keep the previous dashboard visible while loading. Skeleton shimmer and the short
+content reveal are disabled when the system requests reduced motion.
+
+This improves the waiting experience; it does not change Gmail reads or shorten their duration.
+To check the initial state locally, open `/app` in a fresh tab (not a duplicated tab with its existing
+session cache). Use DevTools network throttling if the load is too fast to observe, and check both
+**Resumen** and **Movimientos**. A normal reload may reuse the existing tab's dashboard cache.
+
+## Dashboard feedback and dialogs
+
+Settled save confirmations show a short decorative check only on success; warnings and errors
+remain readable. The account menu, movement selection toolbar and category-view height changes
+use short motion without delaying controls or data. System reduced-motion preferences are respected.
+
+Clicking a native dialog's backdrop requests the same cancellation as Escape. Clicking inside,
+dragging from inside to outside, or a pending operation's cancellation veto does not dismiss it.
+The initial period setup can also be dismissed while idle; **Configurar período** reopens it with
+its current draft. Fields retain existing labels, validation, disabled/read-only states and keyboard use.
+
+To check locally, try backdrop versus dialog padding, Escape and reopening, native movement
+checkboxes, pending save/removal guards, nested account/disconnect dialogs and light/dark themes.
+Also enable reduced motion. Automated EventTarget/SSR tests do not establish real-browser focus
+trapping, restoration or visual playback.
+
+## Gmail read performance
+
+Full Gmail messages are downloaded with at most **four concurrent calls per read**. Query pagination,
+selected-period coverage, deduplication and returned message order stay unchanged; period reads are
+not cut off at 200 messages. A failed detail download stops new dispatch, waits for already-started
+calls and keeps the existing manual-only fallback. This does not add retries, caching or permissions.
+
+Manual dashboard synchronization reads the complete configured period and reuses the returned
+assembled movements, without a second Gmail read or a financial-cycle change. Reuse also updates
+the current account's tab cache. Partial/unusable responses or intervening refreshes/state changes
+retain the fresh-load fallback. Logout or unmount discard the result without starting another account
+load; **Actualizar** still fetches fresh data. `POST /api/gmail/sync` with `period` and no `limit` now exhausts pagination, matching the period
+GET. Explicit limits and the month-mode default keep their existing 200-message-per-query cap.
+
+To check in DevTools → **Network**, clear the list and click **Sincronizar**: an ordinary successful
+sync sends one `/api/gmail/sync` POST without a following `/api/transactions` GET. A fallback may
+still send that GET. Deterministic coverage: `npm test -- test/gmail-sync-reuse.test.js`.
+
+Authenticated `GET /api/transactions` responses include a `Server-Timing` header:
+
+| Stage | Measured work |
+| --- | --- |
+| `gmail-list` | Gmail query traversal and pagination |
+| `gmail-details` | Full-message downloads and email decoding |
+| `transactions` | Transaction assembly, including Gmail, parsing and local configuration reads |
+
+Durations are milliseconds from a monotonic clock. The header contains fixed names and numeric
+values only, without account identifiers, tokens or email content. Durations are recorded even when
+Gmail falls back after a failure; timing does **not** establish success or completeness. The transaction
+JSON remains unchanged. These timings do not include prior session/profile requests, initial database
+setup, browser downloads or rendering.
+
+To measure your real first load, open DevTools → **Network**, enter `/app` in a fresh tab, and inspect
+`/api/transactions` → **Response Headers** → `Server-Timing` (or the request's **Timing** panel).
+An existing tab's dashboard cache can avoid that request entirely. Repeat with the same period and
+compare stages; the controlled fixture below is not a real Gmail speed guarantee:
+
+```bash
+npm test -- test/gmail-performance.test.js
+```
+
 ## Requirements
 
 - Node.js >= 24
@@ -51,6 +124,12 @@ This starts the Node backend at `http://127.0.0.1:3000` and the Vite development
 ```text
 http://localhost:5173
 ```
+
+Google login returns to the domain and port where you started, not to a fixed frontend URL.
+The registered Google callback stays on the backend; the return origin is validated and bound
+into single-use OAuth state. Production domains must match `APP_BASE_URL` or `VERCEL_URL`;
+unconfigured local development supports loopback hosts at any frontend port. See
+[Gmail return-origin setup](./GMAIL_SETUP.md#return-to-the-pages-original-domain) for details.
 
 ## Test
 

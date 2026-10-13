@@ -1,0 +1,85 @@
+/* Bounded product motion: no data, focus or dialog lifecycle changes. */
+.react-app-navigation {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	justify-self: center;
+	width: max-content;
+}
+
+/* One shared underline travels between equal-width navigation targets. */
+.react-app-navigation::before {
+	position: absolute;
+	left: 0;
+	bottom: -1px;
+	width: calc((100% - 34px) / 2);
+	height: 3px;
+	border-radius: 3px 3px 0 0;
+	background: var(--primary);
+	content: "";
+	transform: translateX(0);
+	transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.react-app-navigation[data-view="movements"]::before {
+	transform: translateX(calc(100% + 34px));
+}
+
+.react-app-navigation-link::after {
+	content: none;
+}
+
+:where(.react-shell, .react-app-header) :is(button, .button) {
+	transition: background 160ms ease, color 160ms ease, border-color 160ms ease,
+		box-shadow 160ms ease, scale 140ms ease;
+}
+
+:where(.react-shell, .react-app-header) :is(button, .button):active {
+	/* Replace the legacy 4% transform without moving surrounding layout. */
+	transform: none;
+}
+
+:where(.react-shell, .react-app-header) :is(button, .button):not(:disabled):not([aria-disabled="true"]):active {
+	scale: 0.98;
+}
+
+:where(.react-shell, .react-app-header) :is(button, .button):is(:disabled, [aria-disabled="true"]):active {
+	scale: 1;
+}
+
+dialog[class*="react-"][open],
+.react-category-detail,
+.react-spending-chart-day-panel,
+.react-movements-view {
+	animation: dashboard-surface-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+dialog[class*="react-"][open]::backdrop {
+	animation: dashboard-backdrop-in 180ms ease-out;
+}
+
+@keyframes dashboard-surface-in {
+	from { opacity: 0; transform: translateY(6px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dashboard-backdrop-in {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.react-app-navigation::before,
+	:where(.react-shell, .react-app-header) :is(button, .button) {
+		transition: none !important;
+		scale: 1 !important;
+	}
+
+	dialog[class*="react-"][open],
+	dialog[class*="react-"][open]::backdrop,
+	.react-category-detail,
+	.react-spending-chart-day-panel,
+	.react-movements-view {
+		animation: none !important;
+	}
+}

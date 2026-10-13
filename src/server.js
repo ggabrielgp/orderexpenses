@@ -3,6 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { parseBancoChileEmail } from "./parser.js";
+import { withServerTiming } from "./server-timing.js";
 import {
 	disconnectGoogle,
 	getAuthUrl,
@@ -27,6 +28,7 @@ import {
 	insertManualMovement,
 	listCounterpartyCategoryRules,
 	listUserCategories,
+	sessionExpiryTime,
 	touchSession,
 	updateManualMovement,
 	upsertCounterpartyCategoryRule,
@@ -57,10 +59,24 @@ const VITE_DIST_DIR = join(process.cwd(), "dist");
 const SHARED_DIR = join(process.cwd(), "src", "shared");
 const SESSION_COOKIE_NAME =
 	process.env.SESSION_COOKIE_NAME ?? "finance_session";
-const SESSION_TTL_DAYS = Math.max(
-	Number(process.env.SESSION_TTL_DAYS ?? 30),
-	1,
-);
+const configuredTtl = process.env.SESSION_TTL_DAYS ?? "30";
+const SESSION_TTL_MS = /^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(configuredTtl.trim())
+	? Number(configuredTtl) * 24 * 60 * 60 * 1000
+	: NaN;
+// Validate at startup and again at creation: the Date range depends on the clock.
+configuredSessionDeadline();
+
+function configuredSessionDeadline() {
+	const now = Date.now();
+	const deadline = new Date(now + SESSION_TTL_MS);
+	if (!Number.isFinite(SESSION_TTL_MS) || SESSION_TTL_MS <= 0 ||
+		!Number.isFinite(deadline.getTime()) || deadline.getTime() <= now) {
+		throw new Error(
+			"Invalid SESSION_TTL_DAYS: use a finite positive number of days with a representable future deadline (e.g. 30 or 0.5); omit the variable for the 30-day default.",
+		);
+	}
+	return deadline.toISOString();
+}
 const APP_BASE_URL = process.env.APP_BASE_URL ?? null;
 
 const DEFAULT_CATEGORIES = [
@@ -143,12 +159,13 @@ export default async function handleRequest(req, res) {
 			const month = normalizeMonthParam(url.searchParams.get("month"));
 			if (!user?.email) return sendJson(res, { transactions: [] });
 			const period = financialCyclePeriodFromQuery(url.searchParams);
-			const result = period
-				? await loadMovementsForPeriodResult(user.email, period)
-				: await loadMovementsForMonthResult(user.email, {
+			const { result, serverTiming } = await withServerTiming(() => period
+				? loadMovementsForPeriodResult(user.email, period)
+				: loadMovementsForMonthResult(user.email, {
 						month,
 						payTiming: url.searchParams.get("payTiming") ?? "varies",
-					});
+					}));
+			res.setHeader("Server-Timing", serverTiming);
 			return sendJson(res, {
 				transactions: result.movements,
 				warning: result.warning,
@@ -274,7 +291,7 @@ export default async function handleRequest(req, res) {
 		}
 
 		if (isAuthPath(url.pathname, "/google") && req.method === "GET") {
-			res.writeHead(302, { location: await getAuthUrl(session.sessionId) });
+			res.writeHead(302, { location: await getAuthUrl(session.sessionId, url.searchParams.get("returnOrigin")) });
 			return res.end();
 		}
 
@@ -285,8 +302,11 @@ export default async function handleRequest(req, res) {
 			const state = url.searchParams.get("state");
 			if (!code) throw httpError(400, "Missing OAuth code");
 			const result = await saveTokenFromCode(code, state);
-			refreshSessionCookie(res, result.sessionId);
-			res.writeHead(302, { location: "/app?gmail=connected" });
+			const callbackSession = await getSession(result.sessionId);
+			if (!refreshSessionCookie(res, callbackSession)) {
+				throw httpError(401, "La sesión expiró; vuelve a iniciar sesión.");
+			}
+			res.writeHead(302, { location: `${result.returnOrigin ?? ""}/app?gmail=connected` });
 			return res.end();
 		}
 
@@ -579,8 +599,12 @@ async function readJsonBody(req) {
 }
 
 async function syncGmail(body, userEmail) {
-	const limit = Math.min(Math.max(Number(body.limit ?? 200), 1), 200);
 	const period = body.period ? ReviewPeriod.create(body.period).toJSON() : null;
+	// A period result reused by the dashboard must cover the same range as its GET.
+	// Keep the existing cap for month mode and callers that explicitly request a limit.
+	const limit = period && body.limit == null
+		? undefined
+		: Math.min(Math.max(Number(body.limit ?? 200), 1), 200);
 	return syncRuntimeMovements(userEmail, {
 		limit,
 		month: normalizeMonthParam(body.month),
@@ -868,27 +892,27 @@ async function getOrCreateSession(req, res) {
 	if (fromCookie) {
 		const existing = await getSession(fromCookie);
 		if (existing) {
-			await touchSession(fromCookie);
-			refreshSessionCookie(res, fromCookie);
-			return { ...existing, sessionId: fromCookie };
+			const touched = await touchSession(fromCookie);
+			if (refreshSessionCookie(res, touched)) return touched;
 		}
 	}
 
 	const sessionId = randomUUID();
-	const expiresAt = new Date(
-		Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
-	).toISOString();
-	const created = await createSession(sessionId, expiresAt);
-	refreshSessionCookie(res, sessionId);
-	return { ...created, sessionId };
+	const created = await createSession(sessionId, configuredSessionDeadline());
+	if (!refreshSessionCookie(res, created)) {
+		throw httpError(503, "La sesión expiró antes de crearse; intenta nuevamente.");
+	}
+	return created;
 }
 
-function refreshSessionCookie(res, sessionId) {
+function refreshSessionCookie(res, session) {
+	const remainingMs = sessionExpiryTime(session?.expiresAt) - Date.now();
+	if (!Number.isFinite(remainingMs) || remainingMs <= 0) return false;
 	const secure =
 		process.env.COOKIE_SECURE === "true" || process.env.NODE_ENV === "production";
-	const maxAgeSeconds = SESSION_TTL_DAYS * 24 * 60 * 60;
+	const maxAgeSeconds = Math.floor(remainingMs / 1000);
 	const cookie = [
-		`${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
+		`${SESSION_COOKIE_NAME}=${encodeURIComponent(session.sessionId)}`,
 		"Path=/",
 		"HttpOnly",
 		"SameSite=Lax",
@@ -898,6 +922,7 @@ function refreshSessionCookie(res, sessionId) {
 		.filter(Boolean)
 		.join("; ");
 	res.setHeader("Set-Cookie", cookie);
+	return true;
 }
 
 function parseCookies(cookieHeader) {

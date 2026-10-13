@@ -519,13 +519,25 @@ export async function createSession(sessionId, expiresAt = null) {
 		sql: `INSERT INTO sessions (session_id, expires_at)
 		 VALUES (?, ?)
 		 ON CONFLICT(session_id) DO UPDATE SET
-		   updated_at = CURRENT_TIMESTAMP,
-		   expires_at = COALESCE(excluded.expires_at, sessions.expires_at)`,
+		   updated_at = CURRENT_TIMESTAMP`,
 		args: [sessionId, expiresAt],
 	});
 	return getSession(sessionId);
 }
 
+// Persisted deadlines are ISO date-times with an explicit timezone. Reject loose
+// Date.parse inputs (e.g. "123") and calendar rollovers instead of guessing.
+export function sessionExpiryTime(expiresAt) {
+	if (typeof expiresAt !== "string") return NaN;
+	const match = expiresAt.match(/^((?:\d{4}|[+-]\d{6})-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/);
+	if (!match) return NaN;
+	const calendarDate = new Date(`${match[1]}T00:00:00.000Z`);
+	if (!Number.isFinite(calendarDate.getTime()) || !calendarDate.toISOString().startsWith(`${match[1]}T`)) return NaN;
+	return Date.parse(expiresAt);
+}
+
+// Reusable active-session contract: return the persisted row only while its
+// finite deadline is strictly in the future. No grace period or sliding renewal.
 export async function getSession(sessionId) {
 	const result = await db.execute({
 		sql: `SELECT
@@ -538,7 +550,24 @@ export async function getSession(sessionId) {
 			WHERE session_id = ?`,
 		args: [sessionId],
 	});
-	return result.rows[0] || null;
+	const session = result.rows[0];
+	if (!session) {
+		// Also remove states orphaned by an earlier deletion. A concurrently
+		// inserted replacement keeps its states because absence is checked in SQL.
+		await db.execute({
+			sql: "DELETE FROM oauth_states WHERE session_id = ? AND NOT EXISTS (SELECT 1 FROM sessions WHERE session_id = ?)",
+			args: [sessionId, sessionId],
+		});
+		return null;
+	}
+	if (sessionExpiryTime(session.expiresAt) > Date.now()) return session;
+	// Lazy cleanup is session-scoped. Never remove account, finance or token data.
+	// Compare the observed deadline so a concurrent replacement is not deleted.
+	await db.batch([
+		{ sql: "DELETE FROM sessions WHERE session_id = ? AND expires_at IS ?", args: [sessionId, session.expiresAt] },
+		{ sql: "DELETE FROM oauth_states WHERE session_id = ? AND NOT EXISTS (SELECT 1 FROM sessions WHERE session_id = ?)", args: [sessionId, sessionId] },
+	], "write");
+	return null;
 }
 
 export async function touchSession(sessionId) {
@@ -549,59 +578,179 @@ export async function touchSession(sessionId) {
 	return getSession(sessionId);
 }
 
-export async function linkSessionToUser(sessionId, userEmail) {
-	await db.execute({
-		sql: `UPDATE sessions
-		 SET user_email = ?, updated_at = CURRENT_TIMESTAMP
-		 WHERE session_id = ?`,
-		args: [userEmail, sessionId],
-	});
+// Cancel all public states and private claims in the same write transaction as
+// any identity change, including anonymous logout and same-user/ABA changes.
+// These compatibility helpers never renew deadlines or delete account records.
+async function setSessionUser(sessionId, userEmail) {
+	await db.batch([
+		{ sql: "DELETE FROM oauth_states WHERE session_id = ?", args: [sessionId] },
+		{ sql: "UPDATE sessions SET user_email = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ?", args: [userEmail, sessionId] },
+	], "write");
 	return getSession(sessionId);
+}
+
+export async function linkSessionToUser(sessionId, userEmail) {
+	return setSessionUser(sessionId, userEmail);
 }
 
 export async function clearSessionUser(sessionId) {
-	await db.execute({
-		sql: `UPDATE sessions
-		 SET user_email = NULL, updated_at = CURRENT_TIMESTAMP
-		 WHERE session_id = ?`,
-		args: [sessionId],
-	});
-	return getSession(sessionId);
+	return setSessionUser(sessionId, null);
 }
 
 export async function deleteSession(sessionId) {
-	const result = await db.execute({
-		sql: "DELETE FROM sessions WHERE session_id = ?",
-		args: [sessionId],
-	});
-	return Number(result.rowsAffected || 0) > 0;
+	const results = await db.batch([
+		{ sql: "DELETE FROM oauth_states WHERE session_id = ?", args: [sessionId] },
+		{ sql: "DELETE FROM sessions WHERE session_id = ? RETURNING session_id", args: [sessionId] },
+	], "write");
+	return results[1].rows.length > 0;
 }
 
+// NUL-prefixed rows are repository-private capabilities, never browser states.
+// Keeping the claim in this table means logout/expiry can cancel in-flight work.
+const OAUTH_PRIVATE_PREFIX = "\u0000oauth:";
+export const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
+// Native SQL time is the final OAuth validity authority at statement execution.
+// No JS/seconds fallback: missing functions error; NULL makes gates reject.
+const OAUTH_SQL_CLOCK_MS = "CAST(ROUND(unixepoch('now', 'subsec') * 1000) AS INTEGER) /* oauth-clock-ms */";
+const claimKey = (claimId) => `${OAUTH_PRIVATE_PREFIX}claim:${claimId}`;
+const publicOAuthState = (state) => typeof state === "string" && state.length > 0 && !state.startsWith(OAUTH_PRIVATE_PREFIX);
+const validClaim = (claim) => typeof claim?.claimId === "string" && claim.claimId.length > 0 && typeof claim.sessionId === "string" && claim.sessionId.length > 0;
+
+// Snapshot checks use the same strict deadline parser as getSession. SQL compares
+// the exact observed identity/deadline as well, so a replacement cannot inherit
+// authorization from a stale read. Activity timestamps are deliberately ignored.
+function activeSessionGate(session) {
+	return {
+		sql: `EXISTS (SELECT 1 FROM sessions WHERE session_id = ? AND user_email IS ? AND expires_at IS ?) AND ? > ${OAUTH_SQL_CLOCK_MS}`,
+		args: [session.sessionId, session.userEmail, session.expiresAt, sessionExpiryTime(session.expiresAt)],
+	};
+}
+
+// Returns the persisted public state or null. Never creates a session, rebinds a
+// duplicate state, or extends an existing deadline. Old callers may ignore it.
+// Explicit creation timestamps remain supported; future timestamps cannot be
+// claimed until their clock time, and age is enforced at claim/completion time.
 export async function saveOAuthState(state, sessionId, createdAt = Date.now()) {
-	await db.execute({
+	if (!publicOAuthState(state) || !sessionId || !Number.isSafeInteger(createdAt) || createdAt < 0) return null;
+	const session = await getSession(sessionId);
+	if (!session) return null;
+	const gate = activeSessionGate(session);
+	const result = await db.execute({
 		sql: `INSERT INTO oauth_states (state, session_id, created_at)
-		 VALUES (?, ?, ?)
-		 ON CONFLICT(state) DO UPDATE SET
-		   session_id = excluded.session_id,
-		   created_at = excluded.created_at`,
-		args: [state, sessionId, createdAt],
+			SELECT ?, ?, ? WHERE ${gate.sql}
+			ON CONFLICT(state) DO NOTHING
+			RETURNING state, session_id AS sessionId, created_at AS createdAt`,
+		args: [state, sessionId, createdAt, ...gate.args],
 	});
+	return result.rows[0] || null;
 }
 
+// Compatibility-only unbound consumption until Gmail switches to claimOAuthState.
+// A single DELETE RETURNING prevents SELECT/DELETE races; private work is hidden.
 export async function consumeOAuthState(state) {
+	if (!publicOAuthState(state)) return null;
 	const result = await db.execute({
-		sql: `SELECT state, session_id AS sessionId, created_at AS createdAt
-			 FROM oauth_states
-			 WHERE state = ?`,
+		sql: `DELETE FROM oauth_states WHERE state = ?
+			RETURNING state, session_id AS sessionId, created_at AS createdAt`,
 		args: [state],
 	});
-	const saved = result.rows[0] || null;
-	if (!saved) return null;
-	await db.execute({
-		sql: "DELETE FROM oauth_states WHERE state = ?",
-		args: [state],
+	return result.rows[0] || null;
+}
+
+// Must run before exchanging a code. Only the initiating browser can convert a
+// fresh public state into a single-consumer private claim. Rejection returns null
+// without consuming another browser's state. The claim's original age is retained.
+export async function claimOAuthState(state, sessionId) {
+	if (!publicOAuthState(state) || !sessionId) return null;
+	const session = await getSession(sessionId);
+	if (!session) return null;
+	const gate = activeSessionGate(session);
+	const claimId = randomUUID();
+	const result = await db.execute({
+		sql: `UPDATE oauth_states SET state = ?
+			WHERE state = ? AND session_id = ?
+			AND typeof(created_at) = 'integer' AND created_at > ${OAUTH_SQL_CLOCK_MS} - ? AND created_at <= ${OAUTH_SQL_CLOCK_MS}
+			AND ${gate.sql}
+			RETURNING session_id AS sessionId, created_at AS createdAt`,
+		args: [claimKey(claimId), state, sessionId, OAUTH_STATE_MAX_AGE_MS, ...gate.args],
 	});
-	return saved;
+	return result.rows[0] ? { claimId, ...result.rows[0] } : null;
+}
+
+// Exchange/profile/configuration failures cancel only their own private work.
+export async function cancelOAuthClaim(claim) {
+	if (!validClaim(claim)) return false;
+	const result = await db.execute({
+		sql: "DELETE FROM oauth_states WHERE state = ? AND session_id = ? RETURNING state",
+		args: [claimKey(claim.claimId), claim.sessionId],
+	});
+	return result.rows.length > 0;
+}
+
+// Returns the committed fresh session or null for lost/cancelled/expired claims
+// or ID collisions. Invalid identity/token/deadline input throws TypeError; SQL
+// failures propagate and roll back all writes, leaving the claim retryable.
+// Supply a NEW random sessionId and a configured fresh absolute expiresAt after
+// exchange/profile retrieval. Tokens use JSON Merge Patch: omitted stored fields
+// (notably refresh_token) survive, explicit null removes the corresponding field.
+export async function completeOAuthAuthentication(claim, { sessionId, expiresAt, profile, tokens } = {}) {
+	if (!validClaim(claim)) return null;
+	if (!(sessionExpiryTime(expiresAt) > Date.now())) throw new TypeError("Authentication requires a future session deadline");
+	if (typeof profile?.email !== "string" || !profile.email.trim()) throw new TypeError("Authentication requires a profile email");
+	if (!tokens || typeof tokens !== "object" || Array.isArray(tokens)) throw new TypeError("Authentication requires tokens as an object");
+	if (typeof sessionId !== "string" || !sessionId || sessionId === claim.sessionId) return null;
+	const tokenJson = JSON.stringify(tokens);
+	const profileJson = JSON.stringify(profile);
+	const session = await getSession(claim.sessionId);
+	if (!session) return null;
+	if (!(sessionExpiryTime(expiresAt) > Date.now())) throw new TypeError("Authentication requires a future session deadline");
+	const activeGate = activeSessionGate(session);
+	const completionKey = `${OAUTH_PRIVATE_PREFIX}complete:${randomUUID()}`;
+	const gate = "EXISTS (SELECT 1 FROM oauth_states WHERE state = ? AND session_id = ?)";
+	const gateArgs = [completionKey, claim.sessionId];
+	// Authorization linearizes at the conditional UPDATE, not final COMMIT.
+	// Check source, claim and supplied fresh deadline against SQL execution time.
+	// Store the supplied deadline unchanged: no skew offset, grace or rebasing.
+	// Zero rows at step one DO NOT abort a batch. Every subsequent mutation must
+	// explicitly require this unique completion gate, including cleanup itself.
+	const results = await db.batch([
+		{
+			sql: `UPDATE oauth_states SET state = ? WHERE state = ? AND session_id = ?
+				AND typeof(created_at) = 'integer' AND created_at > ${OAUTH_SQL_CLOCK_MS} - ? AND created_at <= ${OAUTH_SQL_CLOCK_MS}
+				AND ${activeGate.sql} AND ? > ${OAUTH_SQL_CLOCK_MS}
+				AND NOT EXISTS (SELECT 1 FROM sessions WHERE session_id = ?)
+				RETURNING state`,
+			args: [completionKey, claimKey(claim.claimId), claim.sessionId, OAUTH_STATE_MAX_AGE_MS, ...activeGate.args, sessionExpiryTime(expiresAt), sessionId],
+		},
+		{
+			sql: `INSERT INTO google_tokens (user_email, token_json, profile_json)
+				SELECT ?, ?, ? WHERE ${gate}
+				ON CONFLICT(user_email) DO UPDATE SET
+					token_json = json_patch(google_tokens.token_json, excluded.token_json),
+					profile_json = excluded.profile_json, updated_at = CURRENT_TIMESTAMP`,
+			args: [profile.email, tokenJson, profileJson, ...gateArgs],
+		},
+		{
+			sql: `INSERT INTO sessions (session_id, user_email, expires_at)
+				SELECT ?, ?, ? WHERE ${gate}
+				RETURNING session_id AS sessionId, user_email AS userEmail,
+					created_at AS createdAt, updated_at AS updatedAt, expires_at AS expiresAt`,
+			args: [sessionId, profile.email, expiresAt, ...gateArgs],
+		},
+		{
+			sql: `DELETE FROM oauth_states WHERE session_id = ? AND state != ? AND ${gate}`,
+			args: [claim.sessionId, completionKey, ...gateArgs],
+		},
+		{
+			sql: `DELETE FROM sessions WHERE session_id = ? AND ${gate}`,
+			args: [claim.sessionId, ...gateArgs],
+		},
+		{
+			sql: `DELETE FROM oauth_states WHERE state = ? AND session_id = ? AND ${gate} RETURNING state`,
+			args: [...gateArgs, ...gateArgs],
+		},
+	], "write");
+	return results[0].rows.length > 0 ? results[2].rows[0] || null : null;
 }
 
 export async function upsertGoogleToken(userEmail, token) {

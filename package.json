@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "prestart": "npm run build",
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "node scripts/run-tests.js"
   },
   "engines": {
     "node": ">=24"

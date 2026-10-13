@@ -13,9 +13,11 @@ async function loadDemoModules(t) {
   );
   const vite = await createViteServer({
     ...loaded?.config,
+    envFile: false,
     configFile: false,
     appType: "custom",
-    server: { middlewareMode: true },
+    // SSR module loading needs neither browser HMR nor a WebSocket listener.
+    server: { middlewareMode: true, hmr: false, ws: false },
   });
   t.after(() => vite.close());
   return Promise.all([

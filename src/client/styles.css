@@ -2,9 +2,17 @@
 	min-height: 100vh;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+	/* Native anchors scroll the viewport; keep dashboard scrolling unchanged. */
+	html:has(.landing-page) { scroll-behavior: smooth; }
+}
+
+/* Clip decorative overflow without creating an ancestor scroll container for sticky. */
+body:has(.landing-page) { overflow-x: clip; }
+
 .landing-page {
 	min-height: 100vh;
-	overflow-x: hidden;
+	overflow-x: clip;
 	background: var(--marketing-canvas);
 	color: var(--marketing-ink);
 	font-family: var(--font-body);
@@ -105,7 +113,8 @@
 .landing-primary-button:hover { transform: translateY(-2px); background: var(--marketing-primary-hover); }
 .landing-secondary-button { border: 1px solid var(--marketing-line); background: white; color: var(--marketing-ink); }
 .landing-secondary-button:hover { transform: translateY(-2px); border-color: rgb(var(--marketing-primary-rgb) / .3); color: var(--marketing-primary); }
-.landing-google-icon { width: 16px; height: 16px; flex-shrink: 0; border-radius: 2px; background: white; padding: 1px; }
+.landing-google-badge { display: grid; width: 24px; height: 24px; flex-shrink: 0; place-items: center; border-radius: 50%; background: white; }
+.landing-google-icon { display: block; width: 16px; height: 16px; }
 .landing-identity { color: var(--marketing-muted); font-size: .875rem; font-weight: 500; }
 
 .landing-hero { padding: 64px 0; }
@@ -125,6 +134,9 @@
 
 /* A mobile summary, not a scaled-down desktop dashboard. */
 .landing-stage {
+	/* Treat the phone and floating cards as one non-selectable illustration. */
+	-webkit-user-select: none;
+	user-select: none;
 	position: relative;
 	isolation: isolate;
 	display: grid;
@@ -293,7 +305,8 @@
 	50% { transform: translateY(-4px); }
 }
 
-.landing-page section[id] { scroll-margin-top: 72px; }
+.landing-page main[id] { scroll-margin-top: 94px; }
+.landing-page section[id] { scroll-margin-top: 94px; }
 
 .landing-feature-section { border-bottom: 1px solid var(--marketing-line); padding: 80px 0; }
 .landing-problem-section { border-top: 1px solid var(--marketing-line); background: var(--marketing-surface-subtle); }

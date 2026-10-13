@@ -1,0 +1,104 @@
+/* Additive feedback: tone colors and notice lifetime remain owned by existing operation state. */
+.react-feedback-notice,
+.react-financial-warning,
+.react-financial-setup-error,
+.react-create-expense-error,
+.react-edit-movement-error,
+.react-create-expense-pending,
+.react-edit-movement-pending,
+.react-removal-dialog-pending,
+.react-removal-dialog-error {
+	border-radius: var(--radius-control);
+	padding: 10px 14px;
+	font-size: .875rem;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.react-feedback-notice {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.react-feedback-notice > span { min-width: 0; }
+
+.react-success-check {
+	flex: 0 0 20px;
+	width: 20px;
+	height: 20px;
+	margin-top: 1px;
+	color: var(--success);
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.react-success-check path {
+	stroke-dasharray: 1;
+	stroke-dashoffset: 0;
+	animation: dashboard-check-draw 200ms ease-out;
+}
+
+.react-account-menu:not([hidden]) {
+	transform-origin: top right;
+	animation: dashboard-menu-reveal 180ms ease-out;
+}
+
+/* Keep native controls, their focus ring and imperative indeterminate state intact. */
+.react-movement-select,
+.react-movements-select-all {
+	accent-color: var(--accent, #2563eb);
+	transition: box-shadow 150ms ease-out;
+}
+
+.react-movement-select:checked,
+.react-movement-select:indeterminate,
+.react-movements-select-all:checked,
+.react-movements-select-all:indeterminate {
+	animation: dashboard-selection-pulse 180ms ease-out;
+}
+
+.react-movements-table tr[data-selected="true"] > td {
+	background-color: var(--accent-soft, #eff6ff);
+}
+
+.react-movements-bulk[data-selected="true"] {
+	animation: dashboard-toolbar-reveal 180ms ease-out;
+}
+
+/* Height is measured by the hook; no second detail entrance or clipping of live controls. */
+.react-category-distribution-legend { align-self: start; }
+
+@keyframes dashboard-check-draw {
+	from { stroke-dashoffset: 1; }
+	to { stroke-dashoffset: 0; }
+}
+
+@keyframes dashboard-menu-reveal {
+	from { opacity: 0; transform: translateY(-4px) scale(.98); }
+	to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes dashboard-selection-pulse {
+	from { box-shadow: 0 0 0 3px var(--accent-soft, #dbeafe); }
+	to { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes dashboard-toolbar-reveal {
+	from { opacity: .65; transform: translateY(-3px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.react-success-check path,
+	.react-account-menu:not([hidden]),
+	.react-movement-select,
+	.react-movements-select-all,
+	.react-movements-bulk[data-selected="true"] {
+		animation: none !important;
+		transition: none !important;
+	}
+}

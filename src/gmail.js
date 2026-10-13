@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { google } from "googleapis";
+import { measureTiming } from "./server-timing.js";
+import { normalizeOAuthReturnOrigin, returnOriginFromOAuthState } from "./oauth-return.js";
 
 import {
 	consumeOAuthState,
@@ -27,6 +29,7 @@ const BANCO_CHILE_EXPENSE_FILTER =
 const BANCO_CHILE_INCOME_FILTER =
 	'(subject:("Transferencia recibida" OR "Abono recibido" OR "Depósito recibido" OR "Deposito recibido" OR "Aviso de transferencia de fondos recibida") OR ("has recibido" "transferencia") OR ("recibiste" "transferencia") OR (("ha instruído una transferencia" OR "ha instruido una transferencia") "a su cuenta") OR "abono recibido" OR "abono en tu cuenta" OR "abono a tu cuenta" OR "depósito recibido" OR "deposito recibido")';
 const DEFAULT_LIMIT = 200;
+const MESSAGE_DOWNLOAD_CONCURRENCY = 4;
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
 
 const credentialsPath =
@@ -76,15 +79,24 @@ export async function createOAuthClient(userEmail = null) {
 	return client;
 }
 
-export async function getAuthUrl(sessionId) {
+export async function getAuthUrl(sessionId, requestedReturnOrigin = null) {
 	if (!sessionId) {
 		const error = new Error("Session is required for OAuth flow");
 		error.status = 400;
 		throw error;
 	}
+	const returnOrigin = normalizeOAuthReturnOrigin(requestedReturnOrigin);
 	const client = await createOAuthClient();
-	const state = randomBytes(32).toString("hex");
-	await saveOAuthState(state, sessionId, Date.now());
+	const nonce = randomBytes(32).toString("hex");
+	// The entire key is persisted and matched once; changing its origin invalidates the state.
+	const state = returnOrigin
+		? `${nonce}.return-v1.${Buffer.from(returnOrigin).toString("base64url")}`
+		: nonce;
+	if (!(await saveOAuthState(state, sessionId, Date.now()))) {
+		const error = new Error("Invalid OAuth state");
+		error.status = 400;
+		throw error;
+	}
 	return client.generateAuthUrl({
 		access_type: "offline",
 		prompt: "consent",
@@ -102,7 +114,7 @@ export async function saveTokenFromCode(code, state) {
 	await saveTokenForUser(profile.email, tokens);
 	await upsertGoogleProfile(profile.email, profile);
 	await linkSessionToUser(oauthState.sessionId, profile.email);
-	return { profile, sessionId: oauthState.sessionId };
+	return { profile, sessionId: oauthState.sessionId, returnOrigin: oauthState.returnOrigin };
 }
 
 export async function getProfile(userEmail) {
@@ -150,24 +162,43 @@ export async function listBancoChileEmails(
 		? bancoChileQueriesForRange(period)
 		: bancoChileQueriesForPayTiming(payTiming, month);
 	const gmail = google.gmail({ version: "v1", auth: client });
-	const { messages, failedCount } = await collectMessagesForQueries(
+	const { messages, failedCount } = await measureTiming("gmail-list", () => collectMessagesForQueries(
 		gmail,
 		queries,
 		period ? limit : limit ?? DEFAULT_LIMIT,
-	);
+	));
 	const messagesById = new Map(messages.filter((message) => message.id).map((message) => [message.id, message]));
-
-	const emails = [];
-	for (const message of messagesById.values()) {
-		const detail = await gmail.users.messages.get({
-			userId: "me",
-			id: message.id,
-			format: "full",
-		});
-		emails.push(toEmailInput(detail.data));
-	}
+	const emails = await measureTiming("gmail-details", () => downloadMessageDetails(gmail, [...messagesById.values()]));
 
 	return { emails, query: queries.join(" OR "), failedCount };
+}
+
+/** Per-read pool: preserve input order, stop on error and settle every started call before returning. */
+async function downloadMessageDetails(gmail, messages) {
+	const emails = new Array(messages.length);
+	let nextIndex = 0;
+	let failure = null;
+
+	async function worker() {
+		while (failure === null && nextIndex < messages.length) {
+			const index = nextIndex++;
+			try {
+				const detail = await gmail.users.messages.get({
+					userId: "me",
+					id: messages[index].id,
+					format: "full",
+				});
+				emails[index] = toEmailInput(detail.data);
+			} catch (error) {
+				// If several started calls fail, match the error the original input order would encounter.
+				if (failure === null || index < failure.index) failure = { index, error };
+			}
+		}
+	}
+
+	await Promise.all(Array.from({ length: Math.min(MESSAGE_DOWNLOAD_CONCURRENCY, messages.length) }, worker));
+	if (failure !== null) throw failure.error;
+	return emails;
 }
 
 export async function collectMessagesForQueries(gmail, queries, limit) {
@@ -225,7 +256,8 @@ async function verifyOAuthState(receivedState) {
 		error.status = 400;
 		throw error;
 	}
-	return saved;
+	// Revalidate before code exchange or account writes, never decode the raw callback query.
+	return { ...saved, returnOrigin: returnOriginFromOAuthState(saved.state) };
 }
 
 async function saveTokenForUser(userEmail, tokens) {

@@ -444,6 +444,49 @@ export function writeFinancialDashboardCache(email: string, data: FinancialDashb
 	}
 }
 
+export interface FinancialDashboardSyncSnapshot {
+	data: FinancialDashboardData | null;
+	loadEpoch: number;
+	mounted: boolean;
+	stale: boolean;
+	loading: boolean;
+}
+
+/**
+ * Captures dashboard and logout identity before a sync starts. Only a complete response can
+ * replace movements; concurrent loads/state changes decline reuse and keep the fresh-load path.
+ * Logout or unmount invalidate the attempt entirely so no new account load can follow it.
+ * The stored cycle is retained: a sync does not change income or complete the financial period.
+ */
+export function prepareFinancialDashboardSyncReuse(
+	email: string,
+	period: FinancialPeriod,
+	readSnapshot: () => FinancialDashboardSyncSnapshot,
+): ((payload: GmailSyncResponse) => FinancialDashboardData | null | "invalidated") | null {
+	const initial = readSnapshot();
+	const data = initial.data;
+	const configured = data?.cycle.selectedPeriod;
+	if (!normalizeDashboardEmail(email)) return null;
+	const eligible = data && configured && initial.mounted && !initial.stale && !initial.loading &&
+		configured.startDate === period.startDate && configured.endDateExclusive === period.endDateExclusive;
+	// Retain invalidation even if an active load currently prevents response reuse.
+	const generation = cacheGeneration;
+	return (payload) => {
+		const current = readSnapshot();
+		if (generation !== cacheGeneration || !current.mounted) return "invalidated";
+		if (!eligible || !data || current.stale || current.loading ||
+			current.data !== data || current.loadEpoch !== initial.loadEpoch ||
+			payload?.outcome !== "success" || payload.failedCount !== 0 ||
+			!Number.isInteger(payload.scanned) || payload.scanned < 0 ||
+			!Array.isArray(payload.transactions) || !payload.transactions.every((row) =>
+				typeof row === "object" && row !== null &&
+				Object.hasOwn(row, "amount") && Object.hasOwn(row, "direction") && Object.hasOwn(row, "kind"))) return null;
+		const merged: FinancialDashboardData = { ...data, transactions: payload.transactions, warning: null };
+		writeFinancialDashboardCache(email, merged);
+		return merged;
+	};
+}
+
 /** Loads the cycle first so configured users never fall back to a month request. */
 export async function loadFinancialDashboardData(
 	signal?: AbortSignal,
@@ -480,8 +523,8 @@ export async function loadFinancialDashboardWithCache(
 
 /**
  * Fresh dashboard load that bypasses the cache and replaces it with the server's current response.
- * Every explicit mutation, Gmail sync, retry, or period change goes through here, so those actions
- * always read and store current data instead of the response the tab loaded earlier.
+ * Explicit mutations, retry, period changes and syncs that cannot safely reuse their response
+ * go through here, so those actions read and store current data instead of the earlier response.
  */
 export async function refreshFinancialDashboardData(
 	email: string,
@@ -519,13 +562,14 @@ export async function disconnectGmail(): Promise<GmailDisconnectResponse> {
  * period mode, and in month mode it silently drops the failure count (`src/movements.js:95-113`),
  * which would leave this client unable to tell a partial import from a complete one. `month` and
  * `payTiming` are deliberately absent: the React surface synchronizes the configured period and
- * the server's pay-timing default applies.
+ * the server's pay-timing default applies. No limit is sent: the complete configured period
+ * must match the dashboard GET before its assembled movements can be reused.
  */
 export async function syncGmail(period: FinancialPeriod, signal?: AbortSignal) {
 	const response = await fetch("/api/gmail/sync", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ limit: 200, period }),
+		body: JSON.stringify({ period }),
 		signal,
 		credentials: "same-origin",
 	});

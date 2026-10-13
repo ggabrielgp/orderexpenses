@@ -52,6 +52,29 @@ Then press:
 Conectar Gmail
 ```
 
+### Return to the page's original domain
+
+After login, the app returns to `/app?gmail=connected` on the **origin where login began**
+(scheme, hostname and port). For example, starting on `http://localhost:5173` returns there;
+a different local frontend port works the same way. The Google callback still uses the registered
+`GOOGLE_REDIRECT_URI` above, so changing the frontend port does not require changing that callback.
+
+The UI sends `returnOrigin` to `/auth/google` (also supported at `/api/auth/google`). The server
+validates it and binds it to the single-use OAuth state; arbitrary return paths, credentials,
+malformed URLs and unapproved domains are rejected. No session ID or token travels in the return URL.
+In production, allowed origins are `APP_BASE_URL` and the HTTPS origin of `VERCEL_URL`. Local
+loopback origins are permitted in development/test, or unconfigured local mode; no frontend port
+is hardcoded. LAN/custom domains must be explicitly configured with `APP_BASE_URL`, not inferred
+from request or forwarded Host headers. Calls without `returnOrigin` retain the relative return.
+
+Keep the initiating tab's cookies available: different ports share host cookies, but `localhost`
+and `127.0.0.1` do not. The existing flow links the initiating session, so returning to its hostname
+uses its original cookie even when the Google callback is on another local hostname.
+
+To check, start login from your chosen app URL and confirm the final address has that same origin
+and `/app?gmail=connected`, with the account still signed in. Deterministic regression coverage:
+`npm test -- test/oauth-return-origin.test.js`.
+
 OAuth tokens, profile data, sessions, category rules, custom categories, manual movements, and movement overrides are stored in the configured libSQL database.
 
 For local development without Turso, the app uses the local file configured by `DB_PATH` or the default:

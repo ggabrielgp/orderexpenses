@@ -1,12 +1,21 @@
+import { allowLoopbackFixture, withLoopbackListener } from "./helpers/isolation.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { createServer as createHttpServer } from "node:http";
 import test from "node:test";
-import { createServer as createViteServer, loadConfigFromFile } from "vite";
+import { createServer as createRawViteServer, loadConfigFromFile } from "vite";
 
-process.env.VERCEL = "1";
-process.env.TURSO_DATABASE_URL = "file::memory:";
+// These fixtures load SSR modules or exercise the explicit HTTP proxy; neither
+// needs browser HMR or an additional WebSocket listener.
+function createViteServer(config) {
+	return createRawViteServer({
+		...config,
+		// Override loaded/spread configuration: tests must never load root .env files.
+		envFile: false,
+		server: { ...config.server, hmr: false, ws: false },
+	});
+}
 
 const { resolveStaticAsset } = await import("../src/server.js");
 const { ReviewPeriod: sharedReviewPeriod } = await import(
@@ -38,8 +47,11 @@ test("Vite development serves /app and proxies legacy backend paths", async (t) 
 		backendRequestUrls.push(request.url);
 		response.end(request.url);
 	});
-	backend.listen(0, "127.0.0.1");
-	await once(backend, "listening");
+	await withLoopbackListener(async () => {
+		backend.listen(0, "127.0.0.1");
+		await once(backend, "listening");
+	});
+	allowLoopbackFixture(backend);
 	t.after(() => new Promise((resolve) => backend.close(resolve)));
 
 	const backendAddress = backend.address();
@@ -71,7 +83,8 @@ test("Vite development serves /app and proxies legacy backend paths", async (t) 
 		},
 	});
 	t.after(() => vite.close());
-	await vite.listen();
+	await withLoopbackListener(() => vite.listen());
+	allowLoopbackFixture(vite.httpServer);
 
 	const viteAddress = vite.httpServer?.address();
 	assert.ok(viteAddress && typeof viteAddress !== "string");
@@ -160,10 +173,10 @@ test("React loads only the session before gating financial data and never auto-s
 	assert.match(app, /<DashboardRoute\s*\/>/);
 	assert.match(dashboardRoute, /getSessionProfile\(controller\.signal\)/);
 	assert.doesNotMatch(dashboardRoute, /getGmailStatus|syncGmail|\/api\/gmail\/sync|gmail"\) !== "connected"/);
-	assert.match(dashboardRoute, /Unable to load the account/);
-	assert.match(dashboardRoute, /<button type="button" onClick=\{retry\}>Retry<\/button>/);
+	assert.match(dashboardRoute, /No se pudo cargar la cuenta/);
+	assert.match(dashboardRoute, /<button type="button" onClick=\{retry\}>Reintentar<\/button>/);
 	assert.match(page, /if \(!session\.authenticated\)/);
-	assert.match(page, /<FinancialSummary \/>/);
+	assert.match(page, /<FinancialSummary\b[^>]*\bemail=\{profile\?\.email \?\? ""\}[^>]*\/>/s);
 });
 
 test("the React root composes the bounded landing header and hero with its session CTA contract", async () => {
@@ -190,15 +203,15 @@ test("the React root composes the bounded landing header and hero with its sessi
 	assert.match(app, /<LandingPage\s*\/>/);
 	assert.match(page, /<LandingHeader\s+session=\{session\}\s*\/>/);
 	assert.match(page, /<LandingHero\s*\/>/);
-	assert.match(header, /href=\{isAuthenticated \? "\/app" : "\/auth\/google"\}/);
+	assert.match(header, /href=\{isAuthenticated \? "\/app" : getGoogleLoginUrl\(\)\}/);
 	assert.match(header, /Ir al dashboard/);
 	assert.match(header, /profile\?\.name \|\| profile\?\.email/);
 	assert.match(hero, /aria-labelledby="hero-title"/);
 	assert.match(hero, /href="\/app\/demo"/);
 	assert.match(reveal, /IntersectionObserver/);
 	assert.match(reveal, /prefers-reduced-motion: reduce/);
-	assert.match(styles, /\.landing-reveal \{ opacity: 0; transform: translateY\(20px\)/);
-	assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{ \.landing-reveal \{ opacity: 1; transform: none/);
+	assert.match(styles, /\.landing-reveal \{ opacity: 0; transform: translateY\(28px\)/);
+	assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{\s*\.landing-reveal, \.landing-reveal\.is-visible \{ opacity: 1; transform: none; transition: none/);
 	assert.match(sessionHook, /getSessionProfile/);
 });
 
@@ -683,7 +696,7 @@ test("the React financial summary selects the latest valid recognized expense wi
 		page.getRecognizedExpenseIdentity({ description: "  Grocery shopping  " }),
 		"Grocery shopping",
 	);
-	assert.equal(page.getRecognizedExpenseIdentity({ counterparty: "   ", description: null }), "Unidentified expense");
+	assert.equal(page.getRecognizedExpenseIdentity({ counterparty: "   ", description: null }), "Gasto sin identificar");
 	assert.equal(page.selectLatestRecognizedExpense([], period), null);
 
 	const source = await readFile(
@@ -691,10 +704,23 @@ test("the React financial summary selects the latest valid recognized expense wi
 		"utf8",
 	);
 	assert.doesNotMatch(source, /new Date\(occurredAt\)/);
-	assert.match(source, /<section className="react-latest-expense" aria-labelledby="react-latest-expense-title">/);
-	assert.match(source, /<h3 id="react-latest-expense-title">Latest recognized expense<\/h3>/);
-	assert.match(source, /<dt>Merchant<\/dt>/);
-	assert.match(source, /<dt>When<\/dt>/);
+	// The current intelligence card owns the latest-expense identity and date, not a duplicate card.
+	assert.match(source, /latestExpense === null\s*\? null\s*:\s*\{\s*counterparty: getRecognizedExpenseIdentity\(latestExpense\),\s*date: formatMovementDate\(latestExpense\.occurredAt\),/);
+	assert.match(source, /const tiles = \[insights\.largest, insights\.frequency, insights\.latest, insights\.uncategorized\]/);
+	const [React, renderer, insights] = await Promise.all([
+		import("react"), import("react-dom/server"),
+		vite.ssrLoadModule("/src/client/components/analytics/dashboardInsights.ts"),
+	]);
+	const markup = renderer.renderToStaticMarkup(React.createElement(page.TopInsightsView, {
+		insights: insights.getTopInsights({
+			frequency: null, uncategorized: { count: 0, total: 0 }, largest: null,
+			latest: { counterparty: page.getRecognizedExpenseIdentity(latest), date: "2028-03-01" },
+		}),
+		story: { summary: "Puntos clave del periodo.", facts: [] },
+	}));
+	assert.match(markup, /Último movimiento<\/span>/);
+	assert.match(markup, /react-insight-callout-value">First merchant<\/strong>/);
+	assert.match(markup, /react-insight-callout-detail">2028-03-01<\/p>/);
 });
 
 test("the React financial summary exposes pending recognized amounts without inventing a balance", async (t) => {
@@ -726,9 +752,22 @@ test("the React financial summary exposes pending recognized amounts without inv
 		]),
 		{ count: 1, totalSpending: 1200, pendingAmountCount: 3 },
 	);
-	assert.match(source, /Pending amounts/);
-	assert.match(source, /summary\.pendingAmountCount/);
-	assert.doesNotMatch(source, /Remaining balance|remainingBalance/);
+	assert.match(source, /gastos reconocidos sin monto conocido no figuran en estos indicadores ni en la tabla\./);
+	assert.match(source, /pendingAmountCount=\{summary\.pendingAmountCount\}/);
+	// Missing amounts are disclosed, never substituted into spending or a fabricated balance.
+	const [React, renderer, filters] = await Promise.all([
+		import("react"),
+		import("react-dom/server"),
+		vite.ssrLoadModule("/src/client/components/movements/movementFilters.ts"),
+	]);
+	const period = { startDate: "2026-02-01", endDateExclusive: "2026-03-01" };
+	const markup = renderer.renderToStaticMarkup(React.createElement(page.MovementsTableView, {
+		filteredView: filters.getMovementFilterView(filters.createMovementFilterSelection(period), period, []),
+		sort: { key: null, direction: null }, editableMovements: [], pendingAmountCount: 3,
+		onActivate() {}, onSelect() {}, onClear() {}, onEdit() {}, onRemove() {},
+	}));
+	assert.match(markup, /role="status">3 gastos reconocidos sin monto conocido no figuran en estos indicadores ni en la tabla\.<\/p>/);
+	assert.doesNotMatch(markup, /Saldo disponible|Saldo restante|remainingBalance/);
 	assert.match(source, /return amount < 0 \? `-\$\{formatted\}` : formatted/);
 	assert.match(styles, /\.react-financial-grid\s*\{\s*display: grid;\s*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
 	assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.react-financial-grid\s*\{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
@@ -4467,7 +4506,7 @@ test("the React movement filter reconciliation clears a category the loaded rows
 	);
 });
 
-test("the React movements table reconciles the filter reset before the empty rows return so a stale category cannot come back", async (t) => {
+test("the React movements table reconciles the filter reset before rendering even empty rows so a stale category cannot come back", async (t) => {
 	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
@@ -4486,25 +4525,25 @@ test("the React movements table reconciles the filter reset before the empty row
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
 	]);
 
-	// The table's own order is the guarantee: the reconciliation and its commit run above the
-	// empty-rows return, so a period with no rows still replaces the selection it inherited instead of
+	// The table's own order is the guarantee: reconciliation and its commit precede the view mount,
+	// including empty rows, so a period with no rows replaces the selection it inherited instead of
 	// carrying it into the next period. Legacy cleared the stored filter unconditionally
 	// (`public/app.js:1008`, `:424`).
 	const tableSource = page.slice(page.indexOf("export function MovementsTable"));
 	assert.notEqual(tableSource, "", "the MovementsTable source must be locatable");
 	const reconcileIndex = tableSource.indexOf("reconcileMovementFilterSelection(selection, period");
 	const commitIndex = tableSource.indexOf("setSelection(currentSelection)");
-	const emptyReturnIndex = tableSource.indexOf("movements.length === 0");
+	const viewMountIndex = tableSource.indexOf("<MovementsTableView");
 	assert.notEqual(reconcileIndex, -1, "the table must reconcile the stored selection");
 	assert.notEqual(commitIndex, -1, "the table must commit the reconciled selection");
-	assert.notEqual(emptyReturnIndex, -1, "the table must keep its empty-rows state");
+	assert.notEqual(viewMountIndex, -1, "the table must mount the view for populated and empty rows");
 	assert.ok(
-		reconcileIndex < emptyReturnIndex,
-		"the reconciliation must run before the empty-rows return",
+		reconcileIndex < viewMountIndex,
+		"the reconciliation must run before the view renders even empty rows",
 	);
 	assert.ok(
-		commitIndex < emptyReturnIndex,
-		"the reset must commit before the empty-rows return",
+		commitIndex < viewMountIndex,
+		"the reset must commit before the view renders even empty rows",
 	);
 
 	// The same sequence at module level: a filtered period A, a period B with zero rows, then A again.
@@ -5102,7 +5141,7 @@ test("the React period analytics averages only the movements with a usable amoun
 	assert.doesNotMatch(allCopy, /\bvos\b|ten[e\u00e9]s|quer[e\u00e9]s|pod[e\u00e9]s|hac[e\u00e9]|and[a\u00e1]/i);
 });
 
-test("the React period analytics summary renders the three metrics and keeps the two review facts apart", async (t) => {
+test("the React period analytics retains the three financial decisions and renders supported intelligence facts", async (t) => {
 	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
@@ -5116,22 +5155,34 @@ test("the React period analytics summary renders the three metrics and keeps the
 	});
 	t.after(() => vite.close());
 
-	const [React, renderer, pageModule, analytics, styles] = await Promise.all([
+	const [React, renderer, pageModule, analytics, insights, styles] = await Promise.all([
 		import("react"),
 		import("react-dom/server"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		vite.ssrLoadModule("/src/client/components/analytics/periodAnalytics.ts"),
+		vite.ssrLoadModule("/src/client/components/analytics/dashboardInsights.ts"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 
-	// The panel renders one already-decided state, so both the populated and the empty markup are
-	// provable from a static render even though the live summary needs a session and effect-driven loads.
-	const renderPanel = (transactions) =>
-		renderer.renderToStaticMarkup(
-			React.createElement(pageModule.PeriodAnalyticsPanel, {
-				analytics: analytics.getPeriodAnalytics(transactions),
+	// The metrics panel was intentionally removed (dashboard-stitch-redesign). Its financial
+	// decisions remain public; the intelligence card consumes the largest expense and review count.
+	const renderPanel = (transactions) => {
+		const model = analytics.getPeriodAnalytics(transactions);
+		const summary = pageModule.summarizeRecognizedExpenses(transactions);
+		return renderer.renderToStaticMarkup(React.createElement(pageModule.TopInsightsView, {
+			insights: insights.getTopInsights({
+				frequency: null, uncategorized: { count: 0, total: 0 }, latest: null,
+				largest: model.largest === null ? null : {
+					label: model.largest.counterparty, total: model.largest.amount,
+				},
 			}),
-		);
+			story: insights.getDashboardStory({
+				totalSpending: summary.totalSpending, knownCount: summary.count,
+				pendingAmountCount: summary.pendingAmountCount, reviewCount: model.review.count,
+				topCategory: null, topCounterparty: null,
+			}),
+		}));
+	};
 
 	const periodTransactions = [
 		{ direction: "outflow", kind: "purchase", amount: 10000, occurredAt: "2026-02-05", counterparty: "Mercado", status: "detected" },
@@ -5143,26 +5194,23 @@ test("the React period analytics summary renders the three metrics and keeps the
 	];
 	const markup = renderPanel(periodTransactions);
 
-	// The three metrics, in the shipped card convention: the average states the divisor it used, the
-	// largest carries its amount and its date next to the counterparty, and the review card states the
-	// count that comes from `status`.
-	assert.match(
-		markup,
-		/<span>Gasto promedio<\/span><strong>\$14\.167<\/strong><p>Promedio de 3 gastos reconocidos del periodo con monto conocido\.<\/p>/,
-	);
-	assert.match(
-		markup,
-		/<span>Mayor gasto<\/span><strong>\$25\.000<\/strong><p>Arriendo \u00b7 2026-02-03<\/p>/,
-	);
-	assert.match(markup, /<span>Qu\u00e9 revisar<\/span><strong>2<\/strong>/);
+	const model = analytics.getPeriodAnalytics(periodTransactions);
+	assert.equal(model.average.amount, 14167); // CLP rounds once after dividing by known amounts.
+	assert.equal(model.average.divisor, 3);
+	assert.equal(model.average.detail, "Promedio de 3 gastos reconocidos del periodo con monto conocido.");
+	assert.deepEqual(model.largest, { label: "Mayor gasto", counterparty: "Arriendo", amount: 25000, date: "2026-02-03" });
+	assert.match(markup, /Mayor impacto/);
+	assert.match(markup, /react-insight-callout-value">Arriendo<\/strong>/);
+	assert.match(markup, /react-insight-callout-detail">\$25\.000<\/p>/);
+	assert.equal(model.review.count, 2);
+	assert.match(markup, /<p>2 gastos necesitan una revisión rápida\.<\/p>/);
 
-	// The two facts stay two statements, each with its own number and its own paragraph: the review
-	// count is 2 while 3 recognized expenses carry no known amount, so a folded number cannot render
-	// both. Legacy's `pendingReviewCount || unknownExpenseCount` is exactly what this rules out.
-	assert.match(
-		markup,
-		/<p>2 movimientos del periodo necesitan confirmaci\u00f3n\.<\/p><p>3 salidas reconocidas del periodo sin monto conocido\.<\/p>/,
-	);
+	// The retained public decisions keep review and unknown amounts separate: 2 versus 3.
+	// Legacy's `pendingReviewCount || unknownExpenseCount` could not preserve both facts.
+	assert.deepEqual(model.review.details, [
+		"2 movimientos del periodo necesitan confirmación.",
+		"3 salidas reconocidas del periodo sin monto conocido.",
+	]);
 	assert.notEqual(analytics.getPeriodAnalytics(periodTransactions).review.count, 3);
 
 	// The new region does not duplicate or reword the four cards this surface already had.
@@ -5171,60 +5219,70 @@ test("the React period analytics summary renders the three metrics and keeps the
 		/Ingreso configurado|Gasto total|Gastos reconocidos|Montos pendientes/,
 	);
 
-	// No recognized expense with a usable amount, but the period does have recognized expenses: the
-	// average shows no number at all, never the zero legacy fabricated, and the largest expense is not
-	// shown because there is none.
-	const noAmountMarkup = renderPanel([
+	// Pending-only periods have no numeric average or largest expense, never a fabricated zero.
+	// The current intelligence card states the lack of known amounts and the supported review fact.
+	const noAmountTransactions = [
 		{ direction: "outflow", kind: "purchase", amount: null, occurredAt: "2026-02-04", counterparty: "Feria", status: "needs_review" },
 		{ direction: "outflow", kind: "transfer", amount: "unknown", occurredAt: "2026-02-02", status: "detected" },
-	]);
-	assert.match(noAmountMarkup, /<span>Gasto promedio<\/span><strong>\u2014<\/strong>/);
+	];
+	const noAmountMarkup = renderPanel(noAmountTransactions);
+	const noAmount = analytics.getPeriodAnalytics(noAmountTransactions);
+	assert.equal(noAmount.average.amount, null);
+	assert.equal(noAmount.average.emptyValue, "—");
 	assert.doesNotMatch(noAmountMarkup, /\$0/);
 	assert.match(
-		noAmountMarkup,
+		noAmount.average.detail,
 		/Ninguno de los 2 gastos reconocidos del periodo tiene un monto conocido: no hay promedio ni mayor gasto que mostrar\./,
 	);
-	assert.doesNotMatch(noAmountMarkup, /Mayor gasto/);
-	assert.match(
-		noAmountMarkup,
-		/<strong>1<\/strong><p>1 movimiento del periodo necesita confirmaci\u00f3n\.<\/p><p>2 salidas reconocidas del periodo sin monto conocido\.<\/p>/,
-	);
+	assert.equal(noAmount.largest, null);
+	assert.match(noAmountMarkup, /Sin gastos con monto conocido en el periodo/);
+	assert.deepEqual(noAmount.review.details, [
+		"1 movimiento del periodo necesita confirmación.",
+		"2 salidas reconocidas del periodo sin monto conocido.",
+	]);
+	assert.match(noAmountMarkup, /<p>1 gasto necesita una revisión rápida\.<\/p>/);
 
-	// A period with no movements at all states its own absence, and its review card is a measured zero
-	// with the calm copy, not a substitute for a number it could not compute.
+	// An empty period states its own absence. The retained review count is a measured zero,
+	// unlike the average, which cannot be computed.
 	const emptyMarkup = renderPanel([]);
-	assert.match(emptyMarkup, /<span>Gasto promedio<\/span><strong>\u2014<\/strong>/);
-	assert.match(emptyMarkup, /No hay gastos reconocidos en el periodo/);
-	assert.doesNotMatch(emptyMarkup, /\$0|Mayor gasto/);
-	assert.match(emptyMarkup, /<span>Qu\u00e9 revisar<\/span><strong>0<\/strong><p>Nada urgente por corregir\.<\/p>/);
+	const empty = analytics.getPeriodAnalytics([]);
+	assert.equal(empty.average.emptyValue, "—");
+	assert.equal(empty.average.amount, null);
+	assert.match(empty.average.detail, /No hay gastos reconocidos en el periodo/);
+	assert.doesNotMatch(emptyMarkup, /\$0/);
+	assert.equal(empty.largest, null);
+	assert.equal(empty.review.count, 0);
+	assert.deepEqual(empty.review.details, ["Nada urgente por corregir."]);
+	assert.match(emptyMarkup, /Todavía no hay gastos reconocidos para contarte el periodo/);
 	// Sensitivity control: the patterns certified absent above match the same component when the state
 	// they describe is actually rendered, so each absence observes a real absence.
-	assert.match(markup, /Mayor gasto/);
-	assert.match(markup, /<strong>\$14\.167<\/strong>/);
+	assert.match(markup, /Mayor impacto/);
+	assert.match(markup, /\$25\.000/);
+	assert.notEqual(model.average.amount, empty.average.amount);
 
 	// Each fact is stated alone when it is the only one.
 	const onlyReviewMarkup = renderPanel([
 		{ direction: "outflow", kind: "purchase", amount: 1000, occurredAt: "2026-02-04", status: "needs_review" },
 	]);
-	assert.match(onlyReviewMarkup, /<strong>1<\/strong><p>1 movimiento del periodo necesita confirmaci\u00f3n\.<\/p>/);
+	assert.match(onlyReviewMarkup, /<p>1 gasto necesita una revisión rápida\.<\/p>/);
 	assert.doesNotMatch(onlyReviewMarkup, /sin monto conocido/);
 	const onlyUnknownMarkup = renderPanel([
 		{ direction: "outflow", kind: "purchase", amount: null, occurredAt: "2026-02-04", status: "detected" },
 	]);
-	assert.match(
-		onlyUnknownMarkup,
-		/<strong>0<\/strong><p>Nada urgente por corregir\.<\/p><p>1 salida reconocida del periodo sin monto conocido\.<\/p>/,
-	);
+	assert.match(onlyUnknownMarkup, /Los gastos reconocidos del periodo todavía no tienen monto conocido/);
+	assert.deepEqual(analytics.getPeriodAnalytics([
+		{ direction: "outflow", kind: "purchase", amount: null, status: "detected" },
+	]).review.details, ["Nada urgente por corregir.", "1 salida reconocida del periodo sin monto conocido."]);
 
 	// The rendered copy never borrows the calendar month this product stopped navigating by.
 	assert.doesNotMatch(markup, /este mes/i);
 
-	// Scoped styles under the shipped `react-` prefix; the region reuses the card and grid primitives.
-	assert.match(styles, /\.react-period-analytics \{/);
-	assert.match(styles, /\.react-period-analytics h3 \{/);
+	// The supported facts share the current intelligence-card primitives.
+	assert.match(styles, /\.react-top-insights \{/);
+	assert.match(styles, /\.react-top-insights-note \{/);
 });
 
-test("the React authenticated summary mounts the period analytics panel without adding a request", async (t) => {
+test("the React authenticated summary derives period analytics for shared intelligence without adding a request", async (t) => {
 	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
@@ -5245,21 +5303,22 @@ test("the React authenticated summary mounts the period analytics panel without 
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
 	]);
 
-	// The summary's ready state needs a live session and effect-driven loads, so a static render only
-	// ever shows its loading state: what the authenticated container does with the decided analytics is
-	// provable from the wiring, and the metrics themselves are proved by the render test above.
+	// A static authenticated summary renders only loading; wiring proves its use of the public
+	// analytics decisions, whose numbers and supported rendered facts are checked above.
 	assert.match(page, /from "\.\.\/components\/analytics\/periodAnalytics"/);
 	assert.match(page, /\bgetPeriodAnalytics\b/);
 	assert.match(page, /const periodAnalytics = getPeriodAnalytics\(state\.data\.transactions\);/);
-	// The shared analytics body mounts the panel once for both the authenticated summary and the demo.
-	assert.equal((page.match(/<PeriodAnalyticsPanel/g) ?? []).length, 1);
-	assert.match(page, /<PeriodAnalyticsPanel analytics=\{analytics\} \/>/);
-	assert.match(page, /export function PeriodAnalyticsPanel\(/);
+	// Both callers retain the calculations after the intentionally removed metrics panel.
+	assert.equal((page.match(/const periodAnalytics = getPeriodAnalytics\(/g) ?? []).length, 2);
+	assert.match(page, /reviewCount: periodAnalytics\.review\.count/);
+	assert.match(page, /label: periodAnalytics\.largest\.counterparty, total: periodAnalytics\.largest\.amount/);
+	assert.equal((page.match(/<TopInsightsView/g) ?? []).length, 1);
+	assert.match(page, /<TopInsightsView insights=\{insights\} story=\{story\}/);
+	assert.match(page, /export function TopInsightsView\(/);
 	// The metrics are derived, never fetched: the module owns no request and the page adds none.
 	assert.doesNotMatch(page, /loadPeriodAnalytics|fetch\("\/api\/analytics/);
 
-	// The same read-only panel is reused by the demo tree, checked against a render that is provably
-	// not empty.
+	// The same intelligence card is reused by the demo, checked against a populated render.
 	const demoMarkup = renderer.renderToStaticMarkup(
 		React.createElement(pageModule.DemoDashboardPage, {
 			data: {
@@ -5281,10 +5340,12 @@ test("the React authenticated summary mounts the period analytics panel without 
 		}),
 	);
 	assert.match(demoMarkup, /Solo lectura/);
-	// The demo now mounts the same read-only period metrics as the authenticated summary.
-	assert.match(demoMarkup, /react-period-analytics/);
-	assert.match(demoMarkup, /Gasto promedio/);
-	assert.match(page, /className="react-period-analytics"/);
+	// Demo renders the same supported largest-expense and period-note facts.
+	assert.match(demoMarkup, /react-top-insights/);
+	assert.match(demoMarkup, /Mayor impacto/);
+	assert.match(demoMarkup, /react-insight-callout-detail">\$25\.000<\/p>/);
+	assert.match(demoMarkup, /Tus gastos ya están listos para explorarse en el detalle/);
+	assert.match(page, /className="react-top-insights-note"/);
 });
 
 test("the React category ranking groups recognized outflows by raw totals, merges the tail and discloses the unknown amounts", async (t) => {
@@ -5487,7 +5548,7 @@ test("the React category ranking view renders the ranked rows, the counterparty 
 	const comidaDetail = renderView("Comida");
 	assert.match(
 		comidaDetail,
-		/<header class="react-category-detail-header"><strong>Comida<\/strong><small>\$33\.500 \u00b7 7% \u00b7 3 movimientos<\/small><\/header>/,
+		/<header class="react-category-detail-header"><strong role="heading" aria-level="4">Comida<\/strong><small>\$33\.500 \u00b7 7% \u00b7 3 movimientos<\/small><\/header>/,
 	);
 	assert.match(comidaDetail, /<article class="react-category-detail-row"><strong>Mercado<\/strong><small>\$25\.000 \u00b7 1 movimiento<\/small><\/article>/);
 	assert.match(comidaDetail, /<article class="react-category-detail-row"><strong>Feria<\/strong><small>\$5\.000 \u00b7 1 movimiento<\/small><\/article>/);
@@ -5499,7 +5560,7 @@ test("the React category ranking view renders the ranked rows, the counterparty 
 	// The merged tail has no category of its own to jump to, so it offers no jump control and lists
 	// the categories it merged instead of counterparties.
 	const tailDetail = renderView("Otras categorías");
-	assert.match(tailDetail, /<header class="react-category-detail-header"><strong>Otras categorías<\/strong>/);
+	assert.match(tailDetail, /<header class="react-category-detail-header"><strong role="heading" aria-level="4">Otras categorías<\/strong>/);
 	assert.match(tailDetail, /<article class="react-category-detail-row"><strong>Entretenimiento<\/strong><small>\$8\.000 \u00b7 1 movimiento<\/small><\/article>/);
 	assert.match(tailDetail, /<article class="react-category-detail-row"><strong>Transporte<\/strong><small>\$2\.000 \u00b7 1 movimiento<\/small><\/article>/);
 	assert.match(tailDetail, /<article class="react-category-detail-row"><strong>Sin categoría<\/strong><small>\$1\.000 \u00b7 1 movimiento<\/small><\/article>/);
@@ -5695,11 +5756,11 @@ test("the React spending chart buckets the configured period into Monday-to-Sund
 	assert.deepEqual(view.weeks.map((week) => week.id), ["week-0", "week-1", "week-2", "week-3", "week-4"]);
 	assert.deepEqual(view.weeks.map((week) => week.label), ["Semana 1", "Semana 2", "Semana 3", "Semana 4", "Semana 5"]);
 	// Week 1 starts on Jan 26 but only Feb 1 is inside the period: the six padded days carry no total.
-	assert.equal(view.weeks[0].range, "1 feb al 1 feb");
+	assert.equal(view.weeks[0].range, "domingo 1 de febrero");
 	assert.deepEqual(view.weeks[0].days.map((day) => day.isInPeriod), [false, false, false, false, false, false, true]);
 	assert.deepEqual(view.weeks[0].days.map((day) => day.detail), ["", "", "", "", "", "", "1 feb"]);
 	// Week 5 ends on Mar 1 but only Feb 23-28 are inside the period.
-	assert.equal(view.weeks[4].range, "23 feb al 28 feb");
+	assert.equal(view.weeks[4].range, "lunes 23 de febrero - sábado 28 de febrero");
 	assert.deepEqual(view.weeks[4].days.map((day) => day.isInPeriod), [true, true, true, true, true, true, false]);
 	// Weekday labels always run Monday to Sunday.
 	assert.deepEqual(
@@ -5740,19 +5801,22 @@ test("the React spending chart buckets the configured period into Monday-to-Sund
 		"1 salida reconocida del periodo con monto conocido no tiene una fecha v\u00e1lida y no se puede ubicar en el gr\u00e1fico.",
 	]);
 
-	// Proportional heights per selected series, with the legacy 12% floor: a small positive day stays
-	// visible at 12% instead of collapsing to its raw 3%.
+	// Heights retain the actual day/max ratio, with only the accepted 1% tiny-positive floor.
 	const fullSeries = chart.getSpendingChartSeries(view, "period");
-	assert.equal(fullSeries.detail, "01/02/2026 a 28/02/2026");
+	assert.equal(fullSeries.detail, "domingo 1 de febrero - sábado 28 de febrero");
 	assert.equal(fullSeries.ariaLabel, "Periodo completo, total gastado por cada d\u00eda de la semana");
-	assert.deepEqual(fullSeries.days.map((day) => day.heightPercent), [50, 12, 0, 0, 0, 100, 100]);
+	assert.deepEqual(fullSeries.days.map((day) => day.heightPercent), [50, 2.5, 0, 0, 0, 100, 100]);
 	// The weekday aggregate carries the period-wide weekday detail the native tooltip restores.
 	assert.equal(fullSeries.days[0].titleDetail, "Total del periodo por lunes");
 	const week2 = chart.getSpendingChartSeries(view, "week-1");
 	assert.equal(week2.label, "Semana 2");
 	assert.equal(week2.ariaLabel, "Semana 2, gasto diario de lunes a domingo");
-	assert.deepEqual(week2.days.map((day) => day.heightPercent), [67, 12, 0, 0, 0, 0, 100]);
-	assert.equal(week2.days[1].heightPercent, 12);
+	assert.deepEqual(week2.days.map((day) => day.heightPercent), [(2000 / 3000) * 100, (100 / 3000) * 100, 0, 0, 0, 0, 100]);
+	const tiny = chart.getSpendingChart([
+		{ id: "tiny", amount: 1, date: "2026-02-02" },
+		{ id: "max", amount: 1000, date: "2026-02-03" },
+	], period, 0);
+	assert.equal(chart.getSpendingChartSeries(tiny, "week-1").days[0].heightPercent, 1);
 	// An unknown tab id falls back to the full period, like legacy `selectedChartSeries`.
 	assert.equal(chart.getSpendingChartSeries(view, "nope").id, "period");
 
@@ -5940,7 +6004,8 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.match(full, /2 salidas reconocidas del periodo no tienen monto conocido/);
 	assert.match(full, /1 salida reconocida del periodo con monto conocido no tiene una fecha v\u00e1lida/);
 	// The heading names the selected series total and range.
-	assert.match(full, /\$10\.100 \u00b7 01\/02\/2026 a 28\/02\/2026/);
+	assert.match(full, /react-spending-chart-heading"><span><strong>domingo 1 de febrero<\/strong> - <strong>sábado 28 de febrero<\/strong>/);
+	assert.match(full, /<span>Periodo:<\/span><strong>\$10\.100<\/strong>/);
 	// Bars are selectable controls again, like legacy: each one is a button with aria-pressed and
 	// aria-controls for the read-only day detail.
 	assert.match(full, /role="region" aria-label="Periodo completo, total gastado por cada d\u00eda de la semana"/);
@@ -5960,21 +6025,21 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.doesNotMatch(bars, /aria-pressed="true"/);
 	assert.match(full, /<header class="react-spending-chart-day-header"><h4>Selecciona una barra[^<]*<\/h4><\/header>/);
 	assert.doesNotMatch(full.slice(detailIndex), /react-spending-chart-day-total/);
-	// Proportional fill heights with the legacy 12% floor: the small day is drawn at 12%, not its raw 3%.
-	assert.match(full, /<span class="react-spending-chart-fill" style="height:100%"><\/span>/);
-	assert.match(full, /<span class="react-spending-chart-fill" style="height:12%"><\/span>/);
+	// Proportional fills use raw day/max ratios and a spending-dependent blue tone.
+	assert.match(full, /<span class="react-spending-chart-fill" style="height:100%;background-color:hsl\(219 85% 35%\)"><\/span>/);
+	assert.match(full, /<span class="react-spending-chart-fill" style="height:2\.5%;background-color:hsl\(219 85% 71\.075%\)"><\/span>/);
 	// Every bar track keeps the native `title` tooltip, including the period-wide weekday wording.
 	assert.match(full, /title="lun · Total del periodo por lunes: \$2\.000"/);
 	assert.match(full, /title="mar · Total del periodo por martes: \$100"/);
 	// The full-period series aggregates by weekday, so its day details are blank.
 	assert.match(full, /<strong class="react-spending-chart-day">lun<\/strong><small class="react-spending-chart-detail"><\/small>/);
 
-	// A week series shows each day's own date and pads the days outside the period with a literal `$0`
-	// value and an "outside the period" tooltip instead of a blank cell.
+	// A week series shows each day's own date; padding is explicitly outside the period, not a
+	// fabricated zero-spending day. In-period zero days are covered by the preceding chart test.
 	const week = renderView("week-0");
 	assert.match(week, /aria-pressed="true">Semana 1<\/button>/);
 	assert.match(week, /<small class="react-spending-chart-detail">1 feb<\/small>/);
-	assert.match(week, /<span class="react-spending-chart-value">\$0<\/span><span class="react-spending-chart-track react-spending-chart-track-empty" title="lun: fuera del mes">/);
+	assert.match(week, /<span class="react-spending-chart-value" aria-hidden="true"><\/span><span class="react-spending-chart-track react-spending-chart-track-empty" title="lun: fuera del periodo">/);
 	assert.equal((week.match(/react-spending-chart-track-empty/g) ?? []).length, 6);
 	// Every padded day outside the period is disabled and cannot be selected.
 	assert.equal((week.match(/<button[^>]*disabled=""/g) ?? []).length, 6);
@@ -5998,12 +6063,12 @@ test("the React spending chart view renders selectable proportional bars, the re
 
 	// The full-period selection groups the whole period by date for the chosen weekday.
 	const mondayDetail = renderView("period", chart, "weekday-0");
-	assert.match(mondayDetail, /<h4>Detalle de lunes de 01\/02\/2026 a 28\/02\/2026<\/h4>/);
+	assert.match(mondayDetail, /<h4>Detalle de lunes de domingo 1 de febrero - sábado 28 de febrero<\/h4>/);
 	assert.match(mondayDetail, /<span class="react-spending-chart-day-date">lunes 2 feb<\/span>/);
 
 	// The totals grid states every week plus the full period and marks the selected row. The visible
-	// heading matches legacy (`Resumen del mes`) while its longer accessible name is preserved.
-	assert.match(full, /aria-label="Resumen de gastos del periodo"><h4>Resumen del mes<\/h4>/);
+	// heading and accessible name both scope the totals to the configured period.
+	assert.match(full, /aria-label="Resumen de gastos del periodo"><h4>Resumen del periodo<\/h4>/);
 	assert.equal((full.match(/class="react-spending-chart-summary-row/g) ?? []).length, 6);
 	assert.match(
 		full,
@@ -6092,7 +6157,7 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.match(styles, /\.react-spending-chart-track-empty \{/);
 	assert.match(styles, /\.react-spending-chart-fill \{/);
 	assert.match(styles, /\.react-spending-chart-body \{/);
-	assert.match(styles, /\.react-spending-chart-bar-selected \.react-spending-chart-track \{/);
+	assert.match(styles, /\.react-spending-chart-bar-selected \.react-spending-chart-track,\s*\.react-spending-chart-bar:not\(:disabled\):hover \.react-spending-chart-track \{/);
 	assert.match(styles, /\.react-spending-chart-day-panel,/);
 	// The person icon has its own scoped hook next to the compact identity row it leads.
 	assert.match(styles, /\.react-spending-chart-day-identity \{/);
@@ -6102,7 +6167,7 @@ test("the React spending chart view renders selectable proportional bars, the re
 	// spanning the full width beneath them.
 	assert.match(
 		styles,
-		/\.react-spending-chart-body \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(180px, 260px\);/,
+		/\.react-spending-chart-body \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(180px, 220px\);/,
 	);
 	assert.match(
 		styles,
@@ -6120,14 +6185,14 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.match(dayHeaderStyle, /z-index: 1;/);
 	assert.match(dayHeaderStyle, /background: var\(--surface-subtle\);/);
 	assert.match(dayHeaderStyle, /padding: var\(--space-3\) var\(--space-3\) var\(--space-2\);/);
-	// The selected bar carries the whole rounded card, not only a track border.
+	// Accepted chart polish uses the same quiet hairline/tint for hover and selection, no motion.
 	assert.match(
 		styles,
-		/\.react-spending-chart-bar-selected,\s*\.react-spending-chart-bar-selected:hover \{[^}]*border-color: var\(--accent\);[^}]*background: var\(--accent-soft\);[^}]*box-shadow: inset/,
+		/\.react-spending-chart-bar:not\(:disabled\):hover,\s*\.react-spending-chart-bar-selected \{[^}]*border-color: var\(--accent-line\);[^}]*background: var\(--accent-soft\);[^}]*box-shadow: none;[^}]*transform: none;/,
 	);
 	assert.match(
 		styles,
-		/\.react-spending-chart-bar-selected \.react-spending-chart-value,\s*\.react-spending-chart-bar-selected strong \{\s*color: var\(--accent\);/,
+		/\.react-spending-chart-bar-selected \.react-spending-chart-day \{\s*color: #173f9b;\s*font-weight: 800;/,
 	);
 	// The active summary row is the legacy solid blue with white text and value.
 	assert.match(
@@ -6138,66 +6203,29 @@ test("the React spending chart view renders selectable proportional bars, the re
 		styles,
 		/\.react-spending-chart-summary-row-active strong \{\s*color: #ffffff;/,
 	);
-	// The gradient fill keeps the legacy deep-blue to standard-blue ramp.
+	// The fill is bottom-anchored to a definite-height track; markup above proves its derived tone.
 	assert.match(
 		styles,
-		/\.react-spending-chart-fill \{[^}]*linear-gradient\(\s*180deg,\s*var\(--primary-container\) 0%,\s*var\(--primary\) 100%\s*\);/,
+		/\.react-spending-chart-fill \{[^}]*position: absolute;[^}]*bottom: 0;[^}]*left: 0;[^}]*width: 100%;/,
 	);
 	assert.match(
 		styles,
 		/@media \(prefers-reduced-motion: reduce\) \{\s*\.react-spending-chart-fill \{\s*transition: none;\s*\}\s*\}/,
 	);
-	// Below the wide desktop the top row narrows its totals column while keeping the bar chart and
-	// the month summary side by side, with the selected-day detail still spanning underneath.
-	assert.match(
-		styles,
-		/@media \(max-width: 1120px\) \{[^@]*?\.react-spending-chart-body \{\s*grid-template-columns: minmax\(0, 1fr\) minmax\(160px, 220px\);\s*\}/,
-	);
-	// Legacy's 800px tablet breakpoint stacks the chart body before the final 640px mobile stack,
-	// resets the spanning totals summary and lets the bar strip scroll, so the widened detail
-	// column and the seven 44px bars no longer force horizontal overflow between 641px and 800px.
-	assert.match(
-		styles,
-		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-body \{\s*grid-template-columns: 1fr;\s*\}/,
-	);
-	assert.match(
-		styles,
-		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-summary \{\s*grid-column: auto;\s*grid-template-columns: 1fr;\s*\}/,
-	);
-	// The same breakpoint ports legacy's compact density: tighter inter-bar gap, scrolling strip,
-	// zero horizontal bar padding, an 18px track and a vertical value label so all seven bars fit
-	// without forcing the page wider than the viewport.
-	assert.match(
-		styles,
-		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-bars \{[^}]*gap: 4px;[^}]*overflow-x: auto;[^}]*padding-bottom: var\(--space-2\);/,
-	);
-	assert.match(
-		styles,
-		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-bar \{[^}]*min-width: 44px;[^}]*padding-inline: 0;/,
-	);
-	assert.match(
-		styles,
-		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-track \{[^}]*width: 18px;/,
-	);
-	assert.match(
-		styles,
-		/@media \(max-width: 800px\) \{[^@]*?\.react-spending-chart-value \{[^}]*writing-mode: vertical-rl;[^}]*justify-self: center;/,
-	);
-	// On narrow screens the chart body becomes one column, the summary returns to a single column
-	// and the bar row scrolls, so the detail panel and the seven 44px bars no longer force
-	// horizontal overflow.
-	assert.match(
-		styles,
-		/@media \(max-width: 640px\) \{[^@]*?\.react-spending-chart-body \{\s*grid-template-columns: 1fr;\s*\}/,
-	);
-	assert.match(
-		styles,
-		/@media \(max-width: 640px\) \{[^@]*?\.react-spending-chart-summary \{\s*grid-column: auto;\s*grid-template-columns: 1fr;\s*\}/,
-	);
-	assert.match(
-		styles,
-		/@media \(max-width: 640px\) \{[^@]*?\.react-spending-chart-bars \{\s*justify-content: flex-start;\s*overflow-x: auto;\s*\}/,
-	);
+	// The compact desktop tracks retain definite height and card-local overflow.
+	assert.match(styles, /\.react-spending-chart-track \{[^}]*width: 24px;[^}]*height: 160px;/);
+	assert.match(styles, /\.react-spending-chart-bars \{[^}]*gap: 4px;[^}]*min-width: 0;[^}]*overflow-x: auto;/);
+	// One <=800px rule now owns both tablet and phone layout instead of duplicated 640px rules.
+	const compactChart = styles.match(/@media \(max-width: 800px\) \{\s*\.react-spending-chart-body \{[\s\S]*?\n\}/)?.[0] ?? "";
+	assert.match(compactChart, /\.react-spending-chart-body \{\s*grid-template-columns: minmax\(0, 1fr\);/);
+	assert.match(compactChart, /\.react-spending-chart-summary \{\s*grid-template-columns: minmax\(0, 1fr\);/);
+	assert.match(compactChart, /\.react-spending-chart-bar \{\s*min-width: 56px;/);
+	assert.match(compactChart, /\.react-spending-chart-track \{\s*width: 14px;/);
+	assert.match(styles, /\.react-spending-chart-value-positive,\s*\.react-spending-chart-bar-selected \.react-spending-chart-value-positive \{[^}]*transform: rotate\(320deg\);[^}]*background: transparent;/);
+	// Both phone and tablet inherit the scrolling strip and the spanning detail row unchanged.
+	assert.match(styles, /\.react-spending-chart-bars \{[^}]*padding: var\(--space-3\) var\(--space-2\) var\(--space-2\);/);
+	assert.match(styles, /\.react-spending-chart-bar \{[^}]*flex: 1 0 auto;[^}]*grid-template-rows: 2\.4rem 160px auto auto;/);
+	assert.match(styles, /\.react-spending-chart-value \{[^}]*max-width: 70px;[^}]*overflow-wrap: anywhere;/);
 });
 
 test("the React spending chart detail and totals read the loaded transactions without inventing rows", async (t) => {
@@ -6312,7 +6340,7 @@ test("the React spending chart detail and totals read the loaded transactions wi
 	const periodSeries = analytics.getSpendingChartSeries(chart, "period");
 	const monday = periodSeries.days.find((day) => day.key === "weekday-0");
 	const mondayDetail = analytics.getSpendingChartDayDetail(periodSeries, monday, rows);
-	assert.equal(mondayDetail.title, "Detalle de lunes de 01/02/2026 a 28/02/2026");
+	assert.equal(mondayDetail.title, "Detalle de lunes de domingo 1 de febrero - sábado 28 de febrero");
 	assert.equal(mondayDetail.total, 2500);
 	assert.equal(mondayDetail.isEmpty, false);
 	assert.deepEqual(mondayDetail.groups.map((group) => group.key), ["2026-02-02"]);
@@ -6606,7 +6634,7 @@ test("the React authenticated header exposes one Configuración action opening t
 	// action stays the first menuitem.
 	assert.match(
 		accountMenuSource,
-		/<a\s+href="\/auth\/logout"\s+role="menuitem"\s+className="react-account-logout"\s*>/,
+		/<a\s+href="\/auth\/logout"\s+role="menuitem"\s+className="react-account-logout"\s+onClick=\{clearFinancialDashboardCache\}\s*>/,
 	);
 	assert.match(accountMenuSource, /Cerrar sesión/);
 	assert.ok(
@@ -6653,7 +6681,7 @@ test("the React authenticated header exposes one Configuración action opening t
 		/Configuración|Reglas de contraparte|AccountSettingsDialog|isAccountSettingsOpen/,
 	);
 	assert.match(demoTree, /<AccountMenu profile=\{DEMO_PROFILE\}>/);
-	assert.match(demoTree, /<a href="\/auth\/google" role="menuitem">Iniciar sesión<\/a>/);
+	assert.match(demoTree, /<a href=\{getGoogleLoginUrl\(\)\} role="menuitem">Iniciar sesión<\/a>/);
 
 	// The interactive behaviours live in the menu component: opening focuses the first menuitem,
 	// Escape closes and restores the trigger focus, and an outside pointer closes the menu.
@@ -7009,7 +7037,7 @@ test("the React authenticated page composes the app header over a page-owned vie
 	// The body is driven by the same state instead of owning a second toggle.
 	assert.match(
 		page,
-		/<FinancialSummary[\s\S]{0,160}?view=\{view\}[\s\S]{0,160}?onViewChange=\{setView\}/,
+		/<FinancialSummary\b[^>]*\bview=\{view\}[^>]*\bonViewChange=\{setView\}[^>]*\/>/s,
 	);
 	assert.doesNotMatch(page, /react-financial-view-toggle/);
 
@@ -7020,7 +7048,7 @@ test("the React authenticated page composes the app header over a page-owned vie
 		page.indexOf("export interface DashboardLeadViewProps"),
 	);
 	assert.notEqual(demoTree, "", "the demo tree must be locatable");
-	assert.match(demoTree, /<AppHeader view="summary" onViewChange=\{\(\) => \{\}\}>/);
+	assert.match(demoTree, /<AppHeader view="summary" onViewChange=\{\(\) => \{\s*\}\}>/);
 
 	// Scoped styles exist and no legacy header class leaked into the React stylesheet.
 	assert.match(styles, /\.react-app-header \{/);
@@ -7630,49 +7658,69 @@ test("the React dashboard insights module derives a truthful story, top insights
 	assert.deepEqual(topCounterparty, { label: "Mercado", total: 500 });
 	assert.equal(insights.getTopCounterpartyGroup([]), null);
 
-	// The four insights carry the raw total so the surface formats it; the latest movement ranks by
-	// recency, so its value is the date and its note is the identity.
+	// The accepted tiles distinguish frequency (a count), uncategorized spending (a raw sum),
+	// largest expense (one amount), and latest identity/date. Category totals remain in the ranking.
+	const frequencyRows = [
+		{ counterparty: "Café", amount: 100 },
+		{ counterparty: "cafe", amount: 50 },
+		{ counterparty: "Mercado", amount: 500 },
+		{ counterparty: "Café", amount: Number.NaN },
+	];
+	const frequency = insights.getMostFrequentCounterparty(frequencyRows);
+	assert.deepEqual(frequency, { label: "cafe", count: 2 });
+	assert.deepEqual(insights.getMostFrequentCounterparty([...frequencyRows].reverse()), frequency);
+	const uncategorized = insights.getUncategorizedExpenses([
+		{ direction: "outflow", kind: "purchase", amount: 12000, category: null },
+		{ direction: "outflow", kind: "transfer", amount: 8000, category: "  " },
+		{ direction: "outflow", kind: "purchase", amount: 500, category: "Sin categoría" },
+		{ direction: "outflow", kind: "purchase", amount: Number.NaN, category: null },
+		{ direction: "inflow", kind: "purchase", amount: 90000, category: null },
+	]);
+	assert.deepEqual(uncategorized, { count: 2, total: 20000 });
 	const ranked = insights.getTopInsights({
-		category: { label: "Comida", total: 20000 },
-		counterparty: { label: "Mercado", total: 500 },
+		frequency,
+		uncategorized,
 		largest: { label: "Tienda", total: 12000 },
 		latest: { counterparty: "Tienda", date: "2026-02-28" },
 	});
-	assert.equal(ranked.category.label, "Principal categoría");
-	assert.equal(ranked.category.value, "Comida");
-	assert.equal(ranked.category.amount, 20000);
-	assert.equal(ranked.counterparty.label, "Mayor destinatario");
-	assert.equal(ranked.counterparty.value, "Mercado");
-	assert.equal(ranked.counterparty.amount, 500);
+	assert.equal(ranked.uncategorized.label, "Sin clasificar");
+	assert.equal(ranked.uncategorized.note, "2 movimientos sin categoría");
+	assert.equal(ranked.uncategorized.amount, 20000);
+	assert.equal(ranked.uncategorizedCount, 2);
+	assert.equal(ranked.frequency.label, "Mayor frecuencia");
+	assert.equal(ranked.frequency.value, "cafe");
+	assert.equal(ranked.frequency.amount, null);
+	assert.equal(ranked.frequency.note, "2 movimientos");
 	assert.equal(ranked.largest.label, "Mayor impacto");
 	assert.equal(ranked.largest.value, "Tienda");
 	assert.equal(ranked.largest.amount, 12000);
 	assert.equal(ranked.latest.label, "Último movimiento");
-	assert.equal(ranked.latest.value, "2026-02-28");
+	assert.equal(ranked.latest.value, "Tienda");
 	assert.equal(ranked.latest.amount, null);
-	assert.equal(ranked.latest.note, "Tienda");
-	// Only the aggregate `Mayor destinatario` row carries the clarification that its total accumulates
-	// every movement for the recipient; the other three rows state no hint.
-	assert.equal(ranked.counterparty.hint, "Total acumulado del destinatario");
-	assert.equal(ranked.category.hint, "");
+	assert.equal(ranked.latest.note, "2026-02-28");
+	// Frequency is explicitly a movement count, never a cumulative amount or a claim about visits.
+	assert.equal(ranked.frequency.hint, "");
+	assert.equal(ranked.uncategorized.hint, "");
 	assert.equal(ranked.largest.hint, "");
 	assert.equal(ranked.latest.hint, "");
 
 	// No data: the shipped sentinel and a truthful reason instead of a name or an amount.
-	const noData = insights.getTopInsights({ category: null, counterparty: null, largest: null, latest: null });
+	const noData = insights.getTopInsights({ frequency: null, uncategorized: { count: 0, total: 0 }, largest: null, latest: null });
 	assert.deepEqual(
-		[noData.category.value, noData.counterparty.value, noData.largest.value, noData.latest.value],
+		[noData.uncategorized.value, noData.frequency.value, noData.largest.value, noData.latest.value],
 		["—", "—", "—", "—"],
 	);
 	assert.deepEqual(
-		[noData.category.amount, noData.counterparty.amount, noData.largest.amount, noData.latest.amount],
+		[noData.uncategorized.amount, noData.frequency.amount, noData.largest.amount, noData.latest.amount],
 		[null, null, null, null],
 	);
 	assert.deepEqual(
-		[noData.category.hint, noData.counterparty.hint, noData.largest.hint, noData.latest.hint],
+		[noData.uncategorized.hint, noData.frequency.hint, noData.largest.hint, noData.latest.hint],
 		["", "", "", ""],
 	);
-	assert.match(noData.category.note, /Sin gastos con monto conocido/);
+	assert.match(noData.uncategorized.note, /Sin gastos sin categoría con monto conocido/);
+	assert.match(noData.frequency.note, /Sin destinatarios identificados con monto conocido/);
+	assert.equal(noData.uncategorizedCount, 0);
 	assert.match(noData.largest.note, /Sin gastos con monto conocido/);
 	assert.match(noData.latest.note, /Sin movimientos/);
 
@@ -7755,10 +7803,9 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.match(page, /const spendingBreakdown = getSpendingBreakdown\(spendingByKind\)/);
 	assert.doesNotMatch(page, /loadDashboardInsights|fetch\("\/api\/insights/);
 
-	// The shared analytics body owns the DOM order both surfaces read: primary lead, income/budget
-	// truth, spending-type distribution, period metrics and spending chart (main column), then the
-	// category ranking, the intelligence card and `Lectura rápida` (side column). Each position is a distinct
-	// marker, so a reorder is observable.
+	// The accepted composition has lead/income truth, distribution and chart in the main column,
+	// then category distribution, recipient ranking and intelligence (including its story note).
+	// Removed metrics/story panels retain their data decisions, not duplicate mount sites.
 	const bodySource = page.slice(
 		page.indexOf("interface DashboardAnalyticsBodyProps"),
 		page.indexOf("interface FinancialSummaryProps"),
@@ -7768,11 +7815,10 @@ test("the React authenticated summary renders the shared analytics body in the p
 		bodySource.indexOf("<DashboardLeadView lead={lead} />"),
 		bodySource.indexOf("<DashboardBudgetPanel panel={budgetPanel} />"),
 		bodySource.indexOf("<SpendingBreakdownView breakdown={breakdown} />"),
-		bodySource.indexOf("<PeriodAnalyticsPanel analytics={analytics} />"),
 		bodySource.indexOf("<SpendingChartPanel"),
 		bodySource.indexOf("<CategoryRankingPanel"),
-		bodySource.indexOf("<TopInsightsView insights={insights} />"),
-		bodySource.indexOf("<DashboardStoryView story={story} />"),
+		bodySource.indexOf("<DashboardCounterpartyRankingView ranking={counterpartyRanking} />"),
+		bodySource.indexOf("<TopInsightsView insights={insights} story={story}"),
 	];
 	assert.ok(positions.every((position) => position >= 0), "every analytics panel must be mounted exactly once");
 	for (let index = 1; index < positions.length; index += 1) {
@@ -7787,31 +7833,32 @@ test("the React authenticated summary renders the shared analytics body in the p
 	const breakdownInMain = mainSource.indexOf("<SpendingBreakdownView breakdown={breakdown} />");
 	assert.ok(breakdownInMain >= 0, "the distribution card must sit in the analytics main column");
 	assert.equal(
-		mainSource.indexOf("<DashboardStoryView story={story} />"),
+		mainSource.indexOf("<TopInsightsView"),
 		-1,
 		"`Lectura rápida` must leave the analytics main column",
 	);
-	// The category distribution leads the side column, the intelligence card follows it, and `Lectura rápida`
-	// renders last so the highlights stay primary.
+	// Category distribution leads the side column, followed by recipient ranking and intelligence.
+	// The integrated story stays within the intelligence card below its tiles.
 	const sideSource = bodySource.slice(sideOpen);
 	const categoryInSide = sideSource.indexOf("<CategoryRankingPanel");
-	const insightsInSide = sideSource.indexOf("<TopInsightsView insights={insights} />");
-	const storyInSide = sideSource.indexOf("<DashboardStoryView story={story} />");
+	const insightsInSide = sideSource.indexOf("<TopInsightsView insights={insights} story={story}");
+	const recipientsInSide = sideSource.indexOf("<DashboardCounterpartyRankingView");
 	assert.ok(
 		categoryInSide >= 0 && insightsInSide > categoryInSide,
 		"the category card must lead the side column before the top insights",
 	);
 	assert.ok(
-		storyInSide > insightsInSide,
-		"`Lectura rápida` must render in the side column after the intelligence card",
+		recipientsInSide > categoryInSide && insightsInSide > recipientsInSide,
+		"the recipient ranking must precede the intelligence card and its integrated story",
 	);
 	// The temporary two-card sidebar pair wrapper and its placement rules are gone.
 	assert.doesNotMatch(page, /react-analytics-pair/);
 	// The shared body is the single mount site for both the authenticated summary and the demo.
-	assert.equal((page.match(/<DashboardStoryView/g) ?? []).length, 1);
+	assert.equal((page.match(/<TopInsightsView insights=\{insights\} story=\{story\}/g) ?? []).length, 1);
 	assert.equal((page.match(/<TopInsightsView/g) ?? []).length, 1);
 	assert.equal((page.match(/<SpendingBreakdownView/g) ?? []).length, 1);
-	assert.match(page, /export function DashboardStoryView\(/);
+	assert.match(page, /story\.facts\.map\(\(fact\) =>/);
+	assert.match(bodySource, /onJumpToUncategorized=\{canJumpToUncategorized\s*\? \(\) => onJumpToCategory\("Sin categoría"\) : undefined\}/);
 	assert.match(page, /export function TopInsightsView\(/);
 	assert.match(page, /export function SpendingBreakdownView\(/);
 
@@ -7830,21 +7877,24 @@ test("the React authenticated summary renders the shared analytics body in the p
 		topCounterparty: { label: "Mercado", total: 15000 },
 	});
 	const storyMarkup = renderer.renderToStaticMarkup(
-		React.createElement(pageModule.DashboardStoryView, { story }),
+		React.createElement(pageModule.TopInsightsView, {
+			insights: insights.getTopInsights({ frequency: null, uncategorized: { count: 0, total: 0 }, largest: null, latest: null }),
+			story,
+		}),
 	);
-	assert.match(storyMarkup, /<section class="react-dashboard-story"/);
+	assert.match(storyMarkup, /<div class="react-top-insights-note"/);
 	assert.match(storyMarkup, /Lectura rápida/);
 	assert.match(storyMarkup, /Puntos clave del periodo\./);
 	assert.match(storyMarkup, /1 gasto necesita una revisión rápida\./);
-	// One list item and one tinted callout per fact, and nothing repeats `Destacados` — including the
-	// largest expense the intelligence card now shows as `Mayor impacto`.
-	assert.equal((storyMarkup.match(/react-dashboard-story-callout/g) ?? []).length, 1);
-	assert.match(storyMarkup, /<li class="react-dashboard-story-callout">/);
+	// One paragraph per story fact, without restating category/recipient/largest-expense totals.
+	assert.equal((storyMarkup.match(/<p>1 gasto necesita una revisión rápida\.<\/p>/g) ?? []).length, 1);
+	assert.match(storyMarkup, /<div class="react-top-insights-note-copy"><p>Puntos clave del periodo\.<\/p><p>1 gasto necesita una revisión rápida\.<\/p>/);
 	assert.doesNotMatch(storyMarkup, /Comida|Mercado|Tienda|\$12\.000/);
 
-	// An empty period announces its summary as a status and renders no callout block.
+	// An empty period announces its summary as a status and invents no review fact.
 	const emptyStoryMarkup = renderer.renderToStaticMarkup(
-		React.createElement(pageModule.DashboardStoryView, {
+		React.createElement(pageModule.TopInsightsView, {
+			insights: insights.getTopInsights({ frequency: null, uncategorized: { count: 0, total: 0 }, largest: null, latest: null }),
 			story: insights.getDashboardStory({
 				totalSpending: 0,
 				knownCount: 0,
@@ -7856,46 +7906,59 @@ test("the React authenticated summary renders the shared analytics body in the p
 		}),
 	);
 	assert.match(emptyStoryMarkup, /role="status"/);
-	assert.doesNotMatch(emptyStoryMarkup, /react-dashboard-story-callout/);
+	assert.doesNotMatch(emptyStoryMarkup, /gasto[s]? necesita[n]? una revisión rápida/);
+	assert.match(emptyStoryMarkup, /class="react-top-insights-note" role="status"/);
 
 	// The intelligence card shows the new title, badge and the four truthful tiles with their totals.
 	const topInsights = insights.getTopInsights({
-		category: { label: "Comida", total: 20000 },
-		counterparty: { label: "Mercado", total: 500 },
+		frequency: { label: "Mercado", count: 3 },
+		uncategorized: { count: 2, total: 20000 },
 		largest: { label: "Tienda", total: 12000 },
 		latest: { counterparty: "Tienda", date: "2026-02-28" },
 	});
 	const insightsMarkup = renderer.renderToStaticMarkup(
-		React.createElement(pageModule.TopInsightsView, { insights: topInsights }),
+		React.createElement(pageModule.TopInsightsView, { insights: topInsights, story }),
 	);
 	assert.match(insightsMarkup, /<section class="react-top-insights"/);
 	assert.match(insightsMarkup, /Lectura rápida · Inteligencia de gastos/);
 	assert.match(insightsMarkup, /Resumen del periodo/);
 	assert.match(insightsMarkup, /Tus datos más relevantes del periodo\./);
-	assert.match(insightsMarkup, /Principal categoría/);
-	assert.match(insightsMarkup, /Mayor destinatario/);
+	assert.match(insightsMarkup, /Sin clasificar/);
+	assert.match(insightsMarkup, /Mayor frecuencia/);
+	assert.match(insightsMarkup, /react-insight-callout-value">Mercado<\/strong>/);
+	assert.match(insightsMarkup, /react-insight-callout-detail">3 movimientos<\/p>/);
 	assert.match(insightsMarkup, /Mayor impacto/);
 	assert.match(insightsMarkup, /Último movimiento/);
 	assert.match(insightsMarkup, /\$20\.000/);
 	assert.match(insightsMarkup, /\$12\.000/);
 	assert.match(insightsMarkup, /2026-02-28/);
 	assert.match(insightsMarkup, /Tienda/);
-	// The card is one uniform 2x2 grid of equal tiles: each keeps the same rhythm and a decorative
-	// hidden glyph, the header leads with the lightbulb title, and only the aggregate `Mayor
-	// destinatario` tile states its hint.
+	// The uniform 2x2 grid has four compact decorative glyphs and a lightbulb in the header.
+	// Frequency states a count, not the obsolete aggregate-recipient amount hint.
 	assert.match(insightsMarkup, /react-top-insights-header/);
 	assert.match(insightsMarkup, /<h3 id="react-top-insights-title">Lectura rápida · Inteligencia de gastos<\/h3>/);
 	assert.match(insightsMarkup, /<span class="react-top-insights-badge">Resumen del periodo<\/span>/);
 	assert.match(insightsMarkup, /<ul class="react-top-insights-grid">/);
 	assert.doesNotMatch(insightsMarkup, /react-financial-grid|react-financial-card|react-top-insights-list/);
-	assert.equal((insightsMarkup.match(/<li class="react-insight-callout">/g) ?? []).length, 4);
-	assert.equal(
-		(insightsMarkup.match(/class="react-card-icon" aria-hidden="true"/g) ?? []).length,
-		5,
-	);
+	assert.equal((insightsMarkup.match(/<li class="react-insight-callout react-insight-callout-/g) ?? []).length, 4);
+	assert.equal((insightsMarkup.match(/class="react-insight-callout-icon" aria-hidden="true"/g) ?? []).length, 4);
+	assert.equal((insightsMarkup.match(/class="react-card-icon" aria-hidden="true"/g) ?? []).length, 1);
 	assert.match(insightsMarkup, /fa-lightbulb/);
-	assert.match(insightsMarkup, /react-insight-callout-hint">Total acumulado del destinatario</);
-	assert.equal((insightsMarkup.match(/react-insight-callout-hint/g) ?? []).length, 1);
+	assert.match(insightsMarkup, /react-insight-callout-detail">2 movimientos sin categoría<\/p>/);
+	assert.ok(insightsMarkup.indexOf('class="react-top-insights-note"') > insightsMarkup.indexOf("</ul>"),
+		"the integrated story note must follow the four intelligence tiles");
+	assert.equal((insightsMarkup.match(/react-insight-callout-hint/g) ?? []).length, 0);
+	// Classification is an authenticated capability, not a demo or no-data action.
+	const actionable = renderer.renderToStaticMarkup(React.createElement(pageModule.TopInsightsView, {
+		insights: topInsights, story, onJumpToUncategorized() {},
+	}));
+	assert.match(actionable, /<button type="button" class="react-insight-category-action">Clasificar ahora →<\/button>/);
+	assert.doesNotMatch(insightsMarkup, /Clasificar ahora/);
+	const noAction = renderer.renderToStaticMarkup(React.createElement(pageModule.TopInsightsView, {
+		insights: insights.getTopInsights({ frequency: null, uncategorized: { count: 0, total: 0 }, largest: null, latest: null }),
+		story, onJumpToUncategorized() {},
+	}));
+	assert.doesNotMatch(noAction, /Clasificar ahora/);
 
 	// The breakdown view draws one segmented bar plus an icon legend, keeping every kind's amount and
 	// percentage as readable text.
@@ -7951,13 +8014,12 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.doesNotMatch(zeroMarkup, /react-spending-breakdown-segment/);
 	assert.doesNotMatch(zeroMarkup, /react-spending-breakdown-total/);
 
-	// Scoped styles under the shipped `react-` prefix.
-	assert.match(styles, /\.react-dashboard-story \{/);
-	assert.match(styles, /\.react-dashboard-story-list \{/);
-	// Each fact is a light callout: a blue tint with a matching, slightly stronger border.
-	assert.match(styles, /\.react-dashboard-story-callout \{/);
-	assert.match(styles, /\.react-dashboard-story-callout \{[^}]*background: var\(--color-blue-soft\)/s);
-	assert.match(styles, /\.react-dashboard-story-callout \{[^}]*border: 1px solid var\(--color-blue-standard\)/s);
+	// Scoped styles for the integrated note and compact, supported intelligence tiles.
+	assert.match(styles, /\.react-top-insights-note \{/);
+	assert.match(styles, /\.react-top-insights-note-copy \{/);
+	assert.match(styles, /\.react-top-insights-note-icon \{/);
+	assert.match(styles, /\.react-insight-callout-uncategorized \{[^}]*background: var\(--warning-soft\)/s);
+	assert.match(styles, /\.react-insight-callout-uncategorized \{[^}]*border-color: #ecd9a9/s);
 	assert.match(styles, /\.react-top-insights \{/);
 	// The card carries a stronger left accent and the tiles use a light neutral tint, not white cards.
 	assert.match(styles, /\.react-top-insights \{[^}]*border-left: 4px solid var\(--color-blue-standard\)/s);
@@ -8182,13 +8244,13 @@ test("the React category distribution renders the ECharts donut legend, reuses t
 	// Selecting a row reuses the extracted detail view in place of the legend.
 	const detail = renderDistribution("Comida");
 	assert.match(detail, /class="react-category-detail"/);
-	assert.match(detail, /<strong>Comida<\/strong><small>\$33\.500 · 7% · 3 movimientos<\/small>/);
+	assert.match(detail, /<strong role="heading" aria-level="4" tabindex="-1">Comida<\/strong><small>\$33\.500 · 7% · 3 movimientos<\/small>/);
 	assert.match(detail, /Ver gastos de esta categoría/);
 	assert.doesNotMatch(detail, /react-category-legend-item/);
 
 	// The merged tail reuses the same detail and withholds the jump it cannot perform.
 	const tail = renderDistribution("Otras categorías");
-	assert.match(tail, /<strong>Otras categorías<\/strong>/);
+	assert.match(tail, /<strong role="heading" aria-level="4" tabindex="-1">Otras categorías<\/strong>/);
 	assert.match(tail, /<strong>Entretenimiento<\/strong>/);
 	assert.doesNotMatch(tail, /Ver gastos de esta categoría/);
 
@@ -8626,7 +8688,7 @@ test("the React movements table renders the selection column, the bulk bar and t
 	assert.match(neutral, /aria-label="No seleccionable: Sin identificaci\u00f3n"[^>]*disabled=""/);
 	// The bulk bar states the count and carries the category control and both actions.
 	assert.match(neutral, /Acciones sobre la selecci\u00f3n/);
-	assert.match(neutral, /Ning\u00fan movimiento seleccionado/);
+	assert.match(neutral, /Sin selección/);
 	assert.match(neutral, /<option value="Comida" selected="">Comida<\/option>/);
 	assert.match(neutral, /Limpiar selecci\u00f3n/);
 	assert.match(neutral, /Asignar categor\u00eda/);
@@ -9165,10 +9227,15 @@ test("the React demo dashboard composes the read-only analytics without API, Gma
 	assert.doesNotMatch(markup, /react-dashboard-lead-single|demo-kpi-grid/);
 	assert.match(markup, /react-category-distribution/);
 	assert.match(markup, /react-spending-chart/);
-	assert.match(markup, /react-dashboard-story/);
+	assert.match(markup, /react-top-insights-note/);
+	assert.match(markup, /Tus gastos ya están listos para explorarse en el detalle/);
 	assert.match(markup, /react-top-insights/);
 	assert.match(markup, /react-spending-breakdown/);
-	assert.match(markup, /react-period-analytics/);
+	assert.match(markup, /Mayor impacto/);
+	assert.match(markup, /react-insight-callout-detail">\$25\.000<\/p>/);
+	assert.match(markup, /Mayor frecuencia/);
+	assert.match(markup, /react-insight-callout-detail">1 movimiento<\/p>/);
+	assert.doesNotMatch(markup, /Clasificar ahora/);
 
 	// No authenticated mutation tree, account/settings surface or Gmail panel is mounted.
 	assert.doesNotMatch(

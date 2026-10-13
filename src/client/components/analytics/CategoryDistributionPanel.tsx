@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type Ref } from "react";
 import type { EChartsOption, EChartsType } from "echarts";
+import { useAutoHeightMotion } from "../../hooks/useAutoHeightMotion";
 import { faLayerGroup } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { Category } from "../../api/types";
@@ -313,6 +314,7 @@ export function CategoryDistributionView({
 	const selectedRow: CategoryRankingRow | null =
 		selectedCategory === null ? null : findCategoryRankingRow(ranking, selectedCategory);
 	const activeCategory = selectedRow?.category ?? null;
+	const legendMotionRef = useAutoHeightMotion(activeCategory, reducedMotion);
 	const previousCategoryRef = useRef(activeCategory);
 	useEffect(() => {
 		const previousCategory = previousCategoryRef.current;
@@ -467,7 +469,7 @@ export function CategoryDistributionView({
 						</div>
 					)}
 				</div>
-				<div className="react-category-distribution-legend">
+				<div className="react-category-distribution-legend" ref={legendMotionRef}>
 					{selectedRow === null ? (
 						legend.map((entry) => (
 							<button

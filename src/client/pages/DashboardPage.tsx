@@ -34,6 +34,7 @@ import {
   getCategories,
   loadFinancialDashboardWithCache,
   refreshFinancialDashboardData,
+  prepareFinancialDashboardSyncReuse,
   writeFinancialDashboardCache,
   removeTransaction,
   syncGmail,
@@ -42,7 +43,10 @@ import {
   upsertCategory,
   upsertCounterpartyRule,
 } from "../api/client";
+import { getGoogleLoginUrl } from "../api/googleLogin";
 import { AccountMenu } from "../components/account/AccountMenuComponent";
+import { FeedbackNotice } from "../components/feedback/FeedbackNotice";
+import { DashboardLoadingState } from "../components/analytics/DashboardLoadingState";
 import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
 import { getPeriodAnalytics } from "../components/analytics/periodAnalytics";
 import {
@@ -130,7 +134,7 @@ import {
   reduceGmailConsent,
   type GmailConsentState,
 } from "../components/gmail/gmailConsent";
-import { createGmailSyncSubmitter } from "../components/gmail/gmailSync";
+import { createGmailSyncSubmitter, type GmailSyncResultReusePreparation } from "../components/gmail/gmailSync";
 import { AccountSettingsDialog } from "../components/settings/AccountSettingsDialog";
 import { createCategoryMutationSubmitter } from "../components/settings/categorySettings";
 import { createCounterpartyRuleSubmitter } from "../components/settings/counterpartyRules";
@@ -232,6 +236,8 @@ export interface FinancialDashboardHandle {
   period: FinancialPeriod | null;
   /** Re-runs the cycle-first dashboard load. Resolves `false` when the reload failed. */
   reload: () => Promise<boolean>;
+  /** Captures the ready dashboard before sync so only an unchanged load can reuse its result. */
+  prepareSyncResultReuse: GmailSyncResultReusePreparation;
   /**
    * Opens the configured-period edit dialog. The dialog and its state stay owned by the summary, so
    * the page can render the control in its heading without a second copy of the cycle state.
@@ -544,6 +550,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
       sync: syncGmail,
       period: financialDashboard.period,
       reload: financialDashboard.reload,
+      prepareResultReuse: financialDashboard.prepareSyncResultReuse,
       lock: syncLock,
     });
   }, [financialDashboard]);
@@ -625,7 +632,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
         {connected && (
           <span className="react-gmail-connected-badge" role="status">
             <span className="react-gmail-connected-badge-dot" aria-hidden="true" />
-            Gmail Sincronizado
+            Gmail conectado
           </span>
         )}
         <AccountMenu profile={profile}>
@@ -893,7 +900,7 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
 			    login that leaves demo mode. */}
       <AppHeader view="summary" onViewChange={() => { }}>
         <AccountMenu profile={DEMO_PROFILE}>
-          <a href="/auth/google" role="menuitem">Iniciar sesión</a>
+          <a href={getGoogleLoginUrl()} role="menuitem">Iniciar sesión</a>
         </AccountMenu>
       </AppHeader>
       <main className="shell react-shell">
@@ -953,7 +960,7 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
 
           <footer className="demo-dashboard-footer">
             <p>Esta demo no guarda cambios ni se conecta a tu cuenta.</p>
-            <a className="button" href="/auth/google">Inicia sesión para editar</a>
+            <a className="button" href={getGoogleLoginUrl()}>Inicia sesión para editar</a>
           </footer>
         </section>
       </main>
@@ -1885,6 +1892,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   const [retryToken, setRetryToken] = useState(0);
   const retry = useCallback(() => setRetryToken((token) => token + 1), []);
   const activeLoad = useRef<AbortController | null>(null);
+  // Invalidate a prepared sync even when an intervening refresh finishes with identical values.
+  const dashboardLoadEpoch = useRef(0);
   // A failed explicit reload leaves ready data on screen, but those transactions may be stale.
   const dashboardStale = useRef(false);
   const mounted = useRef(false);
@@ -1934,6 +1943,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
    */
   const reloadFinancialDashboard = useCallback(async (): Promise<boolean> => {
     if (!mounted.current) return false;
+    dashboardLoadEpoch.current += 1;
     activeLoad.current?.abort();
     const controller = new AbortController();
     activeLoad.current = controller;
@@ -1951,6 +1961,28 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     } finally {
       if (activeLoad.current === controller) activeLoad.current = null;
     }
+  }, [email, publishState]);
+
+  const prepareSyncResultReuse = useCallback<GmailSyncResultReusePreparation>((period) => {
+    const reuse = prepareFinancialDashboardSyncReuse(email, period, () => {
+      const current = stateRef.current;
+      return {
+        data: current.status === "ready" ? current.data : null,
+        loadEpoch: dashboardLoadEpoch.current,
+        mounted: mounted.current,
+        stale: dashboardStale.current,
+        loading: activeLoad.current !== null,
+      };
+    });
+    if (!reuse) return null;
+    return (payload) => {
+      const data = reuse(payload);
+      if (data === "invalidated") return "invalidated";
+      if (!data) return false;
+      publishState({ status: "ready", data });
+      dashboardStale.current = false;
+      return true;
+    };
   }, [email, publishState]);
 
   /**
@@ -2042,6 +2074,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     onHandle({
       period: configuredPeriod,
       reload: reloadFinancialDashboard,
+      prepareSyncResultReuse: prepareSyncResultReuse,
       onEditPeriod: openCycleEdit,
       onCreateExpense: openCreateExpense,
     });
@@ -2050,6 +2083,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     onHandle,
     configuredPeriod,
     reloadFinancialDashboard,
+    prepareSyncResultReuse,
     openCycleEdit,
     openCreateExpense,
   ]);
@@ -2069,6 +2103,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   }, []);
 
   useEffect(() => {
+    dashboardLoadEpoch.current += 1;
     activeLoad.current?.abort();
     const controller = new AbortController();
     activeLoad.current = controller;
@@ -2115,7 +2150,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   }, [retryToken]);
 
   if (state.status === "loading") {
-    return <section className="react-financial-state" aria-live="polite">Cargando resumen financiero...</section>;
+    return <DashboardLoadingState view={view} />;
   }
   if (state.status === "failed") {
     return (
@@ -2340,36 +2375,32 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
         </div>
       )}
       {creationNotice && (
-        <p
+        <FeedbackNotice
           className={`react-financial-creation-notice react-financial-creation-notice-${creationNotice.tone}`}
-          role="status"
-        >
-          {creationNotice.message}
-        </p>
+          tone={creationNotice.tone}
+          message={creationNotice.message}
+        />
       )}
       {editNotice && (
-        <p
+        <FeedbackNotice
           className={`react-financial-mutation-notice react-financial-mutation-notice-${editNotice.tone}`}
-          role="status"
-        >
-          {editNotice.message}
-        </p>
+          tone={editNotice.tone}
+          message={editNotice.message}
+        />
       )}
       {removalNotice && (
-        <p
+        <FeedbackNotice
           className={`react-financial-mutation-notice react-financial-mutation-notice-${removalNotice.tone}`}
-          role="status"
-        >
-          {removalNotice.message}
-        </p>
+          tone={removalNotice.tone}
+          message={removalNotice.message}
+        />
       )}
       {cycleEditNotice && (
-        <p
+        <FeedbackNotice
           className={`react-financial-mutation-notice react-financial-mutation-notice-${cycleEditNotice.tone}`}
-          role="status"
-        >
-          {cycleEditNotice.message}
-        </p>
+          tone={cycleEditNotice.tone}
+          message={cycleEditNotice.message}
+        />
       )}
       {view === "summary" ? (
         <>
@@ -2471,14 +2502,24 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   );
 }
 
+/** Both rendered pending state and the synchronous submit lock own the dismissal policy. */
+export function requestFinancialSetupDismiss(
+  lock: { current: boolean },
+  isSaving: boolean,
+  onDismiss: () => void,
+): boolean {
+  if (lock.current || isSaving) return false;
+  onDismiss();
+  return true;
+}
+
 function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
-  // The first setup is a real modal, like the configure/edit dialog: the same `showModal()` helper
-  // gives it the focus trap, `Esc` handling and inert backdrop. The form is the only unconfigured
-  // surface, so the dialog opens on mount and closes with the component.
+  // Keep the form mounted while dismissed: reopening retains its draft and validation messages.
+  const [isOpen, setIsOpen] = useState(true);
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   useEffect(() => {
-    syncNativeModalDialog(dialogRef.current, true);
-  }, []);
+    syncNativeModalDialog(dialogRef.current, isOpen);
+  }, [isOpen]);
   // The configured review period for a first setup is the current month: it is the range the form
   // starts on. The calendar's own navigation and selectable bounds are the current year through the
   // current month, so a historical range the default does not cover is still reachable. Both are
@@ -2549,10 +2590,26 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
+    <>
+    {!isOpen && (
+      <section className="react-financial-state" aria-label="Configuración financiera pendiente">
+        <p>Configura tu período para ver el resumen financiero.</p>
+        <button type="button" onClick={() => setIsOpen(true)}>Configurar período</button>
+      </section>
+    )}
     <dialog
       ref={dialogRef}
       className="react-financial-setup-dialog react-financial-state"
       aria-labelledby="react-financial-setup-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        requestFinancialSetupDismiss(saveLock, isSaving, () => setIsOpen(false));
+      }}
+      onClose={() => {
+        if (!requestFinancialSetupDismiss(saveLock, isSaving, () => setIsOpen(false))) {
+          syncNativeModalDialog(dialogRef.current, true);
+        }
+      }}
     >
       <div>
         <span className="section-kicker">Configuración financiera</span>
@@ -2616,6 +2673,10 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
         </div>
         {error && <p className="react-financial-setup-error" role="alert">{error}</p>}
         <div className="react-shell-actions">
+          <button type="button" className="secondary" disabled={isSaving}
+            onClick={() => requestFinancialSetupDismiss(saveLock, isSaving, () => setIsOpen(false))}>
+            Cerrar
+          </button>
           <button type="submit" disabled={isSaving}>
             {isSaving ? "Guardando periodo financiero..." : "Guardar periodo financiero"}
           </button>
@@ -2623,6 +2684,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
       </form>
       <p aria-live="polite">{isSaving ? "Guardando periodo financiero..." : ""}</p>
     </dialog>
+    </>
   );
 }
 
@@ -2915,7 +2977,7 @@ export function MovementsTableView({
         </div>
       )}
       {selectionEnabled && selection !== undefined && (
-        <div className="react-movements-bulk" role="group" aria-label="Acciones sobre la selección">
+        <div className="react-movements-bulk" data-selected={selection.selectedCount > 0} role="group" aria-label="Acciones sobre la selección">
           <strong className="react-movements-bulk-count">
             {selection.message ?? "Sin selección"}
           </strong>
@@ -2955,12 +3017,11 @@ export function MovementsTableView({
             </button>
           </div>
           {bulkNotice !== null && bulkNotice !== undefined && (
-            <p
+            <FeedbackNotice
               className={`react-movements-bulk-notice react-movements-bulk-notice-${bulkNotice.tone}`}
-              role="status"
-            >
-              {bulkNotice.message}
-            </p>
+              tone={bulkNotice.tone}
+              message={bulkNotice.message}
+            />
           )}
         </div>
       )}
@@ -3000,7 +3061,7 @@ export function MovementsTableView({
                   )
                   : null;
               return (
-                <tr key={`${movement.counterparty}-${movement.date}-${index}`}>
+                <tr key={`${movement.counterparty}-${movement.date}-${index}`} data-selected={movement.id !== null && selectedIds.has(movement.id) ? "true" : undefined}>
                   {selectionEnabled && (
                     <td className="react-movements-select-column">
                       {editable ? (

@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-process.env.VERCEL = "1";
-process.env.TURSO_DATABASE_URL = "file:./data/finance.db";
+import "./helpers/isolation.js";
 const {
 	createFinancialCycleApi,
 	dispatchFinancialCycleRequest,

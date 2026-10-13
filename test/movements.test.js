@@ -1,14 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
+import "./helpers/isolation.js";
+
+const {
 	applyCounterpartyCategoryRules,
 	applyMovementOverrides,
 	computeMovementKey,
 	filterMovementsForPeriod,
 	normalizeCounterpartyKey,
 	toRangeSyncResult,
-} from "../src/movements.js";
+} = await import("../src/movements.js");
 
 test("computes stable movement keys from source and source id", () => {
 	const first = computeMovementKey({
