@@ -3183,7 +3183,7 @@ test("the React financial summary exposes one period edit trigger and reloads th
 	assert.match(page, /aria-label=\{isRefreshing \? "Actualizando gastos del periodo" : "Actualizar gastos del periodo"\}/);
 	assert.match(
 		page,
-		/className="secondary react-dashboard-refresh"[\s\S]{0,700}?<FontAwesomeIcon icon=\{faArrowsRotate\} aria-hidden="true" \/>[\s\S]{0,50}?Actualizar/,
+		/className="secondary react-dashboard-refresh"[\s\S]{0,700}?<FontAwesomeIcon icon=\{faArrowsRotate\} aria-hidden="true" \/>[\s\S]{0,50}?<span className="react-dashboard-refresh-label">Actualizar<\/span>/,
 	);
 	// The route retry prop is unused by the ready page after this correction, so it is gone entirely.
 	assert.doesNotMatch(page, /onRetry/);
@@ -6614,7 +6614,7 @@ test("the React authenticated header exposes one Configuración action opening t
 
 	// The authenticated header gains the account menu as the settings entry point.
 	assert.match(page, /import \{ AccountMenu \} from "\.\.\/components\/account\/AccountMenuComponent";/);
-	assert.match(page, /<AccountMenu profile=\{profile\}>/);
+	assert.match(page, /<AccountMenu profile=\{profile\} gmailConnected=\{connected\}>/);
 
 	// The consolidated settings entry lives under the account menu and opens the unified surface;
 	// the two surface bodies and their mutation contracts are unchanged behind it.
@@ -8681,11 +8681,15 @@ test("the React movements table renders the selection column, the bulk bar and t
 		);
 
 	const neutral = renderView(selection.getMovementSelectionView(selection.createMovementSelection(), selectableIds));
-	// The select-all control and one checkbox per row: the non-editable row's checkbox is disabled.
-	assert.match(neutral, /aria-label="Seleccionar todos los movimientos editables"/);
-	assert.equal((neutral.match(/class="react-movement-select"/g) ?? []).length, 2);
-	assert.equal((neutral.match(/react-movement-select-disabled/g) ?? []).length, 1);
-	assert.match(neutral, /aria-label="No seleccionable: Sin identificaci\u00f3n"[^>]*disabled=""/);
+	const desktopProjection = (html) => html.slice(html.indexOf('<table class="react-movements-table"'), html.indexOf('</table>'));
+	const mobileProjection = (html) => html.slice(html.indexOf('<div class="react-mobile-movements"'), html.indexOf('<div class="react-movements-table-wrapper"'));
+	// Each responsive projection keeps select-all and one checkbox per row, including the disabled row.
+	for (const projection of [desktopProjection(neutral), mobileProjection(neutral)]) {
+		assert.match(projection, /aria-label="Seleccionar todos los movimientos editables"/);
+		assert.equal((projection.match(/class="react-movement-select"/g) ?? []).length, 2);
+		assert.equal((projection.match(/react-movement-select-disabled/g) ?? []).length, 1);
+		assert.match(projection, /aria-label="No seleccionable: Sin identificaci\u00f3n"[^>]*disabled=""/);
+	}
 	// The bulk bar states the count and carries the category control and both actions.
 	assert.match(neutral, /Acciones sobre la selecci\u00f3n/);
 	assert.match(neutral, /Sin selección/);
@@ -8695,7 +8699,9 @@ test("the React movements table renders the selection column, the bulk bar and t
 	// The partial-failure notice is the caller's own copy.
 	assert.match(neutral, /Se asign\u00f3 la categor\u00eda a 1 de 2 movimientos\./);
 	// "N similares" appears on the two rows that share a normalized counterparty.
-	assert.equal((neutral.match(/>2 similares<\/button>/g) ?? []).length, 2);
+	for (const projection of [desktopProjection(neutral), mobileProjection(neutral)]) {
+		assert.equal((projection.match(/>2 similares<\/button>/g) ?? []).length, 2);
+	}
 
 	// One row selected: the header reports the mixed state and the count.
 	const partial = renderView(selection.getMovementSelectionView(new Set(["a"]), selectableIds));
@@ -8721,7 +8727,9 @@ test("the React movements table renders the selection column, the bulk bar and t
 	);
 	assert.doesNotMatch(legacy, /react-movements-select-column|Acciones sobre la selecci\u00f3n/);
 	// The Ver action is present for every row, including the one with no editable target.
-	assert.equal((legacy.match(/>Ver<\/button>/g) ?? []).length, 3);
+	for (const projection of [desktopProjection(legacy), mobileProjection(legacy)]) {
+		assert.equal((projection.match(/>Ver<\/button>/g) ?? []).length, 3);
+	}
 
 	// The table wires the container state to the pure module and passes the bulk submitter through.
 	assert.match(page, /getMovementSelectionView/);

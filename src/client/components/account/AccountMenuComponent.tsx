@@ -39,6 +39,8 @@ import {
 export interface AccountMenuProps {
 	/** `session.profile`; `null` resolves to a safe, labelled fallback identity. */
 	profile: SessionProfile | null;
+	/** Existing Gmail connection state supplied by the page; never inferred from the profile. */
+	gmailConnected?: boolean;
 	/** Menu actions. Every focusable child is rendered as a `role="menuitem"` with a managed tab stop. */
 	children: ReactNode;
 	/** Menu element id; the trigger always references it. */
@@ -53,6 +55,8 @@ export interface AccountMenuProps {
 export interface AccountMenuViewProps {
 	/** The already-resolved identity to render. */
 	identity: AccountIdentity;
+	/** Existing Gmail connection state; omitted means not connected. */
+	gmailConnected?: boolean;
 	/** Whether the menu region is expanded. */
 	isOpen: boolean;
 	/** Id shared by the trigger's `aria-controls` and the menu region. */
@@ -83,6 +87,7 @@ function toMenuItems(children: ReactNode): ReactNode {
 
 export function AccountMenuView({
 	identity,
+	gmailConnected = false,
 	isOpen,
 	menuId,
 	children,
@@ -134,13 +139,27 @@ export function AccountMenuView({
 				hidden={!isOpen}
 				onClick={onMenuClick}
 			>
+				<div className="react-account-menu-identity" role="presentation">
+					<strong>{identity.name}</strong>
+					{identity.email !== "" && (
+						<span className="react-account-menu-email">{identity.email}</span>
+					)}
+					<span className="react-account-menu-connection">
+						{gmailConnected ? "Gmail conectado" : "Gmail no conectado"}
+					</span>
+				</div>
 				{toMenuItems(children)}
 			</div>
 		</div>
 	);
 }
 
-export function AccountMenu({ profile, children, menuId = ACCOUNT_MENU_ID }: AccountMenuProps) {
+export function AccountMenu({
+	profile,
+	gmailConnected = false,
+	children,
+	menuId = ACCOUNT_MENU_ID,
+}: AccountMenuProps) {
 	const [state, dispatch] = useReducer(reduceAccountMenu, createAccountMenuState());
 	const isOpen = state.isOpen;
 	const identity = useMemo(() => getAccountIdentity(profile), [profile]);
@@ -215,6 +234,7 @@ export function AccountMenu({ profile, children, menuId = ACCOUNT_MENU_ID }: Acc
 	return (
 		<AccountMenuView
 			identity={identity}
+			gmailConnected={gmailConnected}
 			isOpen={isOpen}
 			menuId={menuId}
 			onToggle={() => dispatch({ type: "toggle" })}

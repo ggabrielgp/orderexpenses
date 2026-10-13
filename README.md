@@ -48,6 +48,30 @@ checkboxes, pending save/removal guards, nested account/disconnect dialogs and l
 Also enable reduced motion. Automated EventTarget/SSR tests do not establish real-browser focus
 trapping, restoration or visual playback.
 
+## Mobile dashboard
+
+On narrow screens, the account trigger uses a compact avatar; identity and Gmail connection state
+remain available inside its menu. The existing **Resumen** and **Movimientos** navigation stays in place.
+The period, refresh and **Nuevo gasto** controls share one mobile row. The period displays a compact
+`DD/MM–DD/MM` range and refresh uses its icon; the complete date range and refresh state retain their
+accessible names. Desktop keeps the full dates and the **Actualizar** text. The summary prioritizes
+spent/remaining balances and categories before daily evolution and secondary analyses, without
+mounting a second copy of the charts or changing financial calculations.
+
+At widths up to 760px, movements use cards instead of the desktop table. Cards share the same
+filtered and sorted rows, selection, select-all, similar-counterparty selection and bulk-category
+controls. **Detalle y acciones** exposes the existing view/edit/delete actions; read-only rows retain
+their detail view. Search and secondary filters can be expanded, with active filters visible even
+when collapsed. The inactive table/card projection is removed from layout and keyboard navigation.
+Mobile fields, touch targets and native-dialog scrolling are adapted without changing validation,
+cancellation guards or submit behavior. Desktop keeps its table and analytics columns.
+
+To check locally, inspect 320, 375, 390, 480 and 768px widths, then desktop. Try long account names,
+large amounts, category jumps, mixed/all/empty selection, expanded filters and read-only movements.
+Check chart scrolling, reduced motion, dialogs with the virtual keyboard and focus after closing.
+Automated SSR/callback tests check shared actions and markup; they do not establish rendered viewport
+sizes, touch behavior, keyboard occlusion or native focus handling.
+
 ## Gmail read performance
 
 Full Gmail messages are downloaded with at most **four concurrent calls per read**. Query pagination,

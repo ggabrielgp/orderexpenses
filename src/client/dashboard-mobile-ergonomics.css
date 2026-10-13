@@ -1,0 +1,230 @@
+/* Additive account information; desktop trigger and badge remain unchanged. */
+.react-account-menu-identity {
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+	border-bottom: 1px solid var(--line);
+	padding: var(--space-2) var(--space-3) var(--space-3);
+	color: var(--ink);
+	font-size: var(--text-sm);
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.react-account-menu-email,
+.react-account-menu-connection {
+	color: var(--ink-muted);
+	font-size: var(--text-xs);
+}
+
+/* Keep this after any disclosure layout declarations, including the mobile grid. */
+.react-account-menu[hidden] {
+	display: none;
+}
+
+/* Full period and refresh labels keep their original desktop presentation. */
+.react-dashboard-period-range-compact {
+	display: none;
+}
+
+@media (max-width: 800px) {
+	.react-shell .react-dashboard-controls {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 44px max-content;
+		width: 100%;
+		min-width: 0;
+		gap: 6px;
+		align-items: center;
+	}
+
+	.react-shell .react-dashboard-controls > button {
+		min-height: 44px;
+		margin: 0;
+		padding-inline: 10px;
+		white-space: nowrap;
+	}
+
+	.react-shell .react-dashboard-period {
+		min-width: 0;
+		justify-content: center;
+		gap: 6px;
+		padding-inline: 8px;
+	}
+
+	.react-shell .react-dashboard-period-range-full,
+	.react-shell .react-dashboard-refresh-label {
+		display: none;
+	}
+
+	.react-shell .react-dashboard-period-range-compact {
+		display: inline;
+		font-size: .8rem;
+	}
+
+	.react-shell .react-dashboard-refresh {
+		width: 44px;
+		min-width: 44px;
+		justify-content: center;
+		padding: 0;
+	}
+
+	.react-app-header-inner {
+		grid-template-columns: minmax(0, 1fr) auto;
+		min-height: 60px;
+		column-gap: 8px;
+	}
+
+	.react-app-brand {
+		min-width: 0;
+		min-height: 44px;
+	}
+
+	.react-app-brand > span:last-child {
+		overflow-wrap: anywhere;
+	}
+
+	.react-app-navigation {
+		grid-column: 1 / -1;
+		grid-row: 2;
+		justify-content: center;
+		min-height: 44px;
+	}
+
+	.react-account-trigger-text,
+	.react-gmail-connected-badge {
+		display: none;
+	}
+
+	.react-account-trigger {
+		justify-content: center;
+		box-sizing: border-box;
+		width: 44px;
+		min-height: 44px;
+		padding: 5px;
+	}
+
+	.react-account-menu {
+		box-sizing: border-box;
+		width: 280px;
+		min-width: 0;
+		max-width: calc(100vw - 24px);
+		max-height: calc(100vh - 76px);
+		max-height: calc(100dvh - 76px);
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+
+	:where(.react-shell, .react-app-header, dialog[class*="react-"]) :is(button, .button) {
+		min-height: 44px;
+		min-width: 44px;
+	}
+
+	:where(.react-shell, dialog[class*="react-"]) :is(input, select, textarea) {
+		font-size: 16px;
+	}
+
+	:where(.react-shell, dialog[class*="react-"]) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select) {
+		min-height: 44px;
+		box-sizing: border-box;
+	}
+
+	/* Match or exceed existing view-qualified field selectors, not just their DOM tag. */
+	.react-shell .react-movements-view :is(input[type="search"], select, textarea) {
+		font-size: 16px;
+		min-height: 44px;
+	}
+
+	.react-financial-cycle-edit-dialog .react-cycle-calendar-day,
+	.react-financial-cycle-edit-dialog .react-cycle-calendar-nav-button {
+		min-height: 44px;
+		height: 44px;
+	}
+
+	.react-financial-cycle-edit-dialog .react-cycle-calendar-nav-button {
+		width: 44px;
+	}
+
+	/* Native checkboxes stay compact; their labels provide the larger touch surface. */
+	.react-mobile-movements input[type="checkbox"] {
+		width: 20px;
+		height: 20px;
+		min-height: 20px;
+		padding: 0;
+		margin: 0;
+		flex: 0 0 20px;
+		box-sizing: border-box;
+	}
+
+	.react-mobile-movement-selection {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 44px;
+		min-height: 44px;
+		margin: 0;
+		padding: 0;
+		flex: 0 0 44px;
+	}
+
+	.react-mobile-movement-select-all {
+		min-height: 44px;
+		justify-content: flex-start;
+	}
+
+	/* Native open/close state, focus trapping and dismissal guards remain component-owned. */
+	dialog[class*="react-"] {
+		box-sizing: border-box;
+		width: calc(100% - 24px);
+		max-width: 640px;
+		max-height: calc(100vh - 24px);
+		max-height: calc(100dvh - 24px);
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		padding: 16px;
+		padding-bottom: max(16px, env(safe-area-inset-bottom));
+		scroll-padding-block: 16px;
+	}
+
+	/* A static hint plus the native scrollbar makes the existing day overflow discoverable. */
+	.react-spending-chart-header {
+		flex-wrap: wrap;
+	}
+
+	.react-spending-chart-header::after {
+		content: "Desliza para ver más días →";
+		flex-basis: 100%;
+		color: var(--ink-muted);
+		font-size: var(--text-sm);
+		line-height: 1.4;
+	}
+
+	.react-spending-chart-bars {
+		overflow-x: auto;
+		scrollbar-width: auto;
+		overscroll-behavior-x: contain;
+		padding-bottom: 12px;
+	}
+
+	.react-category-legend-item {
+		min-height: 44px;
+		min-width: 0;
+		grid-template-columns: 10px minmax(0, 1fr) auto;
+	}
+
+	.react-category-legend-item strong {
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+
+	.react-category-legend-item small {
+		font-size: var(--text-sm);
+		white-space: normal;
+	}
+
+	.react-spending-breakdown-legend-heading {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+}
+
+/* No added animation or smooth scrolling: existing reduced-motion guards remain authoritative. */

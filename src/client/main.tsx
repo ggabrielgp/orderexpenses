@@ -8,6 +8,8 @@ import "./dashboard-motion.css";
 import "./dashboard-loading.css";
 import "./dashboard-polish.css";
 import "./dialog-polish.css";
+import "./dashboard-mobile-ergonomics.css";
+import "./dashboard-mobile-content.css";
 
 const rootElement = document.querySelector<HTMLDivElement>("#root");
 if (!rootElement) throw new Error("React root element is missing");

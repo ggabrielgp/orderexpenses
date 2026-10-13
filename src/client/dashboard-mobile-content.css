@@ -1,0 +1,96 @@
+/* Loaded after the base dashboard styles. Only summary, movement and filter layout lives here. */
+.react-mobile-movements { display: none; }
+
+/* A single filter instance stays fully expanded on desktop, regardless of disclosure state. */
+.react-movements-filter-toggle { display: none; }
+.react-movements-filter-controls { display: grid; gap: var(--space-3); }
+
+.react-movements-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.react-movements-active-filters span {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+}
+
+@media (max-width: 760px) {
+  /* Flatten only the layout boxes, never clone mounted panels or their interactive state. */
+  .react-analytics-columns { display: flex; flex-direction: column; }
+  .react-analytics-main,
+  .react-analytics-side { display: contents; }
+  .react-mobile-categories { order: 1; }
+  .react-mobile-evolution { order: 2; }
+  .react-mobile-breakdown { order: 3; }
+  .react-mobile-counterparties { order: 4; }
+  .react-mobile-insights { order: 5; }
+  .react-analytics-columns > *,
+  .react-analytics-main > *,
+  .react-analytics-side > * { min-width: 0; }
+
+  .react-analytics-summary { grid-template-columns: 1fr; }
+  .react-analytics-summary .react-dashboard-lead {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+  .react-analytics-summary .react-dashboard-lead strong { overflow-wrap: anywhere; }
+  .react-analytics-summary .react-budget-panel { grid-column: 1 / -1; }
+  .react-analytics-summary .react-budget-panel .react-financial-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+  .react-analytics-summary .react-budget-panel .react-financial-card {
+    padding: var(--space-3);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Complementary display removes inactive controls from both focus and accessibility trees. */
+  .react-movements-table-wrapper { display: none; }
+  .react-mobile-movements { display: grid; gap: var(--space-3); }
+  .react-movements-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .react-movements-filter-toggle { display: inline-flex; }
+  .react-mobile-movement-details > summary {
+    cursor: pointer;
+    padding: var(--space-3) 0;
+  }
+  .react-movements-secondary-filters[data-expanded="false"] > .react-movements-filter-controls { display: none; }
+  .react-movements-filter-controls { display: grid; gap: var(--space-3); }
+  .react-movements-toolbar { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .react-movements-search { min-width: 0; }
+  .react-movements-kind-tabs { flex-wrap: wrap; }
+  .react-mobile-movement-sort,
+  .react-mobile-movement-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .react-mobile-movement-select-all { display: flex; align-items: center; gap: var(--space-2); }
+  .react-mobile-movement-card {
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    background: var(--surface);
+    min-width: 0;
+  }
+  .react-mobile-movement-card[data-selected="true"] { border-color: var(--accent); }
+  .react-mobile-movement-primary { display: flex; flex-wrap: wrap; align-items: start; gap: var(--space-2); }
+  .react-mobile-movement-description { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .react-movements-view .react-mobile-movement-card :is(.react-movement-amount, .react-movement-category, .react-movement-kind-badge) {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    box-sizing: border-box;
+  }
+  .react-mobile-movement-meta {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    overflow-wrap: anywhere;
+  }
+  .react-mobile-movement-meta .react-movement-kind-badge { margin: 0; }
+}

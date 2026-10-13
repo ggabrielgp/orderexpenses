@@ -45,6 +45,7 @@ import {
 } from "../api/client";
 import { getGoogleLoginUrl } from "../api/googleLogin";
 import { AccountMenu } from "../components/account/AccountMenuComponent";
+import { MobileMovementList, MovementFilterDisclosure } from "../components/movements/MobileMovementList";
 import { FeedbackNotice } from "../components/feedback/FeedbackNotice";
 import { DashboardLoadingState } from "../components/analytics/DashboardLoadingState";
 import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
@@ -635,7 +636,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
             Gmail conectado
           </span>
         )}
-        <AccountMenu profile={profile}>
+        <AccountMenu profile={profile} gmailConnected={connected}>
           <button
             type="button"
             role="menuitem"
@@ -686,12 +687,16 @@ export function DashboardPage({ session }: DashboardPageProps) {
                   type="button"
                   onClick={financialDashboard.onEditPeriod}
                   aria-label={`Editar periodo: ${formatPeriodLabel(financialDashboard.period)}`}
+                  title={formatPeriodLabel(financialDashboard.period)}
                 >
                   <span className="react-dashboard-period-icon" aria-hidden="true">
                     <FontAwesomeIcon icon={faCalendarDays} />
                   </span>
-                  <span className="react-dashboard-period-range">
+                  <span className="react-dashboard-period-range react-dashboard-period-range-full">
                     {formatPeriodLabel(financialDashboard.period)}
+                  </span>
+                  <span className="react-dashboard-period-range react-dashboard-period-range-compact" aria-hidden="true">
+                    {formatPeriodLabel(financialDashboard.period).replace(/\/\d{4}/g, "").replace(" a ", "–")}
                   </span>
                 </button>
                 {/* The cycle-first reload the summary publishes: it refetches the selected period's
@@ -705,7 +710,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
                   aria-label={isRefreshing ? "Actualizando gastos del periodo" : "Actualizar gastos del periodo"}
                 >
                   <FontAwesomeIcon icon={faArrowsRotate} aria-hidden="true" />
-                  Actualizar
+                  <span className="react-dashboard-refresh-label">Actualizar</span>
                 </button>
                 <button
                   className="button"
@@ -1833,25 +1838,35 @@ function DashboardAnalyticsBody({
         <div className="react-analytics-main">
           {/* The distribution card leads the main column, so it aligns beside the category card in the
 					    side column at desktop. */}
-          <SpendingBreakdownView breakdown={breakdown} />
-          <SpendingChartPanel
-            chart={chart}
-            detailMovements={chartDetailMovements}
-            onOpenMovement={onOpenMovement}
-          />
+          <div className="react-mobile-breakdown">
+            <SpendingBreakdownView breakdown={breakdown} />
+          </div>
+          <div className="react-mobile-evolution">
+            <SpendingChartPanel
+              chart={chart}
+              detailMovements={chartDetailMovements}
+              onOpenMovement={onOpenMovement}
+            />
+          </div>
         </div>
         <div className="react-analytics-side">
-          <CategoryRankingPanel
-            ranking={ranking}
-            catalog={catalog}
-            movements={categoryMovements}
-            onOpenMovement={onOpenCategoryMovement}
-            onJumpToCategory={onJumpToCategory}
-          />
-          <DashboardCounterpartyRankingView ranking={counterpartyRanking} />
-          <TopInsightsView insights={insights} story={story}
-            onJumpToUncategorized={canJumpToUncategorized
-              ? () => onJumpToCategory("Sin categoría") : undefined} />
+          <div className="react-mobile-categories">
+            <CategoryRankingPanel
+              ranking={ranking}
+              catalog={catalog}
+              movements={categoryMovements}
+              onOpenMovement={onOpenCategoryMovement}
+              onJumpToCategory={onJumpToCategory}
+            />
+          </div>
+          <div className="react-mobile-counterparties">
+            <DashboardCounterpartyRankingView ranking={counterpartyRanking} />
+          </div>
+          <div className="react-mobile-insights">
+            <TopInsightsView insights={insights} story={story}
+              onJumpToUncategorized={canJumpToUncategorized
+                ? () => onJumpToCategory("Sin categoría") : undefined} />
+          </div>
         </div>
       </div>
     </div>
@@ -2951,6 +2966,7 @@ export function MovementsTableView({
           {pendingAmountCount} gastos reconocidos sin monto conocido no figuran en estos indicadores ni en la tabla.
         </p>
       )}
+      <MovementFilterDisclosure>
       <div className="react-movements-toolbar" role="group" aria-label="Buscar y filtrar movimientos">
         {onSearchChange && (
           <label className="react-movements-search">
@@ -2975,6 +2991,14 @@ export function MovementsTableView({
             </button>
           ))}
         </div>
+      )}
+      </MovementFilterDisclosure>
+      {(search !== "" || kind !== "" || filteredView.activeCategory !== "") && (
+        <p className="react-movements-active-filters" role="status">
+          {search !== "" && <span>Búsqueda: {search}</span>}
+          {kind !== "" && <span>Tipo: {kindTabs.find((tab) => tab.value === kind)?.label ?? kind}</span>}
+          {filteredView.activeCategory !== "" && <span>Categoría: {filteredView.activeCategory}</span>}
+        </p>
       )}
       {selectionEnabled && selection !== undefined && (
         <div className="react-movements-bulk" data-selected={selection.selectedCount > 0} role="group" aria-label="Acciones sobre la selección">
@@ -3032,6 +3056,15 @@ export function MovementsTableView({
             <span className="react-movements-table-count">{visibleRows.length} de {periodRows.length} movimientos</span>
           )}
         </header>
+        <MobileMovementList
+          rows={visibleRows} editableById={editableById} sort={sort} onActivate={onActivate}
+          selection={selection} onToggleSelection={onToggleSelection}
+          onToggleAllSelection={onToggleAllSelection} onSelectSimilar={onSelectSimilar}
+          onView={onView} onEdit={onEdit} onRemove={onRemove}
+          emptyMessage={periodRows.length === 0
+            ? "No hay gastos reconocidos disponibles para este periodo."
+            : "No hay movimientos que coincidan con los filtros actuales."}
+        />
         {/* The table keeps its own scroll container, so the filter bar cannot scroll away with it. */}
         <div className="react-movements-table-wrapper">
         <table className="react-movements-table">
