@@ -1,0 +1,93 @@
+/* Onboarding step 1 (artboard 06, phone 1). State colours are literal on purpose: they are the
+   identity B "en ritmo / ajustado / pasado" values and do not depend on token load order. */
+.onboarding-connect {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	width: min(100%, 30rem);
+	margin: 0 auto;
+	padding: 24px 22px 32px;
+	color: var(--color-ink, #131b2e);
+}
+
+.onboarding-connect-nav {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.onboarding-connect-steps {
+	display: flex;
+	flex: 1;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.onboarding-connect-steps li {
+	flex: 1;
+	height: 4px;
+	border-radius: 2px;
+	background: var(--color-line, #e3e1dc);
+}
+
+.onboarding-connect-steps li[aria-current="step"] {
+	background: var(--color-ink, #131b2e);
+}
+
+.onboarding-connect-demo {
+	min-height: 44px;
+	display: inline-flex;
+	align-items: center;
+	color: var(--color-ink-secondary, #3f4b63);
+	font-size: .85rem;
+	font-weight: 700;
+}
+
+.onboarding-connect-step {
+	color: var(--color-ink-muted, #59647a);
+	font-size: .75rem;
+	font-weight: 700;
+}
+
+.onboarding-connect h1 {
+	margin: 0;
+	font-size: 1.55rem;
+	font-weight: 800;
+	letter-spacing: -.03em;
+	line-height: 1.15;
+}
+
+.onboarding-connect-subtitle {
+	margin: 0;
+	color: var(--color-ink-secondary, #3f4b63);
+	font-size: .9rem;
+}
+
+.onboarding-connect .consent-points {
+	margin: 0;
+}
+
+.onboarding-connect .consent-points li {
+	background: var(--color-surface, #ffffff);
+	border: 1px solid var(--color-line, #e3e1dc);
+	border-left-width: 4px;
+}
+
+.onboarding-connect .consent-points li:nth-child(1) { border-left-color: var(--state-calm, #0b7a6b); }
+.onboarding-connect .consent-points li:nth-child(2) { border-left-color: var(--state-over, #b4412f); }
+.onboarding-connect .consent-points li:nth-child(3) { border-left-color: var(--color-ink, #131b2e); }
+
+.onboarding-connect-fine {
+	margin: 0;
+	color: var(--color-ink-muted, #59647a);
+	font-size: .76rem;
+	line-height: 1.45;
+}
+
+.onboarding-connect-cta {
+	display: grid;
+	gap: 10px;
+	margin-top: 8px;
+}

@@ -26,9 +26,14 @@ export type GmailConsentEvent =
 	| { type: "acknowledge"; acknowledged: boolean }
 	| { type: "cancel" };
 
+export type GmailConsentPoint = { title: string; body: string };
+
 export type GmailConsentCopy = {
 	title: string;
-	descriptionParagraphs: string[];
+	/** The three trust points, shared by the consent dialog and the onboarding connect step. */
+	points: GmailConsentPoint[];
+	/** What is persisted and where; shown as fine print under the points. */
+	storageNote: string;
 	acknowledgementLabel: string;
 	acceptLabel: string;
 	cancelLabel: string;
@@ -44,27 +49,38 @@ export const GMAIL_CONSENT_ALREADY_CONNECTED_MESSAGE =
 	"Ya hay una cuenta Gmail conectada. Desconéctala antes de cambiar de cuenta.";
 
 /**
- * Spanish copy, aligned with the legacy consent modal (`public/app.html:265-331`) rather than
- * inventing new promises. Every paragraph maps to a claim the legacy modal already makes:
+ * Spanish copy, short and checked against what the code really does:
  *
- * 1. Read-only access, used only for Banco de Chile emails inside the reviewed period.
- * 2. Which emails are read, that nothing is sent or published anywhere, and that the mailbox is
- *    neither modified nor used for other purposes.
- * 3. Imported expenses are re-derived per period instead of kept as permanent history.
- * 4. What may persist locally, so the copy never claims that nothing at all is stored.
- * 5. The consequence: decisions are remembered without storing every imported expense.
+ * - Scopes (`src/gmail.js:20-23`): `gmail.readonly` plus profile and email. Google therefore
+ *   grants read access to the whole mailbox and the app itself filters Banco de Chile emails.
+ * - Imported movements are re-derived per period and not kept as history.
+ * - Data the user applies (categories, counterparty rules, movement corrections, manual expenses,
+ *   financial cycle) lives in the server database keyed by the account email (`src/db.js`
+ *   tables `categories`, `counterparty_category_rules`, `movement_overrides`, `manual_movements`,
+ *   `financial_periods`, `financial_preferences`). Nothing is kept in the browser.
+ * - Disconnecting Gmail (Configuración → Perfil) deletes tokens and profile only
+ *   (`disconnectGoogle` in `src/gmail.js`). No "delete my data" path exists, so the copy never
+ *   promises one.
  */
 const GMAIL_CONSENT_COPY: GmailConsentCopy = {
-	title: "Cómo se usan tus correos y gastos",
-	descriptionParagraphs: [
-		"Para detectar tus gastos automáticamente, la app necesita acceso de solo lectura a Gmail. Ese permiso se usa únicamente para leer correos relacionados con Banco de Chile, el banco configurado actualmente, dentro del periodo que estés revisando.",
-		"Solo se leen los correos de Banco de Chile y se usan para extraer movimientos, montos, fechas y comercios, y así mostrarte métricas, tablas, gráficos y agrupaciones de gasto. La app no envía correos, no publica nada en ningún lugar, no modifica tu cuenta de Gmail y no usa tus mensajes para otros fines.",
-		"Los gastos importados desde Gmail se procesan para construir la vista del periodo seleccionado y no se guardan como una base histórica permanente de movimientos. Si vuelves a revisar o sincronizar un periodo, la app puede volver a leer los correos autorizados para reconstruir esa información.",
-		"Lo que sí puede guardarse localmente son las configuraciones y datos que tú decides aplicar: categorías por comercio, reglas de categorización, correcciones a movimientos específicos, gastos ingresados manualmente, preferencias de vista, presupuesto mensual y ajustes similares.",
-		"Esto permite que la app recuerde tus decisiones sin almacenar todos tus gastos importados desde Gmail como un historial permanente.",
+	title: "Conectar Gmail, con reglas claras",
+	points: [
+		{
+			title: "Qué leemos",
+			body: "Google nos da permiso de solo lectura sobre tu Gmail. La app solo busca y procesa los avisos de Banco de Chile del período que revisas.",
+		},
+		{
+			title: "Qué nunca hacemos",
+			body: "No enviamos, borramos ni modificamos correos, no publicamos nada y no guardamos tus movimientos de Gmail como historial: se vuelven a leer al revisar un período.",
+		},
+		{
+			title: "Cómo salir",
+			body: "Puedes desconectar Gmail cuando quieras desde Configuración; también puedes revocar el acceso en tu cuenta de Google (myaccount.google.com/permissions).",
+		},
 	],
-	acknowledgementLabel:
-		"Entiendo que mis gastos importados desde Gmail no se guardan como historial permanente y que solo se almacenan localmente las configuraciones, correcciones o datos que yo aplique.",
+	storageNote:
+		"Lo que tú decides aplicar —categorías, reglas, correcciones, gastos manuales y tu ciclo— se guarda en nuestro servidor asociado a tu cuenta.",
+	acknowledgementLabel: "Entiendo qué lee la app y qué se guarda.",
 	acceptLabel: "Aceptar y conectar Gmail",
 	cancelLabel: "Cancelar",
 	closeLabel: "Cerrar",
@@ -72,7 +88,10 @@ const GMAIL_CONSENT_COPY: GmailConsentCopy = {
 
 /** Returns a fresh copy, so a caller can never mutate the copy the dialog reads. */
 export function getGmailConsentCopy(): GmailConsentCopy {
-	return { ...GMAIL_CONSENT_COPY, descriptionParagraphs: [...GMAIL_CONSENT_COPY.descriptionParagraphs] };
+	return {
+		...GMAIL_CONSENT_COPY,
+		points: GMAIL_CONSENT_COPY.points.map((point) => ({ ...point })),
+	};
 }
 
 export function createGmailConsentState(): GmailConsentState {

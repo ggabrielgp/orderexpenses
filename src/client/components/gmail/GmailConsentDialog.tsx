@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getGoogleLoginUrl } from "../../api/googleLogin";
+import "../onboarding/consent-points.css";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import {
 	acceptGmailConsent,
@@ -81,9 +82,15 @@ export function GmailConsentDialog({
 			</button>
 			<h2 id="react-gmail-consent-title">{copy.title}</h2>
 			<div id="react-gmail-consent-description" className="react-gmail-consent-terms">
-				{copy.descriptionParagraphs.map((paragraph, index) => (
-					<p key={index}>{paragraph}</p>
-				))}
+				<ul className="consent-points">
+					{copy.points.map((point) => (
+						<li key={point.title}>
+							<h3>{point.title}</h3>
+							<p>{point.body}</p>
+						</li>
+					))}
+				</ul>
+				<p className="consent-storage-note">{copy.storageNote}</p>
 			</div>
 			<label className="react-gmail-consent-acknowledgement" htmlFor="gmail-consent-acknowledgement">
 				<input
