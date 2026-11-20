@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>B · Onboarding — Gastos Controlados</title>
+<style>
+:root{
+  --canvas:#f6f5f2;--surface:#ffffff;--subtle:#efeee9;
+  --ink:#131b2e;--ink-2:#3f4b63;--ink-3:#59647a;--line:#e3e1dc;
+  --calm:#0b7a6b;--calm-soft:#e2f3ef;--tight:#9a6700;--tight-soft:#fdf3d8;--over:#b4412f;--over-soft:#fbe9e5;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-sm:12px;--r:16px;--r-lg:24px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e7e1;color:var(--ink);font-family:var(--sans);line-height:1.45}
+.page{width:1280px;padding:40px 44px 48px;display:grid;gap:28px}
+.intro{display:grid;grid-template-columns:1fr 420px;gap:32px;align-items:end}
+.tag{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.intro h1{margin:6px 0 6px;font-size:2rem;letter-spacing:-.03em;font-weight:800}
+.intro p{margin:0;color:var(--ink-2);max-width:620px}
+.tradeoff{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 16px;font-size:.85rem;color:var(--ink-2)}
+.tradeoff b{color:var(--ink)}
+.row{display:flex;gap:36px;justify-content:center}
+figure{margin:0}
+.phone{width:360px;height:780px;border-radius:44px;background:#131b2e;padding:10px;box-shadow:0 30px 60px rgba(19,27,46,.25)}
+.screen{width:100%;height:100%;border-radius:36px;overflow:hidden;background:var(--canvas);display:flex;flex-direction:column;position:relative}
+.status{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:.75rem;font-weight:700;flex:none}
+.caption{text-align:center;font-size:.8rem;color:var(--ink-2);margin-top:12px;font-weight:600}
+:is(button,a,input):focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.onb{flex:1;display:flex;flex-direction:column;padding:6px 22px 26px;gap:14px}
+.nav{display:flex;justify-content:space-between;align-items:center;min-height:44px}
+.back{min-width:44px;min-height:44px;border:0;background:none;font:inherit;color:var(--ink);cursor:pointer;border-radius:12px;display:grid;place-items:center}
+.steps{display:flex;gap:6px;flex:1;margin:0 12px}
+.steps i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.steps i.on{background:var(--ink)}
+.skip{font-size:.8rem;color:var(--ink-2);font-weight:600}
+.stepk{font-size:.75rem;color:var(--ink-3);font-weight:700}
+.onb h2{font-size:1.55rem;line-height:1.15;margin:0;letter-spacing:-.03em;font-weight:800}
+.onb p.sub{margin:0;color:var(--ink-2);font-size:.9rem}
+.trust{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.trust li{display:grid;grid-template-columns:40px 1fr;gap:12px;background:var(--surface);border-radius:var(--r);padding:12px}
+.trust .ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center}
+.ic.calm{background:var(--calm-soft);color:var(--calm)}
+.ic.ink{background:var(--subtle);color:var(--ink)}
+.ic.over{background:var(--over-soft);color:var(--over)}
+.trust b{display:block;font-size:.9rem}
+.trust small{color:var(--ink-2);font-size:.8rem;line-height:1.4;display:block}
+.fine{font-size:.76rem;color:var(--ink-3);margin:0}
+.fine a{color:var(--ink);font-weight:700}
+.cta{margin-top:auto;display:grid;gap:10px}
+.btn{min-height:52px;border-radius:var(--r);border:0;font:inherit;font-weight:700;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+/* step 2 */
+.presets{display:grid;gap:10px}
+.preset{display:grid;grid-template-columns:24px 1fr;gap:12px;align-items:start;background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:12px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+.preset[aria-checked="true"]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
+.radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--ink-3);margin-top:1px;position:relative}
+.preset[aria-checked="true"] .radio{border-color:var(--ink)}
+.preset[aria-checked="true"] .radio::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--ink)}
+.preset b{display:block;font-size:.9rem}
+.preset small{color:var(--ink-2);font-size:.78rem}
+.field{display:grid;gap:4px}
+.field label{font-size:.8rem;font-weight:700;color:var(--ink-2)}
+.money{display:flex;align-items:center;gap:4px;background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r-sm);padding:0 14px;min-height:56px;font-size:1.4rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.money input{border:0;background:none;font:inherit;width:100%;color:var(--ink)}
+.field small{font-size:.74rem;color:var(--ink-3)}
+/* step 3 */
+.found{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--calm);font-weight:700;background:var(--calm-soft);border-radius:999px;padding:6px 12px;width:max-content}
+.hero{background:var(--surface);border-radius:var(--r-lg);padding:16px;display:grid;justify-items:center;gap:8px;box-shadow:0 1px 2px rgba(19,27,46,.04),0 8px 24px rgba(19,27,46,.06)}
+.gauge{position:relative;width:180px;height:180px}
+.gauge svg{display:block}
+.gauge .arc{stroke-dasharray:263.9 421.6;animation:fill 1.2s cubic-bezier(.16,1,.3,1) both .2s}
+@keyframes fill{from{stroke-dasharray:0 421.6}}
+.gauge .c{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:2px}
+.gauge .c small{font-size:.72rem;color:var(--ink-3)}
+.gauge .c strong{font-size:1.8rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1}
+.gauge .c em{font-style:normal;font-size:.78rem;color:var(--ink-2)}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 12px;font-size:.78rem;font-weight:700;background:var(--calm-soft);color:var(--calm)}
+.hero p{margin:0;text-align:center;font-size:.82rem;color:var(--ink-2)}
+.hero p b{color:var(--ink)}
+.explain{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;font-size:.78rem;color:var(--ink-2);background:var(--surface);border-radius:var(--r-sm);padding:10px 12px}
+.next{display:grid;gap:8px}
+.next a{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border-radius:var(--r-sm);padding:0 14px;min-height:48px;color:var(--ink);text-decoration:none;font-size:.86rem;font-weight:600}
+.next a small{color:var(--ink-3);font-weight:500}
+@media (prefers-reduced-motion:reduce){.gauge .arc{animation:none}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="intro">
+    <div>
+      <span class="tag">Dirección B · Semáforo sereno</span>
+      <h1>Onboarding en 3 pasos</h1>
+      <p>Hoy son unas 4 pantallas y 3 modales antes de ver algo útil. Aquí: conectar con reglas claras, elegir el ciclo con un preset y ver el medidor con datos reales. La demo queda siempre a un toque.</p>
+    </div>
+    <p class="tradeoff"><b>Tradeoff:</b> los presets resuelven el 90% de los casos en un toque, pero esconden el calendario detallado detrás de "Otro rango"; el ingreso se pide aquí porque sin él el medidor no puede decir "¿vas bien?".</p>
+  </header>
+
+  <div class="row">
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <main class="onb" aria-labelledby="o1">
+          <div class="nav"><span style="width:44px"></span><div class="steps" aria-hidden="true"><i class="on"></i><i></i><i></i></div><a class="skip" href="#">Ver demo</a></div>
+          <span class="stepk">Paso 1 de 3 · Conectar</span>
+          <h2 id="o1">Conectemos tu Gmail, con reglas claras</h2>
+          <p class="sub">Leemos los avisos de compra de Banco de Chile para armar tu mes. Nada más.</p>
+          <ul class="trust">
+            <li><span class="ic calm" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></span><div><b>Qué leemos</b><small>Solo correos de Banco de Chile del ciclo que revisas. Google pide permiso de lectura sobre todo tu Gmail; el filtro lo aplicamos nosotros.</small></div></li>
+            <li><span class="ic over" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></svg></span><div><b>Qué nunca hacemos</b><small>No enviamos, borramos ni modificamos correos, y no guardamos tus movimientos de Gmail como historial.</small></div></li>
+            <li><span class="ic ink" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span><div><b>Cómo salir</b><small>Desconecta cuando quieras desde Cuenta, o borra tus reglas, categorías y gastos manuales con un toque.</small></div></li>
+          </ul>
+          <p class="fine">Tus reglas y gastos manuales se guardan en nuestro servidor, asociados a tu cuenta. <a href="#">Política completa</a></p>
+          <div class="cta">
+            <button class="btn primary" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Conectar con Google</button>
+          </div>
+        </main>
+      </div></div>
+      <figcaption class="caption">1 · Confianza en 3 puntos, no en 5 párrafos</figcaption>
+    </figure>
+
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <main class="onb" aria-labelledby="o2">
+          <div class="nav"><button class="back" type="button" aria-label="Volver"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="steps" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></div><span style="width:44px"></span></div>
+          <span class="stepk">Paso 2 de 3 · Tu ciclo</span>
+          <h2 id="o2">¿Cuándo empieza tu mes?</h2>
+          <div class="presets" role="radiogroup" aria-labelledby="o2">
+            <button class="preset" type="button" role="radio" aria-checked="true"><span class="radio" aria-hidden="true"></span><span><b>Mes calendario</b><small>Del 1 al último día · 1 – 30 nov</small></span></button>
+            <button class="preset" type="button" role="radio" aria-checked="false"><span class="radio" aria-hidden="true"></span><span><b>Desde mi día de pago</b><small>De pago a pago; por ejemplo, del 25 al 24</small></span></button>
+            <button class="preset" type="button" role="radio" aria-checked="false"><span class="radio" aria-hidden="true"></span><span><b>Otro rango</b><small>Elige inicio y fin en el calendario</small></span></button>
+          </div>
+          <div class="field">
+            <label for="inc">¿Cuánto entra en este ciclo?</label>
+            <div class="money">$<input id="inc" inputmode="numeric" value="1.450.000"></div>
+            <small>Sueldo y otros ingresos. Puedes cambiarlo después; sin esto no podemos decirte si vas en ritmo.</small>
+          </div>
+          <div class="cta"><button class="btn primary" type="button">Ver mi ciclo 1 – 30 nov</button></div>
+        </main>
+      </div></div>
+      <figcaption class="caption">2 · Ciclo con presets + ingreso con formato</figcaption>
+    </figure>
+
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <main class="onb" aria-labelledby="o3">
+          <div class="nav"><span style="width:44px"></span><div class="steps" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i></div><span style="width:44px"></span></div>
+          <span class="found" role="status">✓ Encontramos 47 movimientos en tu Gmail</span>
+          <h2 id="o3">Este es tu mes, en un vistazo</h2>
+          <section class="hero" aria-label="Tu medidor">
+            <div class="gauge">
+              <svg width="180" height="180" viewBox="0 0 180 180" role="img" aria-label="Gastaste 63% de tu ingreso; pasó el 67% del ciclo">
+                <circle cx="90" cy="90" r="67" fill="none" stroke="#efeee9" stroke-width="16"/>
+                <circle class="arc" cx="90" cy="90" r="67" fill="none" stroke="#0b7a6b" stroke-width="16" stroke-linecap="round" transform="rotate(-90 90 90)"/>
+                <g transform="rotate(240 90 90)"><path d="M90 13v20" stroke="#131b2e" stroke-width="4" stroke-linecap="round"/></g>
+              </svg>
+              <div class="c"><small>Te quedan</small><strong>$537.570</strong><em>$53.757 por día</em></div>
+            </div>
+            <span class="pill">✓ En ritmo</span>
+          </section>
+          <div class="explain"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="10" fill="none" stroke="#e3e1dc" stroke-width="4"/><path d="M14 4a10 10 0 0 1 8.7 15" fill="none" stroke="#0b7a6b" stroke-width="4" stroke-linecap="round"/><path d="M14 1v6" stroke="#131b2e" stroke-width="2.5" stroke-linecap="round" transform="rotate(240 14 14)"/></svg><span><b style="color:var(--ink)">El verde es lo que gastaste; la raya, cuánto del ciclo pasó.</b> Si el verde no alcanza la raya, vas bien.</span></div>
+          <div class="next" aria-label="Siguientes pasos opcionales">
+            <a href="#">Revisar 3 movimientos sin categoría <small>1 min</small></a>
+            <a href="#">Ponerle tope a una categoría <small>Opcional</small></a>
+          </div>
+          <div class="cta"><button class="btn primary" type="button">Ir a mi resumen</button></div>
+        </main>
+      </div></div>
+      <figcaption class="caption">3 · Primer resultado real + cómo leer el medidor</figcaption>
+    </figure>
+  </div>
+</div>
+</body>
+</html>

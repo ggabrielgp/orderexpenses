@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>Sistema actual — Gastos Controlados</title>
+<style>
+:root{
+  --color-canvas:#f6f5f2;--color-surface:#ffffff;--color-surface-subtle:#f1f0ec;--color-surface-pressed:#e8e7e2;
+  --color-ink:#131b2e;--color-ink-secondary:#3f4b63;--color-ink-muted:#59647a;
+  --color-blue-deep:#003594;--color-blue-standard:#004ac6;--color-blue-bright:#2878e5;--color-blue-soft:#e7f1ff;
+  --color-violet:#6553aa;--color-violet-soft:#eeebff;
+  --color-success:#087c61;--color-success-soft:#eaf8f3;--color-warning:#9a6700;--color-warning-soft:#fff7df;
+  --color-danger:#b42318;--color-danger-soft:#fff1f0;--color-line:#e3e1dc;--color-line-strong:#d2d0ca;--color-focus:#004ac6;
+  --marketing-canvas:#faf8ff;--marketing-primary:#174ea6;--marketing-ink:#182033;--marketing-muted:#687086;
+  --anchor-background:#131b2e;--anchor-background-raised:#1b2942;--anchor-text:#f8fbff;--anchor-text-secondary:#c5cede;--anchor-accent:#9ec1ff;
+  --font-body:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-display:Sora,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --text-xs:.72rem;--text-sm:.85rem;--text-md:.95rem;
+  --radius-control:12px;--radius-card:16px;--radius-featured:20px;--radius-pill:999px;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;
+  --shadow-sm:0 1px 5px rgba(30,38,52,.05);--shadow-card:0 3px 14px rgba(30,38,52,.05);--shadow-panel:0 8px 30px rgba(30,38,52,.06);
+  --shadow-xl:0 20px 56px rgba(30,52,100,.14),0 2px 8px rgba(30,52,100,.06);--shadow-glow:0 0 0 4px rgba(0,74,198,.13);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-canvas);color:var(--color-ink);font-family:var(--font-body);font-size:var(--text-md);line-height:1.5}
+main{width:1440px;padding:48px 64px;display:grid;gap:40px}
+h1{font-family:var(--font-display);font-size:2rem;margin:0}
+h2{font-family:var(--font-display);font-size:1.1rem;margin:0 0 16px}
+p.lead{color:var(--color-ink-secondary);margin:4px 0 0}
+section{background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-card);padding:24px;box-shadow:var(--shadow-card)}
+.swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:12px}
+.sw{border:1px solid var(--color-line);border-radius:var(--radius-control);overflow:hidden;font-size:var(--text-xs)}
+.sw i{display:block;height:56px}
+.sw span{display:block;padding:6px 8px}
+.sw code{color:var(--color-ink-muted)}
+.row{display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap}
+.box{background:var(--color-blue-soft);border:1px solid var(--color-line)}
+.btn{font:inherit;font-weight:600;border:0;border-radius:var(--radius-control);padding:10px 18px;min-height:44px;cursor:pointer}
+.btn-primary{background:var(--color-blue-deep);color:#fff}
+.btn-secondary{background:var(--color-surface);color:var(--color-ink);border:1px solid var(--color-line-strong)}
+.btn:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px;box-shadow:var(--shadow-glow)}
+.pill{display:inline-flex;gap:6px;align-items:center;border-radius:var(--radius-pill);padding:4px 10px;font-size:var(--text-xs);font-weight:600}
+.ok{background:var(--color-success-soft);color:var(--color-success)}
+.warn{background:var(--color-warning-soft);color:var(--color-warning)}
+.bad{background:var(--color-danger-soft);color:var(--color-danger)}
+.anchor{background:var(--anchor-background);color:var(--anchor-text);border-radius:var(--radius-featured);padding:24px;width:320px}
+.anchor small{color:var(--anchor-text-secondary)}
+.anchor strong{display:block;font-family:var(--font-display);font-size:2rem;font-variant-numeric:tabular-nums}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Sistema actual</h1>
+    <p class="lead">Tokens leídos de <code>src/client/design-tokens.css</code>. Referencia para comparar las direcciones de identidad.</p>
+  </header>
+
+  <section aria-labelledby="c1">
+    <h2 id="c1">Color — producto</h2>
+    <div class="swatches">
+      <div class="sw"><i style="background:var(--color-canvas)"></i><span>canvas<br><code>#f6f5f2</code></span></div>
+      <div class="sw"><i style="background:var(--color-surface-subtle)"></i><span>surface-subtle<br><code>#f1f0ec</code></span></div>
+      <div class="sw"><i style="background:var(--color-ink)"></i><span>ink<br><code>#131b2e</code></span></div>
+      <div class="sw"><i style="background:var(--color-ink-secondary)"></i><span>ink-secondary<br><code>#3f4b63</code></span></div>
+      <div class="sw"><i style="background:var(--color-ink-muted)"></i><span>ink-muted<br><code>#59647a</code></span></div>
+      <div class="sw"><i style="background:var(--color-blue-deep)"></i><span>blue-deep<br><code>#003594</code></span></div>
+      <div class="sw"><i style="background:var(--color-blue-standard)"></i><span>blue-standard<br><code>#004ac6</code></span></div>
+      <div class="sw"><i style="background:var(--color-blue-bright)"></i><span>blue-bright<br><code>#2878e5</code></span></div>
+      <div class="sw"><i style="background:var(--color-violet)"></i><span>violet<br><code>#6553aa</code></span></div>
+      <div class="sw"><i style="background:var(--color-success)"></i><span>success<br><code>#087c61</code></span></div>
+      <div class="sw"><i style="background:var(--color-warning)"></i><span>warning<br><code>#9a6700</code></span></div>
+      <div class="sw"><i style="background:var(--color-danger)"></i><span>danger<br><code>#b42318</code></span></div>
+      <div class="sw"><i style="background:var(--color-line)"></i><span>line<br><code>#e3e1dc</code></span></div>
+      <div class="sw"><i style="background:var(--color-line-strong)"></i><span>line-strong<br><code>#d2d0ca</code></span></div>
+      <div class="sw"><i style="background:var(--marketing-canvas)"></i><span>mkt-canvas<br><code>#faf8ff</code></span></div>
+      <div class="sw"><i style="background:var(--marketing-primary)"></i><span>mkt-primary<br><code>#174ea6</code></span></div>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section aria-labelledby="c2">
+      <h2 id="c2">Tipografía</h2>
+      <p style="font-family:var(--font-display);font-size:2rem;margin:0">Display · Sora</p>
+      <p style="margin:8px 0 0">Body md 0.95rem · Inter</p>
+      <p style="font-size:var(--text-sm);color:var(--color-ink-secondary);margin:4px 0 0">Text sm 0.85rem</p>
+      <p style="font-size:var(--text-xs);color:var(--color-ink-muted);margin:4px 0 0">Text xs 0.72rem</p>
+    </section>
+    <section aria-labelledby="c3">
+      <h2 id="c3">Espaciado y radio</h2>
+      <div class="row">
+        <div class="box" style="width:4px;height:40px"></div><div class="box" style="width:8px;height:40px"></div>
+        <div class="box" style="width:12px;height:40px"></div><div class="box" style="width:16px;height:40px"></div>
+        <div class="box" style="width:24px;height:40px"></div>
+        <div class="box" style="width:72px;height:56px;border-radius:var(--radius-control)"></div>
+        <div class="box" style="width:72px;height:56px;border-radius:var(--radius-card)"></div>
+        <div class="box" style="width:72px;height:56px;border-radius:var(--radius-featured)"></div>
+        <div class="box" style="width:72px;height:32px;border-radius:var(--radius-pill)"></div>
+      </div>
+    </section>
+  </div>
+
+  <section aria-labelledby="c4">
+    <h2 id="c4">Componentes</h2>
+    <div class="row">
+      <button class="btn btn-primary" type="button">Sincronizar Gmail</button>
+      <button class="btn btn-secondary" type="button">Agregar gasto</button>
+      <span class="pill ok">✓ En control</span>
+      <span class="pill warn">! Al límite</span>
+      <span class="pill bad">✕ En peligro</span>
+      <div class="anchor"><small>Saldo disponible</small><strong>$537.570</strong><small>Ciclo 1 – 30 nov</small></div>
+      <div style="width:96px;height:64px;border-radius:var(--radius-card);background:#fff;box-shadow:var(--shadow-sm)"></div>
+      <div style="width:96px;height:64px;border-radius:var(--radius-card);background:#fff;box-shadow:var(--shadow-panel)"></div>
+      <div style="width:96px;height:64px;border-radius:var(--radius-card);background:#fff;box-shadow:var(--shadow-xl)"></div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "title": "Identidad visual — Gastos Controlados",
+  "brief": "Tres direcciones de identidad propia para gastoscontrolados.cl, aplicadas al dashboard mobile (resumen + una segunda pantalla clave), para elegir una. Proponen tokens nuevos a propósito frente a design/system.md.",
+  "artboards": [
+    { "file": "01-cuaderno-de-cuentas.html", "title": "A · Cuaderno de cuentas", "tradeoff": "Cálida y editorial, muy distinta del azul fintech y reutiliza el canvas actual; menos 'tecnológica' y la serif exige cuidado en tamaños chicos", "width": 1280, "height": 960 },
+    { "file": "02-semaforo-sereno.html", "title": "B · Semáforo sereno (recomendada)", "tradeoff": "La más útil y cercana al código actual (canvas, tinta y warning se reutilizan); riesgo de parecerse a otras apps de anillo si el medidor no se trabaja como pieza de marca", "width": 1280, "height": 960 },
+    { "file": "03-cordillera.html", "title": "C · Cordillera", "tradeoff": "La más memorable y local, con un gráfico propio; la más temática y la que más se aleja del sistema actual", "width": 1280, "height": 960 },
+    { "file": "04-semaforo-con-topes.html", "title": "B + C · Semáforo con topes", "tradeoff": "Medidor de B y barras de topes de C en un solo lenguaje de estados, con la raya de 'hoy' que anticipa excesos; la raya necesita explicarse la primera vez", "width": 1280, "height": 960 },
+    { "file": "05-b-movimientos.html", "title": "B · Movimientos", "tradeoff": "Recategorizar y crear la regla en un solo paso ahorra ir a Ajustes, pero cambia varios movimientos a la vez; por eso la regla es explícita y hay Deshacer", "width": 1280, "height": 1040 },
+    { "file": "06-b-onboarding.html", "title": "B · Onboarding en 3 pasos", "tradeoff": "Los presets de ciclo resuelven la mayoría de casos en un toque, pero esconden el calendario tras 'Otro rango'; el ingreso se pide porque sin él no hay estado de ritmo", "width": 1280, "height": 1040 },
+    { "file": "07-b-estados.html", "title": "B · Estados vacío, carga y error", "tradeoff": "Mostrar datos guardados con fecha evita una pantalla rota al fallar Gmail, pero exige marcarlos claramente como viejos", "width": 1280, "height": 1040 },
+    { "file": "08-b-desktop.html", "title": "B · Escritorio", "tradeoff": "Riel lateral y todo el resumen sin scroll en 1440×900; la tabla de movimientos queda corta y remite a la vista completa", "width": 1440, "height": 900 }
+  ]
+}

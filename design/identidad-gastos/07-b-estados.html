@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>B · Estados vacío, carga y error — Gastos Controlados</title>
+<style>
+:root{
+  --canvas:#f6f5f2;--surface:#ffffff;--subtle:#efeee9;
+  --ink:#131b2e;--ink-2:#3f4b63;--ink-3:#59647a;--line:#e3e1dc;
+  --calm:#0b7a6b;--calm-soft:#e2f3ef;--tight:#9a6700;--tight-soft:#fdf3d8;--over:#b4412f;--over-soft:#fbe9e5;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-sm:12px;--r:16px;--r-lg:24px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e7e1;color:var(--ink);font-family:var(--sans);line-height:1.45}
+.page{width:1280px;padding:40px 44px 48px;display:grid;gap:28px}
+.intro{display:grid;grid-template-columns:1fr 420px;gap:32px;align-items:end}
+.tag{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.intro h1{margin:6px 0 6px;font-size:2rem;letter-spacing:-.03em;font-weight:800}
+.intro p{margin:0;color:var(--ink-2);max-width:620px}
+.tradeoff{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 16px;font-size:.85rem;color:var(--ink-2)}
+.tradeoff b{color:var(--ink)}
+.row{display:flex;gap:36px;justify-content:center}
+figure{margin:0}
+.phone{width:360px;height:780px;border-radius:44px;background:#131b2e;padding:10px;box-shadow:0 30px 60px rgba(19,27,46,.25)}
+.screen{width:100%;height:100%;border-radius:36px;overflow:hidden;background:var(--canvas);display:flex;flex-direction:column;position:relative}
+.status{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:.75rem;font-weight:700;flex:none}
+.caption{text-align:center;font-size:.8rem;color:var(--ink-2);margin-top:12px;font-weight:600}
+.app{flex:1;overflow:hidden;padding:4px 18px 0;display:flex;flex-direction:column;gap:12px}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.period{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font:inherit;font-size:.82rem;font-weight:600;color:var(--ink);cursor:pointer}
+.sync{font-size:.72rem;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+:is(button,a):focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.btn{min-height:48px;border-radius:var(--r);border:0;font:inherit;font-weight:700;font-size:.9rem;cursor:pointer;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.tabbar{display:grid;grid-template-columns:1fr 1fr 72px 1fr 1fr;align-items:center;border-top:1px solid var(--line);background:var(--surface);padding:6px 6px 22px;flex:none}
+.tab{background:none;border:0;font:inherit;font-size:.68rem;color:var(--ink-3);display:grid;justify-items:center;gap:2px;min-height:48px;cursor:pointer;border-radius:10px}
+.tab[aria-current="page"]{color:var(--ink);font-weight:800}
+.add{justify-self:center;width:56px;height:56px;border-radius:50%;background:var(--ink);color:#fff;border:0;display:grid;place-items:center;margin-top:-26px;box-shadow:0 10px 22px rgba(19,27,46,.3);cursor:pointer}
+
+/* empty */
+.hero{background:var(--surface);border-radius:var(--r-lg);padding:18px;display:grid;justify-items:center;gap:10px;text-align:center;box-shadow:0 1px 2px rgba(19,27,46,.04),0 8px 24px rgba(19,27,46,.06)}
+.hero h2{margin:0;font-size:1.15rem;letter-spacing:-.02em}
+.hero p{margin:0;font-size:.85rem;color:var(--ink-2)}
+.hero .acts{display:grid;gap:8px;width:100%}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fact{background:var(--surface);border-radius:var(--r);padding:12px 14px;font-size:.76rem;color:var(--ink-3)}
+.fact b{display:block;font-size:1.1rem;color:var(--ink);font-variant-numeric:tabular-nums}
+.note{font-size:.78rem;color:var(--ink-2);background:var(--surface);border-radius:var(--r-sm);padding:10px 12px}
+
+/* loading */
+.sk{background:linear-gradient(90deg,var(--subtle) 0%,#f7f6f2 50%,var(--subtle) 100%);background-size:200% 100%;animation:sh 1.4s linear infinite;border-radius:8px}
+@keyframes sh{from{background-position:200% 0}to{background-position:-200% 0}}
+.progress{background:var(--surface);border-radius:var(--r);padding:14px;display:grid;gap:8px}
+.progress b{font-size:.9rem}
+.progress small{font-size:.76rem;color:var(--ink-2)}
+.bar{height:8px;border-radius:4px;background:var(--subtle);overflow:hidden}
+.bar i{display:block;height:100%;width:38%;background:var(--calm);border-radius:4px;transition:width .4s}
+.sk-hero{background:var(--surface);border-radius:var(--r-lg);padding:18px;display:grid;justify-items:center;gap:12px}
+.ring{width:170px;height:170px;border-radius:50%;border:16px solid var(--subtle)}
+.sk-rows{background:var(--surface);border-radius:var(--r);padding:14px;display:grid;gap:14px}
+.sk-row{display:grid;grid-template-columns:40px 1fr 60px;gap:12px;align-items:center}
+
+/* error / stale */
+.banner{display:grid;grid-template-columns:36px 1fr;gap:10px;background:var(--over-soft);border-radius:var(--r);padding:12px 14px;font-size:.82rem;color:var(--ink)}
+.banner .ic{width:36px;height:36px;border-radius:50%;background:var(--over);color:#fff;display:grid;place-items:center;font-weight:800}
+.banner b{display:block}
+.banner .acts{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.banner .btn{min-height:44px;font-size:.82rem;padding:0 14px}
+.stale{opacity:.82}
+.mini-hero{background:var(--surface);border-radius:var(--r-lg);padding:14px 16px;display:grid;grid-template-columns:96px 1fr;gap:14px;align-items:center}
+.mini-hero .k{font-size:.74rem;color:var(--ink-3)}
+.mini-hero .big{font-size:1.6rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1.05}
+.mini-hero .per{font-size:.8rem;color:var(--ink-2)}
+.when{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;color:var(--tight);background:var(--tight-soft);border-radius:999px;padding:3px 9px;margin-top:6px}
+.list{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:var(--r);overflow:hidden}
+.list li{display:grid;grid-template-columns:1fr auto;padding:12px 14px;font-size:.86rem}
+.list li+li{border-top:1px solid var(--line)}
+.list .amt{font-weight:700;font-variant-numeric:tabular-nums}
+.list small{display:block;color:var(--ink-3);font-size:.74rem}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="intro">
+    <div>
+      <span class="tag">Dirección B · Semáforo sereno</span>
+      <h1>Estados: vacío, carga y error</h1>
+      <p>Cada estado dice qué pasa, qué no se perdió y qué puedes hacer. El medidor mantiene su lugar aunque falten datos, así la pantalla no salta al llegar la información.</p>
+    </div>
+    <p class="tradeoff"><b>Tradeoff:</b> mostrar datos guardados con su fecha cuando falla la sincronización evita una pantalla rota, pero obliga a marcar con claridad que son viejos para que nadie los lea como el saldo de hoy.</p>
+  </header>
+
+  <div class="row">
+    <!-- vacío -->
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <main class="app" aria-label="Resumen sin movimientos">
+          <div class="topbar"><button class="period" type="button">1 – 30 nov</button><span class="sync"><i class="dot" style="background:var(--calm)" aria-hidden="true"></i>Gmail · hace 1 min</span></div>
+          <section class="hero" aria-labelledby="e-h">
+            <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Medidor vacío: 0% gastado; pasó el 7% del ciclo">
+              <circle cx="75" cy="75" r="56" fill="none" stroke="#efeee9" stroke-width="14"/>
+              <g transform="rotate(25 75 75)"><path d="M75 12v18" stroke="#131b2e" stroke-width="3.5" stroke-linecap="round"/></g>
+              <text x="75" y="72" text-anchor="middle" font-size="22" font-weight="800" fill="#131b2e" font-family="system-ui,sans-serif">$0</text>
+              <text x="75" y="92" text-anchor="middle" font-size="11" fill="#59647a" font-family="system-ui,sans-serif">gastado</text>
+            </svg>
+            <h2 id="e-h">Todavía no hay gastos en este ciclo</h2>
+            <p>Revisamos tu Gmail y no encontramos avisos de Banco de Chile desde el 1 de noviembre. Si ya pagaste algo en efectivo, anótalo.</p>
+            <div class="acts">
+              <button class="btn primary" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Agregar un gasto</button>
+              <button class="btn ghost" type="button">Volver a revisar Gmail</button>
+            </div>
+          </section>
+          <div class="facts">
+            <div class="fact">Ingreso del ciclo<b>$1.450.000</b></div>
+            <div class="fact">Disponible por día<b>$50.000</b></div>
+          </div>
+          <p class="note">¿Tu banco no es Banco de Chile? Por ahora solo leemos sus avisos. <a href="#" style="color:var(--ink);font-weight:700">Avísanos cuál usas</a></p>
+        </main>
+        <nav class="tabbar" aria-label="Principal">
+          <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v4"/></svg>Hoy</button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+          <button class="add" type="button" aria-label="Agregar gasto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/></svg>Topes</button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+        </nav>
+      </div></div>
+      <figcaption class="caption">Vacío: un $0 real, el porqué y dos salidas</figcaption>
+    </figure>
+
+    <!-- carga -->
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <main class="app" aria-label="Cargando resumen" aria-busy="true">
+          <div class="topbar"><button class="period" type="button">1 – 30 nov</button><span class="sync"><i class="dot" style="background:var(--tight)" aria-hidden="true"></i>Sincronizando…</span></div>
+          <div class="progress" role="status">
+            <b>Leyendo tus avisos de Banco de Chile</b>
+            <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="60" aria-valuenow="23" aria-label="Correos leídos"><i></i></div>
+            <small>23 de unos 60 correos · tus categorías y reglas ya están cargadas</small>
+          </div>
+          <div class="sk-hero" aria-hidden="true">
+            <div class="ring"></div>
+            <div class="sk" style="width:120px;height:14px"></div>
+            <div class="sk" style="width:200px;height:12px"></div>
+          </div>
+          <div class="sk-rows" aria-hidden="true">
+            <div class="sk-row"><div class="sk" style="height:40px;border-radius:12px"></div><div class="sk" style="height:12px"></div><div class="sk" style="height:12px"></div></div>
+            <div class="sk-row"><div class="sk" style="height:40px;border-radius:12px"></div><div class="sk" style="height:12px;width:70%"></div><div class="sk" style="height:12px"></div></div>
+            <div class="sk-row"><div class="sk" style="height:40px;border-radius:12px"></div><div class="sk" style="height:12px;width:85%"></div><div class="sk" style="height:12px"></div></div>
+          </div>
+        </main>
+        <nav class="tabbar" aria-label="Principal">
+          <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v4"/></svg>Hoy</button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+          <button class="add" type="button" aria-label="Agregar gasto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/></svg>Topes</button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+        </nav>
+      </div></div>
+      <figcaption class="caption">Carga: progreso real y el medidor en su lugar</figcaption>
+    </figure>
+
+    <!-- error -->
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <main class="app" aria-label="Resumen con datos guardados">
+          <div class="topbar"><button class="period" type="button">1 – 30 nov</button><span class="sync"><i class="dot" style="background:var(--over)" aria-hidden="true"></i>Gmail desconectado</span></div>
+          <div class="banner" role="alert">
+            <span class="ic" aria-hidden="true">!</span>
+            <div><b>No pudimos leer tu Gmail</b>Google pidió volver a autorizar el acceso. Tus reglas, categorías y gastos manuales están a salvo.
+              <div class="acts"><button class="btn primary" type="button">Reconectar Gmail</button><button class="btn ghost" type="button">Más tarde</button></div>
+            </div>
+          </div>
+          <section class="mini-hero stale" aria-labelledby="st-k">
+            <svg width="96" height="96" viewBox="0 0 96 96" role="img" aria-label="Datos al 18 de noviembre: 58% gastado">
+              <circle cx="48" cy="48" r="36" fill="none" stroke="#efeee9" stroke-width="11"/>
+              <circle cx="48" cy="48" r="36" fill="none" stroke="#59647a" stroke-width="11" stroke-linecap="round" stroke-dasharray="131.2 226.2" transform="rotate(-90 48 48)"/>
+            </svg>
+            <div>
+              <div class="k" id="st-k">Te quedaban</div>
+              <div class="big">$609.810</div>
+              <div class="per">Sin el estado de ritmo hasta sincronizar</div>
+              <span class="when">Datos al mar 18, 21:40</span>
+            </div>
+          </section>
+          <ul class="list stale" aria-label="Últimos movimientos guardados">
+            <li><span>Enel<small>Cuentas y servicios · mar 18</small></span><span class="amt">$42.310</span></li>
+            <li><span>Copec Av. Grecia<small>Transporte · mar 18 · Manual</small></span><span class="amt">$38.000</span></li>
+            <li><span>Unimarc Ñuñoa<small>Supermercado · lun 17</small></span><span class="amt">$27.640</span></li>
+          </ul>
+        </main>
+        <nav class="tabbar" aria-label="Principal">
+          <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v4"/></svg>Hoy</button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+          <button class="add" type="button" aria-label="Agregar gasto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/></svg>Topes</button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+        </nav>
+      </div></div>
+      <figcaption class="caption">Error: qué falló, qué está a salvo y datos con fecha</figcaption>
+    </figure>
+  </div>
+</div>
+</body>
+</html>

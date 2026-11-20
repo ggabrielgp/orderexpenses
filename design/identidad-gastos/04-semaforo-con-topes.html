@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>B + C · Semáforo con topes — Gastos Controlados</title>
+<style>
+:root{
+  --canvas:#f6f5f2;--surface:#ffffff;--subtle:#efeee9;
+  --ink:#131b2e;--ink-2:#3f4b63;--ink-3:#59647a;--line:#e3e1dc;
+  --calm:#0b7a6b;--calm-soft:#e2f3ef;
+  --tight:#9a6700;--tight-soft:#fdf3d8;
+  --over:#b4412f;--over-soft:#fbe9e5;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-sm:12px;--r:16px;--r-lg:24px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e7e1;color:var(--ink);font-family:var(--sans);line-height:1.45}
+.board{width:1280px;min-height:960px;display:grid;grid-template-columns:400px 1fr}
+.brand{background:var(--canvas);padding:48px 40px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:24px}
+.tag{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.logo{display:flex;align-items:center;gap:14px}
+.wordmark{font-weight:800;font-size:1.45rem;letter-spacing:-.03em;line-height:1}
+.wordmark span{display:block;font-weight:500;color:var(--ink-3);font-size:.9rem;letter-spacing:0;margin-top:4px}
+.brand h1{font-size:2.1rem;line-height:1.1;letter-spacing:-.03em;margin:0;font-weight:800}
+.brand p{margin:0;color:var(--ink-2)}
+.anatomy{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:10px;font-size:.82rem;color:var(--ink-2)}
+.anatomy b{color:var(--ink)}
+.principles{margin:0;padding:0;list-style:none;display:grid;gap:10px;font-size:.9rem;color:var(--ink-2)}
+.principles li{padding-left:18px;position:relative}
+.principles li::before{content:"";position:absolute;left:0;top:.45em;width:8px;height:8px;border-radius:50%;border:2px solid var(--calm)}
+.tradeoff{margin-top:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 16px;font-size:.85rem;color:var(--ink-2)}
+.tradeoff b{color:var(--ink)}
+
+.stage{padding:48px 40px;display:flex;gap:36px;justify-content:center;align-items:flex-start}
+.phone{width:360px;height:780px;border-radius:44px;background:#131b2e;padding:10px;box-shadow:0 30px 60px rgba(19,27,46,.25)}
+.screen{width:100%;height:100%;border-radius:36px;overflow:hidden;background:var(--canvas);display:flex;flex-direction:column;position:relative}
+.status{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:.75rem;font-weight:700}
+.caption{text-align:center;font-size:.8rem;color:var(--ink-2);margin-top:12px;font-weight:600}
+.app{flex:1;overflow:hidden;padding:4px 18px 0;display:flex;flex-direction:column;gap:12px}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.period{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font:inherit;font-size:.82rem;font-weight:600;color:var(--ink);cursor:pointer}
+.sync{font-size:.72rem;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--calm);display:inline-block}
+:is(button,a):focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+
+/* hero (B) */
+.hero{background:var(--surface);border-radius:var(--r-lg);padding:14px 16px;display:grid;grid-template-columns:132px 1fr;gap:14px;align-items:center;box-shadow:0 1px 2px rgba(19,27,46,.04),0 8px 24px rgba(19,27,46,.06)}
+.gauge{position:relative;width:132px;height:132px}
+.gauge svg{display:block}
+.gauge .arc{stroke-dasharray:194.6 309.4;animation:fill 1.1s cubic-bezier(.16,1,.3,1) both}
+@keyframes fill{from{stroke-dasharray:0 309.4}}
+.gauge .c{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.gauge .c b{font-size:1.4rem;font-weight:800;letter-spacing:-.03em}
+.gauge .c small{font-size:.66rem;color:var(--ink-3)}
+.hero .k{font-size:.75rem;color:var(--ink-3)}
+.hero .big{font-size:1.75rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1.05}
+.hero .per{font-size:.82rem;color:var(--ink-2);margin:2px 0 8px}
+.hero .per b{color:var(--ink);font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 10px;font-size:.75rem;font-weight:700;width:max-content}
+.pill.calm{background:var(--calm-soft);color:var(--calm)}
+.pill.tight{background:var(--tight-soft);color:var(--tight)}
+.pill.over{background:var(--over-soft);color:var(--over)}
+.hero-foot{grid-column:1/-1;margin:0;font-size:.8rem;color:var(--ink-2);border-top:1px solid var(--line);padding-top:10px}
+.hero-foot b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* topes card (from C, retinted to B states) */
+.card{background:var(--surface);border-radius:var(--r);padding:14px;box-shadow:0 1px 2px rgba(19,27,46,.04)}
+.card h2{margin:0 0 4px;font-size:.95rem;display:flex;justify-content:space-between;align-items:baseline}
+.card h2 a{font-size:.8rem;color:var(--ink);font-weight:700;text-underline-offset:3px}
+.card .hint{font-size:.72rem;color:var(--ink-3);margin:0 0 12px;display:flex;align-items:center;gap:6px}
+.rows{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.rows li{display:grid;grid-template-columns:1fr auto;gap:5px 10px;font-size:.86rem}
+.rows .name{font-weight:600}
+.rows .amt{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.rows .amt b{color:var(--ink)}
+.meter{grid-column:1/-1;height:8px;border-radius:4px;background:var(--subtle);position:relative}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--calm)}
+.meter.tight i{background:var(--tight)}
+.meter.over i{background:var(--over);border-radius:4px}
+.meter .today{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:1px;background:var(--ink)}
+.rows .note{grid-column:1/-1;font-size:.74rem;font-weight:700}
+.note.tight{color:var(--tight)} .note.over{color:var(--over)} .note.calm{color:var(--calm)}
+
+.tabbar{display:grid;grid-template-columns:1fr 1fr 72px 1fr 1fr;align-items:center;border-top:1px solid var(--line);background:var(--surface);padding:6px 6px 22px}
+.tab{background:none;border:0;font:inherit;font-size:.68rem;color:var(--ink-3);display:grid;justify-items:center;gap:2px;min-height:48px;cursor:pointer;border-radius:10px}
+.tab[aria-current="page"]{color:var(--ink);font-weight:800}
+.add{justify-self:center;width:56px;height:56px;border-radius:50%;background:var(--ink);color:#fff;border:0;display:grid;place-items:center;margin-top:-26px;box-shadow:0 10px 22px rgba(19,27,46,.3);cursor:pointer}
+
+/* topes screen */
+.h1{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;margin:0}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.summary div{background:var(--surface);border-radius:var(--r-sm);padding:10px;font-size:.72rem;color:var(--ink-3);display:grid;gap:2px}
+.summary b{font-size:1.1rem;color:var(--ink)}
+.summary .s-calm b{color:var(--calm)} .summary .s-tight b{color:var(--tight)} .summary .s-over b{color:var(--over)}
+.legend{display:flex;gap:14px;font-size:.72rem;color:var(--ink-3);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.unset{border:1.5px dashed var(--line);border-radius:var(--r-sm);padding:10px 12px;font-size:.8rem;color:var(--ink-2);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.unset button{min-height:40px;border:1px solid var(--ink);background:none;border-radius:999px;padding:0 14px;font:inherit;font-weight:700;font-size:.78rem;color:var(--ink);cursor:pointer}
+@media (prefers-reduced-motion:reduce){.gauge .arc{animation:none}}
+</style>
+</head>
+<body>
+<div class="board">
+  <aside class="brand" aria-label="Identidad">
+    <span class="tag">Dirección B + topes de C</span>
+    <div class="logo">
+      <svg width="56" height="56" viewBox="0 0 56 56" role="img" aria-label="Logo: medidor del mes">
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#e3e1dc" stroke-width="7"/>
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#0b7a6b" stroke-width="7" stroke-linecap="round" stroke-dasharray="86 138.2" transform="rotate(-90 28 28)"/>
+        <path d="M28 2v9" stroke="#131b2e" stroke-width="3" stroke-linecap="round" transform="rotate(240 28 28)"/>
+        <circle cx="28" cy="28" r="5" fill="#131b2e"/>
+      </svg>
+      <div class="wordmark">gastos controlados<span>¿vas bien este mes?</span></div>
+    </div>
+    <h1>Semáforo con topes</h1>
+    <p>La identidad de B con las barras de topes por categoría de C. Las barras dejan el cobre y adoptan los tres estados del semáforo, y suman la misma marca de "hoy" del medidor: una sola idea visual en todo el producto.</p>
+    <div class="anatomy" aria-label="Cómo se lee una barra">
+      <b>Cómo se lee una barra</b>
+      <svg width="318" height="22" viewBox="0 0 318 22" role="img" aria-label="Barra al 89% con la marca de hoy en 67%">
+        <rect x="0" y="7" width="318" height="8" rx="4" fill="#efeee9"/>
+        <rect x="0" y="7" width="283" height="8" rx="4" fill="#9a6700"/>
+        <rect x="212" y="3" width="2" height="16" rx="1" fill="#131b2e"/>
+      </svg>
+      <span>Relleno = cuánto del tope usaste. Raya = cuánto del ciclo pasó. Si el relleno pasa la raya, vas más rápido de lo que deberías.</span>
+    </div>
+    <ul class="principles">
+      <li>El estado de cada tope sale del ritmo, no solo del porcentaje.</li>
+      <li>Cada barra dice su estado con palabras; el color nunca va solo.</li>
+      <li>Categorías sin tope invitan a ponerle uno, sin inventar datos.</li>
+    </ul>
+    <p class="tradeoff"><b>Tradeoff:</b> unifica medidor y barras en un solo lenguaje, y la raya de "hoy" anticipa problemas antes del 100%; a cambio, la raya necesita una explicación la primera vez (tooltip o ayuda en onboarding).</p>
+  </aside>
+
+  <div class="stage">
+    <figure style="margin:0">
+      <div class="phone">
+        <div class="screen">
+          <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <main class="app" aria-label="Resumen del ciclo">
+            <div class="topbar">
+              <button class="period" type="button">1 – 30 nov <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+              <span class="sync"><i aria-hidden="true"></i>Gmail · hace 4 min</span>
+            </div>
+            <section class="hero" aria-labelledby="hero-k">
+              <div class="gauge">
+                <svg width="132" height="132" viewBox="0 0 132 132" role="img" aria-label="Gastaste 63% de tu ingreso; pasó el 67% del ciclo">
+                  <circle cx="66" cy="66" r="49" fill="none" stroke="#efeee9" stroke-width="13"/>
+                  <circle class="arc" cx="66" cy="66" r="49" fill="none" stroke="#0b7a6b" stroke-width="13" stroke-linecap="round" transform="rotate(-90 66 66)"/>
+                  <g transform="rotate(240 66 66)"><path d="M66 9v15" stroke="#131b2e" stroke-width="3.5" stroke-linecap="round"/></g>
+                </svg>
+                <div class="c"><b>63%</b><small>del ingreso</small></div>
+              </div>
+              <div>
+                <div class="k" id="hero-k">Te quedan</div>
+                <div class="big">$537.570</div>
+                <div class="per"><b>$53.757</b> por día hasta el 30</div>
+                <span class="pill calm">✓ En ritmo</span>
+              </div>
+              <p class="hero-foot">Pasó el <b>67%</b> del ciclo. Si sigues así, cierras con unos <b>$80.000</b> de sobra · <b>↓ 8%</b> vs octubre.</p>
+            </section>
+            <section class="card" aria-labelledby="t-h">
+              <h2 id="t-h">Topes por categoría <a href="#">Ver todos</a></h2>
+              <p class="hint"><svg width="10" height="14" aria-hidden="true"><rect x="4" y="0" width="2" height="14" rx="1" fill="#131b2e"/></svg>La raya marca el día 20 de 30</p>
+              <ul class="rows">
+                <li><span class="name">Restaurantes</span><span class="amt"><b>$142.750</b> / $160.000</span><span class="meter tight" role="img" aria-label="89% del tope, ciclo al 67%"><i style="width:89%"></i><span class="today" style="left:67%"></span></span><span class="note tight">! Ajustado · quedan $17.250 para 10 días</span></li>
+                <li><span class="name">Supermercado</span><span class="amt"><b>$248.900</b> / $380.000</span><span class="meter" role="img" aria-label="65% del tope, ciclo al 67%"><i style="width:65%"></i><span class="today" style="left:67%"></span></span><span class="note calm">✓ En ritmo</span></li>
+                <li><span class="name">Transporte</span><span class="amt"><b>$96.300</b> / $150.000</span><span class="meter" role="img" aria-label="64% del tope, ciclo al 67%"><i style="width:64%"></i><span class="today" style="left:67%"></span></span><span class="note calm">✓ En ritmo</span></li>
+              </ul>
+            </section>
+          </main>
+          <nav class="tabbar" aria-label="Principal">
+            <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v4"/></svg>Hoy</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+            <button class="add" type="button" aria-label="Agregar gasto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/></svg>Topes</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+          </nav>
+        </div>
+      </div>
+      <figcaption class="caption">Hoy: medidor compacto + los topes que importan</figcaption>
+    </figure>
+
+    <figure style="margin:0">
+      <div class="phone">
+        <div class="screen">
+          <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <main class="app" aria-labelledby="topes-h">
+            <div class="topbar">
+              <h2 class="h1" id="topes-h">Topes</h2>
+              <button class="period" type="button">1 – 30 nov</button>
+            </div>
+            <div class="summary" aria-label="Resumen de topes">
+              <div class="s-calm"><b>4</b>✓ En ritmo</div>
+              <div class="s-tight"><b>1</b>! Ajustados</div>
+              <div class="s-over"><b>1</b>↑ Pasado</div>
+            </div>
+            <div class="legend" aria-hidden="true"><span><svg width="10" height="14"><rect x="4" width="2" height="14" rx="1" fill="#131b2e"/></svg>Hoy, día 20 de 30</span></div>
+            <section class="card" aria-label="Todos los topes">
+              <ul class="rows">
+                <li><span class="name">Entretención</span><span class="amt"><b>$83.200</b> / $80.000</span><span class="meter over" role="img" aria-label="104% del tope, ciclo al 67%"><i style="width:100%"></i><span class="today" style="left:67%"></span></span><span class="note over">↑ Pasado por $3.200 · 10 días antes del cierre</span></li>
+                <li><span class="name">Restaurantes</span><span class="amt"><b>$142.750</b> / $160.000</span><span class="meter tight" role="img" aria-label="89% del tope, ciclo al 67%"><i style="width:89%"></i><span class="today" style="left:67%"></span></span><span class="note tight">! Ajustado · quedan $17.250 para 10 días</span></li>
+                <li><span class="name">Supermercado</span><span class="amt"><b>$248.900</b> / $380.000</span><span class="meter" role="img" aria-label="65% del tope, ciclo al 67%"><i style="width:65%"></i><span class="today" style="left:67%"></span></span><span class="note calm">✓ En ritmo</span></li>
+                <li><span class="name">Cuentas y servicios</span><span class="amt"><b>$187.480</b> / $220.000</span><span class="meter" role="img" aria-label="85% del tope; ya pagadas en su mayoría"><i style="width:85%"></i><span class="today" style="left:67%"></span></span><span class="note calm">✓ En ritmo · ya pagaste 5 de 6 cuentas</span></li>
+                <li><span class="name">Transporte</span><span class="amt"><b>$96.300</b> / $150.000</span><span class="meter" role="img" aria-label="64% del tope, ciclo al 67%"><i style="width:64%"></i><span class="today" style="left:67%"></span></span><span class="note calm">✓ En ritmo</span></li>
+              </ul>
+            </section>
+            <div class="unset"><span>Salud y Ropa no tienen tope todavía</span><button type="button">Poner tope</button></div>
+          </main>
+          <nav class="tabbar" aria-label="Principal">
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v4"/></svg>Hoy</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+            <button class="add" type="button" aria-label="Agregar gasto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+            <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/></svg>Topes</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+          </nav>
+        </div>
+      </div>
+      <figcaption class="caption">Topes: todas las categorías, ordenadas por urgencia</figcaption>
+    </figure>
+  </div>
+</div>
+</body>
+</html>

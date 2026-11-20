@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>B · Movimientos — Gastos Controlados</title>
+<style>
+:root{
+  --canvas:#f6f5f2;--surface:#ffffff;--subtle:#efeee9;
+  --ink:#131b2e;--ink-2:#3f4b63;--ink-3:#59647a;--line:#e3e1dc;
+  --calm:#0b7a6b;--calm-soft:#e2f3ef;--tight:#9a6700;--tight-soft:#fdf3d8;--over:#b4412f;--over-soft:#fbe9e5;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-sm:12px;--r:16px;--r-lg:24px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e7e1;color:var(--ink);font-family:var(--sans);line-height:1.45}
+.page{width:1280px;padding:40px 44px 48px;display:grid;gap:28px}
+.intro{display:grid;grid-template-columns:1fr 420px;gap:32px;align-items:end}
+.tag{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.intro h1{margin:6px 0 6px;font-size:2rem;letter-spacing:-.03em;font-weight:800}
+.intro p{margin:0;color:var(--ink-2);max-width:620px}
+.tradeoff{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 16px;font-size:.85rem;color:var(--ink-2)}
+.tradeoff b{color:var(--ink)}
+.row{display:flex;gap:36px;justify-content:center}
+figure{margin:0}
+.phone{width:360px;height:780px;border-radius:44px;background:#131b2e;padding:10px;box-shadow:0 30px 60px rgba(19,27,46,.25)}
+.screen{width:100%;height:100%;border-radius:36px;overflow:hidden;background:var(--canvas);display:flex;flex-direction:column;position:relative}
+.status{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:.75rem;font-weight:700;flex:none}
+.caption{text-align:center;font-size:.8rem;color:var(--ink-2);margin-top:12px;font-weight:600}
+.app{flex:1;overflow:hidden;padding:4px 18px 0;display:flex;flex-direction:column;gap:12px}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.h1{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;margin:0}
+.period{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font:inherit;font-size:.82rem;font-weight:600;color:var(--ink);cursor:pointer}
+:is(button,a,input):focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:0 12px;min-height:44px}
+.search input{border:0;background:none;font:inherit;font-size:.9rem;flex:1;color:var(--ink);min-width:0}
+.search input::placeholder{color:var(--ink-3)}
+.chips{display:flex;gap:8px;overflow:hidden;flex:none}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;min-height:40px;padding:0 14px;font:inherit;font-size:.8rem;color:var(--ink);white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip .count{background:var(--tight-soft);color:var(--tight);border-radius:999px;padding:0 7px;font-weight:700;font-size:.72rem}
+.day{display:flex;justify-content:space-between;align-items:baseline;font-size:.78rem;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:4px}
+.day span{font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0}
+.list{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:var(--r);overflow:hidden}
+.list li+li{border-top:1px solid var(--line)}
+.mv{display:grid;grid-template-columns:40px 1fr auto;gap:0 12px;align-items:center;padding:10px 14px;width:100%;background:none;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;min-height:60px}
+.av{width:40px;height:40px;border-radius:12px;background:var(--subtle);display:grid;place-items:center;font-weight:800;font-size:.9rem;color:var(--ink-2)}
+.mv .name{font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:6px}
+.mv .meta{font-size:.74rem;color:var(--ink-3);display:block}
+.mv .amt{font-weight:700;font-variant-numeric:tabular-nums;font-size:.92rem;text-align:right}
+.mv .amt.in{color:var(--calm)}
+.badge{font-size:.66rem;font-weight:700;border-radius:6px;padding:1px 6px}
+.badge.rec{background:var(--calm-soft);color:var(--calm)}
+.badge.unc{background:var(--tight-soft);color:var(--tight)}
+.tabbar{display:grid;grid-template-columns:1fr 1fr 72px 1fr 1fr;align-items:center;border-top:1px solid var(--line);background:var(--surface);padding:6px 6px 22px;flex:none}
+.tab{background:none;border:0;font:inherit;font-size:.68rem;color:var(--ink-3);display:grid;justify-items:center;gap:2px;min-height:48px;cursor:pointer;border-radius:10px}
+.tab[aria-current="page"]{color:var(--ink);font-weight:800}
+.add{justify-self:center;width:56px;height:56px;border-radius:50%;background:var(--ink);color:#fff;border:0;display:grid;place-items:center;margin-top:-26px;box-shadow:0 10px 22px rgba(19,27,46,.3);cursor:pointer}
+/* sheet */
+.dim{position:absolute;inset:0;background:rgba(19,27,46,.45)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:28px 28px 0 0;padding:10px 20px 26px;display:grid;gap:14px}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);justify-self:center}
+.sheet-head{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center}
+.sheet-head .av{width:48px;height:48px;font-size:1.05rem}
+.sheet-head h2{margin:0;font-size:1.05rem}
+.sheet-head small{color:var(--ink-3);font-size:.78rem}
+.sheet-head .amt{font-size:1.4rem;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.src{font-size:.75rem;color:var(--ink-2);background:var(--canvas);border-radius:var(--r-sm);padding:8px 12px;display:flex;gap:8px;align-items:center}
+.lbl{font-size:.78rem;font-weight:700;color:var(--ink-2);margin:0}
+.cats{display:flex;flex-wrap:wrap;gap:8px}
+.rule{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;background:var(--calm-soft);border-radius:var(--r-sm);padding:12px 14px;font-size:.84rem}
+.rule b{display:block}
+.rule small{color:var(--ink-2);font-size:.76rem}
+.switch{width:48px;height:28px;border-radius:14px;background:var(--calm);position:relative;border:0;cursor:pointer}
+.switch::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff}
+.actions{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+.btn{min-height:52px;border-radius:var(--r);font:inherit;font-weight:700;font-size:.92rem;cursor:pointer}
+.btn.primary{background:var(--ink);color:#fff;border:0}
+.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+.toast{position:absolute;left:14px;right:14px;bottom:94px;background:var(--ink);color:#fff;border-radius:var(--r);padding:8px 8px 8px 14px;display:flex;align-items:center;gap:10px;font-size:.82rem;box-shadow:0 12px 28px rgba(19,27,46,.3);animation:up .35s cubic-bezier(.16,1,.3,1) both}
+.toast .ok{width:24px;height:24px;border-radius:50%;background:var(--calm);display:grid;place-items:center;flex:none;font-weight:800}
+.toast span{flex:1}
+.toast button{background:none;border:0;color:#9fe0d3;font:inherit;font-weight:800;min-height:44px;padding:0 10px;cursor:pointer;border-radius:10px}
+.toast button:focus-visible{outline-color:#fff}
+@keyframes up{from{transform:translateY(16px);opacity:0}}
+.flash{animation:flash 1.6s ease-out both}
+@keyframes flash{0%{background:var(--calm-soft)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){.toast,.flash{animation:none}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="intro">
+    <div>
+      <span class="tag">Dirección B · Semáforo sereno</span>
+      <h1>Movimientos</h1>
+      <p>Libro del ciclo agrupado por día, con búsqueda y filtros que dicen cuántos pendientes hay. Tocar un movimiento abre una hoja donde corriges la categoría y, en el mismo gesto, la conviertes en regla; el resultado se confirma con un "Deshacer".</p>
+    </div>
+    <p class="tradeoff"><b>Tradeoff:</b> recategorizar y crear la regla en un solo paso ahorra la ida a Ajustes, pero aplica cambios a varios movimientos a la vez; por eso la regla se muestra explícita y siempre hay "Deshacer".</p>
+  </header>
+
+  <div class="row">
+    <!-- 1. lista -->
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <main class="app" aria-labelledby="m1">
+          <div class="topbar"><h2 class="h1" id="m1">Movimientos</h2><button class="period" type="button">1 – 30 nov</button></div>
+          <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#59647a" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" placeholder="Buscar comercio o monto" aria-label="Buscar movimientos"></label>
+          <div class="chips" role="group" aria-label="Filtros">
+            <button class="chip" type="button" aria-pressed="true">Todos · 47</button>
+            <button class="chip" type="button" aria-pressed="false">Sin categoría <span class="count">3</span></button>
+            <button class="chip" type="button" aria-pressed="false">Mensuales</button>
+          </div>
+          <div class="day">Hoy, jue 20 <span>− $72.240</span></div>
+          <ul class="list">
+            <li><button class="mv" type="button"><span class="av" aria-hidden="true">J</span><span><span class="name">Jumbo Costanera</span><span class="meta">Supermercado · 13:42</span></span><span class="amt">$64.390</span></button></li>
+            <li><button class="mv" type="button"><span class="av" aria-hidden="true">U</span><span><span class="name">Uber</span><span class="meta">Transporte · 08:15</span></span><span class="amt">$7.850</span></button></li>
+          </ul>
+          <div class="day">Mié 19 <span>− $70.900</span></div>
+          <ul class="list">
+            <li><button class="mv" type="button"><span class="av" aria-hidden="true">R</span><span><span class="name">Rappi <span class="badge unc">Sin categoría</span></span><span class="meta">Gmail · 13:10</span></span><span class="amt">$18.600</span></button></li>
+            <li><button class="mv" type="button"><span class="av" aria-hidden="true">N</span><span><span class="name">Netflix <span class="badge rec">Mensual</span></span><span class="meta">Suscripciones · 21:03</span></span><span class="amt">$9.990</span></button></li>
+            <li><button class="mv" type="button"><span class="av" aria-hidden="true">E</span><span><span class="name">Enel</span><span class="meta">Cuentas y servicios · 09:00</span></span><span class="amt">$42.310</span></button></li>
+          </ul>
+          <div class="day">Mar 18 <span>+ $35.000</span></div>
+          <ul class="list">
+            <li><button class="mv" type="button"><span class="av" aria-hidden="true">T</span><span><span class="name">Transferencia de C. Rojas</span><span class="meta">Ingreso · 18:22</span></span><span class="amt in">+ $35.000</span></button></li>
+          </ul>
+        </main>
+        <nav class="tabbar" aria-label="Principal">
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v4"/></svg>Hoy</button>
+          <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+          <button class="add" type="button" aria-label="Agregar gasto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/></svg>Topes</button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+        </nav>
+      </div></div>
+      <figcaption class="caption">1 · Lista por día, con pendientes visibles</figcaption>
+    </figure>
+
+    <!-- 2. detalle + regla -->
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <div class="app" aria-hidden="true"><div class="topbar"><span class="h1">Movimientos</span></div><div class="search"></div><div class="list" style="height:420px"></div></div>
+        <div class="dim" aria-hidden="true"></div>
+        <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="s-h">
+          <span class="grab" aria-hidden="true"></span>
+          <div class="sheet-head"><span class="av" aria-hidden="true">R</span><div><h2 id="s-h">Rappi</h2><small>Mié 19 nov · 13:10</small></div><span class="amt">$18.600</span></div>
+          <div class="src"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Desde el aviso de compra de Banco de Chile · tarjeta ****4821</div>
+          <p class="lbl" id="c-l">Categoría</p>
+          <div class="cats" role="group" aria-labelledby="c-l">
+            <button class="chip" type="button" aria-pressed="true">Restaurantes</button>
+            <button class="chip" type="button" aria-pressed="false">Supermercado</button>
+            <button class="chip" type="button" aria-pressed="false">Entretención</button>
+            <button class="chip" type="button" aria-pressed="false">Otra…</button>
+          </div>
+          <div class="rule">
+            <div><b>Usar siempre para Rappi</b><small>Se aplica a los 6 movimientos de Rappi y a los que lleguen.</small></div>
+            <button class="switch" type="button" role="switch" aria-checked="true" aria-label="Usar siempre Restaurantes para Rappi"></button>
+          </div>
+          <div class="actions">
+            <button class="btn ghost" type="button">Más</button>
+            <button class="btn primary" type="button">Guardar categoría</button>
+          </div>
+        </section>
+      </div></div>
+      <figcaption class="caption">2 · Corregir y crear la regla en un paso</figcaption>
+    </figure>
+
+    <!-- 3. resultado + undo -->
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <main class="app" aria-labelledby="m3">
+          <div class="topbar"><h2 class="h1" id="m3">Movimientos</h2><button class="period" type="button">1 – 30 nov</button></div>
+          <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#59647a" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" placeholder="Buscar comercio o monto" aria-label="Buscar movimientos"></label>
+          <div class="chips" role="group" aria-label="Filtros">
+            <button class="chip" type="button" aria-pressed="true">Todos</button>
+            <button class="chip" type="button" aria-pressed="false">Sin categoría <span class="count">2</span></button>
+          </div>
+          <div class="day">Hoy, jue 20 <span>− $72.240</span></div>
+          <ul class="list">
+            <li><button class="mv" type="button"><span class="av" aria-hidden="true">J</span><span><span class="name">Jumbo Costanera</span><span class="meta">Supermercado · 13:42</span></span><span class="amt">$64.390</span></button></li>
+            <li><button class="mv" type="button"><span class="av" aria-hidden="true">U</span><span><span class="name">Uber</span><span class="meta">Transporte · 08:15</span></span><span class="amt">$7.850</span></button></li>
+          </ul>
+          <div class="day">Mié 19 <span>− $70.900</span></div>
+          <ul class="list">
+            <li class="flash"><button class="mv" type="button"><span class="av" aria-hidden="true">R</span><span><span class="name">Rappi</span><span class="meta">Restaurantes · 13:10</span></span><span class="amt">$18.600</span></button></li>
+            <li><button class="mv" type="button"><span class="av" aria-hidden="true">N</span><span><span class="name">Netflix <span class="badge rec">Mensual</span></span><span class="meta">Suscripciones · 21:03</span></span><span class="amt">$9.990</span></button></li>
+          </ul>
+        </main>
+        <div class="toast" role="status"><span class="ok" aria-hidden="true">✓</span><span>Rappi ahora es Restaurantes. 6 movimientos actualizados.</span><button type="button">Deshacer</button></div>
+        <nav class="tabbar" aria-label="Principal">
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v4"/></svg>Hoy</button>
+          <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+          <button class="add" type="button" aria-label="Agregar gasto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/></svg>Topes</button>
+          <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+        </nav>
+      </div></div>
+      <figcaption class="caption">3 · Confirmación con deshacer; la fila cambiada se resalta</figcaption>
+    </figure>
+  </div>
+</div>
+</body>
+</html>

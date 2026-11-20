@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>C · Cordillera — Gastos Controlados</title>
+<style>
+:root{
+  --night:#14213d;        /* azul noche andino */
+  --night-2:#1e2f52;
+  --night-3:#2c4170;
+  --snow:#f4f6f8;
+  --surface:#ffffff;
+  --ink:#14213d;
+  --ink-2:#3d4a66;
+  --ink-3:#5a6680;        /* 5.6:1 sobre snow */
+  --line:#dfe4ec;
+  --copper:#9c5220;       /* texto cobre — 5.4:1 sobre blanco */
+  --copper-bright:#e09a5f;/* cobre sobre noche — 6.6:1 */
+  --copper-soft:#f7ebe1;
+  --glacier:#9fd3d6;      /* "en ritmo" sobre noche */
+  --on-night:#eef2f8;
+  --on-night-2:#b9c4d9;   /* 8.4:1 sobre night */
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#dde3ec;color:var(--ink);font-family:var(--sans);line-height:1.45}
+.board{width:1280px;min-height:960px;display:grid;grid-template-columns:400px 1fr}
+.brand{background:var(--night);color:var(--on-night);padding:48px 40px;display:flex;flex-direction:column;gap:26px;position:relative;overflow:hidden}
+.tag{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--on-night-2);font-weight:700}
+.logo{display:flex;align-items:center;gap:14px}
+.wordmark{font-weight:700;font-size:1.35rem;letter-spacing:-.01em;line-height:1.05}
+.wordmark span{display:block;font-weight:500;font-size:.8rem;color:var(--copper-bright);letter-spacing:.14em;text-transform:uppercase;margin-top:5px}
+.brand h1{font-size:2.1rem;line-height:1.1;margin:0;letter-spacing:-.02em}
+.brand p{margin:0;color:var(--on-night-2)}
+.swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.sw{font-size:.68rem;color:var(--on-night-2)}
+.sw i{display:block;height:44px;border-radius:8px;border:1px solid rgba(255,255,255,.18);margin-bottom:4px}
+.principles{margin:0;padding:0;list-style:none;display:grid;gap:10px;font-size:.9rem;color:var(--on-night-2)}
+.principles li{padding-left:20px;position:relative}
+.principles li::before{content:"";position:absolute;left:0;top:.35em;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:9px solid var(--copper-bright)}
+.tradeoff{margin-top:auto;background:var(--night-2);border:1px solid var(--night-3);border-radius:var(--r);padding:14px 16px;font-size:.85rem;color:var(--on-night-2);position:relative;z-index:1}
+.tradeoff b{color:var(--on-night)}
+.range{position:absolute;left:0;right:0;bottom:0;opacity:.5;pointer-events:none}
+
+.stage{padding:48px 40px;display:flex;gap:36px;justify-content:center;align-items:flex-start}
+.phone{width:360px;height:780px;border-radius:44px;background:#0b1428;padding:10px;box-shadow:0 30px 60px rgba(20,33,61,.3)}
+.screen{width:100%;height:100%;border-radius:36px;overflow:hidden;background:var(--snow);display:flex;flex-direction:column;position:relative}
+.status{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:.75rem;font-weight:700}
+.caption{text-align:center;font-size:.8rem;color:var(--ink-2);margin-top:12px;font-weight:600}
+:is(button,a):focus-visible{outline:2px solid var(--copper);outline-offset:3px}
+
+/* phone 1 */
+.top{background:var(--night);color:var(--on-night);padding:0 18px 0}
+.top .status{color:var(--on-night);padding:0 6px}
+.toprow{display:flex;justify-content:space-between;align-items:center;margin-top:2px}
+.period{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;background:var(--night-2);border:1px solid var(--night-3);color:var(--on-night);font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}
+.top .k{font-size:.78rem;color:var(--on-night-2);margin-top:12px}
+.top .big{font-size:2.6rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1.05}
+.top .sub{font-size:.85rem;color:var(--on-night-2)}
+.top .sub b{color:var(--glacier)}
+.chart{display:block;margin:8px -18px 0}
+.chart .climb{stroke-dasharray:420;stroke-dashoffset:0;animation:climb 1.4s cubic-bezier(.16,1,.3,1) both}
+@keyframes climb{from{stroke-dashoffset:420}}
+.chart-legend{display:flex;gap:14px;font-size:.7rem;color:var(--on-night-2);padding:6px 0 14px}
+.chart-legend span{display:inline-flex;align-items:center;gap:5px}
+.body{flex:1;overflow:hidden;padding:16px 18px 0;display:grid;gap:12px;align-content:start}
+.card{background:var(--surface);border-radius:var(--r);padding:14px;border:1px solid var(--line)}
+.card h2{margin:0 0 10px;font-size:.95rem;display:flex;justify-content:space-between}
+.card h2 a{font-size:.8rem;color:var(--copper);font-weight:700}
+.rows{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.rows li{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:.86rem}
+.rows .amt{font-variant-numeric:tabular-nums;font-weight:600}
+.meter{grid-column:1/-1;height:6px;border-radius:3px;background:#e8ecf2;position:relative}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--night-3)}
+.meter.hot i{background:var(--copper)}
+.rows .note{grid-column:1/-1;font-size:.74rem;color:var(--copper);font-weight:700}
+.tabbar{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:var(--surface);padding:6px 6px 22px}
+.tab{background:none;border:0;font:inherit;font-size:.7rem;color:var(--ink-3);display:grid;justify-items:center;gap:2px;min-height:48px;cursor:pointer;border-radius:10px}
+.tab[aria-current="page"]{color:var(--ink);font-weight:800}
+.tab[aria-current="page"] svg{color:var(--copper)}
+
+/* phone 2: onboarding / trust */
+.onb{flex:1;display:flex;flex-direction:column;padding:8px 22px 26px;gap:16px}
+.steps{display:flex;gap:6px}
+.steps i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.steps i.on{background:var(--night)}
+.onb .stepk{font-size:.75rem;color:var(--ink-3);font-weight:600}
+.onb h2{font-size:1.55rem;line-height:1.15;margin:0;letter-spacing:-.02em}
+.onb p{margin:0;color:var(--ink-2);font-size:.9rem}
+.trust{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.trust li{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.trust .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--copper-soft);color:var(--copper)}
+.trust b{display:block;font-size:.9rem}
+.trust small{color:var(--ink-2);font-size:.8rem;line-height:1.4;display:block}
+.fine{font-size:.76rem;color:var(--ink-3)}
+.fine a{color:var(--copper);font-weight:700}
+.cta{margin-top:auto;display:grid;gap:10px}
+.btn{min-height:52px;border-radius:var(--r);border:0;font:inherit;font-weight:700;font-size:.95rem;cursor:pointer}
+.btn.primary{background:var(--night);color:var(--on-night);display:flex;align-items:center;justify-content:center;gap:10px}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){.chart .climb{animation:none}}
+</style>
+</head>
+<body>
+<div class="board">
+  <aside class="brand" aria-label="Identidad">
+    <span class="tag">Dirección C</span>
+    <div class="logo">
+      <svg width="56" height="56" viewBox="0 0 56 56" role="img" aria-label="Logo: cordillera con marca de control">
+        <rect width="56" height="56" rx="14" fill="#1e2f52"/>
+        <path d="M6 42 20 20l7 10 6-8 17 20Z" fill="#eef2f8"/>
+        <path d="M20 20l-4 6.3 3 -1.3 2 2 2-3.4ZM33 22l-3.2 4.2 2.4-.6 1.6 1.6 1.8-2.6Z" fill="#9fd3d6"/>
+        <path d="M6 42h44" stroke="#e09a5f" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <div class="wordmark">Gastos Controlados<span>hecho en Chile</span></div>
+    </div>
+    <h1>Cordillera</h1>
+    <p>El gasto del mes se dibuja como una subida y tu ingreso es la línea de nieve. Azul noche, nieve y cobre: local, memorable y con una metáfora que se explica sola.</p>
+    <div class="swatches" aria-label="Paleta">
+      <div class="sw"><i style="background:var(--night)"></i>Noche</div>
+      <div class="sw"><i style="background:var(--night-3)"></i>Ladera</div>
+      <div class="sw"><i style="background:var(--snow)"></i>Nieve</div>
+      <div class="sw"><i style="background:var(--copper-bright)"></i>Cobre</div>
+      <div class="sw"><i style="background:var(--glacier)"></i>Glaciar</div>
+    </div>
+    <ul class="principles">
+      <li>Cabecera nocturna como única superficie oscura; el resto es nieve.</li>
+      <li>Firma: el gráfico de subida acumulada con la línea de nieve (ingreso).</li>
+      <li>Cobre solo para lo que pide atención; glaciar para "en ritmo".</li>
+    </ul>
+    <p class="tradeoff"><b>Tradeoff:</b> la más memorable y con un gráfico propio que nadie más tiene; también la más temática y la que más se aleja del código actual (cabecera oscura, nueva paleta), y la metáfora puede cansar si se abusa.</p>
+    <svg class="range" width="400" height="160" viewBox="0 0 400 160" aria-hidden="true">
+      <path d="M0 160 60 90l40 30 70-80 50 50 40-30 70 70 70-40v70Z" fill="#1e2f52"/>
+      <path d="M0 160 40 130l60-20 50 30 70-50 60 40 50-20 70 30v20Z" fill="#2c4170"/>
+    </svg>
+  </aside>
+
+  <div class="stage">
+    <figure style="margin:0">
+      <div class="phone">
+        <div class="screen">
+          <header class="top">
+            <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+            <div class="toprow">
+              <button class="period" type="button">Noviembre · día 20/30 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            </div>
+            <div class="k">Te quedan bajo la línea de nieve</div>
+            <div class="big">$537.570</div>
+            <div class="sub"><b>▲ En ritmo</b> · $53.757 por día hasta el 30</div>
+            <svg class="chart" width="340" height="160" viewBox="0 0 340 160" role="img" aria-label="Gasto acumulado: $912.430 al día 20; proyección $1.368.000 al día 30, bajo el ingreso de $1.450.000">
+              <defs>
+                <linearGradient id="slope" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c4170"/><stop offset="1" stop-color="#1e2f52"/></linearGradient>
+              </defs>
+              <!-- snow line = ingreso -->
+              <path d="M10 20H330" stroke="#eef2f8" stroke-width="1.5" stroke-dasharray="3 4"/>
+              <text x="330" y="14" text-anchor="end" font-size="10" fill="#b9c4d9" font-family="system-ui,sans-serif">Ingreso $1.450.000</text>
+              <!-- ideal pace -->
+              <path d="M10 150 330 20" stroke="#b9c4d9" stroke-width="1" stroke-dasharray="2 5"/>
+              <!-- cumulative area -->
+              <path d="M10 150 L20 144.6 30 141.5 40 133.9 50 131.2 60 126.7 70 123.1 80 120.4 90 112.3 100 109.7 110 107 120 103.4 130 99.8 140 96.2 150 88.1 160 85.4 170 81.9 180 78.3 190 74.7 200 72 210 68.2 L210 150Z" fill="url(#slope)"/>
+              <path class="climb" d="M10 150 L20 144.6 30 141.5 40 133.9 50 131.2 60 126.7 70 123.1 80 120.4 90 112.3 100 109.7 110 107 120 103.4 130 99.8 140 96.2 150 88.1 160 85.4 170 81.9 180 78.3 190 74.7 200 72 210 68.2" fill="none" stroke="#9fd3d6" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+              <!-- projection -->
+              <path d="M210 68.2 330 27.4" stroke="#e09a5f" stroke-width="2" stroke-dasharray="5 5" fill="none"/>
+              <circle cx="210" cy="68.2" r="5" fill="#9fd3d6" stroke="#14213d" stroke-width="2"/>
+              <circle cx="330" cy="27.4" r="4" fill="#e09a5f"/>
+              <text x="214" y="62" font-size="10" fill="#eef2f8" font-family="system-ui,sans-serif" font-weight="700">Hoy $912.430</text>
+              <text x="326" y="44" text-anchor="end" font-size="10" fill="#e09a5f" font-family="system-ui,sans-serif">Al 30: ~$1.368.000</text>
+            </svg>
+            <div class="chart-legend" aria-hidden="true"><span><svg width="14" height="4"><rect width="14" height="3" fill="#9fd3d6"/></svg>Gastado</span><span><svg width="14" height="4"><rect width="6" height="2" fill="#e09a5f"/><rect x="8" width="6" height="2" fill="#e09a5f"/></svg>Proyección</span><span><svg width="14" height="4"><rect width="3" height="2" fill="#b9c4d9"/><rect x="6" width="3" height="2" fill="#b9c4d9"/></svg>Ritmo ideal</span></div>
+          </header>
+          <main class="body" aria-label="Detalle del ciclo">
+            <section class="card" aria-labelledby="t-h">
+              <h2 id="t-h">Topes por categoría <a href="#">Editar</a></h2>
+              <ul class="rows">
+                <li><span>Restaurantes</span><span class="amt">$142.750 / $160.000</span><span class="meter hot"><i style="width:89%"></i></span><span class="note">▲ 89% · quedan $17.250 para 10 días</span></li>
+                <li><span>Supermercado</span><span class="amt">$248.900 / $380.000</span><span class="meter"><i style="width:65%"></i></span></li>
+                <li><span>Transporte</span><span class="amt">$96.300 / $150.000</span><span class="meter"><i style="width:64%"></i></span></li>
+              </ul>
+            </section>
+          </main>
+          <nav class="tabbar" aria-label="Principal">
+            <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 19 9 9l4 5 3-4 5 9Z"/></svg>Mes</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Agregar</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+          </nav>
+        </div>
+      </div>
+      <figcaption class="caption">Mes: la subida del gasto contra tu línea de nieve</figcaption>
+    </figure>
+
+    <figure style="margin:0">
+      <div class="phone">
+        <div class="screen">
+          <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <main class="onb" aria-labelledby="onb-h">
+            <div class="steps" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+            <span class="stepk">Paso 1 de 3 · Conectar</span>
+            <h2 id="onb-h">Conectemos tu Gmail, con reglas claras</h2>
+            <p>Leemos los avisos de compra de Banco de Chile para armar tu mes. Nada más.</p>
+            <ul class="trust">
+              <li><span class="ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></span><div><b>Qué leemos</b><small>Solo correos de Banco de Chile del período que revisas. Google nos da permiso de solo lectura sobre tu Gmail; el filtro lo aplicamos nosotros.</small></div></li>
+              <li><span class="ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></svg></span><div><b>Qué nunca hacemos</b><small>No enviamos ni borramos correos, no publicamos nada y no guardamos tus movimientos de Gmail como historial.</small></div></li>
+              <li><span class="ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span><div><b>Cómo salir</b><small>Desconecta cuando quieras desde Cuenta, o borra todos tus datos (reglas, categorías y gastos manuales) con un toque.</small></div></li>
+            </ul>
+            <p class="fine">Tus reglas y gastos manuales se guardan en nuestro servidor, asociados a tu cuenta. <a href="#">Leer la política completa</a></p>
+            <div class="cta">
+              <button class="btn primary" type="button">
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#eef2f8" d="M20 6H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1Zm-1.4 2L12 12.4 5.4 8Z"/></svg>
+                Conectar con Google
+              </button>
+              <button class="btn ghost" type="button">Primero ver la demo</button>
+            </div>
+          </main>
+        </div>
+      </div>
+      <figcaption class="caption">Onboarding: confianza en 3 puntos, no en 5 párrafos</figcaption>
+    </figure>
+  </div>
+</div>
+</body>
+</html>

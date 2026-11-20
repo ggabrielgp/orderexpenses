@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>B · Semáforo sereno — Gastos Controlados</title>
+<style>
+:root{
+  --canvas:#f6f5f2;        /* = --color-canvas actual */
+  --surface:#ffffff;
+  --subtle:#efeee9;
+  --ink:#131b2e;           /* = --color-ink actual */
+  --ink-2:#3f4b63;         /* = --color-ink-secondary */
+  --ink-3:#59647a;         /* = --color-ink-muted, 5.4:1 */
+  --line:#e3e1dc;          /* = --color-line */
+  /* estados como identidad */
+  --calm:#0b7a6b;  --calm-soft:#e2f3ef;   /* en ritmo — 4.9:1 sobre blanco */
+  --tight:#9a6700; --tight-soft:#fdf3d8;  /* ajustado — = --color-warning */
+  --over:#b4412f;  --over-soft:#fbe9e5;   /* pasado — 5.3:1 */
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-sm:12px;--r:16px;--r-lg:24px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e7e1;color:var(--ink);font-family:var(--sans);line-height:1.45}
+.board{width:1280px;min-height:960px;display:grid;grid-template-columns:400px 1fr}
+.brand{background:var(--canvas);padding:48px 40px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:26px}
+.tag{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.logo{display:flex;align-items:center;gap:14px}
+.wordmark{font-weight:800;font-size:1.45rem;letter-spacing:-.03em;line-height:1}
+.wordmark span{display:block;font-weight:500;color:var(--ink-3);font-size:.9rem;letter-spacing:0;margin-top:4px}
+.brand h1{font-size:2.1rem;line-height:1.1;letter-spacing:-.03em;margin:0;font-weight:800}
+.brand p{margin:0;color:var(--ink-2)}
+.states{display:grid;gap:10px}
+.state{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:center;font-size:.88rem}
+.state i{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;color:#fff}
+.state b{display:block}
+.state small{color:var(--ink-3)}
+.num-sample{border-top:1px solid var(--line);padding-top:18px}
+.num-sample .n{font-size:2.6rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.num-sample small{display:block;color:var(--ink-3)}
+.principles{margin:0;padding:0;list-style:none;display:grid;gap:10px;font-size:.9rem;color:var(--ink-2)}
+.principles li{padding-left:18px;position:relative}
+.principles li::before{content:"";position:absolute;left:0;top:.45em;width:8px;height:8px;border-radius:50%;border:2px solid var(--calm)}
+.tradeoff{margin-top:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 16px;font-size:.85rem;color:var(--ink-2)}
+.tradeoff b{color:var(--ink)}
+
+.stage{padding:48px 40px;display:flex;gap:36px;justify-content:center;align-items:flex-start}
+.phone{width:360px;height:780px;border-radius:44px;background:#131b2e;padding:10px;box-shadow:0 30px 60px rgba(19,27,46,.25)}
+.screen{width:100%;height:100%;border-radius:36px;overflow:hidden;background:var(--canvas);display:flex;flex-direction:column;position:relative}
+.status{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:.75rem;font-weight:700}
+.caption{text-align:center;font-size:.8rem;color:var(--ink-2);margin-top:12px;font-weight:600}
+.app{flex:1;overflow:hidden;padding:4px 18px 0;display:flex;flex-direction:column;gap:14px}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.period{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font:inherit;font-size:.82rem;font-weight:600;color:var(--ink);cursor:pointer}
+.sync{font-size:.72rem;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--calm);display:inline-block}
+:is(button,a):focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+
+/* gauge hero */
+.hero{background:var(--surface);border-radius:var(--r-lg);padding:18px 18px 16px;display:grid;justify-items:center;gap:8px;box-shadow:0 1px 2px rgba(19,27,46,.04),0 8px 24px rgba(19,27,46,.06)}
+.gauge{position:relative;width:216px;height:216px}
+.gauge svg{display:block}
+.gauge .arc{stroke-dasharray:316.2 502.7;animation:fill 1.1s cubic-bezier(.16,1,.3,1) both}
+@keyframes fill{from{stroke-dasharray:0 502.7}}
+.gauge .center{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:2px}
+.gauge .center small{font-size:.75rem;color:var(--ink-3)}
+.gauge .center strong{font-size:2.1rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1}
+.gauge .center em{font-style:normal;font-size:.82rem;color:var(--ink-2)}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-size:.8rem;font-weight:700}
+.pill.calm{background:var(--calm-soft);color:var(--calm)}
+.hero p{margin:0;text-align:center;font-size:.85rem;color:var(--ink-2);max-width:280px}
+.hero p b{color:var(--ink);font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:14px;font-size:.72rem;color:var(--ink-3)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+
+.minis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mini{background:var(--surface);border-radius:var(--r);padding:12px 14px;font-size:.78rem;color:var(--ink-3)}
+.mini b{display:block;font-size:1.15rem;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.mini .d{color:var(--calm);font-weight:700}
+
+.alert{display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:start;background:var(--tight-soft);border-radius:var(--r);padding:12px 14px;font-size:.82rem;color:var(--ink)}
+.alert .ic{width:36px;height:36px;border-radius:50%;background:var(--tight);color:#fff;display:grid;place-items:center;font-weight:800}
+.alert b{display:block}
+.alert a{color:var(--ink);font-weight:700}
+
+.tabbar{display:grid;grid-template-columns:1fr 1fr 72px 1fr 1fr;align-items:center;border-top:1px solid var(--line);background:var(--surface);padding:6px 6px 22px}
+.tab{background:none;border:0;font:inherit;font-size:.68rem;color:var(--ink-3);display:grid;justify-items:center;gap:2px;min-height:48px;cursor:pointer;border-radius:10px}
+.tab[aria-current="page"]{color:var(--ink);font-weight:800}
+.add{justify-self:center;width:56px;height:56px;border-radius:50%;background:var(--ink);color:#fff;border:0;display:grid;place-items:center;margin-top:-26px;box-shadow:0 10px 22px rgba(19,27,46,.3);cursor:pointer}
+
+/* sheet — phone 2 */
+.dim{position:absolute;inset:0;background:rgba(19,27,46,.45)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:28px 28px 0 0;padding:10px 20px 26px;display:grid;gap:14px}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);justify-self:center}
+.sheet h2{margin:0;font-size:1.05rem}
+.amount{display:grid;justify-items:center;gap:2px;padding:6px 0}
+.amount label{font-size:.75rem;color:var(--ink-3)}
+.amount output{font-size:2.8rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.amount small{font-size:.78rem;color:var(--ink-2)}
+.amount small b{color:var(--calm)}
+.cats{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--canvas);border-radius:999px;min-height:40px;padding:0 14px;font:inherit;font-size:.82rem;color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.8rem}
+.field{border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 12px;min-height:48px}
+.field span{display:block;font-size:.7rem;color:var(--ink-3)}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.keys button{min-height:44px;border:0;background:var(--canvas);border-radius:10px;font:inherit;font-size:1.15rem;font-weight:600;color:var(--ink);cursor:pointer}
+.save{min-height:52px;border:0;border-radius:var(--r);background:var(--ink);color:#fff;font:inherit;font-weight:700;font-size:.95rem;cursor:pointer}
+.bg-app{filter:none}
+@media (prefers-reduced-motion:reduce){.gauge .arc{animation:none}}
+</style>
+</head>
+<body>
+<div class="board">
+  <aside class="brand" aria-label="Identidad">
+    <span class="tag">Dirección B · recomendada</span>
+    <div class="logo">
+      <svg width="56" height="56" viewBox="0 0 56 56" role="img" aria-label="Logo: medidor del mes">
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#e3e1dc" stroke-width="7"/>
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#0b7a6b" stroke-width="7" stroke-linecap="round" stroke-dasharray="86 138.2" transform="rotate(-90 28 28)"/>
+        <path d="M28 2v9" stroke="#131b2e" stroke-width="3" stroke-linecap="round" transform="rotate(240 28 28)"/>
+        <circle cx="28" cy="28" r="5" fill="#131b2e"/>
+      </svg>
+      <div class="wordmark">gastos controlados<span>¿vas bien este mes?</span></div>
+    </div>
+    <h1>Semáforo sereno</h1>
+    <p>La identidad es la respuesta. Un medidor del mes compara cuánto gastaste con cuánto del ciclo pasó; el color del estado tiñe la app. Conserva el canvas cálido y la tinta navy actuales.</p>
+    <div class="states" aria-label="Sistema de estados">
+      <div class="state"><i style="background:var(--calm)">✓</i><div><b>En ritmo</b><small>Gastaste menos de lo que avanzó el ciclo</small></div></div>
+      <div class="state"><i style="background:var(--tight)">!</i><div><b>Ajustado</b><small>Vas al ritmo justo o un tope supera el 80%</small></div></div>
+      <div class="state"><i style="background:var(--over)">↑</i><div><b>Pasado</b><small>Si sigues así, terminas el ciclo en rojo</small></div></div>
+    </div>
+    <div class="num-sample"><span class="n">$53.757</span><small>Sans de sistema en peso 800 con cifras tabulares · el número protagoniza</small></div>
+    <ul class="principles">
+      <li>Estado siempre con palabra e ícono, nunca solo color.</li>
+      <li>Firma: el anillo con la marca del día; también es el favicon.</li>
+      <li>Alertas tempranas en lenguaje humano, no números sueltos.</li>
+    </ul>
+    <p class="tradeoff"><b>Tradeoff:</b> la más útil y la más cercana al código actual (reusa canvas, tinta y warning); su riesgo es parecerse a otras apps de "anillo" si el medidor no se cuida como pieza de marca.</p>
+  </aside>
+
+  <div class="stage">
+    <figure style="margin:0">
+      <div class="phone">
+        <div class="screen">
+          <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <main class="app" aria-label="Resumen del ciclo">
+            <div class="topbar">
+              <button class="period" type="button">1 – 30 nov <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+              <span class="sync"><i aria-hidden="true"></i>Gmail · hace 4 min</span>
+            </div>
+            <section class="hero" aria-labelledby="hero-k">
+              <div class="gauge">
+                <svg width="216" height="216" viewBox="0 0 216 216" role="img" aria-label="Gastaste 63% de tu ingreso; pasó el 67% del ciclo">
+                  <circle cx="108" cy="108" r="80" fill="none" stroke="#efeee9" stroke-width="18"/>
+                  <circle class="arc" cx="108" cy="108" r="80" fill="none" stroke="#0b7a6b" stroke-width="18" stroke-linecap="round" transform="rotate(-90 108 108)"/>
+                  <g transform="rotate(240 108 108)"><path d="M108 16v24" stroke="#131b2e" stroke-width="4" stroke-linecap="round"/></g>
+                </svg>
+                <div class="center">
+                  <small id="hero-k">Te quedan</small>
+                  <strong>$537.570</strong>
+                  <em>$53.757 por día</em>
+                </div>
+              </div>
+              <span class="pill calm">✓ En ritmo</span>
+              <p>Llevas <b>63%</b> del ingreso y pasó el <b>67%</b> del ciclo. Si sigues así, cierras con unos <b>$80.000</b> de sobra.</p>
+              <div class="legend" aria-hidden="true"><span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#0b7a6b"/></svg>Gastado</span><span><svg width="12" height="12"><rect x="5" y="0" width="3" height="12" rx="1.5" fill="#131b2e"/></svg>Hoy (día 20)</span></div>
+            </section>
+            <div class="minis">
+              <div class="mini">Gastado<b>$912.430</b><span class="d">↓ 8% vs oct</span></div>
+              <div class="mini">Ingreso<b>$1.450.000</b>Ciclo configurado</div>
+            </div>
+            <div class="alert" role="status">
+              <span class="ic" aria-hidden="true">!</span>
+              <div><b>Restaurantes al 89% de su tope</b>$17.250 disponibles para 10 días. <a href="#">Ver detalle</a></div>
+            </div>
+          </main>
+          <nav class="tabbar" aria-label="Principal">
+            <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v4"/></svg>Hoy</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+            <button class="add" type="button" aria-label="Agregar gasto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/></svg>Topes</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+          </nav>
+        </div>
+      </div>
+      <figcaption class="caption">Hoy: el medidor responde "¿voy bien?" en un vistazo</figcaption>
+    </figure>
+
+    <figure style="margin:0">
+      <div class="phone">
+        <div class="screen">
+          <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="app" aria-hidden="true" style="opacity:.9">
+            <div class="topbar"><span class="period">1 – 30 nov</span></div>
+            <div class="hero" style="height:300px"></div>
+          </div>
+          <div class="dim" aria-hidden="true"></div>
+          <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-h">
+            <span class="grab" aria-hidden="true"></span>
+            <h2 id="sheet-h">Agregar gasto</h2>
+            <div class="amount">
+              <label for="amt">Monto</label>
+              <output id="amt">$12.500</output>
+              <small>Después de esto te quedan <b>$52.507 por día</b></small>
+            </div>
+            <div class="cats" role="group" aria-label="Categoría">
+              <button class="chip" type="button" aria-pressed="true">Supermercado</button>
+              <button class="chip" type="button" aria-pressed="false">Restaurantes</button>
+              <button class="chip" type="button" aria-pressed="false">Transporte</button>
+              <button class="chip" type="button" aria-pressed="false">Más…</button>
+            </div>
+            <div class="fields">
+              <div class="field"><span>Dónde</span>Unimarc Ñuñoa</div>
+              <div class="field"><span>Cuándo</span>Hoy, ahora</div>
+            </div>
+            <div class="keys" aria-label="Teclado numérico">
+              <button type="button">1</button><button type="button">2</button><button type="button">3</button>
+              <button type="button">4</button><button type="button">5</button><button type="button">6</button>
+              <button type="button">7</button><button type="button">8</button><button type="button">9</button>
+              <button type="button">000</button><button type="button">0</button><button type="button" aria-label="Borrar">⌫</button>
+            </div>
+            <button class="save" type="button">Guardar $12.500</button>
+          </section>
+        </div>
+      </div>
+      <figcaption class="caption">Agregar gasto: monto primero, impacto inmediato en el ritmo</figcaption>
+    </figure>
+  </div>
+</div>
+</body>
+</html>

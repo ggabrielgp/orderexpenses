@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>A · Cuaderno de cuentas — Gastos Controlados</title>
+<style>
+:root{
+  --paper:#f6f5f2;          /* = --color-canvas actual */
+  --paper-deep:#ece9e1;
+  --sheet:#fffdf8;
+  --ink:#1c1b18;
+  --ink-2:#4a463e;
+  --ink-3:#6b665c;          /* 5.3:1 sobre --paper */
+  --rule:#e2ddd1;
+  --rule-strong:#cfc8b8;
+  --green:#0f5c4a;          /* acento único — 7.6:1 sobre paper */
+  --green-soft:#e3efe9;
+  --terra:#a8432a;          /* excesos — 5.6:1 sobre paper */
+  --terra-soft:#f6e6df;
+  --amber:#8a5a00;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper-deep);color:var(--ink);font-family:var(--sans);line-height:1.45}
+.board{width:1280px;min-height:960px;display:grid;grid-template-columns:400px 1fr;gap:0}
+/* ---------- brand column ---------- */
+.brand{background:var(--paper);padding:48px 40px;border-right:1px solid var(--rule);display:flex;flex-direction:column;gap:28px}
+.tag{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.logo{display:flex;align-items:center;gap:14px}
+.logo svg{flex:none}
+.wordmark{font-family:var(--serif);font-size:1.7rem;line-height:1.05;letter-spacing:-.01em}
+.wordmark em{font-style:italic;color:var(--green)}
+.brand h1{font-family:var(--serif);font-weight:400;font-size:2.1rem;line-height:1.15;margin:0;letter-spacing:-.01em}
+.brand p{margin:0;color:var(--ink-2)}
+.swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.sw{font-size:.68rem;color:var(--ink-2)}
+.sw i{display:block;height:44px;border-radius:8px;border:1px solid var(--rule-strong);margin-bottom:4px}
+.type-sample{border-top:1px solid var(--rule);padding-top:20px;display:grid;gap:6px}
+.type-sample .num{font-family:var(--serif);font-size:2.4rem;font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.02em}
+.type-sample small{color:var(--ink-3)}
+.principles{margin:0;padding:0;list-style:none;display:grid;gap:10px;font-size:.9rem;color:var(--ink-2)}
+.principles li{padding-left:18px;position:relative}
+.principles li::before{content:"";position:absolute;left:0;top:.6em;width:8px;height:1.5px;background:var(--green)}
+.tradeoff{margin-top:auto;background:var(--sheet);border:1px dashed var(--rule-strong);border-radius:var(--r);padding:14px 16px;font-size:.85rem;color:var(--ink-2)}
+.tradeoff b{color:var(--ink)}
+/* ---------- phones ---------- */
+.stage{padding:48px 40px;display:flex;gap:36px;justify-content:center;align-items:flex-start}
+.phone{width:360px;height:780px;border-radius:44px;background:#1c1b18;padding:10px;box-shadow:0 30px 60px rgba(40,32,20,.22)}
+.screen{width:100%;height:100%;border-radius:36px;overflow:hidden;background:var(--paper);display:flex;flex-direction:column;position:relative}
+.status{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:.75rem;font-weight:600;color:var(--ink)}
+.caption{text-align:center;font-size:.8rem;color:var(--ink-2);margin-top:12px;font-weight:600}
+.app{flex:1;overflow:hidden;padding:4px 20px 0;display:flex;flex-direction:column;gap:16px}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.cycle{font-size:.8rem;color:var(--ink-2)}
+.cycle b{color:var(--ink);font-weight:600}
+.iconbtn{width:44px;height:44px;border-radius:50%;border:1px solid var(--rule-strong);background:var(--sheet);display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.iconbtn:focus-visible,.btn:focus-visible,.tab:focus-visible,.chip:focus-visible,.fab:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+/* lead — editorial */
+.lead{background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r);padding:18px 18px 16px;
+  background-image:repeating-linear-gradient(to bottom,transparent 0 27px,var(--rule) 27px 28px);background-position:0 46px}
+.lead .k{font-size:.78rem;color:var(--ink-2)}
+.lead .big{font-family:var(--serif);font-size:2.9rem;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:lining-nums tabular-nums;margin:2px 0 4px;position:relative;display:inline-block}
+.lead .big::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:3px;background:var(--green);border-radius:2px;transform-origin:left;animation:draw .9s cubic-bezier(.16,1,.3,1) both .2s}
+@keyframes draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.lead .line{font-size:.9rem;color:var(--ink)}
+.lead .line b{font-variant-numeric:tabular-nums}
+.ledger{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin-top:12px;font-size:.85rem;color:var(--ink-2)}
+.ledger span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ledger .total{border-top:1px solid var(--ink);padding-top:6px;font-weight:600;color:var(--ink)}
+.status-row{display:flex;gap:8px;align-items:center;font-size:.8rem}
+.stamp{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--green);color:var(--green);border-radius:6px;padding:2px 8px;font-weight:700;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;transform:rotate(-2deg)}
+.muted{color:var(--ink-3)}
+h2.sec{font-family:var(--serif);font-weight:400;font-size:1.2rem;margin:0;display:flex;justify-content:space-between;align-items:baseline}
+h2.sec a{font-family:var(--sans);font-size:.8rem;color:var(--green);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.cats{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.cat{display:grid;grid-template-columns:1fr auto;gap:4px 8px;font-size:.88rem}
+.cat .amt{font-variant-numeric:tabular-nums}
+.bar{grid-column:1/-1;height:6px;background:var(--paper-deep);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ink-2);border-radius:3px}
+.cat.over .bar i{background:var(--terra)}
+.cat .note{grid-column:1/-1;font-size:.75rem;color:var(--terra);font-weight:600}
+/* tabbar */
+.tabbar{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--rule);background:var(--sheet);padding:6px 6px 22px;position:relative}
+.tab{background:none;border:0;font:inherit;font-size:.7rem;color:var(--ink-3);display:grid;justify-items:center;gap:2px;min-height:48px;cursor:pointer;border-radius:10px}
+.tab[aria-current="page"]{color:var(--green);font-weight:700}
+.fab{position:absolute;right:20px;bottom:96px;height:52px;padding:0 20px 0 16px;border-radius:26px;background:var(--green);color:#fff;border:0;font:inherit;font-weight:700;display:flex;gap:8px;align-items:center;box-shadow:0 10px 24px rgba(15,92,74,.3);cursor:pointer}
+/* movements — screen 2 */
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--rule-strong);background:var(--sheet);border-radius:var(--r);padding:0 12px;min-height:44px;color:var(--ink-3);font-size:.9rem}
+.chips{display:flex;gap:8px;overflow:hidden}
+.chip{border:1px solid var(--rule-strong);background:var(--sheet);border-radius:999px;padding:0 14px;min-height:36px;font:inherit;font-size:.8rem;color:var(--ink-2);white-space:nowrap;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+.day{font-family:var(--serif);font-style:italic;font-size:.95rem;color:var(--ink-2);border-bottom:1px solid var(--ink);padding-bottom:4px;display:flex;justify-content:space-between}
+.day span{font-style:normal;font-family:var(--sans);font-size:.8rem;font-variant-numeric:tabular-nums}
+.mv{list-style:none;margin:0;padding:0}
+.mv li{display:grid;grid-template-columns:auto 1fr auto;gap:2px 12px;padding:10px 0;border-bottom:1px solid var(--rule);align-items:center}
+.mv .ini{width:36px;height:36px;border-radius:8px;background:var(--paper-deep);display:grid;place-items:center;font-family:var(--serif);font-size:1rem;grid-row:span 2}
+.mv .name{font-weight:600;font-size:.9rem}
+.mv .amt{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
+.mv .meta{font-size:.75rem;color:var(--ink-3);grid-column:2}
+.mv .src{font-size:.7rem;color:var(--ink-3);text-align:right}
+.mv .in{color:var(--green)}
+.rec{font-size:.68rem;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:4px;padding:0 4px;margin-left:6px}
+.toast{position:absolute;left:16px;right:16px;bottom:96px;background:var(--ink);color:var(--sheet);border-radius:var(--r);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;font-size:.85rem;gap:12px}
+.toast button{background:none;border:0;color:#bfe3d6;font:inherit;font-weight:700;min-height:44px;padding:0 6px;cursor:pointer;text-decoration:underline}
+@media (prefers-reduced-motion:reduce){.lead .big::after{animation:none}}
+</style>
+</head>
+<body>
+<div class="board">
+  <aside class="brand" aria-label="Identidad">
+    <span class="tag">Dirección A</span>
+    <div class="logo">
+      <svg width="56" height="56" viewBox="0 0 56 56" role="img" aria-label="Monograma gc">
+        <rect x="1" y="1" width="54" height="54" rx="12" fill="#fffdf8" stroke="#1c1b18" stroke-width="2"/>
+        <path d="M8 38h40" stroke="#e2ddd1" stroke-width="1.5"/><path d="M8 46h40" stroke="#e2ddd1" stroke-width="1.5"/>
+        <text x="11" y="37" font-family="Iowan Old Style,Palatino,Georgia,serif" font-size="30" font-style="italic" fill="#1c1b18">gc</text>
+        <path d="M10 41 Q 28 37 46 40" stroke="#0f5c4a" stroke-width="3" fill="none" stroke-linecap="round"/>
+      </svg>
+      <span class="wordmark">Gastos<br><em>controlados</em></span>
+    </div>
+    <h1>Cuaderno de cuentas</h1>
+    <p>La libreta donde tu abuela anotaba los gastos, pero que se llena sola. Cálida, editorial y en calma: el producto se lee como una página, no como un panel de control.</p>
+    <div class="swatches" aria-label="Paleta">
+      <div class="sw"><i style="background:var(--paper)"></i>Papel</div>
+      <div class="sw"><i style="background:var(--sheet)"></i>Hoja</div>
+      <div class="sw"><i style="background:var(--ink)"></i>Tinta</div>
+      <div class="sw"><i style="background:var(--green)"></i>Botella</div>
+      <div class="sw"><i style="background:var(--terra)"></i>Terracota</div>
+    </div>
+    <div class="type-sample">
+      <span class="num">$537.570</span>
+      <small>Serif con cifras tabulares para montos · sans de sistema para interfaz</small>
+    </div>
+    <ul class="principles">
+      <li>Un solo acento (verde botella); el terracota solo aparece cuando algo se pasa.</li>
+      <li>Renglones de cuaderno como textura, nunca como decoración pesada.</li>
+      <li>Firma: el subrayado "a lápiz" que se dibuja bajo la cifra principal.</li>
+    </ul>
+    <p class="tradeoff"><b>Tradeoff:</b> muy distinta del azul fintech y reutiliza el canvas cálido actual; a cambio, se siente menos "tecnológica" y la serif exige cuidado en tamaños chicos.</p>
+  </aside>
+
+  <div class="stage">
+    <!-- Phone 1: resumen -->
+    <figure style="margin:0">
+      <div class="phone">
+        <div class="screen">
+          <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <main class="app" aria-label="Resumen del ciclo">
+            <div class="topbar">
+              <div class="cycle">Ciclo <b>1 – 30 nov</b> · día 20 de 30</div>
+              <button class="iconbtn" type="button" aria-label="Cambiar ciclo">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+              </button>
+            </div>
+            <section class="lead" aria-labelledby="lead-k">
+              <div class="k" id="lead-k">Te quedan para gastar</div>
+              <div class="big">$537.570</div>
+              <p class="line" style="margin:0">Unos <b>$53.757 por día</b> hasta el 30.</p>
+              <div class="ledger">
+                <span>Ingreso del ciclo</span><span>$1.450.000</span>
+                <span>Gastado</span><span>− $912.430</span>
+                <span class="total">Disponible</span><span class="total">$537.570</span>
+              </div>
+            </section>
+            <div class="status-row">
+              <span class="stamp">✓ Vas en ritmo</span>
+              <span class="muted">8% menos que en octubre a esta altura</span>
+            </div>
+            <section aria-labelledby="cats-h" style="display:grid;gap:12px">
+              <h2 class="sec" id="cats-h">En qué se fue <a href="#">Ver todo</a></h2>
+              <ul class="cats">
+                <li class="cat"><span>Supermercado</span><span class="amt">$248.900</span><span class="bar"><i style="width:78%"></i></span></li>
+                <li class="cat"><span>Cuentas y servicios</span><span class="amt">$187.480</span><span class="bar"><i style="width:59%"></i></span></li>
+                <li class="cat over"><span>Restaurantes</span><span class="amt">$142.750</span><span class="bar"><i style="width:89%"></i></span><span class="note">89% de tu tope de $160.000 · quedan 10 días</span></li>
+              </ul>
+            </section>
+          </main>
+          <button class="fab" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Anotar gasto</button>
+          <nav class="tabbar" aria-label="Principal">
+            <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg>Resumen</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Topes</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+          </nav>
+        </div>
+      </div>
+      <figcaption class="caption">Resumen: la respuesta primero, la cuenta debajo</figcaption>
+    </figure>
+
+    <!-- Phone 2: movimientos -->
+    <figure style="margin:0">
+      <div class="phone">
+        <div class="screen">
+          <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <main class="app" aria-label="Movimientos">
+            <h2 class="sec" style="font-size:1.5rem">Movimientos</h2>
+            <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Buscar comercio o monto</span></label>
+            <div class="chips" role="group" aria-label="Filtrar">
+              <button class="chip" type="button" aria-pressed="true">Todos</button>
+              <button class="chip" type="button" aria-pressed="false">Sin categoría · 3</button>
+              <button class="chip" type="button" aria-pressed="false">Recurrentes</button>
+            </div>
+            <div class="day">Hoy, jueves 20 <span>− $72.240</span></div>
+            <ul class="mv">
+              <li><span class="ini" aria-hidden="true">J</span><span class="name">Jumbo Costanera</span><span class="amt">$64.390</span><span class="meta">Supermercado · 13:42</span><span class="src">Gmail</span></li>
+              <li><span class="ini" aria-hidden="true">U</span><span class="name">Uber</span><span class="amt">$7.850</span><span class="meta">Transporte · 08:15</span><span class="src">Gmail</span></li>
+            </ul>
+            <div class="day">Miércoles 19 <span>− $70.900</span></div>
+            <ul class="mv">
+              <li><span class="ini" aria-hidden="true">N</span><span class="name">Netflix <span class="rec">Mensual</span></span><span class="amt">$9.990</span><span class="meta">Suscripciones · 21:03</span><span class="src">Gmail</span></li>
+              <li><span class="ini" aria-hidden="true">C</span><span class="name">Copec Av. Grecia</span><span class="amt">$38.000</span><span class="meta">Transporte · 19:30</span><span class="src">Manual</span></li>
+              <li><span class="ini" aria-hidden="true">R</span><span class="name">Rappi</span><span class="amt">$18.600</span><span class="meta">Restaurantes · 13:10</span><span class="src">Gmail</span></li>
+              <li><span class="ini" aria-hidden="true">E</span><span class="name">Enel</span><span class="amt">$42.310</span><span class="meta">Cuentas y servicios · 09:00</span><span class="src">Gmail</span></li>
+            </ul>
+          </main>
+          <div class="toast" role="status">Rappi → Restaurantes, ahora y siempre. 6 movimientos actualizados.<button type="button">Deshacer</button></div>
+          <nav class="tabbar" aria-label="Principal">
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg>Resumen</button>
+            <button class="tab" type="button" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Topes</button>
+            <button class="tab" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Cuenta</button>
+          </nav>
+        </div>
+      </div>
+      <figcaption class="caption">Movimientos: libro diario agrupado por día, con deshacer</figcaption>
+    </figure>
+  </div>
+</div>
+</body>
+</html>
