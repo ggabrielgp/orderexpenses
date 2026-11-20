@@ -127,4 +127,13 @@
 	--radius-lg: var(--radius-featured);
 	--radius-md: var(--radius-card);
 	--radius-sm: var(--radius-control);
+
+	/* Semáforo sereno: month-pace states and the neutral gauge track (identity direction B). */
+	--state-calm: #0b7a6b;
+	--state-calm-soft: #e2f3ef;
+	--state-tight: #9a6700;
+	--state-tight-soft: #fdf3d8;
+	--state-over: #b4412f;
+	--state-over-soft: #fbe9e5;
+	--color-track: #efeee9;
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { BrandMark } from "../brand/BrandMark";
 
 /**
  * The two authenticated dashboard views the chrome switches between.
@@ -38,9 +39,7 @@ export function AppHeader({ view, onViewChange, children }: AppHeaderProps) {
 			<div className="react-app-header-inner">
 				<div className="react-app-brand-group">
 					<a className="react-app-brand" href="/" aria-label="Gastos Controlados, inicio">
-						<span className="react-app-brand-mark material-symbols-outlined" aria-hidden="true">
-							account_balance_wallet
-						</span>
+						<BrandMark size={32} className="react-app-brand-logo" />
 						<span>Gastos Controlados</span>
 					</a>
 				</div>

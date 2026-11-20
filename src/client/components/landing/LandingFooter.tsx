@@ -1,10 +1,12 @@
+import { BrandMark } from "../brand/BrandMark";
+
 export function LandingFooter() {
 	return (
 		<footer className="landing-footer">
 			<div className="landing-shell landing-footer-content">
 				<div className="landing-footer-brand">
 					<a href="/">
-						<span className="material-symbols-outlined landing-footer-brand-icon" aria-hidden="true">account_balance_wallet</span>
+						<BrandMark className="landing-footer-brand-icon" size={22} />
 						Gastos Controlados
 					</a>
 					<span>© 2026 Gastos Controlados</span>

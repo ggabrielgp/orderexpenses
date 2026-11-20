@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { BrandMark } from "../brand/BrandMark";
 
 /** Shared illustration chrome: the tour scales this same phone, rather than drawing another model. */
 export function LandingPhoneFrame({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -31,7 +32,7 @@ export function LandingPhoneFrame({ children, className = "" }: { children: Reac
 		<div className="landing-stage-window">
 			<div className="landing-phone-island" aria-hidden="true" />
 			<div className="landing-stage-topbar">
-				<strong><span className="material-symbols-outlined" aria-hidden="true">account_balance_wallet</span>Gastos Controlados</strong>
+				<strong><BrandMark size={18} />Gastos Controlados</strong>
 			</div>
 			<div className="landing-stage-body" ref={bodyRef}>
 				<div className="landing-phone-content" ref={contentRef} style={{ transform: "scale(1)" }}>{children}</div>

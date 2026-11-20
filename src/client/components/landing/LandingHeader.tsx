@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { SessionResponse } from "../../api/types";
 import { getGoogleLoginUrl } from "../../api/googleLogin";
 import { watchLandingSections } from "./landingNavigation";
+import { BrandMark } from "../brand/BrandMark";
 
 interface LandingHeaderProps {
 	session: SessionResponse | null;
@@ -35,7 +36,7 @@ export function LandingHeader({ session }: LandingHeaderProps) {
 			<header ref={headerRef} className="landing-header">
 				<div className="landing-shell landing-header-content">
 					<a className="landing-brand" href="/" aria-label="Gastos Controlados, inicio">
-						<span className="material-symbols-outlined landing-brand-icon" aria-hidden="true">account_balance_wallet</span>
+						<BrandMark className="landing-brand-icon" size={28} />
 						<span>Gastos Controlados</span>
 					</a>
 					<nav className="landing-nav" aria-label="Navegación principal">

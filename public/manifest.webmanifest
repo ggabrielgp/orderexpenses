@@ -1,0 +1,12 @@
+{
+  "name": "Gastos Controlados",
+  "short_name": "Gastos",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#f6f5f2",
+  "theme_color": "#f6f5f2",
+  "lang": "es-CL",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -7011,10 +7011,9 @@ test("the React app header renders the brand, the bound view navigation and the 
 		summary,
 		/<a[^>]*class="react-app-brand"[^>]*href="\/"[^>]*aria-label="Gastos Controlados, inicio"/,
 	);
-	assert.match(
-		summary,
-		/<span[^>]*class="react-app-brand-mark material-symbols-outlined"[^>]*aria-hidden="true"[^>]*>account_balance_wallet<\/span>/,
-	);
+	// The month-gauge logo (identity B) replaces the generic wallet glyph and stays decorative.
+	assert.match(summary, /<svg[^>]*class="[^"]*\breact-app-brand-logo\b[^"]*"[^>]*aria-hidden="true"/);
+	assert.doesNotMatch(summary, /account_balance_wallet/);
 	assert.match(summary, />Gastos Controlados</);
 
 	// One labelled navigation whose active item is exactly the view the header was handed.
