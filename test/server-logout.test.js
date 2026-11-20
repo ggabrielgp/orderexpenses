@@ -35,6 +35,26 @@ test("GET /auth/logout clears the session user and redirects to the unauthentica
 	);
 });
 
+test("GET /api/auth/logout (the Vercel /auth/* rewrite destination) clears only the requesting session user", async () => {
+	await ensureDbInitialized();
+
+	const sessionId = randomUUID();
+	const otherSessionId = randomUUID();
+	const deadline = new Date(Date.now() + 86_400_000).toISOString();
+	await createSession(sessionId, deadline);
+	await createSession(otherSessionId, deadline);
+	await linkSessionToUser(sessionId, "owner@example.com");
+	await linkSessionToUser(otherSessionId, "owner@example.com");
+
+	const response = await request("/api/auth/logout", sessionId);
+
+	assert.equal(response.status, 302);
+	assert.equal(response.headers.location, "/app");
+	assert.equal(response.body, "");
+	assert.equal((await getSession(sessionId)).userEmail, null);
+	assert.equal((await getSession(otherSessionId)).userEmail, "owner@example.com");
+});
+
 test("private JSON responses prohibit HTTP caching, including session and financial data", async () => {
 	await ensureDbInitialized();
 	const sessionId = randomUUID();
@@ -54,7 +74,7 @@ test("the logout route reuses clearSessionUser without deleting finance data or 
 		new URL("../src/server.js", import.meta.url),
 		"utf8",
 	);
-	const routeStart = source.indexOf('url.pathname === "/auth/logout"');
+	const routeStart = source.indexOf('isAuthPath(url.pathname, "/logout")');
 	assert.notEqual(routeStart, -1, "the logout route must be registered");
 	const routeBlock = source.slice(routeStart, routeStart + 260);
 
