@@ -185,19 +185,42 @@ function normalizeMovementDateTime(value: string) {
 	return normalizeLocalDateTime(trimmed.length === 16 ? `${trimmed}:00` : trimmed);
 }
 
-function getLocalToday() {
-	const today = new Date();
-	return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+function pad2(value: number) {
+	return String(value).padStart(2, "0");
 }
 
+function toLocalDateOnly(date: Date) {
+	return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+/**
+ * Formats the amount field while typing: digits only, no leading zeros, es-CL thousands dots
+ * (`12500` -> `12.500`). An input without digits stays empty. The displayed value is still
+ * parsed by `parseClpAmount`, which strips the dots, so the submitted amount is unchanged.
+ */
+export function formatClpAmountInput(raw: string): string {
+	const digits = String(raw ?? "")
+		.replace(/\D/g, "")
+		.replace(/^0+(?=\d)/, "");
+	if (digits === "") return "";
+	return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+/**
+ * New-expense draft. The date defaults to `now` (local time, minute precision) when `now` falls
+ * inside the period; otherwise it falls back to the first day of the period at noon.
+ */
 export function createManualExpenseDraft(
 	period: FinancialPeriod,
-	today = getLocalToday(),
+	now: Date = new Date(),
 ): ManualExpenseDraft {
 	const reviewPeriod = ReviewPeriod.create(period);
-	const date = reviewPeriod.includes(today) ? today : reviewPeriod.startDate;
+	const today = toLocalDateOnly(now);
+	const occurredAt = reviewPeriod.includes(today)
+		? `${today}T${pad2(now.getHours())}:${pad2(now.getMinutes())}`
+		: `${reviewPeriod.startDate}T12:00`;
 	return {
-		occurredAt: `${date}T12:00`,
+		occurredAt,
 		amount: "",
 		kind: "purchase",
 		counterparty: "",

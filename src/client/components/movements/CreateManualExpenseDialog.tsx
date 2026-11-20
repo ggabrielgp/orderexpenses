@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
+import {
+	useEffect,
+	useRef,
+	useState,
+	type ChangeEvent,
+	type FormEvent,
+	type SyntheticEvent,
+} from "react";
 import { getCategories } from "../../api/client";
 import { registerNativeBackdropDismiss } from "../dialog/nativeBackdropDismiss";
 import type {
@@ -12,6 +19,7 @@ import { ReviewPeriod } from "../../../shared/review-period.js";
 import {
 	createManualExpenseDraft,
 	createManualExpensePayload,
+	formatClpAmountInput,
 	formatPeriodLabel,
 	getManualExpensePeriodKey,
 	type ManualExpenseCreationPhase,
@@ -452,6 +460,25 @@ export function CreateManualExpenseDialog({
 	const updateDraft = (patch: Partial<ManualExpenseDraft>) =>
 		setCreation((current) => reduceManualExpenseCreation(current, { type: "change", patch }));
 
+	const handleAmountChange = (event: ChangeEvent<HTMLInputElement>) => {
+		const input = event.target;
+		const typed = input.value;
+		const caret = input.selectionStart ?? typed.length;
+		const formatted = formatClpAmountInput(typed);
+		updateDraft({ amount: formatted });
+		// Controlled reformatting moves the caret to the end. Appending and deleting at the end
+		// (the common case) needs no fix; an edit in the middle keeps its digit position.
+		if (caret >= typed.length) return;
+		const digitsBeforeCaret = typed.slice(0, caret).replace(/\D/g, "").replace(/^0+/, "").length;
+		let position = 0;
+		let seen = 0;
+		while (position < formatted.length && seen < digitsBeforeCaret) {
+			if (formatted[position] !== ".") seen += 1;
+			position += 1;
+		}
+		window.requestAnimationFrame(() => input.setSelectionRange(position, position));
+	};
+
 	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (!isSubmitOpen) return;
@@ -518,6 +545,30 @@ export function CreateManualExpenseDialog({
 			<form className="react-create-expense-form" onSubmit={handleSubmit} aria-busy={isSaving}>
 				<h2 id="react-create-expense-title">Nuevo gasto</h2>
 				<div className="react-create-expense-fields">
+					<label
+						className="react-create-expense-full react-create-expense-amount"
+						htmlFor="manual-expense-amount"
+					>
+						<span>Monto CLP</span>
+						<input
+							id="manual-expense-amount"
+							name="amount"
+							type="text"
+							inputMode="numeric"
+							autoComplete="off"
+							value={draft.amount}
+							placeholder="12.500"
+							onChange={handleAmountChange}
+							disabled={isSaving}
+							style={{
+								fontSize: "1.75rem",
+								fontWeight: 700,
+								fontVariantNumeric: "tabular-nums",
+								letterSpacing: "-0.01em",
+							}}
+							required
+						/>
+					</label>
 					<label className="react-create-expense-full" htmlFor="manual-expense-occurred-at">
 						<span>Fecha y hora</span>
 						<input
@@ -536,20 +587,6 @@ export function CreateManualExpenseDialog({
 							Periodo seleccionado: {formatPeriodLabel(period)}. Las fechas fuera de
 							este periodo no se guardan.
 						</small>
-					</label>
-					<label htmlFor="manual-expense-amount">
-						<span>Monto CLP</span>
-						<input
-							id="manual-expense-amount"
-							name="amount"
-							type="text"
-							inputMode="numeric"
-							value={draft.amount}
-							placeholder="12500"
-							onChange={(event) => updateDraft({ amount: event.target.value })}
-							disabled={isSaving}
-							required
-						/>
 					</label>
 					<label htmlFor="manual-expense-kind">
 						<span>Tipo</span>
@@ -586,7 +623,7 @@ export function CreateManualExpenseDialog({
 								</option>
 							))}
 						</select>
-						<small>Catálogo de solo lectura.</small>
+						<small>Elige una de tus categorías o déjalo sin categoría.</small>
 					</label>
 					{catalog.phase === "failed" ? (
 						<>

@@ -568,7 +568,7 @@ export function EditMovementDialog({
 								</option>
 							))}
 						</select>
-						<small>Catálogo de solo lectura.</small>
+						<small>Elige una de tus categorías o déjalo sin categoría.</small>
 					</label>
 					{catalog.phase === "failed" ? (
 						<>
