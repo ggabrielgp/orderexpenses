@@ -560,12 +560,6 @@ export function CreateManualExpenseDialog({
 							placeholder="12.500"
 							onChange={handleAmountChange}
 							disabled={isSaving}
-							style={{
-								fontSize: "1.75rem",
-								fontWeight: 700,
-								fontVariantNumeric: "tabular-nums",
-								letterSpacing: "-0.01em",
-							}}
 							required
 						/>
 					</label>

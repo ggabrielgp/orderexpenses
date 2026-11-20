@@ -1,0 +1,84 @@
+/*
+ * Identity B · "Semáforo sereno" (odd/tasks/identidad-b.md, design/identidad-gastos/02-08).
+ * Loaded last, as an additive layer: it re-points the product's accent roles from blue to ink and
+ * styles the new surfaces. Every existing selector, panel and control keeps working underneath (S1);
+ * the landing keeps its marketing palette because the remap is scoped to the product chrome.
+ */
+
+.react-shell,
+.react-app-header,
+.react-mobile-tabbar {
+	--accent: var(--color-ink);
+	--accent-hover: #26324d;
+	--accent-soft: rgb(19 27 46 / 0.06);
+	--accent-line: rgb(19 27 46 / 0.18);
+	--primary: var(--color-ink);
+	--primary-container: #26324d;
+	--focus: var(--color-ink);
+	--shadow-glow: 0 0 0 4px rgb(19 27 46 / 0.12);
+}
+
+/* Brand: the month-gauge mark next to an ink wordmark. */
+.react-app-brand {
+	color: var(--color-ink);
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+.react-app-brand-logo {
+	display: block;
+}
+
+/* Lead: the balance card picks up the calm tint instead of the blue wash. */
+.react-lead-answer {
+	background: linear-gradient(150deg, var(--surface), var(--state-calm-soft, #e2f3ef));
+}
+
+/* Chart: the selected tab reads as a quiet ink chip rather than a blue one. */
+.react-analytics-body .react-spending-chart-tab[aria-pressed="true"] {
+	background: var(--color-track, #efeee9);
+	color: var(--color-ink);
+}
+
+/* The month gauge sits above the KPI band with the same rhythm as the other panels. */
+.react-analytics-body > .react-pace-gauge {
+	margin-bottom: var(--space-4);
+}
+
+/* Empty summary: the existing message plus its two actions. */
+.react-financial-empty-block {
+	display: grid;
+	justify-items: start;
+	gap: var(--space-3);
+	margin-top: var(--space-4);
+	border: 1px dashed var(--line-strong);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	padding: var(--space-5);
+}
+
+.react-financial-empty-block .react-financial-empty {
+	margin: 0;
+}
+
+.react-financial-empty-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+/* Failed summary: say what is safe, in secondary ink. */
+.react-financial-state-safe {
+	margin: 0;
+	color: var(--ink-secondary);
+	font-size: var(--text-sm);
+}
+
+/* Manual expense: the amount leads, large and tabular. */
+.react-create-expense-amount input {
+	min-height: 56px;
+	font-size: 1.75rem;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -0.02em;
+}

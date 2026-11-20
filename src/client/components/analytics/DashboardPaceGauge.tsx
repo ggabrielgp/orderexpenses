@@ -83,6 +83,11 @@ export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIn
 					<span>{PACE_STATE_LABELS[pace.state]}</span>
 				</span>
 				<p className="react-pace-gauge-sentence">{sentence}</p>
+				<dl className="react-pace-gauge-facts">
+					<div><dt>Ingreso del ciclo</dt><dd>{formatClp(pace.incomeAmount)}</dd></div>
+					<div><dt>Gastado</dt><dd>{formatClp(pace.incomeAmount - pace.remaining)}</dd></div>
+					<div><dt>Días que quedan</dt><dd>{pace.daysLeft}</dd></div>
+				</dl>
 			</div>
 		</section>
 	);

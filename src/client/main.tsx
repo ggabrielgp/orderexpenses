@@ -10,6 +10,8 @@ import "./dashboard-polish.css";
 import "./dialog-polish.css";
 import "./dashboard-mobile-ergonomics.css";
 import "./dashboard-mobile-content.css";
+// Identity B loads last so its accent remap and new surfaces win over the legacy layers.
+import "./identity-b.css";
 
 const rootElement = document.querySelector<HTMLDivElement>("#root");
 if (!rootElement) throw new Error("React root element is missing");

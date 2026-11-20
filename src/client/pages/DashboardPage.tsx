@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useSpendingChartMotion } from "../hooks/useSpendingChartMotion";
 import { SpendingDayDetailDialog } from "../components/analytics/SpendingDayDetailDialog";
+import { DashboardPaceGauge } from "../components/analytics/DashboardPaceGauge";
+import { getDashboardPace, todayInSantiago, type DashboardPace, type PaceToday } from "../components/analytics/dashboardPace";
 import { config } from "@fortawesome/fontawesome-svg-core";
 import {
   faArrowRightArrowLeft,
@@ -846,12 +848,14 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
 }
 
 /** Read-only production composition, with local navigation and no mutation capabilities. */
-export function DemoDashboardView({ data, view, onViewChange, requestedCategory, onRequestedCategoryChange }: {
+export function DemoDashboardView({ data, view, onViewChange, requestedCategory, onRequestedCategoryChange, today }: {
   data: DemoDashboardData;
   view: DashboardView;
   onViewChange: (view: DashboardView) => void;
   requestedCategory?: string;
   onRequestedCategoryChange: (category: string) => void;
+  /** Calendar day the gauge measures against; defaults to today in Santiago. */
+  today?: PaceToday;
 }) {
   // Every value below comes from the same pure modules the authenticated summary uses, over the
   // fixture projected to the server's transaction shape: no API client, no request and no
@@ -912,6 +916,14 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
     incomeAmount: demoIncomeAmount,
     incomeSource: "demo-inflow",
   });
+  // The month gauge reads the same income and total the lead states, so both cannot disagree.
+  const demoPace = getDashboardPace({
+    startDate: data.period.startDate,
+    endDateExclusive: data.period.endDateExclusive,
+    incomeAmount: demoIncomeAmount,
+    totalSpending: summary.totalSpending,
+    today: today ?? todayInSantiago(new Date()),
+  });
   // The demo shares the authenticated composition, so it mounts the same income/budget truth panel
   // over the demo-inflow source instead of a demo-only layout.
   const incomeBudgetPanel = getDashboardIncomeBudgetPanel({
@@ -946,6 +958,7 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
 					    The demo supplies synthetic data and local category navigation; the chart detail
 					    stays read-only and the account/mutation surfaces never mount. */}
           {view === "summary" ? <DashboardAnalyticsBody
+            pace={demoPace}
             lead={dashboardLead}
             budgetPanel={incomeBudgetPanel}
             story={dashboardStory}
@@ -1847,6 +1860,10 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
 }
 
 interface DashboardAnalyticsBodyProps {
+  /** The month gauge (identity B); absent when the caller has no cycle to measure. */
+  pace?: DashboardPace;
+  /** Opens the cycle editor so the user can add the income the gauge needs. */
+  onAddIncome?: () => void;
   /** Named counterparties from the same period's raw transactions. */
   counterpartyRanking: DashboardCounterpartyRanking;
   /** The decided lead, from `getDashboardLead`. */
@@ -1899,6 +1916,8 @@ interface DashboardAnalyticsBodyProps {
  * so both trees read the same structure.
  */
 function DashboardAnalyticsBody({
+  pace,
+  onAddIncome,
   lead,
   budgetPanel,
   story,
@@ -1917,6 +1936,8 @@ function DashboardAnalyticsBody({
 }: DashboardAnalyticsBodyProps) {
   return (
     <div className="react-analytics-body">
+      {/* The month gauge answers "am I on track?" first; every panel below keeps its place. */}
+      {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} />}
       {/* Four-up KPI band: the spending/balance hero and the income/budget truth, side by side. */}
       <div className="react-analytics-summary">
         <DashboardLeadView lead={lead} />
@@ -2260,6 +2281,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     return (
       <section className="react-financial-state" role="alert">
         <p>No se pudo cargar el resumen financiero.</p>
+        <p className="react-financial-state-safe">Tus categorías, reglas y gastos manuales siguen guardados.</p>
         <button className="secondary" type="button" onClick={retry}>Reintentar resumen financiero</button>
       </section>
     );
@@ -2279,6 +2301,14 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     pendingAmountCount: summary.pendingAmountCount,
     incomeAmount,
     incomeSource: "configured-cycle",
+  });
+  // The month gauge reads the same configured income and total as the lead.
+  const dashboardPace = getDashboardPace({
+    startDate: selectedPeriod!.startDate,
+    endDateExclusive: selectedPeriod!.endDateExclusive,
+    incomeAmount,
+    totalSpending: summary.totalSpending,
+    today: todayInSantiago(new Date()),
   });
   // The budget truth panel reads the same configured income the lead subtracted, so the two
   // statements cannot disagree. It issues no request and never fabricates a budget, and its
@@ -2513,6 +2543,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
 					    capabilities: the jump switches to the movements view with the requested category, and
 					    the chart detail opens the read-only movement dialog. */}
           <DashboardAnalyticsBody
+            pace={dashboardPace}
+            onAddIncome={openCycleEdit}
             lead={dashboardLead}
             budgetPanel={incomeBudgetPanel}
             story={dashboardStory}
@@ -2533,7 +2565,13 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
             onOpenMovement={setChartDetailMovementId}
           />
           {summary.count === 0 && (
-            <p className="react-financial-empty" role="status">No se encontraron gastos reconocidos para este periodo.</p>
+            <div className="react-financial-empty-block">
+              <p className="react-financial-empty" role="status">No se encontraron gastos reconocidos para este periodo.</p>
+              <div className="react-financial-empty-actions">
+                <button className="button" type="button" onClick={openCreateExpense}>Agregar gasto</button>
+                <button className="secondary" type="button" onClick={() => { void reloadFinancialDashboard(); }}>Actualizar</button>
+              </div>
+            </div>
           )}
         </>
       ) : (
