@@ -53,6 +53,7 @@ import { MobileMovementList, MovementFilterDisclosure } from "../components/move
 import { FeedbackNotice } from "../components/feedback/FeedbackNotice";
 import { DashboardLoadingState } from "../components/analytics/DashboardLoadingState";
 import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
+import { MobileTabBar } from "../components/shell/MobileTabBar";
 import { getPeriodAnalytics } from "../components/analytics/periodAnalytics";
 import {
   getDashboardCounterpartyRanking,
@@ -763,6 +764,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
           />
         </section>
       </main>
+      <MobileTabBar view={view} onViewChange={setView} onAddExpense={financialDashboard?.period ? financialDashboard.onCreateExpense : undefined} />
     </>
   );
 }
@@ -992,6 +994,7 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
           </footer>
         </section>
       </main>
+      <MobileTabBar view={view} onViewChange={onViewChange} />
     </>
   );
 }

@@ -82,3 +82,76 @@
 	font-variant-numeric: tabular-nums;
 	letter-spacing: -0.02em;
 }
+
+/* Bottom navigation (S4): hidden on wide screens, where the header navigation leads. */
+.react-mobile-tabbar {
+	display: none;
+}
+
+@media (max-width: 760px) {
+	.react-mobile-tabbar {
+		display: grid;
+		position: fixed;
+		inset: auto 0 0 0;
+		z-index: 40;
+		grid-template-columns: 1fr 72px 1fr;
+		align-items: center;
+		padding: 6px 12px calc(10px + env(safe-area-inset-bottom));
+		border-top: 1px solid var(--line);
+		background: rgb(255 255 255 / 0.97);
+		backdrop-filter: blur(16px);
+		box-shadow: 0 -4px 18px rgb(19 27 46 / 0.06);
+	}
+
+	/* One navigation at a time: the bar replaces the header tabs on this breakpoint. */
+	.react-app-navigation {
+		display: none;
+	}
+
+	.react-mobile-tabbar-link {
+		display: grid;
+		justify-items: center;
+		gap: 2px;
+		min-height: 48px;
+		border: 0;
+		border-radius: var(--radius-control);
+		background: transparent;
+		color: var(--ink-muted);
+		font: inherit;
+		font-size: 0.72rem;
+		font-weight: 600;
+		box-shadow: none;
+		cursor: pointer;
+	}
+
+	.react-mobile-tabbar-link-active {
+		color: var(--color-ink);
+		font-weight: 800;
+	}
+
+	.react-mobile-tabbar-link:focus-visible,
+	.react-mobile-tabbar-add:focus-visible {
+		outline: 2px solid var(--color-ink);
+		outline-offset: 3px;
+	}
+
+	.react-mobile-tabbar-add {
+		justify-self: center;
+		display: grid;
+		place-items: center;
+		width: 56px;
+		height: 56px;
+		margin-top: -26px;
+		border: 0;
+		border-radius: 50%;
+		background: var(--color-ink);
+		color: #ffffff;
+		box-shadow: 0 10px 22px rgb(19 27 46 / 0.3);
+		cursor: pointer;
+	}
+
+	/* Keep the last panel clear of the fixed bar. */
+	.react-shell {
+		padding-bottom: calc(96px + env(safe-area-inset-bottom));
+	}
+}
