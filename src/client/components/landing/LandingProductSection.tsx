@@ -25,7 +25,7 @@ const productCards: readonly ProductCard[] = [
 		icon: "receipt_long",
 		badge: "PERIODO SELECCIONADO",
 		title: "Resumen y detalle mensual",
-		description: "Revisa gastos, ingresos, categorías y movimientos; corrige datos, presupuesto o categorías cuando lo necesites.",
+		description: "Revisa gastos, ingresos, categorías y movimientos; corrige datos y categorías o agrega gastos manuales cuando lo necesites.",
 	},
 ];
 

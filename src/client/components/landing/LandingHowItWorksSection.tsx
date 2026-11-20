@@ -9,28 +9,18 @@ interface Step {
 const steps: readonly Step[] = [
 	{
 		number: "01",
-		title: "Autoriza Gmail",
-		description: "Conecta Google y concede acceso de lectura para consultar mensajes compatibles de Banco de Chile.",
+		title: "Conecta Gmail",
+		description: "Autoriza el acceso de lectura con Google. Revisa los permisos y el uso de tus datos en Seguridad y datos.",
 	},
 	{
 		number: "02",
-		title: "Elige el periodo",
-		description: "Selecciona el mes o periodo que quieres revisar antes de iniciar la consulta.",
+		title: "Elige y sincroniza el periodo",
+		description: "Selecciona las fechas e inicia la sincronización para consultar los comprobantes compatibles de Banco de Chile.",
 	},
 	{
 		number: "03",
-		title: "Sincroniza comprobantes",
-		description: "Busca en Gmail los correos de transacciones compatibles para el periodo seleccionado.",
-	},
-	{
-		number: "04",
-		title: "Organiza el mes",
-		description: "Extrae campos compatibles y agrupa compras, transferencias, pagos e ingresos.",
-	},
-	{
-		number: "05",
-		title: "Revisa y ajusta",
-		description: "Explora el dashboard y detalle; corrige datos, categorías, presupuesto o gastos manuales.",
+		title: "Revisa tus gastos",
+		description: "Explora el resumen y los movimientos; corrige datos y categorías o agrega gastos manuales.",
 	},
 ];
 
@@ -41,7 +31,7 @@ export function LandingHowItWorksSection() {
 				<RevealOnScroll>
 					<div className="landing-how-it-works-heading">
 						<p className="landing-eyebrow">Cómo funciona</p>
-						<h2 id="steps-title">De tu Gmail a un mes ordenado, en cinco pasos.</h2>
+						<h2 id="steps-title">De tu Gmail a un mes ordenado, en tres pasos.</h2>
 						<p>Tú eliges qué periodo consultar. Gastos Controlados encuentra los comprobantes compatibles, organiza la información y te deja revisar cada resultado.</p>
 					</div>
 				</RevealOnScroll>

@@ -1,0 +1,214 @@
+.landing-tour {
+	min-width: 0;
+	background: var(--marketing-surface-subtle, #f6f4fa);
+}
+.landing-tour .landing-section-heading { text-align: center; }
+.landing-tour .landing-tour-notice {
+	max-width: 40rem;
+	margin: 20px auto 0;
+	color: var(--marketing-muted, #64748b);
+	font-size: .875rem;
+	line-height: 1.6;
+	text-align: center;
+}
+.landing-tour .tour-track {
+	position: relative;
+	width: min(100%, 1000px);
+	margin-inline: auto;
+	max-width: 100%;
+	min-width: 0;
+	overflow-x: auto;
+	cursor: grab;
+	touch-action: pan-y pinch-zoom;
+	user-select: none;
+	overscroll-behavior-x: contain;
+	scroll-snap-type: x proximity;
+	scroll-padding-inline: 8px;
+	scrollbar-width: none;
+	border-radius: 16px;
+}
+.landing-tour .tour-track::-webkit-scrollbar { display: none; }
+.landing-tour .tour-track[data-dragging] { cursor: grabbing; }
+.landing-tour .tour-track:focus-visible {
+	outline: 3px solid var(--marketing-primary, #2457c6);
+	outline-offset: 4px;
+}
+.landing-tour .landing-tour-list {
+	/* Include the trailing centering gutter in scrollWidth, not just overflowing grid tracks. */
+	width: max-content;
+	min-width: 100%;
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: min(276px, 100%);
+	gap: 32px;
+	list-style: none;
+	margin: 0;
+	padding: 24px max(0px, calc((100% - 276px) / 2)) 32px;
+}
+.landing-tour .tour-item { min-width: 0; scroll-snap-align: center; }
+.landing-tour .landing-tour-illustration {
+	--tour-phone-scale: .82;
+	position: relative;
+	margin-inline: auto;
+	width: calc(328px * var(--tour-phone-scale));
+	height: calc(328px * 41 / 20 * var(--tour-phone-scale));
+}
+.landing-tour .landing-tour-phone {
+	position: absolute;
+	inset: 0 auto auto 0;
+	width: 328px;
+	max-width: none;
+	transform: scale(var(--tour-phone-scale));
+	transform-origin: top left;
+	animation: none;
+	rotate: 0deg;
+	margin: 0;
+}
+.landing-tour .landing-stage-body {
+	justify-content: flex-start;
+	padding: 10px 9px 0;
+	font-size: 12px;
+	line-height: 1.45;
+}
+.landing-tour .landing-phone-content { width: 100%; min-width: 0; transform-origin: top center; }
+.landing-tour .landing-tour-screen-inner { width: 100%; padding: 0; }
+/* Keep the complete calendar and its real fields inside the illustrated screen. */
+.landing-tour [data-workflow="period"] .landing-tour-screen-inner { zoom: .85; }
+.landing-tour .landing-tour-modal h2 { margin: 0; font-size: 16px; line-height: 1.25; }
+.landing-tour .react-movements-view h3 { margin: 0; font-size: 12px; }
+.landing-tour .landing-tour-modal {
+	box-sizing: border-box;
+	width: auto;
+	min-width: 0;
+	max-width: 100%;
+	margin: 0;
+	padding: 12px;
+	border: 1px solid #dce3ee;
+	border-radius: 14px;
+	background: white;
+	box-shadow: 0 4px 16px -12px #17213a;
+}
+.landing-tour .landing-tour-form-note { margin: 6px 0 14px; color: #64748b; font-size: 11px; }
+.landing-tour .react-cycle-calendar { display: grid; gap: 8px; margin: 0; }
+.landing-tour .react-cycle-calendar-nav { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.landing-tour .react-cycle-calendar-nav strong { font-size: 12px; }
+.landing-tour .react-cycle-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.landing-tour .react-cycle-calendar-weekday { padding: 4px 0; color: #64748b; font-size: 10px; text-align: center; }
+.landing-tour .react-cycle-calendar-day,
+.landing-tour .react-cycle-calendar-nav-button {
+	min-width: 0;
+	min-height: 0;
+	height: 24px;
+	padding: 0;
+	border: 1px solid #e0e7f1;
+	border-radius: 7px;
+	background: white;
+	color: #334155;
+	font-size: 10px;
+}
+.landing-tour .react-cycle-calendar-day-selected { background: #edf3ff; border-color: #bfd0ee; color: #2457c6; }
+.landing-tour .react-cycle-calendar-nav-button { width: 24px; }
+.landing-tour .react-cycle-calendar-summary { padding: 8px; border-radius: 10px; background: #f0f5ff; }
+.landing-tour .react-cycle-calendar-summary p { margin: 0 0 10px; color: #2457c6; font-size: 11px; }
+.landing-tour .react-cycle-calendar-summary dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+.landing-tour .react-cycle-calendar-summary dl > div { display: block; }
+.landing-tour .react-cycle-calendar-summary dt { color: #64748b; font-size: 10px; }
+.landing-tour .react-cycle-calendar-summary dd { margin: 3px 0 0; font-size: 11px; font-weight: 600; }
+.landing-tour .landing-tour-period-fields {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px;
+	margin-top: 10px;
+}
+.landing-tour .landing-tour-period-fields label { display: grid; gap: 3px; min-width: 0; font-size: 9px; font-weight: 600; }
+.landing-tour .landing-tour-period-fields label:last-child { grid-column: 1 / -1; }
+.landing-tour .landing-tour-period-fields input { height: 26px; font-size: 9px; }
+.landing-tour .react-create-expense-form,
+.landing-tour .react-edit-movement-form { display: block; }
+.landing-tour .react-create-expense-fields,
+.landing-tour .react-edit-movement-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.landing-tour .react-create-expense-fields label,
+.landing-tour .react-edit-movement-fields label { display: grid; gap: 3px; min-width: 0; font-size: 10px; font-weight: 600; }
+.landing-tour .landing-tour-screen-inner input,
+.landing-tour .landing-tour-screen-inner select {
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
+	height: 30px;
+	padding: 5px 7px;
+	border: 1px solid #dce3ee;
+	border-radius: 7px;
+	background: #fafbfe;
+	color: #17213a;
+	font: inherit;
+	font-size: 11px;
+}
+.landing-tour .react-edit-movement-fields small { font-size: 9px; font-weight: 400; color: #64748b; line-height: 1.4; }
+.landing-tour .react-shell-actions { display: flex; justify-content: space-between; gap: 6px; margin-top: 14px; }
+.landing-tour .react-shell-actions button {
+	min-width: 0;
+	min-height: 0;
+	padding: 8px 10px;
+	border: 1px solid #2457c6;
+	border-radius: 8px;
+	background: #2457c6;
+	color: white;
+	font-size: 10px;
+}
+.landing-tour .react-shell-actions button.secondary { background: white; color: #2457c6; border-color: #dce3ee; }
+.landing-tour .landing-tour-screen-inner :disabled { opacity: 1; cursor: default; -webkit-text-fill-color: currentColor; }
+/* These phones keep the mobile presentation at every viewport width. */
+.landing-tour .react-movements-view { display: grid; gap: 12px; }
+.landing-tour .react-movements-header { display: flex; justify-content: space-between; align-items: center; }
+.landing-tour .react-card-icon { color: #2457c6; }
+.landing-tour .react-movements-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.landing-tour .react-movements-metric { display: grid; gap: 3px; padding: 8px; border: 1px solid #dce3ee; border-radius: 10px; background: white; }
+.landing-tour .react-movements-metric span { font-size: 9px; color: #64748b; }
+.landing-tour .react-movements-metric strong { font-size: 14px; }
+.landing-tour .react-movements-metric small { font-size: 8px; color: #64748b; }
+.landing-tour .react-movements-metric-pending { background: #fff8eb; }
+.landing-tour .react-movements-metric-classified { background: #f1f9f5; }
+.landing-tour .react-movements-table-card { min-width: 0; padding: 0; background: transparent; border: 0; box-shadow: none; }
+.landing-tour .react-movements-table-heading { display: grid; gap: 4px; padding: 0 0 8px; }
+.landing-tour .react-movements-table-count { font-size: 9px; color: #64748b; }
+.landing-tour .react-mobile-movements { display: grid; gap: 8px; }
+.landing-tour .react-mobile-movement-card { padding: 10px; border: 1px solid #dce3ee; border-radius: 10px; background: white; }
+.landing-tour .react-mobile-movement-primary { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.landing-tour .react-mobile-movement-description { overflow-wrap: anywhere; }
+.landing-tour .react-movement-amount { white-space: nowrap; }
+.landing-tour .react-mobile-movement-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; font-size: 9px; color: #64748b; }
+.landing-tour .react-movement-category { padding: 3px 6px; border-radius: 5px; background: #edf3ff; color: #2457c6; font-size: 9px; }
+.landing-tour .react-movement-kind-badge { padding: 0; background: transparent; font-size: 9px; }
+.landing-tour .react-movement-date { font-size: 9px; }
+.landing-tour .react-movements-secondary-filters,
+.landing-tour .react-mobile-movement-sort,
+.landing-tour .react-mobile-movement-details,
+.landing-tour .react-movements-view .react-movements-table-wrapper { display: none; }
+.landing-tour .landing-tour-controls { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 16px; }
+.landing-tour .landing-tour-arrow {
+	display: grid; place-items: center; width: 44px; height: 44px; padding: 0;
+	border: 1px solid var(--marketing-line); border-radius: 14px; background: white;
+	color: var(--marketing-ink, #17213a); font-size: 28px; cursor: pointer;
+	box-shadow: 0 6px 12px -8px rgb(22 40 75 / .3);
+}
+.landing-tour .landing-tour-arrow:disabled { opacity: .35; cursor: default; }
+.landing-tour .landing-tour-arrow:not(:disabled):hover { color: var(--marketing-primary, #2457c6); }
+.landing-tour .landing-tour-dots { display: flex; align-items: center; }
+.landing-tour .landing-tour-dot { display: grid; place-items: center; width: 28px; height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.landing-tour .landing-tour-dot::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: #bfc6d6; }
+.landing-tour .landing-tour-dot[aria-current="true"]::before { width: 22px; background: var(--marketing-primary, #2457c6); }
+.landing-tour .landing-tour-controls button:focus-visible { outline: 3px solid var(--marketing-primary, #2457c6); outline-offset: 3px; }
+.landing-tour .landing-tour-position { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+.landing-tour .landing-tour-loading { padding: 64px 24px; border: 1px dashed #bfd0ee; border-radius: 20px; text-align: center; color: var(--marketing-muted, #64748b); }
+.landing-tour .landing-tour-footer { display: grid; justify-items: center; gap: 10px; margin-top: 32px; }
+.landing-tour .landing-tour-footer p { margin: 0; color: var(--marketing-muted, #64748b); font-size: .75rem; }
+@media (width < 360px) {
+	.landing-tour .landing-tour-illustration { --tour-phone-scale: .76; }
+}
+@media (prefers-reduced-motion: no-preference) {
+	.landing-tour .tour-track { scroll-behavior: smooth; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.landing-tour .tour-track { scroll-behavior: auto; }
+}

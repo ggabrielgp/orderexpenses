@@ -50,6 +50,7 @@ export function LandingHeader({ session }: LandingHeaderProps) {
 						aria-label={isAuthenticated ? "Ir al dashboard" : "Acceder con Google"}
 					>
 						{!isAuthenticated && <span className="landing-google-badge" aria-hidden="true"><GoogleIcon /></span>}
+						{isAuthenticated && <span className="material-symbols-outlined landing-session-action-icon" aria-hidden="true">dashboard</span>}
 						<span className="landing-session-action-label">
 							{isAuthenticated ? "Ir al dashboard" : "Acceder con Google"}
 						</span>

@@ -16,6 +16,53 @@ Privacy-first personal expense dashboard for Banco de Chile Gmail movements.
   - custom categories and colors
   - view/budget preferences where applicable
 
+## Home previews
+
+The home promises **Tus comprobantes, convertidos en un resumen claro**, not unattended sync or
+budget editing. The process has three steps: **Conecta Gmail → Elige y sincroniza el periodo →
+Revisa tus gastos**. **Probar demo** opens `/app/demo`, with **Sin conectar tu cuenta** beside it.
+The security section distinguishes broad read-only Gmail consent from bank/period-filtered queries,
+runtime processing from stored tokens/profile and user-authored data (including period/income settings),
+and local disconnection from Google permission revocation. It states that no automatic deletion period
+is defined and links to Google's third-party connections for revocation.
+
+The floating phone uses the dashboard's actual weekday chart, category donut and balance views,
+with the same synthetic `/demo-data.json` fixture as the public demo. The home loads that fixture
+once for both the phone and the **Recorrido por la app** gallery; a failed load shows an explicit
+message instead of invented figures.
+
+The horizontal gallery includes the dashboard charts, period selection, the mobile expense table,
+adding an expense and categorizing it through **Editar movimiento**. Its five phones reuse the hero's
+frame at a smaller scale and upright. The slider has previous/next arrows,
+position indicators and touch/keyboard navigation. Screens loop around the centered selection without
+cloning forms or IDs. Autoplay starts an advance every 2 seconds with a 1.2-second transition,
+without pause controls or hover/focus suspension. Drag with the mouse or swipe on touchscreens to
+change screens; long drags recycle the existing screens during the gesture so the gallery wraps
+without an empty end. The tour omits numbered titles/descriptions and swipe notices, but shows one gallery-wide notice
+that the screens are illustrations: their fields/buttons cannot be used and do not save changes.
+Previews remain inert and retain accessible screen names.
+An active drag takes priority over an automatic tick. Reduced-motion preferences
+keep automatic advances running but make transitions instantaneous.
+The original phone dimensions remain fixed (up to 328px wide, aspect ratio 20:41).
+Only the illustrated content scales to fit the available screen; the daily chart retains its extra headroom. Calendar and movement views are shared with the
+app; form previews are inert, read-only illustrations with no account writes. Swipe the gallery or
+focus it and use arrow keys. **Explorar la demo** opens `/app/demo` without connecting an account.
+The demo starts on **Resumen**; **Movimientos** opens the production movement table with synthetic
+expenses, search, filters, sorting and read-only details. Movements are not appended below the summary.
+**Ver gastos** in a demo category detail opens **Movimientos** filtered by that category.
+Demo navigation is local and never enables editing, deletion or account writes.
+The demo explicitly labels its example data and explains **Edición deshabilitada en la demo**;
+unavailable selection and bulk-edit controls are omitted, while browsing and details remain available.
+Both dashboard views show the available period below the title, without inventing dates while loading.
+A positive balance percentage names the income remaining, not a safety rating or trend.
+Period budgeting is not yet available.
+
+Check the home at 320px, 390px and desktop widths: both charts must fit inside the floating phone,
+and the gallery must scroll without widening the page. Focused checks:
+`node --test test/landing-dashboard-preview.test.js test/landing-tour.test.js test/landing-preview-integration.test.js test/landing-preview-refinement.test.js`.
+Shared chart views accept optional heading/detail IDs for repeated illustrations; the dashboard's
+existing identifiers remain their defaults.
+
 ## Dashboard loading
 
 The first financial load shows layout-matched skeleton cards and charts with the message
@@ -36,7 +83,14 @@ session cache). Use DevTools network throttling if the load is too fast to obser
 
 Settled save confirmations show a short decorative check only on success; warnings and errors
 remain readable. The account menu, movement selection toolbar and category-view height changes
-use short motion without delaying controls or data. System reduced-motion preferences are respected.
+use short motion without delaying controls or data. The weekday spending chart uses the same measured
+200ms height transition when switching periods or selected-day details, including days without expenses.
+The active highlights in the chart tabs and period-summary rows slide from the previous selection to
+ the current one over 200ms, adapting to different sizes and wrapped tabs. Layout changes refresh their
+ positions without motion; static previews retain their active backgrounds.
+Controls stay mounted and usable; rapid changes cancel superseded motion. Live system reduced-motion
+preferences disable these transitions. Check populated/empty days and rapid tab changes locally;
+automated effect/SSR checks do not establish browser animation playback.
 
 Clicking a native dialog's backdrop requests the same cancellation as Escape. Clicking inside,
 dragging from inside to outside, or a pending operation's cancellation veto does not dismiss it.
@@ -54,9 +108,18 @@ On narrow screens, the account trigger uses a compact avatar; identity and Gmail
 remain available inside its menu. The existing **Resumen** and **Movimientos** navigation stays in place.
 The period, refresh and **Nuevo gasto** controls share one mobile row. The period displays a compact
 `DD/MM–DD/MM` range and refresh uses its icon; the complete date range and refresh state retain their
-accessible names. Desktop keeps the full dates and the **Actualizar** text. The summary prioritizes
-spent/remaining balances and categories before daily evolution and secondary analyses, without
-mounting a second copy of the charts or changing financial calculations.
+accessible names. Desktop keeps the full dates and the **Actualizar** text. At widths up to 640px,
+**Total gastado** and **Saldo disponible** share a compact row, followed by the weekday spending
+chart and category distribution. Income/budget information and secondary analyses remain below.
+Week tabs use three compact columns with 44px minimum height; all seven weekday bars fit without
+horizontal scrolling at 320–640px. Dashboard-only mobile labels abbreviate approximate CLP amounts
+(for example, **$194 mil**); digits stay together and a note points to exact amounts in day detail.
+Full amounts remain in accessible names and hover titles. Desktop and static home illustrations keep their layout.
+Tapping a chart day opens its detail in a native modal, including days without expenses; the default
+selection and period-tab changes do not open it. Close with **Cerrar**, Escape or the backdrop.
+Desktop retains its inline selected-day panel. Resizing closes an open day modal rather than keeping
+a stale overlay; opening a movement closes the day modal first. The read-only demo shares this
+presentation without adding editing or writes. Static home previews remain unchanged.
 
 At widths up to 760px, movements use cards instead of the desktop table. Cards share the same
 filtered and sorted rows, selection, select-all, similar-counterparty selection and bulk-category
@@ -68,7 +131,8 @@ cancellation guards or submit behavior. Desktop keeps its table and analytics co
 
 To check locally, inspect 320, 375, 390, 480 and 768px widths, then desktop. Try long account names,
 large amounts, category jumps, mixed/all/empty selection, expanded filters and read-only movements.
-Check chart scrolling, reduced motion, dialogs with the virtual keyboard and focus after closing.
+Check that all seven chart days and week tabs fit without horizontal scrolling at 320, 390 and 640px,
+including very large amounts. Also check reduced motion, dialogs with the virtual keyboard and focus after closing.
 Automated SSR/callback tests check shared actions and markup; they do not establish rendered viewport
 sizes, touch behavior, keyboard occlusion or native focus handling.
 
@@ -159,7 +223,15 @@ unconfigured local development supports loopback hosts at any frontend port. See
 
 ```bash
 npm test
+# Focused selection uses project-relative test filenames:
+npm test -- test/test-isolation.test.js test/test-runner-platform.test.js
 ```
+
+The launcher allowlists the child environment (including only `SystemRoot` as
+Windows-native infrastructure). Application configuration and `NODE_OPTIONS` are
+scrubbed; database, credential-file and network guards remain active. Foundation
+and landing SSR fixtures disable env-file loading, dependency discovery, file
+watching and HMR/WebSockets.
 
 ## Gmail setup
 
