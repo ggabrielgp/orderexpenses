@@ -1,0 +1,170 @@
+/* Month gauge — identity B "Semáforo sereno" (artboards 02 and 08). */
+.react-pace-gauge {
+	--pace-color: var(--state-calm, #0b7a6b);
+	--pace-soft: var(--state-calm-soft, #e2f3ef);
+	display: grid;
+	justify-items: center;
+	gap: 16px;
+	padding: 18px 18px 16px;
+	border-radius: var(--radius-xl, 24px);
+	background: var(--color-surface, #ffffff);
+	color: var(--color-ink, #131b2e);
+	box-shadow: 0 1px 2px rgba(19, 27, 46, 0.04), 0 8px 24px rgba(19, 27, 46, 0.06);
+}
+
+.react-pace-gauge--tight {
+	--pace-color: var(--state-tight, #9a6700);
+	--pace-soft: var(--state-tight-soft, #fdf3d8);
+}
+
+.react-pace-gauge--over {
+	--pace-color: var(--state-over, #b4412f);
+	--pace-soft: var(--state-over-soft, #fbe9e5);
+}
+
+.react-pace-gauge-ring {
+	position: relative;
+	width: 216px;
+	height: 216px;
+	flex: none;
+}
+
+.react-pace-gauge-ring svg {
+	display: block;
+}
+
+.react-pace-gauge-track {
+	stroke: var(--color-track, #efeee9);
+}
+
+.react-pace-gauge-arc {
+	stroke: var(--pace-color);
+}
+
+.react-pace-gauge-tick {
+	stroke: var(--color-ink, #131b2e);
+}
+
+.react-pace-gauge-center {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-content: center;
+	gap: 2px;
+	padding: 0 36px;
+	text-align: center;
+}
+
+.react-pace-gauge-label {
+	font-size: 0.75rem;
+	color: var(--color-ink-muted, #59647a);
+}
+
+.react-pace-gauge-amount {
+	font-size: 2.1rem;
+	font-weight: 800;
+	letter-spacing: -0.04em;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+
+.react-pace-gauge-per-day {
+	font-style: normal;
+	font-size: 0.82rem;
+	color: var(--color-ink-secondary, #3f4b63);
+	font-variant-numeric: tabular-nums;
+}
+
+.react-pace-gauge-body {
+	display: grid;
+	justify-items: center;
+	gap: 10px;
+	text-align: center;
+}
+
+.react-pace-gauge-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 32px;
+	padding: 6px 12px;
+	border-radius: 999px;
+	background: var(--pace-soft);
+	color: var(--pace-color);
+	font-size: 0.82rem;
+	font-weight: 700;
+}
+
+.react-pace-gauge-pill-icon {
+	font-weight: 800;
+}
+
+.react-pace-gauge-sentence {
+	margin: 0;
+	max-width: 36ch;
+	font-size: 0.88rem;
+	color: var(--color-ink-secondary, #3f4b63);
+}
+
+.react-pace-gauge-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px;
+	min-width: 44px;
+	padding: 0 16px;
+	border: 0;
+	border-radius: var(--radius-md, 12px);
+	background: var(--color-ink, #131b2e);
+	color: #ffffff;
+	font: inherit;
+	font-size: 0.88rem;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.react-pace-gauge-action:focus-visible {
+	outline: 2px solid var(--color-ink, #131b2e);
+	outline-offset: 3px;
+}
+
+/* Without income there is no ring: a single left-aligned block. */
+.react-pace-gauge--none {
+	justify-items: start;
+}
+
+.react-pace-gauge--none .react-pace-gauge-body {
+	justify-items: start;
+	text-align: left;
+}
+
+.react-pace-gauge-arc {
+	animation: react-pace-gauge-fill 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes react-pace-gauge-fill {
+	from {
+		stroke-dasharray: 0 503;
+	}
+}
+
+@media (min-width: 720px) {
+	.react-pace-gauge:not(.react-pace-gauge--none) {
+		grid-template-columns: 220px 1fr;
+		justify-items: stretch;
+		align-items: center;
+		gap: 28px;
+		padding: 22px;
+	}
+
+	.react-pace-gauge:not(.react-pace-gauge--none) .react-pace-gauge-body {
+		justify-items: start;
+		text-align: left;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.react-pace-gauge-arc {
+		animation: none;
+	}
+}
