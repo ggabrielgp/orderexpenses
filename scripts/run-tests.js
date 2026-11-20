@@ -21,6 +21,8 @@ const result = spawnSync(process.execPath, [
 	// Allowlist rather than chasing every inherited secret/configuration variable.
 	env: {
 		PATH: process.env.PATH,
+		// Windows native crypto needs this even before the child executes JavaScript.
+		...(process.platform === "win32" && process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
 		HOME: `${root}node_modules/.tmp`,
 		TMPDIR: `${root}node_modules/.tmp`,
 		LANG: "C.UTF-8",

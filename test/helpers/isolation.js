@@ -19,11 +19,14 @@ if (typeof mock.module !== "function") {
 const temporaryDirectory = fileURLToPath(new URL("../../node_modules/.tmp/", import.meta.url));
 mkdirSync(temporaryDirectory, { recursive: true });
 const path = process.env.PATH;
+// Keep only the native Windows infrastructure needed by nested Node processes.
+const systemRoot = process.platform === "win32" ? process.env.SystemRoot : undefined;
 // Node's test-worker protocol is infrastructure, not application configuration.
 const testContext = process.env.NODE_TEST_CONTEXT;
 for (const key of Object.keys(process.env)) delete process.env[key];
 Object.assign(process.env, {
 	PATH: path,
+	...(systemRoot ? { SystemRoot: systemRoot } : {}),
 	HOME: temporaryDirectory,
 	TMPDIR: temporaryDirectory,
 	LANG: "C.UTF-8",

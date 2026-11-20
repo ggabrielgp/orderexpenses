@@ -4,6 +4,8 @@ import { existsSync } from "node:fs";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
+const platformEnvironment = process.platform === "win32" && process.env.SystemRoot
+	? { SystemRoot: process.env.SystemRoot } : {};
 // No inherited NODE_OPTIONS reaches these probes, including the initial safe RED.
 function probe(source, { preload = true, env = {} } = {}) {
 	const args = ["--experimental-test-module-mocks"];
@@ -11,7 +13,7 @@ function probe(source, { preload = true, env = {} } = {}) {
 	args.push("--input-type=module", "--eval", source);
 	return spawnSync(process.execPath, args, {
 		cwd: root,
-		env: { PATH: process.env.PATH, ...env },
+		env: { PATH: process.env.PATH, ...platformEnvironment, ...env },
 		encoding: "utf8",
 	});
 }
@@ -23,11 +25,14 @@ test("every final Vite fixture config disables env-file loading, including sprea
 	passed(probe(`
 		import assert from 'node:assert/strict';
 		import fs from 'node:fs';
-		import { basename, join } from 'node:path';
+		import { basename, dirname, join } from 'node:path';
 		import { fileURLToPath } from 'node:url';
 		import { syncBuiltinESMExports } from 'node:module';
 		import { runInNewContext } from 'node:vm';
-		const directory = fs.mkdtempSync(join(process.env.TMPDIR, 'vite-env-isolation-'));
+		const { tmpdir } = await import('node:os');
+		const { after } = await import('node:test');
+		const directory = fs.mkdtempSync(join(tmpdir(), 'vite-env-isolation-'));
+		after(() => fs.rmSync(directory, { recursive: true }));
 		for (const name of ['.env', '.env.local', '.env.test', '.env.test.local']) {
 			fs.writeFileSync(join(directory, name), 'VITE_ISOLATION_SENTINEL=harmless-fixture\\n');
 		}
@@ -38,18 +43,18 @@ test("every final Vite fixture config disables env-file loading, including sprea
 		fs.readFileSync = (path, ...args) => {
 			const filename = path instanceof URL ? fileURLToPath(path) : String(path);
 			if (basename(filename).startsWith('.env')) {
-				assert.equal(filename.startsWith(directory + '/'), true, 'real env-file read forbidden');
+				assert.equal(dirname(filename), directory, 'real env-file read forbidden');
 				envReads++;
 			}
 			return originalRead(path, ...args);
 		};
 		syncBuiltinESMExports();
 		const { resolveConfig } = await import('vite');
-		for (const file of ['react-vite-foundation', 'demo-fixture', 'landing-navigation']) {
+		for (const file of ['react-vite-foundation', 'demo-fixture', 'landing-navigation', 'landing-tour', 'landing-dashboard-preview', 'landing-preview-integration']) {
 			const source = fs.readFileSync('./test/' + file + '.test.js', 'utf8');
 			// Evaluate only the first final createServer options literal, not the test
 			// module or application imports. Current fixture shapes are intentionally pinned.
-			const literal = source.match(/\\b(?:createRawViteServer|createViteServer|createServer)\\((\\{[\\s\\S]*?\\n\\s*\\})\\)/)?.[1];
+			const literal = source.match(/\\b(?:createRawViteServer|createViteServer|createServer)\\((\\{[\\s\\S]*?\\})\\s*\\)/)?.[1];
 			assert.ok(literal, 'final Vite config literal required: ' + file);
 			const inherited = {
 				root: directory, envDir: directory, envFile: true,
@@ -64,6 +69,11 @@ test("every final Vite fixture config disables env-file loading, including sprea
 			assert.equal(resolved.envFile, false, file + ' must explicitly disable env files');
 			assert.equal(resolved.server.hmr, false);
 			assert.equal(resolved.server.ws, false);
+			if (!['demo-fixture', 'landing-navigation'].includes(file)) {
+				assert.equal(resolved.optimizeDeps.noDiscovery, true, file + ' must not discover dependencies');
+				assert.deepEqual(Array.from(resolved.optimizeDeps.include), []);
+				assert.equal(resolved.server.watch, null, file + ' must not watch files');
+			}
 		}
 		assert.equal(envReads, 0, 'disabled env files must never be read');
 		// Exercise installed guards only against a generated sentinel, never a real
@@ -84,6 +94,14 @@ test("every final Vite fixture config disables env-file loading, including sprea
 		await assert.rejects(promises.readFile(file), denied);
 		await assert.rejects(promises.open(file, 'r'), denied);
 	`));
+});
+
+test("preload retains Windows native infrastructure but not hostile application variables", () => {
+	passed(probe(`
+		import assert from 'node:assert/strict';
+		assert.equal(process.env.SystemRoot, ${JSON.stringify(process.platform === "win32" ? process.env.SystemRoot : undefined)});
+		assert.equal(process.env.HOSTILE_APPLICATION_SETTING, undefined);
+	`, { env: { ...(process.platform === "win32" ? { SystemRoot: process.env.SystemRoot } : {}), HOSTILE_APPLICATION_SETTING: 'hostile' } }));
 });
 
 test("sensitive file guard rejects before an inert reader is called", () => {
@@ -198,7 +216,16 @@ test("application imports cannot read inherited credential files", () => {
 		import fs from 'node:fs';
 		import { syncBuiltinESMExports } from 'node:module';
 		let reads = 0;
-		fs.existsSync = fs.readFileSync = () => { reads++; throw new Error('credential read forbidden'); };
+		// Node may read JavaScript source through fs during ESM loading. Count
+		// credential access, not the runtime's legitimate module source reads.
+		for (const name of ['existsSync', 'readFileSync']) {
+			const original = fs[name];
+			fs[name] = (file, ...args) => {
+				if (name === 'readFileSync' && /\\.(?:c|m)?js(?:[?#]|$)/.test(String(file))) return original(file, ...args);
+				reads++;
+				throw new Error('credential read forbidden');
+			};
+		}
 		syncBuiltinESMExports();
 		const { createOAuthClient, hasGoogleCredentials } = await import('./src/gmail.js');
 		assert.equal(hasGoogleCredentials(), true);
@@ -300,7 +327,7 @@ test("network guards allow an explicit loopback fixture and revoke access on clo
 test("risky raw test files fail closed without the launcher's mock flag", () => {
 	for (const file of ['gmail', 'movements', 'server-financial-cycle', 'server-logout', 'static-routing', 'react-vite-foundation']) {
 		const result = spawnSync(process.execPath, ['--test', 'test/' + file + '.test.js'], {
-			cwd: root, env: { PATH: process.env.PATH }, encoding: 'utf8',
+			cwd: root, env: { PATH: process.env.PATH, ...platformEnvironment }, encoding: 'utf8',
 		});
 		assert.notEqual(result.status, 0, file);
 		assert.match(result.stdout + result.stderr, /Test isolation requires npm test/, file);
@@ -318,6 +345,41 @@ test("launcher forwards exact test filenames and scrubs NODE_OPTIONS in its chil
 	passed(result);
 	assert.match(result.stdout, /tests 8/);
 	assert.doesNotMatch(result.stdout, /OAuth|logout|preload scrubs/);
+});
+
+test("launcher rejects invalid selectors with exact error output and failing status", () => {
+	const result = probe(`
+		process.argv = [process.execPath, 'scripts/run-tests.js', '../invalid.test.js'];
+		await import('./scripts/run-tests.js').catch(error => {
+			console.error(error.message);
+			process.exitCode = 1;
+		});
+	`, { preload: false });
+	assert.equal(result.status, 1);
+	assert.equal(result.stdout, '');
+	assert.equal(result.stderr, 'Pass project test filenames, e.g. npm test -- test/gmail.test.js\n');
+});
+
+test("native Vite config paths load SSR modules without URL pathname conversion", () => {
+	passed(probe(`
+		import assert from 'node:assert/strict';
+		import { readFileSync } from 'node:fs';
+		import { fileURLToPath } from 'node:url';
+		import { createServer, loadConfigFromFile } from 'vite';
+		const url = new URL('./vite.config.ts', import.meta.url);
+		const configPath = fileURLToPath(url);
+		const loaded = await loadConfigFromFile({ command: 'serve', mode: 'test' }, configPath);
+		assert.equal(loaded.path, configPath.replaceAll('\\\\', '/'));
+		const source = readFileSync('./test/react-vite-foundation.test.js', 'utf8');
+		assert.doesNotMatch(source, /new URL\\([^\\n]*vite\\.config\\.ts[^\\n]*\\.pathname/);
+		const vite = await createServer({ ...loaded.config, configFile: false, envFile: false,
+			optimizeDeps: { noDiscovery: true, include: [] },
+			server: { middlewareMode: true, hmr: false, ws: false, watch: null }, appType: 'custom' });
+		try {
+			const demo = await vite.ssrLoadModule('/src/client/demo-data.ts');
+			assert.equal(typeof demo.createDemoDashboardData, 'function');
+		} finally { await vite.close(); }
+	`));
 });
 
 const oauthClockSql = "CAST(ROUND(unixepoch('now', 'subsec') * 1000) AS INTEGER) /* oauth-clock-ms */";
