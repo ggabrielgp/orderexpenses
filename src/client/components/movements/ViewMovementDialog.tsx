@@ -86,6 +86,8 @@ function formatMovementMoment(movement: RecognizedExpenseMovement): string {
 }
 
 export interface ViewMovementDialogProps {
+	/** Explicit presentation reason; defaults to the existing invalid-target explanation. */
+	readOnlyReason?: string;
 	/** The movement whose detail is shown; `null` renders nothing and keeps the dialog closed. */
 	movement: RecognizedExpenseMovement | null;
 	/** Editable record for this row, or `null`/absent when it has no valid mutation target. */
@@ -112,6 +114,7 @@ export function ViewMovementDialog({
 	onClose,
 	onEdit,
 	onRemove,
+	readOnlyReason,
 }: ViewMovementDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
 	const isOpen = movement !== null;
@@ -145,7 +148,7 @@ export function ViewMovementDialog({
 			</dl>
 			{!isEditable && (
 				<p className="react-view-movement-read-only">
-					Este movimiento no tiene identificación o fecha válida, por lo que solo puede verse.
+					{readOnlyReason ?? "Este movimiento no tiene identificación o fecha válida, por lo que solo puede verse."}
 				</p>
 			)}
 			<div className="react-shell-actions">

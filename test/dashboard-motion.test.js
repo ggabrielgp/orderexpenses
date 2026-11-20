@@ -34,6 +34,14 @@ test("dashboard navigation uses one sliding indicator for both views", async () 
 	}
 });
 
+test("spending selections use a shared decorative surface without removing static active styling", async () => {
+	const css = await read("src/client/styles.css");
+	assert.match(css, /\.react-spending-chart-selection-indicator\s*\{[^}]*display: none;[^}]*position: absolute;[^}]*pointer-events: none;/);
+	assert.match(css, /\[data-selection-motion="true"\] > \.react-spending-chart-selection-indicator\s*\{\s*display: block;/);
+	assert.match(css, /\.react-spending-chart-summary-row-active\s*\{[^}]*background: var\(--accent\);/);
+	assert.match(css, /\.react-spending-chart-tab\[aria-pressed="true"\]\s*\{[^}]*background: #e3ecff;/);
+});
+
 test("press feedback is subtle and excludes disabled actions", async () => {
 	const css = await read("src/client/dashboard-motion.css");
 	assert.match(css, /:not\(:disabled\):not\(\[aria-disabled="true"\]\):active\s*\{[^}]*scale:\s*0\.98;/);

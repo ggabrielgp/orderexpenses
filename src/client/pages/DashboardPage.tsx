@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useSpendingChartMotion } from "../hooks/useSpendingChartMotion";
+import { SpendingDayDetailDialog } from "../components/analytics/SpendingDayDetailDialog";
 import { config } from "@fortawesome/fontawesome-svg-core";
 import {
   faArrowRightArrowLeft,
@@ -505,6 +507,10 @@ export function createFinancialCycleSetupPayload(
   };
 }
 
+export function DashboardPeriodContext({ period }: { period: FinancialPeriod | null }) {
+  return period ? <p className="react-dashboard-period-context">Periodo: {formatPeriodLabel(period)}</p> : null;
+}
+
 export function DashboardPage({ session }: DashboardPageProps) {
   /**
    * The financial summary publishes its configured period and its reload here, in state rather
@@ -671,6 +677,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
               <h1 id="react-dashboard-title">
                 {view === "movements" ? "Movimientos" : "Resumen de la cuenta"}
               </h1>
+              <DashboardPeriodContext period={financialDashboard?.period ?? null} />
               {view !== "movements" && (
                 <p className="subtitle">Control y análisis de gastos detectados automáticamente.</p>
               )}
@@ -827,6 +834,25 @@ const DEMO_PROFILE: SessionProfile = {
 };
 
 export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
+  const [view, setView] = useState<DashboardView>("summary");
+  const [requestedCategory, setRequestedCategory] = useState<string | null>(null);
+  return <DemoDashboardView
+    data={data}
+    view={view}
+    onViewChange={setView}
+    requestedCategory={requestedCategory ?? undefined}
+    onRequestedCategoryChange={setRequestedCategory}
+  />;
+}
+
+/** Read-only production composition, with local navigation and no mutation capabilities. */
+export function DemoDashboardView({ data, view, onViewChange, requestedCategory, onRequestedCategoryChange }: {
+  data: DemoDashboardData;
+  view: DashboardView;
+  onViewChange: (view: DashboardView) => void;
+  requestedCategory?: string;
+  onRequestedCategoryChange: (category: string) => void;
+}) {
   // Every value below comes from the same pure modules the authenticated summary uses, over the
   // fixture projected to the server's transaction shape: no API client, no request and no
   // duplicated calculation. The demo mounts the same shared analytics body as the authenticated
@@ -834,9 +860,6 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
   // account/settings surface and Gmail stay absent by construction. Only read-only selection
   // controls are interactive.
   const transactions = getDemoTransactions(data);
-  const recentMovements = [...data.movements]
-    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
-    .slice(0, 6);
   const summary = summarizeRecognizedExpenses(transactions);
   const movements = getRecognizedExpenseMovements(transactions);
   const detailMovements = getSpendingChartDetailMovements(transactions);
@@ -899,30 +922,30 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
   });
   return (
     <>
-      {/* The demo reuses the authenticated chrome so the header matches the dashboard, but the
-			    navigation is inert: it hands the header the fixed summary view and a no-op handler, so
-			    Movimientos can never mount the authenticated body, and the account slot offers only the
-			    login that leaves demo mode. */}
-      <AppHeader view="summary" onViewChange={() => { }}>
+      {/* View changes stay local; the account offers login, never mutations. */}
+      <AppHeader view={view} onViewChange={onViewChange}>
         <AccountMenu profile={DEMO_PROFILE}>
           <a href={getGoogleLoginUrl()} role="menuitem">Iniciar sesión</a>
         </AccountMenu>
       </AppHeader>
-      <main className="shell react-shell">
+      <main className={`shell react-shell${view === "movements" ? " react-movements-page" : ""}`}>
         <section className="panel product-panel react-dashboard-shell demo-dashboard" aria-labelledby="demo-dashboard-title">
           <header className="react-dashboard-header">
-            <div>
-              <span className="section-kicker">Demo</span>
-              <h1 id="demo-dashboard-title">Resumen mensual de ejemplo</h1>
-              <p className="subtitle">Datos sintéticos para conocer Gastos Controlados.</p>
+            <div className="react-dashboard-heading">
+              <p className="react-dashboard-greeting">Hola, {DEMO_PROFILE.name}</p>
+              <h1 id="demo-dashboard-title">{view === "movements" ? "Movimientos" : "Resumen de la cuenta"}</h1>
+              <DashboardPeriodContext period={data.period} />
+              {view === "summary" && (
+                <p className="subtitle">Control y análisis de gastos detectados automáticamente.</p>
+              )}
             </div>
-            <span className="demo-read-only-badge">Solo lectura</span>
+            <span className="demo-read-only-badge">Datos de ejemplo · Solo lectura</span>
           </header>
 
           {/* The one shared analytics body: the same sections and order as the authenticated summary.
-					    The demo only supplies dummy data and inert capabilities, so the category jump and the
-					    chart detail stay read-only and the account/mutation surfaces never mount. */}
-          <DashboardAnalyticsBody
+					    The demo supplies synthetic data and local category navigation; the chart detail
+					    stays read-only and the account/mutation surfaces never mount. */}
+          {view === "summary" ? <DashboardAnalyticsBody
             lead={dashboardLead}
             budgetPanel={incomeBudgetPanel}
             story={dashboardStory}
@@ -931,37 +954,24 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
             ranking={categoryRanking}
             counterpartyRanking={counterpartyRanking}
             categoryMovements={movements}
-            onJumpToCategory={() => { }}
+            onJumpToCategory={(category) => {
+              onRequestedCategoryChange(category);
+              onViewChange("movements");
+            }}
             insights={topInsights}
             breakdown={spendingBreakdown}
-          />
-
-          <section className="demo-movements" aria-labelledby="demo-movements-title">
-            <header className="demo-movements-header">
-              <div className="demo-movements-heading">
-                <span className="section-kicker">Movimientos</span>
-                <h2 id="demo-movements-title">Actividad del periodo</h2>
-              </div>
-              {/* The same decorative glyph as the authenticated movement card, hidden because the title
-							    already names the section. */}
-              <span className="react-card-icon" aria-hidden="true">
-                <FontAwesomeIcon icon={faReceipt} />
-              </span>
-            </header>
-            <ul>
-              {recentMovements.map((movement) => (
-                <li key={movement.id}>
-                  <div>
-                    <strong>{movement.counterparty}</strong>
-                    <span>{movement.category ?? "Sin categoría"} · {movement.occurredAt.slice(0, 10)}</span>
-                  </div>
-                  <b className={movement.direction === "inflow" ? "demo-inflow" : ""}>
-                    {movement.direction === "inflow" ? "+" : "-"}{formatClp(movement.amount)}
-                  </b>
-                </li>
-              ))}
-            </ul>
-          </section>
+          /> : (
+            <MovementsTable
+              period={data.period}
+              movements={movements}
+              pendingAmountCount={summary.pendingAmountCount}
+              editableMovements={[]}
+              readOnlyReason="Edición deshabilitada en la demo"
+              requestedCategory={requestedCategory}
+              onEdit={() => { }}
+              onRemove={() => { }}
+            />
+          )}
 
           <footer className="demo-dashboard-footer">
             <p>Esta demo no guarda cambios ni se conecta a tu cuenta.</p>
@@ -1043,26 +1053,26 @@ export function DashboardLeadView({ lead }: DashboardLeadViewProps) {
         {lead.balance.detail.length > 0 && (
           <p className="react-lead-detail">{lead.balance.detail}</p>
         )}
-        {/* The percentage row is derived only from the amount and income above; without a truthful
-				    base the module returns `null` and the row is omitted instead of fabricated. The number and
-				    its trend icon carry the tone colour the module decided, and the adjacent compact flag names
-				    that same tone in Spanish with the matching soft surface. */}
+        {/* Keep the computed percentage; a positive remainder is not a safety rating or trend.
+            Existing zero/negative warnings and the absent-income branch stay unchanged. */}
         {lead.balance.availablePercent !== null &&
           lead.balance.availablePercentTone !== null && (
             <div className="react-lead-balance-status-row">
               <span
-                className={`react-lead-balance-percent react-lead-balance-percent-${lead.balance.availablePercentTone}`}
+                className={`react-lead-balance-percent react-lead-balance-percent-${lead.balance.availablePercentTone === "positive" ? "neutral" : lead.balance.availablePercentTone}`}
               >
-                <FontAwesomeIcon
+                {lead.balance.availablePercentTone !== "positive" && <FontAwesomeIcon
                   icon={BALANCE_PERCENT_ICONS[lead.balance.availablePercentTone]}
                   aria-hidden="true"
-                />
+                />}
                 <span>{lead.balance.availablePercent}%</span>
               </span>
               <span
-                className={`react-lead-balance-status react-lead-balance-status-${lead.balance.availablePercentTone}`}
+                className={`react-lead-balance-status react-lead-balance-status-${lead.balance.availablePercentTone === "positive" ? "neutral" : lead.balance.availablePercentTone}`}
               >
-                {BALANCE_STATUS_LABELS[lead.balance.availablePercentTone]}
+                {lead.balance.availablePercentTone === "positive"
+                  ? "del ingreso disponible"
+                  : BALANCE_STATUS_LABELS[lead.balance.availablePercentTone]}
               </span>
             </div>
           )}
@@ -1103,7 +1113,7 @@ export function DashboardBudgetPanel({ panel }: DashboardBudgetPanelProps) {
         <article className="react-financial-card">
           <span>{panel.budget.label}</span>
           <strong>{panel.budget.value}</strong>
-          <p>{panel.budget.detail}</p>
+          <p>El presupuesto por periodo todavía no está disponible.</p>
           <span className="react-card-icon" aria-hidden="true">
             <FontAwesomeIcon icon={faBullseye} />
           </span>
@@ -1267,6 +1277,16 @@ export interface SpendingChartViewProps {
   detailMovements: SpendingChartDetailMovement[];
   /** Opens the read-only movement dialog for a row identity; absent keeps every row inert. */
   onOpenMovement?: (movementId: string) => void;
+  /** Optional instance identifiers when a page illustrates this chart more than once. */
+  titleId?: string;
+  detailId?: string;
+  /** Supplied by the interactive owner; static previews need no effects or hooks. */
+  motion?: ReturnType<typeof useSpendingChartMotion>;
+  /** Interactive mobile owner may wrap the one detail presentation in a native dialog. */
+  dayDetailPresentation?: (detail: ReactNode) => ReactNode;
+  dayDetailIsModal?: boolean;
+  /** Dashboard-only visual shorthand; exact amounts remain in accessible names and detail. */
+  compactMobileLabels?: boolean;
 }
 
 const DAY_DETAIL_ID = "react-spending-chart-day-detail";
@@ -1279,6 +1299,12 @@ export function SpendingChartView({
   onSelectDay,
   detailMovements,
   onOpenMovement,
+  titleId = "react-spending-chart-title",
+  detailId = DAY_DETAIL_ID,
+  motion,
+  dayDetailPresentation = (detail) => detail,
+  dayDetailIsModal = false,
+  compactMobileLabels = false,
 }: SpendingChartViewProps) {
   const series = getSpendingChartSeries(chart, selectedTab);
   const selectedDay =
@@ -1287,9 +1313,9 @@ export function SpendingChartView({
   const totalsRows = getSpendingChartTotalsRows(chart, series.id);
   const [startDate, endDate] = series.detail.split(" - ");
   return (
-    <section className="react-spending-chart" aria-labelledby="react-spending-chart-title">
+    <section className="react-spending-chart" aria-labelledby={titleId}>
       <div className="react-spending-chart-header">
-        <h3 id="react-spending-chart-title">Gasto por día de la semana</h3>
+        <h3 id={titleId}>Gasto por día de la semana</h3>
         {/* Decorative: the adjacent title names the card, so the glyph is hidden. */}
         <span className="react-card-icon" aria-hidden="true">
           <FontAwesomeIcon icon={faChartColumn} />
@@ -1308,10 +1334,14 @@ export function SpendingChartView({
       ) : (
         <>
           <div
+            ref={(element) => {
+              if (motion?.tabsSelection) motion.tabsSelection.containerRef.current = element;
+            }}
             className="react-spending-chart-tabs"
             role="group"
             aria-label="Periodo del gráfico de gastos"
           >
+            <span ref={motion?.tabsSelection?.indicatorRef} className="react-spending-chart-selection-indicator" aria-hidden="true" />
             {chart.tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -1330,8 +1360,9 @@ export function SpendingChartView({
               {endDate !== undefined && <>{" - "}<strong>{endDate}</strong></>}
             </span>
           </div>
+          {compactMobileLabels && <p className="react-spending-chart-mobile-note">Montos aproximados en CLP; valor exacto en el detalle.</p>}
           <div className="react-spending-chart-body">
-            <div className="react-spending-chart-bars" role="region" aria-label={series.ariaLabel}>
+            <div ref={motion?.chartRef} className="react-spending-chart-bars" role="region" aria-label={series.ariaLabel}>
               {series.days.map((day) => {
                 const isSelected = day.key === selectedDayKey;
                 return (
@@ -1344,10 +1375,15 @@ export function SpendingChartView({
                         : "react-spending-chart-bar"
                     }
                     aria-pressed={isSelected}
-                    aria-controls={DAY_DETAIL_ID}
+                    aria-controls={detailId}
+                    aria-haspopup={dayDetailIsModal ? "dialog" : undefined}
                     aria-label={getSpendingChartBarLabel(series, day)}
                     disabled={!day.isInPeriod}
-                    onClick={() => onSelectDay(day.key)}
+                    onClick={(event) => {
+                      // Some touch browsers do not focus clicked buttons; native close must return here.
+                      if (dayDetailIsModal) event.currentTarget.focus();
+                      onSelectDay(day.key);
+                    }}
                   >
                     <span
                       className={day.isInPeriod && day.total > 0
@@ -1355,9 +1391,12 @@ export function SpendingChartView({
                         : "react-spending-chart-value"}
                       aria-hidden="true"
                     >
-                      {day.isInPeriod
-                        ? day.total > 0 ? formatClp(day.total) : "$0"
-                        : null}
+                      {day.isInPeriod && (compactMobileLabels ? <>
+                        <span className="react-spending-chart-value-full">{day.total > 0 ? formatClp(day.total) : "$0"}</span>
+                        <span className="react-spending-chart-value-compact">{day.total > 0
+                          ? `$${new Intl.NumberFormat("es-CL", { notation: "compact", maximumFractionDigits: 0 }).format(day.total).replace(/\u00a0/g, " ").replace(/ k$/, " mil")}`
+                          : "$0"}</span>
+                      </> : day.total > 0 ? formatClp(day.total) : "$0")}
                     </span>
                     <span
                       className={
@@ -1384,10 +1423,15 @@ export function SpendingChartView({
               })}
             </div>
             <aside
+              ref={(element) => {
+                if (motion) motion.summaryRef.current = element;
+                if (motion?.summarySelection) motion.summarySelection.containerRef.current = element;
+              }}
               className="react-spending-chart-summary"
               aria-label="Resumen de gastos del periodo"
             >
               <h4>Resumen del periodo</h4>
+              <span ref={motion?.summarySelection?.indicatorRef} className="react-spending-chart-selection-indicator" aria-hidden="true" />
               {totalsRows.map((row) => (
                 <div
                   key={row.id}
@@ -1408,8 +1452,9 @@ export function SpendingChartView({
                 </div>
               ))}
             </aside>
-            <aside
-              id={DAY_DETAIL_ID}
+            {dayDetailPresentation(<aside
+              ref={motion?.dayRef}
+              id={detailId}
               className="react-spending-chart-day-panel"
               aria-live="polite"
             >
@@ -1480,7 +1525,7 @@ export function SpendingChartView({
                   </div>
                 ))
               )}
-            </aside>
+            </aside>)}
           </div>
         </>
       )}
@@ -1511,9 +1556,38 @@ export function SpendingChartPanel({
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(() =>
     getSpendingChartDefaultDayKey(getSpendingChartSeries(chart, FULL_PERIOD_TAB_ID)),
   );
+  const motion = useSpendingChartMotion(selectedTab, selectedDayKey);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 640px)").matches,
+  );
+  const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
+  const dayDialogRef = useRef<HTMLDialogElement | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(max-width: 640px)");
+    const update = () => {
+      setIsMobile(media.matches);
+      setIsDayDetailOpen(false);
+      syncNativeModalDialog(dayDialogRef.current, false);
+    };
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  const closeDayDetail = () => {
+    syncNativeModalDialog(dayDialogRef.current, false);
+    setIsDayDetailOpen(false);
+  };
   const handleSelectTab = (tabId: string) => {
+    closeDayDetail();
     setSelectedTab(tabId);
     setSelectedDayKey(getSpendingChartDefaultDayKey(getSpendingChartSeries(chart, tabId)));
+  };
+  const handleOpenMovement = onOpenMovement === undefined ? undefined : (movementId: string) => {
+    // Close synchronously, before the movement owner can open another native modal.
+    closeDayDetail();
+    onOpenMovement(movementId);
   };
   return (
     <SpendingChartView
@@ -1521,9 +1595,24 @@ export function SpendingChartPanel({
       selectedTab={selectedTab}
       onSelectTab={handleSelectTab}
       selectedDayKey={selectedDayKey}
-      onSelectDay={setSelectedDayKey}
+      onSelectDay={(dayKey) => {
+        setSelectedDayKey(dayKey);
+        if (isMobile) setIsDayDetailOpen(true);
+      }}
+      motion={motion}
       detailMovements={detailMovements}
-      onOpenMovement={onOpenMovement}
+      onOpenMovement={handleOpenMovement}
+      compactMobileLabels
+      dayDetailIsModal={isMobile}
+      dayDetailPresentation={isMobile ? (detail) => (
+        <SpendingDayDetailDialog
+          dialogRef={dayDialogRef}
+          isOpen={isDayDetailOpen}
+          onClose={() => setIsDayDetailOpen(false)}
+        >
+          {detail}
+        </SpendingDayDetailDialog>
+      ) : undefined}
     />
   );
 }
@@ -1778,7 +1867,7 @@ interface DashboardAnalyticsBodyProps {
   onOpenCategoryMovement?: (movementId: string) => void;
   /** Stored category catalog for the donut colours; absent when the caller has none. */
   catalog?: readonly Category[];
-  /** Jumps into the caller's movement surface; the demo passes an inert callback. */
+  /** Jumps into the caller's movement surface, including the read-only demo table. */
   onJumpToCategory: (category: string) => void;
   /** The decided insights, from `getTopInsights`. */
   insights: DashboardTopInsights;
@@ -1797,7 +1886,7 @@ interface DashboardAnalyticsBodyProps {
  *
  * It is deliberately internal and holds no state, data or request: each caller decides the data and
  * passes the capabilities it supports. The authenticated summary wires the category jump and the chart
- * detail dialog; the demo passes an inert jump and no detail callback, and omits the stored catalog, so
+ * detail dialog; the demo wires a local jump without a detail callback, and omits the stored catalog, so
  * the two differ in capabilities and copy, never in layout. The authenticated movement table and the
  * demo's read-only movements list/footer stay outside this body.
  *
@@ -2884,6 +2973,8 @@ export interface MovementsTableViewProps {
   onAssignCategory?: () => void;
   isBulkAssigning?: boolean;
   bulkNotice?: BulkCategoryFeedback | null;
+  /** Explicit read-only presentation reason; omitted preserves normal eligibility explanations. */
+  readOnlyReason?: string;
 }
 
 export function MovementsTableView({
@@ -2913,6 +3004,7 @@ export function MovementsTableView({
   onAssignCategory,
   isBulkAssigning,
   bulkNotice,
+  readOnlyReason,
 }: MovementsTableViewProps) {
   // The rows the table renders: the filter's own rows put in the order the sort decided. Sorting is
   // applied to the filtered rows, never to the loaded ones, and the count stays the filter's own — it
@@ -3058,6 +3150,7 @@ export function MovementsTableView({
         </header>
         <MobileMovementList
           rows={visibleRows} editableById={editableById} sort={sort} onActivate={onActivate}
+          readOnlyReason={readOnlyReason}
           selection={selection} onToggleSelection={onToggleSelection}
           onToggleAllSelection={onToggleAllSelection} onSelectSimilar={onSelectSimilar}
           onView={onView} onEdit={onEdit} onRemove={onRemove}
@@ -3160,7 +3253,7 @@ export function MovementsTableView({
                       </>
                     ) : (
                       <span className="react-movements-read-only">
-                        Solo lectura: sin identificación o fecha válida
+                        {readOnlyReason ?? "Solo lectura: sin identificación o fecha válida"}
                       </span>
                     )}
                   </td>
@@ -3204,6 +3297,8 @@ export interface MovementsTableProps {
   submitBulkCategory?: BulkCategorySubmitter;
   /** Read-only category catalog already loaded by the summary; `[]` still offers "Sin categoría". */
   categoryCatalog?: Category[];
+  /** Presentation only: demo passes this explicitly, never inferred from missing identity. */
+  readOnlyReason?: string;
 }
 
 export function MovementsTable({
@@ -3216,6 +3311,7 @@ export function MovementsTable({
   onRemove,
   submitBulkCategory,
   categoryCatalog = [],
+  readOnlyReason,
 }: MovementsTableProps) {
   // Initialised for the period the rows belong to; the unified view also renders for empty periods.
   // the rows belong to. The requested category is only read here, which is what makes it a mount-time
@@ -3358,7 +3454,8 @@ export function MovementsTable({
         onEdit={onEdit}
         onRemove={onRemove}
         onView={openDetail}
-        selection={selectionView}
+        readOnlyReason={readOnlyReason}
+        selection={readOnlyReason ? undefined : selectionView}
         onToggleSelection={(id) =>
           setRowSelection((current) =>
             toggleMovementSelection(current, id, selectableIds),
@@ -3381,6 +3478,7 @@ export function MovementsTable({
       {/* The detail modal is rendered for every recognized row, editable or not. */}
       <ViewMovementDialog
         movement={detailMovement}
+        readOnlyReason={readOnlyReason}
         editableMovement={detailEditable}
         onClose={closeDetail}
         onEdit={handleDetailEdit}

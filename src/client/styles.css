@@ -92,7 +92,7 @@ body:has(.landing-page) { overflow-x: clip; }
 }
 .landing-brand-icon { color: var(--marketing-primary); }
 .landing-nav { align-self: stretch; gap: 32px; color: var(--marketing-muted); font-size: .875rem; font-weight: 500; }
-.landing-nav a { position: relative; display: flex; align-items: center; color: inherit; text-decoration: none; }
+.landing-nav a { position: relative; display: flex; align-items: center; color: inherit; text-decoration: none; white-space: nowrap; }
 .landing-nav a:hover { color: var(--marketing-primary); }
 .landing-nav .is-current { color: var(--marketing-primary); }
 .landing-nav .is-current::after { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; background: var(--marketing-primary); content: ""; }
@@ -115,18 +115,22 @@ body:has(.landing-page) { overflow-x: clip; }
 .landing-secondary-button:hover { transform: translateY(-2px); border-color: rgb(var(--marketing-primary-rgb) / .3); color: var(--marketing-primary); }
 .landing-google-badge { display: grid; width: 24px; height: 24px; flex-shrink: 0; place-items: center; border-radius: 50%; background: white; }
 .landing-google-icon { display: block; width: 16px; height: 16px; }
-.landing-identity { color: var(--marketing-muted); font-size: .875rem; font-weight: 500; }
+.landing-header .landing-primary-button { flex-shrink: 0; white-space: nowrap; }
+.landing-session-action-icon { display: none; }
+.landing-identity { min-width: 0; max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--marketing-muted); font-size: .875rem; font-weight: 500; }
 
 .landing-hero { padding: 64px 0; }
 .landing-hero-grid { display: grid; align-items: center; gap: 56px; }
 .landing-hero-grid > * { min-width: 0; }
 .landing-hero-badge { gap: 8px; border: 1px solid #dfe3f5; border-radius: var(--radius-pill); background: var(--marketing-surface-subtle); padding: 8px 16px; color: var(--marketing-primary); font-size: .75rem; font-weight: 600; }
 .landing-hero-badge .material-symbols-outlined { font-size: 1rem; font-variation-settings: "FILL" 1; }
-.landing-hero h1 { margin: 24px 0 0; font-family: var(--font-display); font-size: 2.65rem; font-weight: 600; line-height: 1.04; letter-spacing: -.055em; }
+.landing-hero h1 { margin: 24px 0 0; font-family: var(--font-display); font-size: clamp(2rem, 8.5vw, 2.65rem); font-weight: 600; line-height: 1.04; letter-spacing: -.055em; }
 .landing-hero h1 span { display: block; }
 .landing-hero h1 span:last-child { color: var(--marketing-primary); }
 .landing-hero-description { max-width: 36rem; margin: 24px 0 0; color: var(--marketing-muted); font-size: 1rem; line-height: 1.75; }
-.landing-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.landing-hero-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; margin-top: 32px; }
+.landing-demo-action { display: grid; justify-items: center; gap: 8px; }
+.landing-demo-action > span { color: var(--marketing-muted); font-size: .75rem; }
 .landing-hero-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 40px 0 0; border-top: 1px solid var(--marketing-line); padding-top: 24px; }
 .landing-hero-facts div + div { border-left: 1px solid var(--marketing-line); padding-left: 16px; }
 .landing-hero-facts dt { color: var(--marketing-muted); font-size: .75rem; }
@@ -436,6 +440,11 @@ body:has(.landing-page) { overflow-x: clip; }
 .landing-security-content h2 { margin: 12px 0 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -.035em; }
 .landing-security-details { display: grid; gap: 20px; color: var(--marketing-muted); font-size: .875rem; line-height: 1.7; }
 .landing-security-details p { display: flex; gap: 12px; margin: 0; }
+.landing-security-details details { border-top: 1px solid var(--marketing-line); padding-top: 16px; }
+.landing-security-details summary { color: var(--marketing-ink); font-weight: 600; cursor: pointer; }
+.landing-security-details summary:focus-visible { outline: 2px solid var(--marketing-primary); outline-offset: 4px; }
+.landing-security-details details p { display: block; margin-top: 12px; }
+.landing-security-details a { color: var(--marketing-primary); text-underline-offset: 3px; }
 .landing-security-icon { flex-shrink: 0; color: var(--marketing-primary); }
 
 .landing-footer { background: #faf9fe; }
@@ -492,13 +501,13 @@ body:has(.landing-page) { overflow-x: clip; }
 	.landing-how-it-works-section { padding: 112px 0; }
 	.landing-how-it-works-heading h2 { font-size: 2.45rem; }
 	.landing-security-section { padding: 80px 0; }
-	.landing-security-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.landing-security-details { max-width: 44rem; }
 	.landing-footer-content { flex-direction: row; align-items: center; justify-content: space-between; }
 }
 
 @media (min-width: 768px) {
 	.landing-security-content { grid-template-columns: .75fr 1.25fr; align-items: center; }
-	.landing-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; margin-top: 80px; }
+	.landing-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 80px; }
 	.landing-steps::before { top: 36px; right: 0; bottom: auto; left: 0; width: auto; height: 1px; }
 	.landing-steps li { display: block; padding-bottom: 0; }
 	.landing-step-number { display: inline-block; padding-right: 16px; font-size: 3.25rem; }
@@ -511,13 +520,37 @@ body:has(.landing-page) { overflow-x: clip; }
 	.landing-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 	.landing-hero { padding: 24px 0 112px; }
 	.landing-hero-grid { grid-template-columns: .82fr 1.18fr; gap: 64px; }
-	.landing-hero h1 { font-size: 4.35rem; }
+	.landing-hero h1 { font-size: clamp(2rem, 4vw, 3.65rem); }
 	.landing-compatibility-panel { display: flex; align-items: center; justify-content: space-between; gap: 64px; }
 	.landing-compatibility-copy { margin-top: 0; }
 	.landing-steps { gap: 36px; }
 }
 
-@media (max-width: 767px) { .landing-nav, .landing-identity { display: none; } .landing-session-action-label { display: none; } }
+/* Keep navigation and sign-in text on one line before intermediate widths get crowded. */
+@media (max-width: 1023px) {
+	.landing-nav { display: none; }
+}
+@media (min-width: 1024px) and (max-width: 1199px) {
+	.landing-nav { gap: 16px; }
+	.landing-identity { display: none; }
+}
+/* Show the result alongside the copy without shrinking the canonical handset. */
+@media (min-width: 820px) and (max-width: 1023px) {
+	.landing-hero-grid { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; gap: 32px; }
+	.landing-hero h1 { font-size: 2.65rem; }
+	.landing-hero .landing-phone { margin-right: 16px; }
+	.landing-hero .landing-info-card { width: 176px; min-height: 60px; padding: 8px; }
+	.landing-hero .landing-connected { right: auto; left: 0; }
+	.landing-hero .landing-sync-note { right: auto; left: 0; }
+}
+@media (max-width: 639px) {
+	.landing-identity { display: none; }
+}
+@media (max-width: 479px) {
+	.landing-session-action-label { display: none; }
+	.landing-session-action-icon { display: block; }
+	.landing-header .landing-primary-button { width: 48px; padding: 12px; }
+}
 @media (prefers-reduced-motion: reduce) {
 	.landing-reveal, .landing-reveal.is-visible { opacity: 1; transform: none; transition: none; }
 	.landing-phone, .landing-connected, .landing-sync-note, .landing-budget { animation: none; }
@@ -2018,44 +2051,75 @@ body:has(.landing-page) { overflow-x: clip; }
 	gap: var(--space-2);
 }
 
-/* Only the donut detail promotes its filter jump; the shared ranking detail keeps its own actions. */
+/* Let the detail grow with its rows inside the legend's scroll container. */
+.react-category-distribution .react-category-detail {
+	display: flex;
+	flex-direction: column;
+}
+
+/* In-flow space keeps the last row reachable; the opaque footer stays visible while scrolling. */
 .react-category-distribution .react-category-detail-actions {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr);
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
+	display: flex;
+	flex-wrap: nowrap;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 4px 8px;
+	min-width: 0;
+	padding-block: var(--space-2);
+	border-top: 1px solid var(--line);
+	background: var(--surface);
 }
 
 .react-category-distribution .react-category-detail-actions button {
-	width: 100%;
+	flex: 0 1 auto;
+	width: auto;
+	max-width: 100%;
 	min-width: 0;
-	padding: var(--space-2) var(--space-3);
+	min-height: 36px;
+	padding: 6px 10px;
+	border-radius: 6px;
+	font-size: 0.8125rem;
+	font-weight: 600;
 	line-height: 1.35;
 	white-space: normal;
+	overflow-wrap: anywhere;
 	text-align: center;
 }
 
 .react-category-distribution button.react-category-detail-jump {
-	border: 0;
-	background: var(--accent);
-	color: #ffffff;
-	box-shadow: var(--shadow-sm);
+	border: 1px solid var(--line);
+	background: var(--surface-subtle);
+	color: var(--accent);
+	box-shadow: none;
 }
 
 .react-category-distribution button.react-category-detail-jump:hover {
-	background: var(--accent-hover);
-	box-shadow: var(--shadow-card);
+	border-color: var(--accent-line);
+	background: var(--surface);
+	box-shadow: none;
 }
 
 .react-category-distribution button.react-category-detail-back {
-	border-color: var(--line);
+	border-color: transparent;
 	background: transparent;
 	color: var(--ink-secondary);
 	box-shadow: none;
 }
 
 .react-category-distribution button.react-category-detail-back:hover {
-	border-color: var(--line-strong);
+	border-color: transparent;
 	background: var(--surface-subtle);
 	box-shadow: none;
+}
+
+/* Keep touch targets comfortable without restoring the full-width CTA treatment. */
+@media (pointer: coarse) {
+	.react-category-distribution .react-category-detail-actions button {
+		min-height: 44px;
+	}
 }
 
 /* The category distribution card reuses the shipped surface primitives; its donut and legend are new. */
@@ -2224,6 +2288,39 @@ body:has(.landing-page) { overflow-x: clip; }
 	margin: 0;
 	color: var(--ink-muted);
 	font-size: .875rem;
+}
+
+/* Static previews keep native active backgrounds; measured owners use one moving surface. */
+.react-spending-chart-tabs,
+.react-spending-chart-summary {
+	position: relative;
+	isolation: isolate;
+}
+
+.react-spending-chart-selection-indicator {
+	display: none;
+	position: absolute;
+	z-index: -1;
+	pointer-events: none;
+	box-sizing: border-box;
+	border: 1px solid var(--accent-line);
+	border-radius: var(--radius-sm);
+	background: var(--accent);
+}
+
+[data-selection-motion="true"] > .react-spending-chart-selection-indicator {
+	display: block;
+}
+
+.react-spending-chart-tabs > .react-spending-chart-selection-indicator {
+	border-radius: 8px;
+	background: #e3ecff;
+}
+
+.react-spending-chart-tabs[data-selection-motion="true"] > .react-spending-chart-tab[aria-pressed="true"],
+.react-spending-chart-summary[data-selection-motion="true"] > .react-spending-chart-summary-row-active {
+	background: transparent;
+	border-color: transparent;
 }
 
 .react-spending-chart-tabs {
@@ -4621,4 +4718,121 @@ body:has(.react-movements-page) {
 	.react-analytics-summary {
 		grid-template-columns: 1fr;
 	}
+}
+
+.react-spending-day-dialog {
+	box-sizing: border-box;
+	width: min(560px, calc(100vw - 24px));
+	max-height: calc(100vh - 24px);
+	max-height: calc(100dvh - 24px);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 16px;
+	padding-bottom: max(16px, env(safe-area-inset-bottom));
+	border: 1px solid var(--line);
+	border-radius: var(--radius-card);
+	background: var(--surface);
+	color: var(--ink);
+}
+.react-spending-day-dialog::backdrop { background: rgb(15 23 42 / .48); }
+.react-spending-day-dialog-actions { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.react-spending-day-dialog-actions button { min-height: 44px; }
+.react-spending-day-dialog .react-spending-chart-day-panel { max-height: none; overflow: visible; }
+.react-spending-day-dialog .react-spending-chart-day-info strong { white-space: normal; overflow-wrap: anywhere; }
+
+/* Mobile summary: balances, daily chart, categories; secondary facts remain below.
+   Qualified selectors override the later-loaded mobile content sheet without changing tablets. */
+@media (max-width: 640px) {
+	.react-analytics-body { display: flex; flex-direction: column; gap: var(--space-3); }
+	.react-analytics-body .react-analytics-summary,
+	.react-analytics-body .react-analytics-columns { display: contents; }
+	.react-analytics-body .react-analytics-summary .react-dashboard-lead {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		order: 1;
+		gap: var(--space-2);
+	}
+	.react-analytics-body .react-dashboard-lead article { min-width: 0; padding: var(--space-3); }
+	.react-analytics-body .react-lead-amount { font-size: clamp(1.1rem, 5vw, 1.6rem); }
+	.react-analytics-body .react-lead-question { font-size: .75rem; }
+	.react-analytics-body .react-lead-detail { font-size: .65rem; }
+	.react-analytics-body .react-lead-primary-heading,
+	.react-analytics-body .react-lead-answer-heading { gap: 6px; }
+	.react-analytics-body .react-lead-balance-status-row { flex-wrap: wrap; gap: 6px; }
+	.react-analytics-body .react-mobile-evolution { order: 2; }
+	.react-analytics-body .react-mobile-categories { order: 3; }
+	.react-analytics-body .react-budget-panel { order: 4; }
+	.react-analytics-body .react-mobile-breakdown { order: 5; }
+	.react-analytics-body .react-mobile-counterparties { order: 6; }
+	.react-analytics-body .react-mobile-insights { order: 7; }
+}
+
+.react-spending-chart-value-compact,
+.react-spending-chart-mobile-note { display: none; }
+.react-dashboard-period-context { margin: 0 0 8px; color: var(--ink-muted); font-size: .875rem; line-height: 1.5; }
+.react-lead-balance-percent-neutral { color: var(--ink); }
+.react-lead-balance-status-neutral { background: var(--surface-subtle); color: var(--ink-muted); }
+.react-movements-page .demo-dashboard .react-dashboard-header { align-items: start; }
+
+/* Mobile chart: seven visible days without changing static phone illustrations. */
+@media (max-width: 640px) {
+	.react-analytics-body .react-spending-chart { padding: 12px; }
+	.react-analytics-body .react-spending-chart-header::after { content: none; }
+	.react-analytics-body .react-spending-chart-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+	.react-analytics-body .react-spending-chart-tab {
+		min-height: 44px;
+		min-width: 0;
+		max-width: 100%;
+		padding: 4px 7px;
+		font-size: .75rem;
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+	.react-analytics-body .react-spending-chart-bars {
+		display: grid;
+		grid-template-columns: repeat(7, minmax(0, 1fr));
+		align-items: stretch;
+		gap: 2px;
+		padding: 12px 6px;
+		overflow: visible;
+	}
+	/* Tall day buttons keep their full column selectable; only the painted tracks are thin. */
+	.react-analytics-body .react-spending-chart-bar {
+		box-sizing: border-box;
+		width: 100%;
+		min-width: 0;
+		grid-template-rows: minmax(1.6rem, auto) 136px auto auto;
+		padding: 4px 0;
+	}
+	.react-analytics-body .react-spending-chart-bar > * {
+		min-width: 0;
+		max-width: 100%;
+		overflow-wrap: anywhere;
+	}
+	/* Full amounts wrap in place, including selected/positive values: no angled overflow. */
+	.react-analytics-body .react-spending-chart-bar .react-spending-chart-value {
+		max-width: 100%;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		transform: none;
+		font-size: .625rem;
+		line-height: 1.2;
+	}
+	.react-analytics-body .react-spending-chart-value-full { display: none; }
+	.react-analytics-body .react-spending-chart-value-compact {
+		display: block;
+		overflow-wrap: normal;
+		word-break: normal;
+		white-space: normal;
+		font-variant-numeric: tabular-nums;
+	}
+	.react-analytics-body .react-spending-chart-mobile-note {
+		display: block;
+		margin: 6px 0 0;
+		color: var(--ink-muted);
+		font-size: .75rem;
+		line-height: 1.5;
+	}
+	.react-analytics-body .react-spending-chart-track { width: 10px; height: 136px; }
+	.react-analytics-body .react-spending-chart-day { font-size: .6875rem; }
+	.react-analytics-body .react-spending-chart-detail { font-size: .625rem; }
 }

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { createServer as createHttpServer } from "node:http";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { createServer as createRawViteServer, loadConfigFromFile } from "vite";
 
@@ -13,7 +14,8 @@ function createViteServer(config) {
 		...config,
 		// Override loaded/spread configuration: tests must never load root .env files.
 		envFile: false,
-		server: { ...config.server, hmr: false, ws: false },
+		optimizeDeps: { noDiscovery: true, include: [] },
+		server: { ...config.server, hmr: false, ws: false, watch: null },
 	});
 }
 
@@ -57,7 +59,7 @@ test("Vite development serves /app and proxies legacy backend paths", async (t) 
 	const backendAddress = backend.address();
 	assert.ok(backendAddress && typeof backendAddress !== "string");
 	const backendTarget = `http://127.0.0.1:${backendAddress.port}`;
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -202,7 +204,12 @@ test("the React root composes the bounded landing header and hero with its sessi
 	assert.match(app, /window\.location\.pathname\s*===\s*"\/"/);
 	assert.match(app, /<LandingPage\s*\/>/);
 	assert.match(page, /<LandingHeader\s+session=\{session\}\s*\/>/);
-	assert.match(page, /<LandingHero\s*\/>/);
+	assert.match(page, /<LandingHero\s+data=\{previewData\}\s+previewError=\{previewError\}\s*\/>/);
+	assert.match(page, /<LandingTourSection\s+data=\{previewData\}\s+previewError=\{previewError\}\s*\/>/);
+	assert.equal((page.match(/loadDemoDashboardData\(controller\.signal\)/g) ?? []).length, 1);
+	assert.match(page, /if \(!controller\.signal\.aborted\) setPreviewData\(data\)/);
+	assert.match(page, /if \(!controller\.signal\.aborted\)\s*\{\s*setPreviewError\("No pudimos cargar los datos de ejemplo\. Puedes abrir la demo\."\)/);
+	assert.match(page, /return \(\) => controller\.abort\(\)/);
 	assert.match(header, /href=\{isAuthenticated \? "\/app" : getGoogleLoginUrl\(\)\}/);
 	assert.match(header, /Ir al dashboard/);
 	assert.match(header, /profile\?\.name \|\| profile\?\.email/);
@@ -263,8 +270,9 @@ test("the React landing composes compatible banking and how-it-works sections wi
 	assert.match(howItWorks, /<RevealOnScroll/);
 	assert.match(howItWorks, /const steps/);
 	assert.match(howItWorks, /steps\.map/);
-	assert.match(howItWorks, /Autoriza Gmail/);
-	assert.match(howItWorks, /Revisa y ajusta/);
+	assert.match(howItWorks, /Conecta Gmail/);
+	assert.match(howItWorks, /Elige y sincroniza el periodo/);
+	assert.match(howItWorks, /Revisa tus gastos/);
 });
 
 test("the React landing composes the accessible security section and footer after how-it-works", async () => {
@@ -290,9 +298,11 @@ test("the React landing composes the accessible security section and footer afte
 	assert.equal((security.match(/\bid="seguridad"/g) ?? []).length, 1);
 	assert.match(security, /<section[^>]*\bid="seguridad"[^>]*aria-labelledby="security-title"/);
 	assert.match(security, /<RevealOnScroll/);
-	assert.match(security, /Acceso autorizado y acotado\./);
+	assert.match(security, /Tus datos, con las reglas claras\./);
 	assert.match(security, /Se consultan mensajes compatibles de Banco de Chile para el periodo seleccionado\./);
-	assert.match(security, /Correcciones, reglas, movimientos manuales, categorías y presupuesto pueden persistir\./);
+	assert.match(security, /No hay un plazo de eliminación automática definido\./);
+	assert.match(security, /no revoca el permiso en Google/);
+	assert.match(security, /https:\/\/myaccount.google.com\/connections/);
 	assert.match(footer, /<footer/);
 	assert.match(footer, /aria-label="Navegación del pie"/);
 	assert.match(footer, /href="#seguridad"/);
@@ -302,7 +312,7 @@ test("the React landing composes the accessible security section and footer afte
 });
 
 test("the React financial summary loads the configured period before transactions and recognizes only supported expenses", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -384,7 +394,7 @@ test("the React financial summary loads the configured period before transaction
 });
 
 test("the React financial dashboard cache serves a tab reload without a request and only trusts a valid response", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -597,7 +607,7 @@ test("the account route remounts by identity and logout clears the tab cache bef
 });
 
 test("the React financial summary breaks recognized spending down by kind without counting unknown amounts", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -650,7 +660,7 @@ test("the React financial summary breaks recognized spending down by kind withou
 });
 
 test("the React financial summary selects the latest valid recognized expense within the configured period", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -724,7 +734,7 @@ test("the React financial summary selects the latest valid recognized expense wi
 });
 
 test("the React financial summary exposes pending recognized amounts without inventing a balance", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -774,7 +784,7 @@ test("the React financial summary exposes pending recognized amounts without inv
 });
 
 test("the React movements view derives safe, finite recognized expense rows", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -871,7 +881,7 @@ test("the React movements view derives safe, finite recognized expense rows", as
 });
 
 test("the demo fixture adapter validates and safely rebases movements without API access", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -939,7 +949,7 @@ test("the demo fixture adapter validates and safely rebases movements without AP
 });
 
 test("the demo route renders Spanish read-only data and keeps session and sync calls out of the demo branch", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -973,9 +983,12 @@ test("the demo route renders Spanish read-only data and keeps session and sync c
 	assert.equal(route.isDemoDashboardRoute("/app/demo"), true);
 	assert.equal(route.isDemoDashboardRoute("/app/demo/"), true);
 	assert.equal(route.isDemoDashboardRoute("/app"), false);
-	assert.match(markup, /Demo/);
-	assert.match(markup, /Solo lectura/);
+	assert.match(markup, /<span class="demo-read-only-badge">Datos de ejemplo · Solo lectura<\/span>/);
 	assert.match(markup, /Mercado/);
+	assert.match(markup, /\$25\.000/);
+	assert.match(markup, /\$875\.000/);
+	assert.match(markup, /Esta demo no guarda cambios ni se conecta a tu cuenta\./);
+	assert.doesNotMatch(markup, /Ingreso configurado|Sincronizar|Guardar cambios/);
 	// The demo reuses the authenticated chrome: the same header and Resumen/Movimientos navigation
 	// shape, with the stable demo identity in the account slot.
 	assert.match(markup, /class="react-app-header"/);
@@ -993,7 +1006,7 @@ test("the demo route renders Spanish read-only data and keeps session and sync c
 	// The account menu's only action leaves demo mode; the footer keeps its read-only login too.
 	assert.match(markup, /<a href="\/auth\/google" role="menuitem"[^>]*>Iniciar sesión<\/a>/);
 	assert.match(markup, /Inicia sesión para editar/);
-	// Inert navigation: the demo mounts no authenticated movements surface behind the chrome.
+	// The initial summary keeps local demo navigation, without authenticated mutation controls.
 	assert.doesNotMatch(markup, /Filtrar tabla por categoría|Nuevo gasto|react-financial-view-toggle/);
 	assert.match(markup, /href="\/auth\/google"/);
 	assert.match(hero, /href="\/app\/demo"/);
@@ -1002,7 +1015,7 @@ test("the demo route renders Spanish read-only data and keeps session and sync c
 });
 
 test("the React financial-cycle setup validates inclusive dates and reloads through the cycle-first path", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -1106,7 +1119,7 @@ test("the React financial-cycle setup validates inclusive dates and reloads thro
 });
 
 test("the React category settings module validates drafts before any request and derives the display catalog", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -1187,7 +1200,7 @@ test("the React category settings module validates drafts before any request and
 });
 
 test("the React category mutations send the exact request and surface the server message", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -1292,7 +1305,7 @@ test("the React category mutations send the exact request and surface the server
 });
 
 test("the React category submitter holds a single in-flight mutation and only sends a valid draft", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -1423,7 +1436,7 @@ test("the React category submitter holds a single in-flight mutation and only se
 });
 
 test("the React category settings dialog renders the catalog controls and the truthful delete confirmation", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -1577,7 +1590,7 @@ test("the React dashboard owns category management instead of redirecting to the
 });
 
 test("the React category mutation phase is cleared only by an outcome that settled", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -1610,7 +1623,7 @@ test("the React category mutation phase is cleared only by an outcome that settl
 });
 
 test("the React category catalog derivation protects a row whose builtin flag is absent", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -1665,7 +1678,7 @@ test("the React category catalog derivation protects a row whose builtin flag is
 });
 
 test("the React counterparty key mirror matches the server normalization over a fixture set", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -1725,7 +1738,7 @@ test("the React counterparty key mirror matches the server normalization over a 
 });
 
 test("the React counterparty rule module validates a draft before any request and derives truthful states", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -1880,7 +1893,7 @@ test("the React counterparty rule module validates a draft before any request an
 });
 
 test("the React counterparty rule client sends the exact request and reads both server outcomes", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -2032,7 +2045,7 @@ test("the React counterparty rule client sends the exact request and reads both 
 });
 
 test("the React counterparty rule submitter holds a single in-flight mutation and reports the reload truthfully", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -2198,7 +2211,7 @@ test("the React counterparty rule submitter holds a single in-flight mutation an
 });
 
 test("the React counterparty rules dialog renders the stored rules, the Sin categoría option and truthful states", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -2323,7 +2336,7 @@ test("the React counterparty rules dialog renders the stored rules, the Sin cate
 });
 
 test("the React counterparty rules cannot send the category placeholder as a category", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -2406,7 +2419,7 @@ test("the React counterparty rules cannot send the category placeholder as a cat
 });
 
 test("the React dashboard exposes counterparty rules only in the authenticated tree", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -2524,7 +2537,7 @@ test("the React dashboard exposes counterparty rules only in the authenticated t
 });
 
 test("the React financial-cycle edit module derives the draft, validates it and states the closure consequence", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -2752,7 +2765,7 @@ test("the React financial-cycle edit module derives the draft, validates it and 
 });
 
 test("the React financial-cycle edit submitter sends the exact PUT body, holds one in-flight mutation and reports the reload separately", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -2952,7 +2965,7 @@ test("the React financial-cycle edit submitter sends the exact PUT body, holds o
 });
 
 test("the React financial-cycle edit dialog renders the prefilled fields and states the closure consequence before saving", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -3117,7 +3130,7 @@ test("the React financial-cycle edit dialog renders the prefilled fields and sta
 });
 
 test("the React financial summary exposes one period edit trigger and reloads through the dashboard handle", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -3259,7 +3272,7 @@ test("the React financial summary exposes one period edit trigger and reloads th
 });
 
 test("the React setup form and the financial-cycle module share one income rule", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -3348,7 +3361,7 @@ test("the React setup form and the financial-cycle module share one income rule"
 });
 
 test("the React financial-cycle completion client sends the exact period body and reads the four outcomes as data", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -3499,7 +3512,7 @@ test("the React financial-cycle completion client sends the exact period body an
 });
 
 test("the React financial-cycle completion client throws instead of reporting a closure when the response body is unreadable", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -3540,7 +3553,7 @@ test("the React financial-cycle completion client throws instead of reporting a 
 });
 
 test("the React financial-cycle completion module states each outcome truthfully and tells a re-closure from a fresh one", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -3669,7 +3682,7 @@ test("the React financial-cycle completion module states each outcome truthfully
 });
 
 test("the React financial-cycle completion submitter holds a single in-flight closure and releases the lock on a refused request", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -3841,7 +3854,7 @@ test("the React financial-cycle completion submitter holds a single in-flight cl
 });
 
 test("the React financial-cycle completion dialog consents to the mailbox read and keeps the closure out of the demo", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -3980,7 +3993,7 @@ test("the React financial-cycle completion dialog consents to the mailbox read a
 });
 
 test("the React movement filter module derives the loaded categories and narrows the rows without a request", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -4172,7 +4185,7 @@ test("the React movement filter module derives the loaded categories and narrows
 });
 
 test("the React movement filter count states the filtered rows out of the period's total without claiming the summary was filtered", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -4227,7 +4240,7 @@ test("the React movement filter count states the filtered rows out of the period
 });
 
 test("the React movements filter control renders the labelled group, the active count and the clear action, and stays out of the demo", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -4358,7 +4371,7 @@ test("the React movements filter control renders the labelled group, the active 
 });
 
 test("the React movements view and the demo share the Stitch card header with a decorative glyph", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -4407,7 +4420,7 @@ test("the React movements view and the demo share the Stitch card header with a 
 	assert.match(table, /<table class="react-movements-table">/);
 	assert.doesNotMatch(table, /<th[^>]*react-card-icon/);
 
-	// The demo card keeps its exact class name, reuses the glyph, and stays read-only.
+	// The demo summary no longer appends a separate movement card and stays read-only.
 	const demo = renderer.renderToStaticMarkup(
 		React.createElement(pageModule.DemoDashboardPage, {
 			data: {
@@ -4428,9 +4441,9 @@ test("the React movements view and the demo share the Stitch card header with a 
 			},
 		}),
 	);
-	assert.match(demo, /class="demo-movements"/);
-	assert.match(demo, /<header class="demo-movements-header">/);
-	assert.match(demo, /<h2 id="demo-movements-title">Actividad del periodo<\/h2>/);
+	assert.doesNotMatch(demo, /class="demo-movements"/);
+	assert.match(demo, /data-view="summary"/);
+	assert.match(demo, /Resumen de la cuenta/);
 	assert.match(demo, /<span class="react-card-icon" aria-hidden="true">/);
 	assert.doesNotMatch(demo, /<form|<input|<select|<dialog/);
 
@@ -4448,7 +4461,7 @@ test("the React movements view and the demo share the Stitch card header with a 
 });
 
 test("the React movement filter reconciliation clears a category the loaded rows no longer carry and never restores it", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -4507,7 +4520,7 @@ test("the React movement filter reconciliation clears a category the loaded rows
 });
 
 test("the React movements table reconciles the filter reset before rendering even empty rows so a stale category cannot come back", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -4571,7 +4584,7 @@ test("the React movements table reconciles the filter reset before rendering eve
 });
 
 test("the React movement sorting module mirrors legacy's four sortable keys, its neutral cycle and its total order", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -4712,7 +4725,7 @@ test("the React movement sorting module mirrors legacy's four sortable keys, its
 });
 
 test("the React movements table headers expose the accessible sort control for the four legacy columns only", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -4789,7 +4802,7 @@ test("the React movements table headers expose the accessible sort control for t
 });
 
 test("the React movement sorting orders the filtered rows without changing the filter's count, its rows or its reset", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -4947,7 +4960,7 @@ test("the React movement sorting orders the filtered rows without changing the f
 });
 
 test("the React movement sorting pins where an unusable date lands, because the sentinel is not a date", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -4993,7 +5006,7 @@ test("the React movement sorting pins where an unusable date lands, because the 
 });
 
 test("the React period analytics averages only the movements with a usable amount and states its divisor", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -5142,7 +5155,7 @@ test("the React period analytics averages only the movements with a usable amoun
 });
 
 test("the React period analytics retains the three financial decisions and renders supported intelligence facts", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -5283,7 +5296,7 @@ test("the React period analytics retains the three financial decisions and rende
 });
 
 test("the React authenticated summary derives period analytics for shared intelligence without adding a request", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -5349,7 +5362,7 @@ test("the React authenticated summary derives period analytics for shared intell
 });
 
 test("the React category ranking groups recognized outflows by raw totals, merges the tail and discloses the unknown amounts", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -5482,7 +5495,7 @@ test("the React category ranking groups recognized outflows by raw totals, merge
 });
 
 test("the React category ranking view renders the ranked rows, the counterparty detail and the merged tail without a jump", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -5553,8 +5566,8 @@ test("the React category ranking view renders the ranked rows, the counterparty 
 	assert.match(comidaDetail, /<article class="react-category-detail-row"><strong>Mercado<\/strong><small>\$25\.000 \u00b7 1 movimiento<\/small><\/article>/);
 	assert.match(comidaDetail, /<article class="react-category-detail-row"><strong>Feria<\/strong><small>\$5\.000 \u00b7 1 movimiento<\/small><\/article>/);
 	assert.match(comidaDetail, /<article class="react-category-detail-row"><strong>Caf\u00e9<\/strong><small>\$3\.500 \u00b7 1 movimiento<\/small><\/article>/);
-	assert.match(comidaDetail, /Ver gastos de esta categoría/);
-	assert.match(comidaDetail, /\u2190 Todas las categorías/);
+	assert.match(comidaDetail, />Ver gastos<\/button>/);
+	assert.match(comidaDetail, />\u2190 Categorías<\/button>/);
 	assert.doesNotMatch(comidaDetail, /react-category-ranking-list/);
 
 	// The merged tail has no category of its own to jump to, so it offers no jump control and lists
@@ -5564,10 +5577,10 @@ test("the React category ranking view renders the ranked rows, the counterparty 
 	assert.match(tailDetail, /<article class="react-category-detail-row"><strong>Entretenimiento<\/strong><small>\$8\.000 \u00b7 1 movimiento<\/small><\/article>/);
 	assert.match(tailDetail, /<article class="react-category-detail-row"><strong>Transporte<\/strong><small>\$2\.000 \u00b7 1 movimiento<\/small><\/article>/);
 	assert.match(tailDetail, /<article class="react-category-detail-row"><strong>Sin categoría<\/strong><small>\$1\.000 \u00b7 1 movimiento<\/small><\/article>/);
-	assert.doesNotMatch(tailDetail, /Ver gastos de esta categoría/);
-	assert.match(tailDetail, /\u2190 Todas las categorías/);
+	assert.doesNotMatch(tailDetail, />Ver gastos<\/button>/);
+	assert.match(tailDetail, />\u2190 Categorías<\/button>/);
 	// Sensitivity control: the real-category detail does render the jump the tail withholds.
-	assert.match(comidaDetail, /Ver gastos de esta categoría/);
+	assert.match(comidaDetail, />Ver gastos<\/button>/);
 
 	// A period with nothing to rank states its own absence instead of an empty list, and the
 	// disclosure appears only when there is an excluded outflow to disclose.
@@ -5619,7 +5632,7 @@ test("the React category ranking view renders the ranked rows, the counterparty 
 });
 
 test("the React authenticated summary composes the category ranking and jumps into the in-memory movement filter", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -5709,7 +5722,7 @@ test("the React authenticated summary composes the category ranking and jumps in
 });
 
 test("the React spending chart buckets the configured period into Monday-to-Sunday weeks and discloses the excluded outflows", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -5847,7 +5860,7 @@ test("the React spending chart buckets the configured period into Monday-to-Sund
 });
 
 test("the spending chart shows zero days as $0 and selects without automatic page scrolling", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -5913,13 +5926,36 @@ test("the spending chart shows zero days as $0 and selects without automatic pag
 		source.indexOf("export interface SpendingChartPanelProps"),
 	);
 	assert.ok(chartView.length > 0);
-	assert.match(chartView, /onClick=\{\(\) => onSelectDay\(day\.key\)\}/);
-	assert.match(chartView, /id=\{DAY_DETAIL_ID\}/);
-	assert.doesNotMatch(chartView, /scrollIntoView|scrollToDayDetail|pendingScrollDayRef|dayDetailRef|handleSelectDay/);
+	// Exercise the exported pure view's real day-button callback, not a particular JSX spelling.
+	for (const modal of [false, true]) {
+		const calls = [];
+		const tree = page.SpendingChartView({
+			chart, selectedTab: "week-0", selectedDayKey: null, detailMovements: [],
+			onSelectTab() {}, onSelectDay: (key) => calls.push(key), dayDetailIsModal: modal,
+		});
+		const bars = [];
+		const visit = (nodes) => React.Children.forEach(nodes, (node) => {
+			if (!React.isValidElement(node)) return;
+			if (node.type === "button" && node.props.className === "react-spending-chart-bar") bars.push(node);
+			visit(node.props.children);
+		});
+		visit(tree);
+		const bar = bars.find((node) => node.props["aria-label"] === "Ver detalle de dom 1 feb: $2.000");
+		assert.ok(bar);
+		assert.equal(bar.props["aria-controls"], "react-spending-chart-day-detail");
+		assert.equal(bar.props["aria-haspopup"], modal ? "dialog" : undefined);
+		let focused = 0;
+		bar.props.onClick({ currentTarget: { focus() { focused++; } } });
+		assert.deepEqual(calls, ["2026-02-01"]);
+		assert.equal(focused, modal ? 1 : 0);
+	}
+	assert.match(chartView, /detailId = DAY_DETAIL_ID/);
+	assert.match(chartView, /id=\{detailId\}/);
+	assert.doesNotMatch(chartView, /scrollIntoView|window\.scroll|scrollToDayDetail|pendingScrollDayRef|dayDetailRef|handleSelectDay/);
 });
 
 test("the React spending chart view renders selectable proportional bars, the read-only day detail and a truthful empty state", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -6229,7 +6265,7 @@ test("the React spending chart view renders selectable proportional bars, the re
 });
 
 test("the React spending chart detail and totals read the loaded transactions without inventing rows", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -6376,7 +6412,7 @@ test("the React spending chart detail and totals read the loaded transactions wi
 });
 
 test("the React authenticated summary mounts the spending chart without adding a request", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -6426,7 +6462,7 @@ test("the React authenticated summary mounts the spending chart without adding a
 });
 
 test("the React account menu derives the profile identity, trigger attributes and menu state without a DOM", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -6518,7 +6554,7 @@ test("the React account menu derives the profile identity, trigger attributes an
 });
 
 test("the React account menu view renders the labelled trigger, the safe avatar and role=menu semantics", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -6715,7 +6751,7 @@ test("the React authenticated header exposes one Configuración action opening t
 });
 
 test("the React unified account settings dialog hosts the profile and both verified sections behind one close control", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -6935,7 +6971,7 @@ test("the React DashboardPage keeps the unified settings wiring, submitters and 
 });
 
 test("the React app header renders the brand, the bound view navigation and the account slot", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -7041,14 +7077,13 @@ test("the React authenticated page composes the app header over a page-owned vie
 	);
 	assert.doesNotMatch(page, /react-financial-view-toggle/);
 
-	// The read-only demo reuses the chrome, but its navigation is inert: the header gets a fixed
-	// summary view and a no-op handler, so Movimientos can never mount the authenticated body.
+	// The read-only demo reuses the chrome with local, state-driven navigation.
 	const demoTree = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
 		page.indexOf("export interface DashboardLeadViewProps"),
 	);
 	assert.notEqual(demoTree, "", "the demo tree must be locatable");
-	assert.match(demoTree, /<AppHeader view="summary" onViewChange=\{\(\) => \{\s*\}\}>/);
+	assert.match(demoTree, /<AppHeader view=\{view\} onViewChange=\{onViewChange\}>/);
 
 	// Scoped styles exist and no legacy header class leaked into the React stylesheet.
 	assert.match(styles, /\.react-app-header \{/);
@@ -7060,7 +7095,7 @@ test("the React authenticated page composes the app header over a page-owned vie
 });
 
 test("the React dashboard lead derives the spending detail and a truthful balance only from a configured income", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -7256,7 +7291,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 });
 
 test("the React dashboard hero renders the prominent total and never a fabricated balance", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -7374,19 +7409,18 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	assert.match(demoAbsent, /no registran ingresos en el periodo/);
 	assert.doesNotMatch(demoAbsent, /Ingreso configurado|\$0|react-lead-derivation/);
 
-	// The highlighted balance card states the truthful share of income still available, with a trend
-	// direction, and omits the row entirely rather than fabricating a percentage when there is none.
-	// The percentage carries only the number and its tone, without the removed `disponible` suffix, and
-	// the adjacent compact flag names that same tone in Spanish instead of restating the number.
-	assert.match(configured, /react-lead-balance-percent-positive/);
+	// A positive remainder is a neutral share of income, not a safety rating or an upward trend.
+	// Its exact amount and rounded percentage stay visible; absent income still omits the row.
+	assert.match(configured, /react-lead-balance-percent-neutral/);
 	assert.match(configured, /<span>97%<\/span>/);
 	assert.doesNotMatch(configured, /% disponible/);
-	assert.match(configured, /react-lead-balance-status-positive/);
-	assert.match(configured, />En control</);
-	// The status flag stays inside the same bottom row as the percentage.
+	assert.match(configured, /react-lead-balance-status-neutral/);
+	assert.match(configured, />del ingreso disponible</);
+	assert.doesNotMatch(configured, /En control|react-lead-balance-(?:percent|status)-positive/);
+	// No trend glyph or other hidden content precedes the neutral percentage in the same status row.
 	assert.match(
 		configured,
-		/<span class="react-lead-balance-percent react-lead-balance-percent-positive">[\s\S]*?<\/span><span class="react-lead-balance-status react-lead-balance-status-positive">En control<\/span>/,
+		/<span class="react-lead-balance-percent react-lead-balance-percent-neutral"><span>97%<\/span><\/span><span class="react-lead-balance-status react-lead-balance-status-neutral">del ingreso disponible<\/span>/,
 	);
 	assert.doesNotMatch(configured, /Al l\u00edmite|Peligro/);
 	assert.doesNotMatch(configured, /react-lead-balance-status-negative/);
@@ -7463,11 +7497,10 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	assert.doesNotMatch(styles, /\.react-dashboard-lead-single/);
 	assert.match(styles, /\.react-lead-primary,/);
 	assert.match(styles, /\.react-lead-amount \{/);
-	// The highlighted balance card is now a light, cool surface: the former dark primary gradient is
-	// replaced by the soft blue token over the base surface, so the tone-coloured percentage and flag
-	// stay legible and the red danger text reads naturally.
+	// The highlighted balance card keeps its light, cool surface, with a neutral positive remainder
+	// and the existing zero/negative warning colours.
 	const answerCardBlock =
-		styles.match(/\.react-lead-answer \{\n\tdisplay: flex;[\s\S]*?\}/)?.[0] ?? "";
+		styles.match(/\.react-lead-answer \{\r?\n\tdisplay: flex;[\s\S]*?\}/)?.[0] ?? "";
 	assert.match(
 		answerCardBlock,
 		/background: linear-gradient\(150deg, var\(--surface\), var\(--color-blue-soft\)\);/,
@@ -7484,17 +7517,15 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	assert.match(balanceStatusRowBlock, /display: flex;/);
 	assert.match(balanceStatusRowBlock, /justify-content: space-between;/);
 	assert.doesNotMatch(balanceStatusRowBlock, /align-self: flex-end;/);
-	// The percentage is plain tone-coloured text and glyph, never a chip: the element declares no background.
+	// The percentage is plain text, with a glyph only for zero/negative warnings, never a chip.
 	const balancePercentBlock =
 		styles.match(/\.react-lead-balance-percent \{[\s\S]*?\}/)?.[0] ?? "";
 	assert.ok(balancePercentBlock.length > 0);
 	assert.doesNotMatch(balancePercentBlock, /background/);
-	// The flag owns the soft tone surface; the percentage only colours its number and icon.
+	// The positive remainder uses neutral ink/surface; zero/negative warning flags retain their tones.
 	assert.match(styles, /\.react-lead-balance-status \{/);
-	assert.match(
-		styles,
-		/\.react-lead-balance-status-positive \{\s*background: var\(--success-soft\);/,
-	);
+	assert.match(styles, /\.react-lead-balance-percent-neutral\s*\{\s*color: var\(--ink\);/);
+	assert.match(styles, /\.react-lead-balance-status-neutral\s*\{\s*background: var\(--surface-subtle\);\s*color: var\(--ink-muted\);/);
 	assert.match(
 		styles,
 		/\.react-lead-balance-status-flat \{\s*background: var\(--warning-soft\);/,
@@ -7510,7 +7541,7 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 });
 
 test("the React authenticated summary mounts the dashboard lead hero without adding a request", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -7564,7 +7595,7 @@ test("the React authenticated summary mounts the dashboard lead hero without add
 });
 
 test("the React dashboard insights module derives a truthful story, top insights and a proportional breakdown", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -7758,7 +7789,7 @@ test("the React dashboard insights module derives a truthful story, top insights
 });
 
 test("the React authenticated summary renders the shared analytics body in the production order", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -8047,7 +8078,7 @@ test("the React authenticated summary renders the shared analytics body in the p
 });
 
 test("the React category distribution resolves stored colours with a deterministic fallback and states raw-total insights", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -8163,7 +8194,7 @@ test("the React category distribution resolves stored colours with a determinist
 });
 
 test("the React category distribution renders the ECharts donut legend, reuses the category detail and stays out of the demo", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -8245,14 +8276,14 @@ test("the React category distribution renders the ECharts donut legend, reuses t
 	const detail = renderDistribution("Comida");
 	assert.match(detail, /class="react-category-detail"/);
 	assert.match(detail, /<strong role="heading" aria-level="4" tabindex="-1">Comida<\/strong><small>\$33\.500 · 7% · 3 movimientos<\/small>/);
-	assert.match(detail, /Ver gastos de esta categoría/);
+	assert.match(detail, />Ver gastos<\/button>/);
 	assert.doesNotMatch(detail, /react-category-legend-item/);
 
 	// The merged tail reuses the same detail and withholds the jump it cannot perform.
 	const tail = renderDistribution("Otras categorías");
 	assert.match(tail, /<strong role="heading" aria-level="4" tabindex="-1">Otras categorías<\/strong>/);
 	assert.match(tail, /<strong>Entretenimiento<\/strong>/);
-	assert.doesNotMatch(tail, /Ver gastos de esta categoría/);
+	assert.doesNotMatch(tail, />Ver gastos<\/button>/);
 
 	// A period with nothing to distribute states its own absence and draws no donut.
 	const empty = renderDistribution(null, analytics.getCategoryRanking([], 0));
@@ -8316,7 +8347,7 @@ test("the React category distribution renders the ECharts donut legend, reuses t
 });
 
 test("the React movement selection ticks only editable rows and offers the normalized similar-counterparty affordance", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -8411,7 +8442,7 @@ test("the React movement selection ticks only editable rows and offers the norma
 });
 
 test("the React bulk category assignment sends each movement once and reports partial failure truthfully", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -8507,7 +8538,7 @@ test("the React bulk category assignment sends each movement once and reports pa
 });
 
 test("the React view-movement dialog names every available field and offers edit/remove only with an editable target", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -8608,7 +8639,7 @@ test("the React view-movement dialog names every available field and offers edit
 });
 
 test("the React movements table renders the selection column, the bulk bar and the similar-counterparty affordance", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -8737,12 +8768,38 @@ test("the React movements table renders the selection column, the bulk bar and t
 	assert.match(page, /onSelectSimilar=/);
 	assert.match(page, /submitBulkCategory=\{submitBulkCategory\}/);
 	assert.match(page, /updateMovement: updateTransaction/);
-	// Demo isolation: the read-only composition never mounts the table, the detail modal or the bar.
+	// The demo shares the production table with no editable targets or mutation capabilities.
 	const demoSource = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
 		page.indexOf("export interface DashboardLeadViewProps"),
 	);
-	assert.doesNotMatch(demoSource, /MovementsTable|ViewMovementDialog|submitBulkCategory|react-movements-bulk/);
+	assert.match(demoSource, /<MovementsTable\b[\s\S]*?editableMovements=\{\[\]\}[\s\S]*?readOnlyReason="Edición deshabilitada en la demo"/);
+	assert.doesNotMatch(demoSource, /submitBulkCategory|updateTransaction|syncGmail|createManualExpense|react-movements-bulk/);
+	const originalFetch = globalThis.fetch;
+	let requests = 0;
+	globalThis.fetch = () => { requests++; throw new Error("Demo must not request account data or mutate"); };
+	try {
+		for (const view of ["summary", "movements"]) {
+			const demo = renderer.renderToStaticMarkup(React.createElement(pageModule.DemoDashboardView, {
+				data: { period, currentPeriodSpending: 3000, currentPeriodInflow: 900000, movements: editable },
+				view, onViewChange: noop, onRequestedCategoryChange: noop,
+			}));
+			assert.match(demo, /Datos de ejemplo · Solo lectura/);
+			assert.doesNotMatch(demo, /react-movement-select|react-movements-bulk|Seleccionar todos los movimientos|Asignar categor\u00eda|>Editar<|>Eliminar<|Guardar cambios|Nuevo gasto|Sincronizar/);
+			if (view === "movements") {
+				assert.match(demo, /class="react-movements-table"/);
+				assert.match(demo, /Caf\u00e9 Central/);
+				assert.match(demo, /cafe central/);
+				assert.match(demo, /Edición deshabilitada en la demo/);
+				assert.match(demo, /\$1\.000/);
+				assert.match(demo, /\$2\.000/);
+			} else {
+				assert.match(demo, /<strong class="react-lead-amount">\$3\.000<\/strong>/);
+				assert.match(demo, /<strong class="react-lead-amount">\$897\.000<\/strong>/);
+			}
+		}
+		assert.equal(requests, 0);
+	} finally { globalThis.fetch = originalFetch; }
 
 	// Scoped styles under the shipped `react-` prefix.
 	assert.match(styles, /\.react-movements-bulk \{/);
@@ -8772,7 +8829,7 @@ test("the React movement selection and detail surfaces add no request of their o
 });
 
 test("the React cycle calendar keeps date-only math timezone-safe and bounds the grid to the current year so far", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -8895,7 +8952,7 @@ test("the React cycle calendar keeps date-only math timezone-safe and bounds the
 });
 
 test("the React cycle calendar renders the year-to-date grid, the range summary and the validation error", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -8970,7 +9027,7 @@ test("the React cycle calendar renders the year-to-date grid, the range summary 
 });
 
 test("the React financial-cycle setup and edit flows mount the modal setup and the bounded calendar over their existing fields", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -9049,7 +9106,7 @@ test("the React financial-cycle setup and edit flows mount the modal setup and t
 });
 
 test("the React dashboard income/budget panel states the configured income and the unconfigured budget truthfully", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -9173,7 +9230,7 @@ test("the React dashboard income/budget panel states the configured income and t
 });
 
 test("the React demo dashboard composes the read-only analytics without API, Gmail or mutations", async (t) => {
-	const configPath = new URL("../vite.config.ts", import.meta.url).pathname;
+	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
 		configPath,
@@ -9270,12 +9327,11 @@ test("the React demo dashboard composes the read-only analytics without API, Gma
 	);
 	assert.doesNotMatch(demoSource, /\bfetch\s*\(/);
 
-	// The demo mounts the one shared analytics body after its header and before its read-only movements
-	// list and footer. The analytics section order lives in the shared body, not in the demo tree.
+	// Analytics and the read-only production table are alternative views before the footer.
 	const demoOrder = [
 		"demo-read-only-badge",
 		"<DashboardAnalyticsBody",
-		'className="demo-movements"',
+		"<MovementsTable",
 		"demo-dashboard-footer",
 	];
 	const demoPositions = demoOrder.map((marker) => demoSource.indexOf(marker));

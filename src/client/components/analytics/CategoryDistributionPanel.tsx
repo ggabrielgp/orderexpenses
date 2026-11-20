@@ -153,7 +153,7 @@ export function CategoryDetailView({
 						className="secondary react-category-detail-jump"
 						onClick={() => onJumpToCategory(row.category)}
 					>
-						Ver gastos de esta categoría
+						Ver gastos
 					</button>
 				)}
 				<button
@@ -161,7 +161,7 @@ export function CategoryDetailView({
 					className="secondary react-category-detail-back"
 					onClick={onClearSelection}
 				>
-					← Todas las categorías
+					← Categorías
 				</button>
 			</div>
 		</div>
@@ -263,6 +263,8 @@ export interface CategoryDistributionViewProps {
 	formatAmount: (amount: number) => string;
 	movements?: readonly RecognizedExpenseMovement[];
 	onOpenMovement?: (movementId: string) => void;
+	/** Optional heading identifier for multiple chart instances; legacy consumers keep their ID. */
+	titleId?: string;
 }
 
 export function CategoryDistributionView({
@@ -275,6 +277,7 @@ export function CategoryDistributionView({
 	formatAmount,
 	movements,
 	onOpenMovement,
+	titleId = "react-category-distribution-title",
 }: CategoryDistributionViewProps) {
 	const chartRef = useRef<HTMLDivElement | null>(null);
 	const instanceRef = useRef<EChartsType | null>(null);
@@ -421,7 +424,7 @@ export function CategoryDistributionView({
 	const heading = (
 		<>
 			<div className="react-category-distribution-heading">
-				<h3 id="react-category-distribution-title">Dónde se fue tu plata</h3>
+				<h3 id={titleId}>Dónde se fue tu plata</h3>
 				{/* Decorative: the adjacent title names the card, so the glyph is hidden. */}
 				<span className="react-card-icon" aria-hidden="true">
 					<FontAwesomeIcon icon={faLayerGroup} />
@@ -435,7 +438,7 @@ export function CategoryDistributionView({
 
 	if (ranking.rows.length === 0) {
 		return (
-			<section className="react-category-distribution" aria-labelledby="react-category-distribution-title">
+			<section className="react-category-distribution" aria-labelledby={titleId}>
 				{heading}
 				<p className="react-category-distribution-empty" role="status">
 					Aún no hay gastos con monto conocido para distribuir por categoría en este periodo.
@@ -448,7 +451,7 @@ export function CategoryDistributionView({
 	}
 
 	return (
-		<section className="react-category-distribution" aria-labelledby="react-category-distribution-title">
+		<section className="react-category-distribution" aria-labelledby={titleId}>
 			{heading}
 			{/* The excluded outflows are their own fact, stated only when there is one to state. */}
 			{ranking.disclosure !== null && (

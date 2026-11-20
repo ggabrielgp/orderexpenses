@@ -21,7 +21,7 @@ export function MovementFilterDisclosure({ children }: { children: ReactNode }) 
 
 export type MobileMovementListProps = Pick<MovementsTableViewProps,
   "sort" | "onActivate" | "onView" | "onEdit" | "onRemove" | "selection" |
-  "onToggleSelection" | "onToggleAllSelection" | "onSelectSimilar"> & {
+  "onToggleSelection" | "onToggleAllSelection" | "onSelectSimilar" | "readOnlyReason"> & {
   /** Already filtered and sorted by the shared public view; never sort or filter again here. */
   rows: RecognizedExpenseMovement[];
   editableById: ReadonlyMap<string | null, EditableRecognizedExpenseMovement>;
@@ -38,7 +38,7 @@ const formatClp = (amount: number) => {
 /** A responsive projection of the same rows and capabilities as the desktop table, not a data owner. */
 export function MobileMovementList({ rows, editableById, emptyMessage, sort, onActivate,
   onView, onEdit, onRemove, selection, onToggleSelection, onToggleAllSelection,
-  onSelectSimilar }: MobileMovementListProps) {
+  onSelectSimilar, readOnlyReason }: MobileMovementListProps) {
   const selectionEnabled = selection !== undefined && onToggleSelection !== undefined;
   const selectedIds = new Set(selection?.selectedIds ?? []);
   return (
@@ -95,7 +95,7 @@ export function MobileMovementList({ rows, editableById, emptyMessage, sort, onA
                 {editable ? <>
                   <button type="button" className="secondary react-movement-action" onClick={() => onEdit(editable)}>Editar</button>
                   <button type="button" className="secondary react-movement-action" onClick={() => onRemove(editable)}>Eliminar</button>
-                </> : <span className="react-movements-read-only">Solo lectura: sin identificación o fecha válida</span>}
+                </> : <span className="react-movements-read-only">{readOnlyReason ?? "Solo lectura: sin identificación o fecha válida"}</span>}
                 {similar !== null && similar.count > 1 && onSelectSimilar !== undefined && (
                   <button type="button" className="react-movement-similar" onClick={() => onSelectSimilar(similar.ids)}>{similar.label}</button>
                 )}
