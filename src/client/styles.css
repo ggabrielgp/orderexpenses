@@ -4604,16 +4604,6 @@ body:has(.react-movements-page) {
 	}
 }
 
-/* The income/budget truth panel, reused by the authenticated summary and the demo. */
-.react-budget-panel {
-	display: grid;
-	gap: var(--space-3);
-}
-
-.react-budget-panel h3 {
-	margin: 0;
-}
-
 @media (max-width: 720px) {
 	.react-financial-setup-fields {
 		grid-template-columns: 1fr;
@@ -4632,8 +4622,7 @@ body:has(.react-movements-page) {
 	gap: var(--space-5);
 }
 
-/* Four-up KPI band: the spending/balance hero beside the income/budget truth. The lead and the
-   budget panel each own a two-card grid, so the band reads as four equal cards. */
+/* KPI band wrapper for the lead cards. */
 .react-analytics-summary {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -4643,27 +4632,6 @@ body:has(.react-movements-page) {
 .react-analytics-summary .react-dashboard-lead {
 	grid-column: 1 / span 2;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.react-analytics-summary .react-budget-panel {
-	grid-column: 3 / span 2;
-}
-
-.react-analytics-summary .react-budget-panel .react-financial-grid {
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-/* The budget group heading stays in the accessibility tree without breaking the four-up row. */
-.react-analytics-summary .react-budget-panel h3 {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	margin: -1px;
-	padding: 0;
-	border: 0;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
 }
 
 /* Two-column analytics region: the larger chart/history column and the category/insight column. */
@@ -4693,8 +4661,7 @@ body:has(.react-movements-page) {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
-	.react-analytics-summary .react-dashboard-lead,
-	.react-analytics-summary .react-budget-panel {
+	.react-analytics-summary .react-dashboard-lead {
 		grid-column: 1 / -1;
 	}
 
@@ -4708,8 +4675,7 @@ body:has(.react-movements-page) {
 		grid-template-columns: 1fr;
 	}
 
-	.react-analytics-summary .react-dashboard-lead,
-	.react-analytics-summary .react-budget-panel .react-financial-grid {
+	.react-analytics-summary .react-dashboard-lead {
 		grid-template-columns: 1fr;
 	}
 }
@@ -4760,7 +4726,6 @@ body:has(.react-movements-page) {
 	.react-analytics-body .react-lead-balance-status-row { flex-wrap: wrap; gap: 6px; }
 	.react-analytics-body .react-mobile-evolution { order: 2; }
 	.react-analytics-body .react-mobile-categories { order: 3; }
-	.react-analytics-body .react-budget-panel { order: 4; }
 	.react-analytics-body .react-mobile-breakdown { order: 5; }
 	.react-analytics-body .react-mobile-counterparties { order: 6; }
 	.react-analytics-body .react-mobile-insights { order: 7; }

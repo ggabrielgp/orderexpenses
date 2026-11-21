@@ -90,9 +90,6 @@ test("positive balance is neutral and budget absence is concise without changing
    else assert.match(html, new RegExp(totalSpending === 100 ? "Al límite" : "En peligro"));
   }
  }
- const { getDashboardIncomeBudgetPanel } = await vite.ssrLoadModule("/src/client/components/analytics/dashboardBudget.ts");
- const html = render(page.DashboardBudgetPanel, { panel: getDashboardIncomeBudgetPanel({ source: "configured-cycle", incomeAmount: 100, periodLabel: "Periodo", formatAmount: String }) });
- assert.match(html, /El presupuesto por periodo todavía no está disponible\./);
 });
 
 test("mobile compact typography cannot split digits and tabs keep touch height", async () => {

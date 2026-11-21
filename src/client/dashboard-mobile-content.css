@@ -38,16 +38,6 @@
     grid-template-columns: 1fr;
   }
   .react-analytics-summary .react-dashboard-lead strong { overflow-wrap: anywhere; }
-  .react-analytics-summary .react-budget-panel { grid-column: 1 / -1; }
-  .react-analytics-summary .react-budget-panel .react-financial-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-2);
-  }
-  .react-analytics-summary .react-budget-panel .react-financial-card {
-    padding: var(--space-3);
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
 
   /* Complementary display removes inactive controls from both focus and accessibility trees. */
   .react-movements-table-wrapper { display: none; }

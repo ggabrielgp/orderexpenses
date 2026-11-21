@@ -150,6 +150,7 @@ test("mobile composition declares compact side-by-side balances, chart then cate
  assert.match(mobile, /@media \(max-width: 640px\)/);
  assert.match(mobile, /\.react-dashboard-lead\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/s);
  for (const [name, order] of [["evolution", 2], ["categories", 3], ["breakdown", 5]]) assert.match(mobile, new RegExp(`\\.react-mobile-${name}\\s*\\{\\s*order: ${order}`));
- assert.match(mobile, /\.react-budget-panel\s*\{\s*order: 4/);
+ // The budget panel was removed (S14), so it no longer takes an order slot.
+ assert.doesNotMatch(css, /\.react-budget-panel/);
  assert.match(css, /\.react-spending-day-dialog\s*\{[^}]*max-height: calc\(100dvh - 24px\);[^}]*overflow-y: auto/s);
 });

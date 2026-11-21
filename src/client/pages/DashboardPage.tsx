@@ -10,7 +10,6 @@ import {
   faArrowTrendUp,
   faArrowsRotate,
   faBolt,
-  faBullseye,
   faCalendarDays,
   faCartShopping,
   faChartColumn,
@@ -21,7 +20,6 @@ import {
   faMinus,
   faReceipt,
   faRightFromBracket,
-  faSackDollar,
   faStore,
   faTags,
   faUser,
@@ -87,9 +85,6 @@ import {
   type DashboardBalancePercentTone,
   type DashboardLead,
 } from "../components/analytics/dashboardLead";
-import {
-  type DashboardIncomeBudgetPanel,
-} from "../components/analytics/dashboardBudget";
 import {
   getDashboardStory,
   getMostFrequentCounterparty,
@@ -1095,48 +1090,6 @@ export function DashboardLeadView({ lead }: DashboardLeadViewProps) {
   );
 }
 
-export interface DashboardBudgetPanelProps {
-  /** The decided income/budget truth, from `getDashboardIncomeBudgetPanel`. */
-  panel: DashboardIncomeBudgetPanel;
-}
-
-/**
- * The period-adapted income/budget truth panel. Since S11 the summary no longer mounts it: the month
- * gauge hero states the income once and the "Presupuesto · No configurado" card is gone.
- *
- * It states the configured cycle income when one exists and an explicit absence otherwise, and
- * always reports the budget as not configured, because the product stores no budget to read. It
- * renders only the decisions the pure module made: no fabricated zero, percentage, progress or
- * remaining value. Its configured-cycle and demo-inflow sources keep different, truthful copy, so the
- * demo never borrows the authenticated claim.
- */
-export function DashboardBudgetPanel({ panel }: DashboardBudgetPanelProps) {
-  return (
-    <section className="react-budget-panel" aria-labelledby="react-budget-panel-title">
-      <h3 id="react-budget-panel-title">{panel.title}</h3>
-      <div className="react-financial-grid">
-        <article className="react-financial-card">
-          <span>{panel.income.label}</span>
-          <strong>{panel.income.value}</strong>
-          <p>{panel.income.detail}</p>
-          {/* Decorative: the adjacent label names the card, so the glyph is hidden. */}
-          <span className="react-card-icon" aria-hidden="true">
-            <FontAwesomeIcon icon={faSackDollar} />
-          </span>
-        </article>
-        <article className="react-financial-card">
-          <span>{panel.budget.label}</span>
-          <strong>{panel.budget.value}</strong>
-          <p>El presupuesto por periodo todavía no está disponible.</p>
-          <span className="react-card-icon" aria-hidden="true">
-            <FontAwesomeIcon icon={faBullseye} />
-          </span>
-        </article>
-      </div>
-    </section>
-  );
-}
-
 /**
  * The category ranking as one already-decided state: the ranked rows, and the detail of the selected
  * row when there is one.
@@ -1911,8 +1864,9 @@ interface DashboardAnalyticsBodyProps {
  * chart/history column beside the category/insight column. The four-up KPI band (lead plus
  * income/budget truth) was merged into the gauge hero (S11), so no figure is stated twice. The spending-type distribution leads
  * the main column, so it sits physically left of the category distribution, which leads the side
- * column before the `Lectura rápida · Inteligencia de gastos` card. The card keeps its highlights
- * primary and carries the non-duplicative story note below them. Every panel keeps a single mount,
+ * column. The `Lectura rápida · Inteligencia de gastos` card is a full-width row below both columns (S14),
+ * so no gap remains under the shorter one. The card keeps its highlights primary and carries the
+ * non-duplicative story note below them. Every panel keeps a single mount,
  * so both trees read the same structure.
  */
 function DashboardAnalyticsBody({
@@ -1974,12 +1928,13 @@ function DashboardAnalyticsBody({
           <div className="react-mobile-counterparties">
             <DashboardCounterpartyRankingView ranking={counterpartyRanking} />
           </div>
-          <div className="react-mobile-insights">
-            <TopInsightsView insights={insights} story={story}
-              onJumpToUncategorized={canJumpToUncategorized
-                ? () => onJumpToCategory("Sin categoría") : undefined} />
-          </div>
         </div>
+      </div>
+      {/* Full-width row below the panels (S14), as in artboard 01: no gap is left under the shorter column. */}
+      <div className="react-mobile-insights">
+        <TopInsightsView insights={insights} story={story}
+          onJumpToUncategorized={canJumpToUncategorized
+            ? () => onJumpToCategory("Sin categoría") : undefined} />
       </div>
     </div>
   );
@@ -2548,6 +2503,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
           className={`react-financial-mutation-notice react-financial-mutation-notice-${editNotice.tone}`}
           tone={editNotice.tone}
           message={editNotice.message}
+          onDismiss={editNotice.undo ? () => setEditNotice((current) => (current === editNotice ? null : current)) : undefined}
           action={
             editNotice.undo
               ? {

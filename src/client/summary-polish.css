@@ -396,3 +396,11 @@
 		font-size: var(--type-min);
 	}
 }
+
+/* S14: the insights card is a full-width row below the two columns (artboard 01), so its four tiles sit
+   in one row on desktop and fall back to the shipped 2-up grid on narrow screens. */
+@media (min-width: 761px) {
+	.react-analytics-body > .react-mobile-insights .react-top-insights-grid {
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	}
+}

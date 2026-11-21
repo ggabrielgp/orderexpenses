@@ -7846,6 +7846,7 @@ test("the React authenticated summary renders the shared analytics body in the p
 	// S11: the gauge hero replaces the lead and budget cards at the head of the body.
 	assert.equal(bodySource.indexOf("<DashboardLeadView"), -1, "the KPI band is merged into the hero");
 	assert.equal(bodySource.indexOf("<DashboardBudgetPanel"), -1, "the budget card is removed");
+	assert.doesNotMatch(page, /DashboardBudgetPanel|DashboardIncomeBudgetPanel|react-budget-panel-title/, "the budget panel is deleted (S14)");
 	const positions = [
 		bodySource.indexOf("<DashboardPaceGauge pace={pace}"),
 		bodySource.indexOf("<SpendingBreakdownView breakdown={breakdown} />"),
@@ -7871,20 +7872,27 @@ test("the React authenticated summary renders the shared analytics body in the p
 		-1,
 		"`Lectura rápida` must leave the analytics main column",
 	);
-	// Category distribution leads the side column, followed by recipient ranking and intelligence.
-	// The integrated story stays within the intelligence card below its tiles.
-	const sideSource = bodySource.slice(sideOpen);
+	// Category distribution leads the side column, followed by the recipient ranking. S14: the
+	// intelligence card (with its integrated story) is a full-width row below both columns, as in
+	// artboard 01, so it is no longer inside the side column and leaves no gap under the left one.
+	const columnsEnd = bodySource.indexOf("</div>\n      </div>\n      {/* Full-width row");
+	assert.ok(columnsEnd > sideOpen, "the two-column region must close before the insights row");
+	const sideSource = bodySource.slice(sideOpen, columnsEnd);
 	const categoryInSide = sideSource.indexOf("<CategoryRankingPanel");
-	const insightsInSide = sideSource.indexOf("<TopInsightsView insights={insights} story={story}");
 	const recipientsInSide = sideSource.indexOf("<DashboardCounterpartyRankingView");
 	assert.ok(
-		categoryInSide >= 0 && insightsInSide > categoryInSide,
-		"the category card must lead the side column before the top insights",
+		categoryInSide >= 0 && recipientsInSide > categoryInSide,
+		"the category card must lead the side column before the recipient ranking",
 	);
-	assert.ok(
-		recipientsInSide > categoryInSide && insightsInSide > recipientsInSide,
-		"the recipient ranking must precede the intelligence card and its integrated story",
+	assert.equal(sideSource.indexOf("<TopInsightsView"), -1, "the insights leave the side column (S14)");
+	const insightsRow = bodySource.slice(columnsEnd);
+	assert.match(
+		insightsRow,
+		/<div className="react-mobile-insights">\s*<TopInsightsView insights=\{insights\} story=\{story\}/,
+		"the insights are a direct, full-width row of the analytics body after the columns",
 	);
+	const polish = await readFile(new URL("../src/client/summary-polish.css", import.meta.url), "utf8");
+	assert.match(polish, /@media \(min-width: 761px\) \{\s*\.react-analytics-body > \.react-mobile-insights \.react-top-insights-grid \{\s*grid-template-columns: repeat\(auto-fit, minmax\(220px, 1fr\)\)/);
 	// The temporary two-card sidebar pair wrapper and its placement rules are gone.
 	assert.doesNotMatch(page, /react-analytics-pair/);
 	// The shared body is the single mount site for both the authenticated summary and the demo.
@@ -9117,130 +9125,6 @@ test("the React financial-cycle setup and edit flows mount the modal setup and t
 		dialogSource.indexOf("react-financial-cycle-status"),
 	);
 	assert.match(formSource, /<CycleCalendar[\s\S]*?<div className="react-financial-setup-fields">/);
-});
-
-test("the React dashboard income/budget panel states the configured income and the unconfigured budget truthfully", async (t) => {
-	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
-	const loadedConfig = await loadConfigFromFile(
-		{ command: "serve", mode: "test" },
-		configPath,
-	);
-	const vite = await createViteServer({
-		...loadedConfig?.config,
-		configFile: false,
-		appType: "custom",
-		server: { middlewareMode: true },
-	});
-	t.after(() => vite.close());
-
-	const [React, renderer, budget, pageModule] = await Promise.all([
-		import("react"),
-		import("react-dom/server"),
-		vite.ssrLoadModule("/src/client/components/analytics/dashboardBudget.ts"),
-		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
-	]);
-	const formatAmount = (amount) =>
-		new Intl.NumberFormat("es-CL", {
-			style: "currency",
-			currency: "CLP",
-			maximumFractionDigits: 0,
-		}).format(Math.abs(amount));
-
-	const configured = budget.getDashboardIncomeBudgetPanel({
-		source: "configured-cycle",
-		incomeAmount: 900000,
-		periodLabel: "2026-02-01 – 2026-02-28",
-		formatAmount,
-	});
-	assert.equal(configured.income.label, "Ingreso configurado");
-	assert.equal(configured.income.hasValue, true);
-	assert.equal(configured.income.value, "$900.000");
-	// The configured income copy is concise and never repeats the selected period.
-	assert.equal(configured.income.detail, "Ingreso guardado.");
-	assert.doesNotMatch(configured.income.detail, /2026-02-01|01\/02\/2026|2026-02-28|28\/02\/2026/);
-	// The budget is always an explicit absence: the product stores no budget to read.
-	assert.equal(configured.budget.hasValue, false);
-	assert.equal(configured.budget.value, "No configurado");
-
-	const absent = budget.getDashboardIncomeBudgetPanel({
-		source: "configured-cycle",
-		incomeAmount: null,
-		periodLabel: "2026-02-01 – 2026-02-28",
-		formatAmount,
-	});
-	assert.equal(absent.income.hasValue, false);
-	assert.equal(absent.income.value, "Sin ingreso configurado");
-	assert.equal(absent.income.detail, "No hay un ingreso configurado.");
-	// A zero is not a configured income, so no fabricated `$0` is ever shown.
-	assert.equal(
-		budget.getDashboardIncomeBudgetPanel({
-			source: "configured-cycle",
-			incomeAmount: 0,
-			periodLabel: "2026-02-01 – 2026-02-28",
-			formatAmount,
-		}).income.hasValue,
-		false,
-	);
-
-	// The demo has no configured cycle: it states the fixture's observed inflow sum as demo data and
-	// never borrows the configured-income label or its stored-in-period detail. Its copy is concise and
-	// period-independent.
-	const demo = budget.getDashboardIncomeBudgetPanel({
-		source: "demo-inflow",
-		incomeAmount: 900000,
-		periodLabel: "2026-02-01 – 2026-02-28",
-		formatAmount,
-	});
-	assert.equal(demo.income.label, "Ingresos del periodo");
-	assert.equal(demo.income.hasValue, true);
-	assert.equal(demo.income.value, "$900.000");
-	assert.equal(demo.income.detail, "Ingresos presentes en la demo.");
-	assert.doesNotMatch(demo.income.detail, /periodo financiero|2026-02-01|01\/02\/2026|28\/02\/2026/);
-	assert.doesNotMatch(demo.income.label, /configurado/i);
-
-	// A demo with no inflow is explicit too: copy instead of a fabricated `$0`, and still no configured
-	// cycle claim.
-	const demoAbsent = budget.getDashboardIncomeBudgetPanel({
-		source: "demo-inflow",
-		incomeAmount: 0,
-		periodLabel: "2026-02-01 – 2026-02-28",
-		formatAmount,
-	});
-	assert.equal(demoAbsent.income.hasValue, false);
-	assert.equal(demoAbsent.income.value, "Sin ingresos en la demo");
-	assert.equal(demoAbsent.income.detail, "La demo no registra ingresos.");
-	assert.doesNotMatch(demoAbsent.income.value, /\$0/);
-
-	const markup = renderer.renderToStaticMarkup(
-		React.createElement(pageModule.DashboardBudgetPanel, { panel: configured }),
-	);
-	assert.match(markup, /class="react-budget-panel"/);
-	assert.match(markup, /Ingreso configurado/);
-	assert.match(markup, /\$900\.000/);
-	assert.match(markup, /Presupuesto/);
-	assert.match(markup, /No configurado/);
-	assert.doesNotMatch(markup, /%|progress|saldo restante/i);
-
-	const absentMarkup = renderer.renderToStaticMarkup(
-		React.createElement(pageModule.DashboardBudgetPanel, { panel: absent }),
-	);
-	assert.match(absentMarkup, /Sin ingreso configurado/);
-	assert.doesNotMatch(absentMarkup, /\$0/);
-
-	// The demo panel states the demo data sum and never the configured cycle copy. The same panel
-	// component renders both sources, so a static render proves the demo branch in both truth states.
-	const demoMarkup = renderer.renderToStaticMarkup(
-		React.createElement(pageModule.DashboardBudgetPanel, { panel: demo }),
-	);
-	assert.match(demoMarkup, /Ingresos del periodo/);
-	assert.match(demoMarkup, /\$900\.000/);
-	assert.doesNotMatch(demoMarkup, /Ingreso configurado|guardado en el periodo/);
-
-	const demoAbsentMarkup = renderer.renderToStaticMarkup(
-		React.createElement(pageModule.DashboardBudgetPanel, { panel: demoAbsent }),
-	);
-	assert.match(demoAbsentMarkup, /Sin ingresos en la demo/);
-	assert.doesNotMatch(demoAbsentMarkup, /\$0|Ingreso configurado/);
 });
 
 test("the React demo dashboard composes the read-only analytics without API, Gmail or mutations", async (t) => {
