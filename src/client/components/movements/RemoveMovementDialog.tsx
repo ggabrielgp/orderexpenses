@@ -1,4 +1,5 @@
 import { useEffect, useRef, type SyntheticEvent } from "react";
+import { useRetainedWhileClosing } from "../feedback/motion";
 import { syncNativeModalDialog } from "./CreateManualExpenseDialog";
 import {
 	canSubmitRemoval,
@@ -38,19 +39,25 @@ export interface RemoveMovementDialogProps {
  * focus trap, no `Esc`, inert `::backdrop`) than the reversible edit.
  */
 export function RemoveMovementDialog({
-	movement,
-	state,
+	movement: openMovement,
+	state: openState,
 	onCancel,
 	onConfirm,
 }: RemoveMovementDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
-	const isOpen = movement !== null && state.phase !== "closed";
+	const isOpen = openMovement !== null && openState.phase !== "closed";
+	// Once the parent dismisses (movement `null` / phase `closed`) the last confirmation stays rendered
+	// while the CSS exit plays, then it is released; the reducer state the parent owns is untouched.
+	const shown = useRetainedWhileClosing(
+		openMovement !== null && openState.phase !== "closed" ? { movement: openMovement, state: openState } : null,
+	);
 
 	useEffect(() => {
 		syncNativeModalDialog(dialogRef.current, isOpen);
 	}, [isOpen]);
 
-	if (!isOpen || !movement) return null;
+	if (!shown.value) return null;
+	const { movement, state } = shown.value;
 
 	const confirmation = getRemovalConfirmation(movement);
 	const { phase, errorMessage, reloadFailed } = state;
@@ -77,8 +84,10 @@ export function RemoveMovementDialog({
 			className="react-removal-dialog"
 			aria-labelledby="react-removal-dialog-title"
 			aria-describedby="react-removal-dialog-description"
+			inert={!isOpen}
 			onCancel={handleDialogCancel}
-			onClose={onCancel}
+			onClose={isOpen ? onCancel : undefined}
+			onTransitionEnd={shown.onTransitionEnd}
 		>
 			<h2 id="react-removal-dialog-title">{confirmation.title}</h2>
 			<p id="react-removal-dialog-description">{confirmation.message}</p>

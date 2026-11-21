@@ -8,6 +8,7 @@ import {
 	type SyntheticEvent,
 } from "react";
 import { getCategories } from "../../api/client";
+import { useRetainedOpen } from "../feedback/motion";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import {
 	MAX_CATEGORY_NAME_LENGTH,
@@ -416,6 +417,9 @@ export function CategorySettingsDialog({
 }: CategorySettingsDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
 	const [isMutating, setIsMutating] = useState(false);
+	// Closing keeps the surface rendered while the CSS exit plays (300ms sheet / 150ms desktop,
+	// immediate under reduced motion), then releases it.
+	const retained = useRetainedOpen(isOpen);
 
 	useEffect(() => {
 		syncNativeModalDialog(dialogRef.current, isOpen);
@@ -428,21 +432,23 @@ export function CategorySettingsDialog({
 		if (isMutating) event.preventDefault();
 	};
 
-	// Closed means unmounted, exactly like the Gmail consent and removal dialogs: the native
-	// element only exists while the surface is open, and the effect above opens it on that render.
-	if (!isOpen) return null;
+	// Released means unmounted: the native element is gone only after the exit finished, and the
+	// effect above opens it on the render that reopens the surface.
+	if (!retained.mounted) return null;
 
 	return (
 		<dialog
 			ref={dialogRef}
 			className="react-settings-dialog react-category-dialog"
 			aria-labelledby="react-category-settings-title"
+			inert={!isOpen}
 			onCancel={handleDialogCancel}
-			onClose={onClose}
+			onClose={isOpen ? onClose : undefined}
+			onTransitionEnd={retained.onTransitionEnd}
 		>
 			<h2 id="react-category-settings-title">Configuración</h2>
 			<CategorySettingsContent
-				isOpen={isOpen}
+				isOpen={retained.mounted}
 				submitMutation={submitMutation}
 				onClose={onClose}
 				onBusyChange={handleBusyChange}

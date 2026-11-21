@@ -8,6 +8,7 @@ import {
 	type CycleCompletionSubmitter,
 } from "./cycleCompletion";
 import { formatPeriodLabel } from "../movements/manualExpense";
+import { useRetainedWhileClosing } from "../feedback/motion";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import type { FinancialCycleResponse } from "../../api/types";
 
@@ -40,7 +41,10 @@ export function CompleteCycleDialog({
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
 	const [status, setStatus] = useState<CycleCompletionStatus | null>(null);
 	const isClosing = status?.tone === "pending";
-	const period = cycle?.selectedPeriod ?? null;
+	const livePeriod = cycle?.selectedPeriod ?? null;
+	// Closing keeps the confirmation rendered through the CSS exit, then releases it.
+	const shown = useRetainedWhileClosing(isOpen && livePeriod !== null ? { period: livePeriod } : null);
+	const period = shown.value?.period ?? null;
 
 	useEffect(() => {
 		syncNativeModalDialog(dialogRef.current, isOpen);
@@ -54,9 +58,9 @@ export function CompleteCycleDialog({
 	/** Runs the single closure and reports it. The pending reset is gated on the tested predicate, so the
 	 * attempt that owns the lock keeps the status. */
 	const handleConfirm = async () => {
-		if (isClosing || period === null) return;
+		if (isClosing || livePeriod === null) return;
 		setStatus({ message: CYCLE_COMPLETION_PENDING_MESSAGE, tone: "pending" });
-		const outcome: CycleCompletionSubmitOutcome = await submitCompletion(period)
+		const outcome: CycleCompletionSubmitOutcome = await submitCompletion(livePeriod)
 			.catch((): CycleCompletionSubmitOutcome => ({ status: "failed" }));
 		if (!shouldClearCycleCompletionPhase(outcome)) return;
 		setStatus(getCycleCompletionNotice(outcome));
@@ -67,7 +71,7 @@ export function CompleteCycleDialog({
 		if (isClosing) event.preventDefault();
 	};
 
-	if (!isOpen || period === null) return null;
+	if (period === null) return null;
 
 	const isSettled = status !== null && status.tone !== "pending";
 
@@ -76,7 +80,8 @@ export function CompleteCycleDialog({
 			ref={dialogRef}
 			className="react-financial-cycle-dialog"
 			aria-labelledby="react-financial-cycle-completion-title" aria-describedby="react-financial-cycle-completion-consent"
-			onCancel={handleDialogCancel} onClose={onClose}
+			inert={!isOpen} onCancel={handleDialogCancel} onClose={isOpen ? onClose : undefined}
+			onTransitionEnd={shown.onTransitionEnd}
 		>
 			<div className="react-financial-cycle-form">
 				<h2 id="react-financial-cycle-completion-title">Cerrar período</h2>

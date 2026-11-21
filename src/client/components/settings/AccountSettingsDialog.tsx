@@ -11,6 +11,7 @@ import {
 	type GmailConnectControlSlot,
 } from "../gmail/GmailConnectionPanel";
 import type { GmailSyncSubmitter } from "../gmail/gmailSync";
+import { useRetainedOpen } from "../feedback/motion";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import { CategorySettingsContent } from "./CategorySettingsDialog";
 import { CounterpartyRulesContent } from "./CounterpartyRulesDialog";
@@ -83,6 +84,10 @@ export function AccountSettingsDialog({
 		"profile",
 	);
 
+	// Closing keeps the surface rendered while the CSS exit plays (300ms sheet / 150ms desktop,
+	// immediate under reduced motion), then releases it.
+	const retained = useRetainedOpen(isOpen);
+
 	useEffect(() => {
 		syncNativeModalDialog(dialogRef.current, isOpen);
 	}, [isOpen]);
@@ -110,17 +115,19 @@ export function AccountSettingsDialog({
 		if (isMutating) event.preventDefault();
 	};
 
-	// Closed means unmounted, exactly like the standalone dialogs: the native element only exists
-	// while the surface is open, and the effect above opens it on that render.
-	if (!isOpen) return null;
+	// Released means unmounted: the native element is gone only after the exit finished, and the
+	// effect above opens it on the render that reopens the surface.
+	if (!retained.mounted) return null;
 
 	return (
 		<dialog
 			ref={dialogRef}
 			className="react-settings-dialog react-account-settings-dialog"
 			aria-labelledby="react-account-settings-title"
+			inert={!isOpen}
 			onCancel={handleDialogCancel}
-			onClose={onClose}
+			onClose={isOpen ? onClose : undefined}
+			onTransitionEnd={retained.onTransitionEnd}
 		>
 			<h2 id="react-account-settings-title">Configuración</h2>
 			{/* A plain tablist of native buttons: `aria-selected` marks the active tab and each panel
@@ -201,7 +208,7 @@ export function AccountSettingsDialog({
 			>
 				{/* The verified category body fills its own section; the modal supplies the shell. */}
 				<CategorySettingsContent
-					isOpen={isOpen}
+					isOpen={retained.mounted}
 					submitMutation={submitCategoryMutation}
 					onBusyChange={handleCategoryBusyChange}
 				/>
@@ -216,7 +223,7 @@ export function AccountSettingsDialog({
 				<h3 className="react-account-settings-section-title">Reglas de contraparte</h3>
 				{/* The verified counterparty body, embedded without its own close control. */}
 				<CounterpartyRulesContent
-					isOpen={isOpen}
+					isOpen={retained.mounted}
 					submitMutation={submitCounterpartyRule}
 					onBusyChange={handleCounterpartyBusyChange}
 				/>

@@ -7,6 +7,7 @@ import {
 	type SyntheticEvent,
 } from "react";
 import { getCategories, getCounterpartyRules } from "../../api/client";
+import { useRetainedOpen } from "../feedback/motion";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import { getCategoryDisplayRows } from "./categorySettings";
 import {
@@ -401,6 +402,9 @@ export function CounterpartyRulesDialog({
 }: CounterpartyRulesDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
 	const [isMutating, setIsMutating] = useState(false);
+	// Closing keeps the surface rendered while the CSS exit plays (300ms sheet / 150ms desktop,
+	// immediate under reduced motion), then releases it.
+	const retained = useRetainedOpen(isOpen);
 
 	useEffect(() => {
 		syncNativeModalDialog(dialogRef.current, isOpen);
@@ -413,21 +417,23 @@ export function CounterpartyRulesDialog({
 		if (isMutating) event.preventDefault();
 	};
 
-	// Closed means unmounted, exactly like the other dialogs: the native element only exists while
-	// the surface is open, and the effect above opens it on that render.
-	if (!isOpen) return null;
+	// Released means unmounted: the native element is gone only after the exit finished, and the
+	// effect above opens it on the render that reopens the surface.
+	if (!retained.mounted) return null;
 
 	return (
 		<dialog
 			ref={dialogRef}
 			className="react-settings-dialog react-counterparty-dialog"
 			aria-labelledby="react-counterparty-rules-title"
+			inert={!isOpen}
 			onCancel={handleDialogCancel}
-			onClose={onClose}
+			onClose={isOpen ? onClose : undefined}
+			onTransitionEnd={retained.onTransitionEnd}
 		>
 			<h2 id="react-counterparty-rules-title">Reglas de contraparte</h2>
 			<CounterpartyRulesContent
-				isOpen={isOpen}
+				isOpen={retained.mounted}
 				submitMutation={submitMutation}
 				onClose={onClose}
 				onBusyChange={handleBusyChange}

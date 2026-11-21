@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
+import { useRetainedWhileClosing } from "../feedback/motion";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import { CycleCalendar } from "./FinancialCycleCalendar";
 import {
@@ -86,6 +87,9 @@ export function FinancialCycleEditDialog({
 	onSaved,
 }: FinancialCycleEditDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	// Closing keeps the last cycle rendered through the CSS exit, then releases it. The effects and the
+	// submit below keep reading the live `cycle`.
+	const shown = useRetainedWhileClosing(isOpen ? cycle : null);
 	// The calendar's selectable/navigation window is the current calendar year through the current
 	// month, so a stored cycle narrower than the year so far can still be widened. It is frozen for the
 	// life of the dialog so a midnight rollover cannot re-anchor the grid mid-edit.
@@ -191,23 +195,26 @@ export function FinancialCycleEditDialog({
 		if (isSaving) event.preventDefault();
 	};
 
-	if (!isOpen || cycle === null) return null;
+	const shownCycle = shown.value;
+	if (shownCycle === null) return null;
 
 	return (
 		<dialog
 			ref={dialogRef}
 			className="react-financial-cycle-dialog react-financial-cycle-edit-dialog"
 			aria-labelledby="react-financial-cycle-edit-title"
+			inert={!isOpen}
 			onCancel={handleDialogCancel}
-			onClose={onClose}
+			onClose={isOpen ? onClose : undefined}
+			onTransitionEnd={shown.onTransitionEnd}
 		>
 			<h2 id="react-financial-cycle-edit-title">Cambiar período</h2>
-			<FinancialCycleClosureNote cycle={cycle} draft={draft} />
+			<FinancialCycleClosureNote cycle={shownCycle} draft={draft} />
 			<form className="react-financial-cycle-form" onSubmit={handleSubmit} aria-busy={isSaving}>
 				{/* The calendar augments the text fields and is bounded by the current year through the
 				    current month, not by the stored cycle; the fields below keep the unchanged submit
 				    behaviour. */}
-				{cycle.selectedPeriod && (
+				{shownCycle.selectedPeriod && (
 					<CycleCalendar
 						bounds={calendarBounds}
 						range={calendarRange}

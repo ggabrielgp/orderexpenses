@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { getGoogleLoginUrl } from "../../api/googleLogin";
 import "../onboarding/consent-points.css";
+import { useRetainedWhileClosing } from "../feedback/motion";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import {
 	acceptGmailConsent,
@@ -42,18 +43,21 @@ export interface GmailConsentDialogProps {
  */
 export function GmailConsentDialog({
 	isOpen,
-	state,
+	state: liveState,
 	connectUrl,
 	onAcknowledge,
 	onClose,
 }: GmailConsentDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	// Closing resets the live state (acknowledgement unchecked); the exit keeps the last open one.
+	const shown = useRetainedWhileClosing(isOpen ? { state: liveState } : null);
 
 	useEffect(() => {
 		syncNativeModalDialog(dialogRef.current, isOpen);
 	}, [isOpen]);
 
-	if (!isOpen) return null;
+	if (!shown.value) return null;
+	const { state } = shown.value;
 
 	const copy = getGmailConsentCopy();
 	const canAccept = canAcceptGmailConsent(state);
@@ -69,7 +73,9 @@ export function GmailConsentDialog({
 			className="react-gmail-consent-dialog"
 			aria-labelledby="react-gmail-consent-title"
 			aria-describedby="react-gmail-consent-description"
-			onClose={onClose}
+			inert={!isOpen}
+			onClose={isOpen ? onClose : undefined}
+			onTransitionEnd={shown.onTransitionEnd}
 		>
 			{/* Both dismissal controls close through the same path, and neither navigates. */}
 			<button

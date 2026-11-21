@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
 import { getCategories } from "../../api/client";
+import { useRetainedWhileClosing } from "../feedback/motion";
 import type {
 	FinancialPeriod,
 	MovementUpdateTarget,
@@ -350,7 +351,7 @@ export interface MovementRecategorized {
 
 export function EditMovementDialog({
 	isOpen,
-	movement,
+	movement: openMovement,
 	period,
 	onClose,
 	submitEdit,
@@ -358,9 +359,14 @@ export function EditMovementDialog({
 }: EditMovementDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
 	const saveLock = useRef(false);
+	// The parent closes this dialog by passing `null`; the last movement stays rendered while the CSS
+	// exit (300ms sheet / 150ms desktop, immediate under reduced motion) plays, then it is released.
+	// `isOpen` and the lifecycle effects below keep reading the live props.
+	const shown = useRetainedWhileClosing(openMovement);
+	const movement = shown.value;
 	const [edit, setEdit] = useState<MovementEditState>(() =>
 		createMovementEditState(
-			movement ? createMovementEditDraft(movement) : EMPTY_MOVEMENT_EDIT_DRAFT,
+			openMovement ? createMovementEditDraft(openMovement) : EMPTY_MOVEMENT_EDIT_DRAFT,
 		),
 	);
 	const [catalog, setCatalog] = useState<CategoryCatalogState>(createCategoryCatalogState);
@@ -538,8 +544,10 @@ export function EditMovementDialog({
 			ref={dialogRef}
 			className="react-edit-movement-dialog"
 			aria-labelledby="react-edit-movement-title"
+			inert={!isOpen}
 			onCancel={handleDialogCancel}
-			onClose={onClose}
+			onClose={isOpen ? onClose : undefined}
+			onTransitionEnd={shown.onTransitionEnd}
 		>
 			<form className="react-edit-movement-form" onSubmit={handleSubmit} aria-busy={isSaving}>
 				<h2 id="react-edit-movement-title">Editar movimiento</h2>

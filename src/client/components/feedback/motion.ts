@@ -178,6 +178,20 @@ export function useRetainedWhileClosing<T>(value: T | null): {
 	return { value: value ?? last.current, onTransitionEnd };
 }
 
+/**
+ * For a dialog whose content derives from live props and only carries an `isOpen` flag: `mounted` stays
+ * true while the exit plays (and until `onTransitionEnd` or the fallback timer releases it), so the
+ * closing sheet keeps rendering instead of unmounting abruptly. Same release rules as
+ * `useRetainedWhileClosing` (reduced motion releases at once, reopening cancels the release).
+ */
+export function useRetainedOpen(isOpen: boolean): {
+	mounted: boolean;
+	onTransitionEnd: (event: { target: unknown; currentTarget: unknown }) => void;
+} {
+	const shown = useRetainedWhileClosing(isOpen ? true : null);
+	return { mounted: shown.value === true, onTransitionEnd: shown.onTransitionEnd };
+}
+
 /** The browser's host: the view transition lives on `document`, the motion preference on `window`. */
 function browserHost(): ViewTransitionHost | undefined {
 	if (typeof document === "undefined" || typeof window === "undefined") return undefined;
