@@ -54,6 +54,10 @@ import { FeedbackNotice } from "../components/feedback/FeedbackNotice";
 import { DashboardLoadingState } from "../components/analytics/DashboardLoadingState";
 import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
 import { MobileTabBar } from "../components/shell/MobileTabBar";
+import { OnboardingConnect } from "../components/onboarding/OnboardingConnect";
+import { FirstResultExplainer } from "../components/onboarding/FirstResultExplainer";
+import { hasSeenFirstResult, markFirstResultSeen } from "../components/onboarding/firstResult";
+import { CyclePresets } from "../components/financial-cycle/CyclePresets";
 import { getPeriodAnalytics } from "../components/analytics/periodAnalytics";
 import {
   getDashboardCounterpartyRanking,
@@ -612,21 +616,14 @@ export function DashboardPage({ session }: DashboardPageProps) {
 
   if (!session.authenticated) {
     return (
-      <main className="shell react-shell">
-        <section className="panel product-panel react-message" aria-labelledby="react-sign-in-title">
-          <h1 id="react-sign-in-title">Conecta tu cuenta de Gmail</h1>
-          <p className="subtitle">
-            Inicia sesión para cargar tu perfil y el estado de la conexión.
-          </p>
-          <div className="react-shell-actions">
-            <GmailConnectControl
-              connectUrl={session.gmail.connectUrl}
-              accountConnected={session.gmail.connected}
-              className="button"
-            />
-          </div>
-        </section>
-      </main>
+      // Onboarding step 1: trust in three points; the real connect control keeps the consent flow.
+      <OnboardingConnect>
+        <GmailConnectControl
+          connectUrl={session.gmail.connectUrl}
+          accountConnected={session.gmail.connected}
+          className="button"
+        />
+      </OnboardingConnect>
     );
   }
 
@@ -2019,6 +2016,16 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   const [categoryCatalog, setCategoryCatalog] = useState<Category[]>([]);
   const [retryToken, setRetryToken] = useState(0);
   const retry = useCallback(() => setRetryToken((token) => token + 1), []);
+  // Onboarding step 3: after the first cycle setup, explain the gauge once until it is dismissed.
+  const [showFirstResult, setShowFirstResult] = useState(false);
+  const handleFirstCycleSaved = useCallback(() => {
+    setShowFirstResult(!hasSeenFirstResult(browserStorage()));
+    retry();
+  }, [retry]);
+  const dismissFirstResult = useCallback(() => {
+    markFirstResultSeen(browserStorage());
+    setShowFirstResult(false);
+  }, []);
   const activeLoad = useRef<AbortController | null>(null);
   // Invalidate a prepared sync even when an intervening refresh finishes with identical values.
   const dashboardLoadEpoch = useRef(0);
@@ -2290,7 +2297,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     );
   }
   if (state.status === "unconfigured") {
-    return <FinancialCycleSetupForm onSaved={retry} />;
+    return <FinancialCycleSetupForm onSaved={handleFirstCycleSaved} />;
   }
 
   const { selectedPeriod, incomeAmount } = state.data.cycle;
@@ -2545,6 +2552,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
 					    the read-only demo read the same composition. Here it carries the authenticated
 					    capabilities: the jump switches to the movements view with the requested category, and
 					    the chart detail opens the read-only movement dialog. */}
+          {showFirstResult && dashboardPace ? <FirstResultExplainer onDismiss={dismissFirstResult} /> : null}
           <DashboardAnalyticsBody
             pace={dashboardPace}
             onAddIncome={openCycleEdit}
@@ -2671,6 +2679,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
   // frozen for the life of the form so a midnight rollover cannot re-anchor either mid-edit.
   const configuredPeriod = useMemo(() => ReviewPeriod.currentMonth().toJSON(), []);
   const calendarBounds = useMemo(() => getCurrentYearCalendarBounds(), []);
+  const presetToday = useMemo(() => todayInSantiago(new Date()), []);
   const [startDate, setStartDate] = useState(configuredPeriod.startDate);
   const [endDate, setEndDate] = useState<string>(ReviewPeriod.create(configuredPeriod).visibleEndDate);
   const [incomeValue, setIncomeValue] = useState("");
@@ -2762,6 +2771,17 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
         <p>Elige las fechas inclusivas del periodo que quieres revisar.</p>
       </div>
       <form className="react-financial-setup-form" onSubmit={handleSubmit}>
+        {/* Presets fill the same date inputs below; the calendar and inputs stay editable. */}
+        <CyclePresets
+          today={presetToday}
+          onApply={(range) => {
+            setStartDate(range.startDate);
+            setEndDate(range.endDate);
+            setAwaitingRangeEnd(false);
+            setCalendarError(null);
+          }}
+          onCustom={() => document.getElementById("financial-cycle-start-date")?.focus()}
+        />
         {/* The calendar augments the text inputs; it never replaces them. It is bounded to the current
 				    year through the current month, so any month of the year so far is selectable. */}
         <CycleCalendar
@@ -3527,4 +3547,13 @@ export function MovementsTable({
       />
     </>
   );
+}
+
+/** `localStorage` when the browser exposes it; null during SSR tests or when access is denied. */
+function browserStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
 }
