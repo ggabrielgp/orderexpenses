@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 /**
@@ -72,6 +72,110 @@ export function createEditHighlight({
 		},
 		dispose: stop,
 	};
+}
+
+/** Exit durations of the dialog CSS in `motion.css`: 300ms as a bottom sheet (<=760px), 150ms on desktop. */
+export const DIALOG_EXIT_SHEET_MS = 300;
+export const DIALOG_EXIT_DESKTOP_MS = 150;
+/** The fallback timer outlives the CSS exit slightly so the last frame is never cut. */
+const DIALOG_EXIT_SLACK_MS = 40;
+
+/** How long a closing dialog must stay rendered for its exit to play; 0 (immediate) under reduced motion. */
+export function getDialogExitMs(host: ViewTransitionHost | undefined): number {
+	if (typeof host?.matchMedia !== "function") return 0;
+	if (host.matchMedia("(prefers-reduced-motion: reduce)").matches) return 0;
+	return host.matchMedia("(max-width: 760px)").matches ? DIALOG_EXIT_SHEET_MS : DIALOG_EXIT_DESKTOP_MS;
+}
+
+export interface DeferredUnmountOptions {
+	/** Exit duration; 0 releases immediately without a timer. */
+	ms: number;
+	onUnmount: () => void;
+	setTimer?: (callback: () => void, ms: number) => unknown;
+	clearTimer?: (handle: unknown) => void;
+}
+
+/**
+ * Releases a closing dialog's retained content once its exit finished: `finish` (a `transitionend`)
+ * releases early, otherwise a fallback timer does. Releases at most once per `begin`; `cancel` (the
+ * dialog reopened) drops the pending release.
+ */
+export function createDeferredUnmount({
+	ms,
+	onUnmount,
+	setTimer = (callback, delay) => setTimeout(callback, delay),
+	clearTimer = (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+}: DeferredUnmountOptions) {
+	let handle: unknown = null;
+	let pending = false;
+	const clear = () => {
+		if (handle !== null) clearTimer(handle);
+		handle = null;
+	};
+	const finish = () => {
+		if (!pending) return;
+		pending = false;
+		clear();
+		onUnmount();
+	};
+	return {
+		begin() {
+			clear();
+			pending = true;
+			if (ms <= 0) {
+				finish();
+				return;
+			}
+			handle = setTimer(() => {
+				handle = null;
+				finish();
+			}, ms + DIALOG_EXIT_SLACK_MS);
+		},
+		finish,
+		cancel() {
+			pending = false;
+			clear();
+		},
+	};
+}
+
+/**
+ * For a dialog the page "unmounts" by passing `null`: returns the live value, or the last one while the
+ * exit animation plays, so the closing sheet keeps its content instead of vanishing. `onTransitionEnd`
+ * (wire it on the `<dialog>`) releases early; a timer is the fallback; reduced motion releases at once.
+ * A new value cancels the release, and the retained value is dropped afterwards so stale content never
+ * reappears.
+ */
+export function useRetainedWhileClosing<T>(value: T | null): {
+	value: T | null;
+	onTransitionEnd: (event: { target: unknown; currentTarget: unknown }) => void;
+} {
+	const last = useRef<T | null>(null);
+	const exit = useRef<ReturnType<typeof createDeferredUnmount> | null>(null);
+	const [, rerender] = useReducer((count: number) => count + 1, 0);
+	if (value !== null) last.current = value;
+	const closed = value === null;
+	useEffect(() => {
+		if (!closed) return;
+		if (last.current === null) return;
+		const deferred = createDeferredUnmount({
+			ms: getDialogExitMs(browserHost()),
+			onUnmount: () => {
+				last.current = null;
+				rerender();
+			},
+		});
+		exit.current = deferred;
+		deferred.begin();
+		return () => {
+			deferred.cancel();
+			if (exit.current === deferred) exit.current = null;
+		};
+	}, [closed]);
+	const onTransitionEnd = useCallback((event: { target: unknown; currentTarget: unknown }) => {
+		if (event.target === event.currentTarget) exit.current?.finish();
+	}, []);
+	return { value: value ?? last.current, onTransitionEnd };
 }
 
 /** The browser's host: the view transition lives on `document`, the motion preference on `window`. */

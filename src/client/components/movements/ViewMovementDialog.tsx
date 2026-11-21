@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useRetainedWhileClosing } from "../feedback/motion";
 import { getSpendingChartKindLabel } from "../analytics/spendingChart";
 import { syncNativeModalDialog } from "./CreateManualExpenseDialog";
 import type {
@@ -109,21 +110,27 @@ export interface ViewMovementDialogProps {
  * condition this component would have to re-derive.
  */
 export function ViewMovementDialog({
-	movement,
-	editableMovement,
+	movement: openMovement,
+	editableMovement: openEditableMovement,
 	onClose,
 	onEdit,
 	onRemove,
 	readOnlyReason,
 }: ViewMovementDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
-	const isOpen = movement !== null;
+	const isOpen = openMovement !== null;
+	// The page unmounts this dialog by passing `null`; keep the last content rendered while the CSS
+	// exit (300ms sheet / 150ms desktop, immediate under reduced motion) plays, then release it.
+	const shown = useRetainedWhileClosing(
+		openMovement === null ? null : { movement: openMovement, editableMovement: openEditableMovement },
+	);
 
 	useEffect(() => {
 		syncNativeModalDialog(dialogRef.current, isOpen);
 	}, [isOpen]);
 
-	if (!movement) return null;
+	if (!shown.value) return null;
+	const { movement, editableMovement } = shown.value;
 
 	const fields = getMovementDetailFields(movement);
 	const canEdit = Boolean(editableMovement && onEdit);
@@ -136,6 +143,7 @@ export function ViewMovementDialog({
 			className="react-view-movement-dialog"
 			aria-labelledby="react-view-movement-title"
 			onClose={onClose}
+			onTransitionEnd={shown.onTransitionEnd}
 		>
 			<h2 id="react-view-movement-title">Detalle del movimiento</h2>
 			<dl className="react-view-movement-fields">
