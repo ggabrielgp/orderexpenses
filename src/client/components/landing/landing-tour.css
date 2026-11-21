@@ -30,7 +30,7 @@
 .landing-tour .tour-track::-webkit-scrollbar { display: none; }
 .landing-tour .tour-track[data-dragging] { cursor: grabbing; }
 .landing-tour .tour-track:focus-visible {
-	outline: 3px solid var(--marketing-primary, #2457c6);
+	outline: 3px solid var(--marketing-primary, #131b2e);
 	outline-offset: 4px;
 }
 .landing-tour .landing-tour-list {
@@ -106,10 +106,10 @@
 	color: #334155;
 	font-size: 10px;
 }
-.landing-tour .react-cycle-calendar-day-selected { background: #edf3ff; border-color: #bfd0ee; color: #2457c6; }
+.landing-tour .react-cycle-calendar-day-selected { background: #f1f0ec; border-color: #d2d0ca; color: #131b2e; }
 .landing-tour .react-cycle-calendar-nav-button { width: 24px; }
-.landing-tour .react-cycle-calendar-summary { padding: 8px; border-radius: 10px; background: #f0f5ff; }
-.landing-tour .react-cycle-calendar-summary p { margin: 0 0 10px; color: #2457c6; font-size: 11px; }
+.landing-tour .react-cycle-calendar-summary { padding: 8px; border-radius: 10px; background: #f6f5f2; }
+.landing-tour .react-cycle-calendar-summary p { margin: 0 0 10px; color: #131b2e; font-size: 11px; }
 .landing-tour .react-cycle-calendar-summary dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
 .landing-tour .react-cycle-calendar-summary dl > div { display: block; }
 .landing-tour .react-cycle-calendar-summary dt { color: #64748b; font-size: 10px; }
@@ -150,18 +150,18 @@
 	min-width: 0;
 	min-height: 0;
 	padding: 8px 10px;
-	border: 1px solid #2457c6;
+	border: 1px solid #131b2e;
 	border-radius: 8px;
-	background: #2457c6;
+	background: #131b2e;
 	color: white;
 	font-size: 10px;
 }
-.landing-tour .react-shell-actions button.secondary { background: white; color: #2457c6; border-color: #dce3ee; }
+.landing-tour .react-shell-actions button.secondary { background: white; color: #131b2e; border-color: #dce3ee; }
 .landing-tour .landing-tour-screen-inner :disabled { opacity: 1; cursor: default; -webkit-text-fill-color: currentColor; }
 /* These phones keep the mobile presentation at every viewport width. */
 .landing-tour .react-movements-view { display: grid; gap: 12px; }
 .landing-tour .react-movements-header { display: flex; justify-content: space-between; align-items: center; }
-.landing-tour .react-card-icon { color: #2457c6; }
+.landing-tour .react-card-icon { color: #131b2e; }
 .landing-tour .react-movements-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .landing-tour .react-movements-metric { display: grid; gap: 3px; padding: 8px; border: 1px solid #dce3ee; border-radius: 10px; background: white; }
 .landing-tour .react-movements-metric span { font-size: 9px; color: #64748b; }
@@ -178,7 +178,7 @@
 .landing-tour .react-mobile-movement-description { overflow-wrap: anywhere; }
 .landing-tour .react-movement-amount { white-space: nowrap; }
 .landing-tour .react-mobile-movement-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; font-size: 9px; color: #64748b; }
-.landing-tour .react-movement-category { padding: 3px 6px; border-radius: 5px; background: #edf3ff; color: #2457c6; font-size: 9px; }
+.landing-tour .react-movement-category { padding: 3px 6px; border-radius: 5px; background: #f1f0ec; color: #131b2e; font-size: 9px; }
 .landing-tour .react-movement-kind-badge { padding: 0; background: transparent; font-size: 9px; }
 .landing-tour .react-movement-date { font-size: 9px; }
 .landing-tour .react-movements-secondary-filters,
@@ -193,14 +193,14 @@
 	box-shadow: 0 6px 12px -8px rgb(22 40 75 / .3);
 }
 .landing-tour .landing-tour-arrow:disabled { opacity: .35; cursor: default; }
-.landing-tour .landing-tour-arrow:not(:disabled):hover { color: var(--marketing-primary, #2457c6); }
+.landing-tour .landing-tour-arrow:not(:disabled):hover { color: var(--marketing-primary, #131b2e); }
 .landing-tour .landing-tour-dots { display: flex; align-items: center; }
 .landing-tour .landing-tour-dot { display: grid; place-items: center; width: 28px; height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .landing-tour .landing-tour-dot::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: #bfc6d6; }
-.landing-tour .landing-tour-dot[aria-current="true"]::before { width: 22px; background: var(--marketing-primary, #2457c6); }
-.landing-tour .landing-tour-controls button:focus-visible { outline: 3px solid var(--marketing-primary, #2457c6); outline-offset: 3px; }
+.landing-tour .landing-tour-dot[aria-current="true"]::before { width: 22px; background: var(--marketing-primary, #131b2e); }
+.landing-tour .landing-tour-controls button:focus-visible { outline: 3px solid var(--marketing-primary, #131b2e); outline-offset: 3px; }
 .landing-tour .landing-tour-position { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
-.landing-tour .landing-tour-loading { padding: 64px 24px; border: 1px dashed #bfd0ee; border-radius: 20px; text-align: center; color: var(--marketing-muted, #64748b); }
+.landing-tour .landing-tour-loading { padding: 64px 24px; border: 1px dashed #d2d0ca; border-radius: 20px; text-align: center; color: var(--marketing-muted, #64748b); }
 .landing-tour .landing-tour-footer { display: grid; justify-items: center; gap: 10px; margin-top: 32px; }
 .landing-tour .landing-tour-footer p { margin: 0; color: var(--marketing-muted, #64748b); font-size: .75rem; }
 @media (width < 360px) {

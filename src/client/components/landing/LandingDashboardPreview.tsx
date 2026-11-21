@@ -1,7 +1,6 @@
 import { useId } from "react";
 import { getDemoTransactions, type DemoDashboardData } from "../../demo-data";
 import {
-	DashboardLeadView,
 	SpendingChartView,
 	formatPeriodLabel,
 	getRecognizedExpenseMovements,
@@ -9,8 +8,12 @@ import {
 } from "../../pages/DashboardPage";
 import { CategoryDistributionView } from "../analytics/CategoryDistributionPanel";
 import { getCategoryRanking } from "../analytics/categoryRanking";
+import { DashboardPaceGauge } from "../analytics/DashboardPaceGauge";
 import { getDashboardLead } from "../analytics/dashboardLead";
+import { getDashboardPace } from "../analytics/dashboardPace";
+import { DEFAULT_DEMO_SCENARIO, getDemoScenarioToday } from "../demo/demoScenarios";
 import { FULL_PERIOD_TAB_ID, getSpendingChart } from "../analytics/spendingChart";
+import "./landing-brand.css";
 import "./landing-dashboard-preview.css";
 
 const noSelection = () => {};
@@ -34,14 +37,25 @@ export function LandingDashboardPreview({ data, previewError = null }: { data: D
 	const ranking = getCategoryRanking(movements, summary.pendingAmountCount);
 	const chart = getSpendingChart(movements, data.period, summary.pendingAmountCount);
 	const periodLabel = formatPeriodLabel(data.period);
+	const incomeAmount = data.currentPeriodInflow > 0 ? data.currentPeriodInflow : null;
 	const lead = getDashboardLead({
 		periodLabel,
 		totalSpending: summary.totalSpending,
 		expenseCount: summary.count,
 		pendingAmountCount: summary.pendingAmountCount,
-		incomeAmount: data.currentPeriodInflow > 0 ? data.currentPeriodInflow : null,
+		incomeAmount,
 		incomeSource: "demo-inflow",
 	});
+	// The same income and total the accessible summary states, so the gauge cannot disagree with it.
+	// The day comes from the demo's default scenario (Ajustado), not the clock, so the landing gauge is
+	// deterministic and matches the first view of the demo.
+	const paceInput = {
+		startDate: data.period.startDate,
+		endDateExclusive: data.period.endDateExclusive,
+		incomeAmount,
+		totalSpending: summary.totalSpending,
+	};
+	const pace = getDashboardPace({ ...paceInput, today: getDemoScenarioToday(paceInput, DEFAULT_DEMO_SCENARIO) });
 
 	return <div className="landing-dashboard-preview">
 		<p className="landing-dashboard-preview-summary">
@@ -57,7 +71,7 @@ export function LandingDashboardPreview({ data, previewError = null }: { data: D
 		</header>
 		{/* The figure supplies the accessible summary; the real chart controls are visual only. */}
 		<div className="landing-dashboard-preview-canvas" inert>
-			<DashboardLeadView lead={lead} />
+			<DashboardPaceGauge pace={pace} formatClp={formatAmount} />
 			<SpendingChartView titleId={`${instanceId}-spending-title`} detailId={`${instanceId}-spending-detail`}
 				chart={chart} selectedTab={FULL_PERIOD_TAB_ID}
 				selectedDayKey={null} onSelectTab={noSelection} onSelectDay={noSelection}

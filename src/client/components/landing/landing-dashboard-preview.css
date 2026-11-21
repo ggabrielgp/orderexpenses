@@ -23,7 +23,7 @@
 }
 
 .landing-dashboard-preview .landing-dashboard-preview-heading > span {
-	color: #2457c6;
+	color: #131b2e;
 	font-size: 11px;
 	font-weight: 700;
 }
@@ -46,45 +46,75 @@
 	pointer-events: none;
 }
 
-.landing-dashboard-preview .react-dashboard-lead {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 6px;
-	margin: 0;
-}
-
-.landing-dashboard-preview .react-lead-primary,
-.landing-dashboard-preview .react-lead-answer {
-	min-height: 0;
-	gap: 4px;
+/* Month gauge, compact: ring above, state, sentence and the three figures; the legend key is dropped. */
+.landing-dashboard-preview .react-pace-gauge {
+	--gauge-number-size: 20px;
+	grid-template-columns: minmax(0, 1fr);
+	justify-items: center;
+	gap: 8px;
 	border-radius: 12px;
-	padding: 9px;
+	padding: 12px 10px;
+	box-shadow: none;
+	border: 1px solid #e3e1dc;
 }
 
-.landing-dashboard-preview .react-lead-question {
+.landing-dashboard-preview .react-pace-gauge-ring {
+	width: 132px;
+}
+
+.landing-dashboard-preview .react-pace-gauge-center {
+	gap: 2px;
+	padding: 0 22px;
+}
+
+.landing-dashboard-preview .react-pace-gauge-label,
+.landing-dashboard-preview .react-pace-gauge-per-day {
+	font-size: 8px;
+}
+
+.landing-dashboard-preview .react-pace-gauge-amount,
+.landing-dashboard-preview .react-pace-gauge-amount--long {
+	font-size: 18px;
+}
+
+.landing-dashboard-preview .react-pace-gauge-body {
+	justify-items: center;
+	gap: 6px;
+	text-align: center;
+}
+
+.landing-dashboard-preview .react-pace-gauge-pill {
+	gap: 4px;
+	padding: 2px 8px;
+	font-size: 9px;
+}
+
+.landing-dashboard-preview .react-pace-gauge-sentence {
+	font-size: 9px;
+	line-height: 1.4;
+}
+
+.landing-dashboard-preview .react-pace-gauge-facts {
+	padding-top: 6px;
+}
+
+.landing-dashboard-preview .react-pace-gauge-facts > div {
+	padding: 0 6px;
+}
+
+.landing-dashboard-preview .react-pace-gauge-facts dt,
+.landing-dashboard-preview .react-pace-gauge-facts dd small {
+	font-size: 8px;
+}
+
+.landing-dashboard-preview .react-pace-gauge-facts dd {
+	margin: 0;
 	font-size: 10px;
 }
 
-.landing-dashboard-preview .react-lead-amount {
-	font-size: 19px;
-	letter-spacing: -.045em;
-	line-height: 1.2;
-}
-
-.landing-dashboard-preview .react-lead-detail {
-	margin: 0;
-	font-size: 8px;
-}
-
-.landing-dashboard-preview .react-lead-balance-status-row {
-	gap: 4px;
-	margin: 0;
-}
-
-.landing-dashboard-preview .react-lead-balance-percent,
-.landing-dashboard-preview .react-lead-balance-status {
-	font-size: 8px;
-	padding: 2px 3px;
+.landing-dashboard-preview .react-pace-gauge-key,
+.landing-dashboard-preview .react-pace-gauge-notes {
+	display: none;
 }
 
 .landing-dashboard-preview .react-spending-chart,
@@ -108,8 +138,7 @@
 .landing-dashboard-preview .react-spending-chart-value,
 .landing-dashboard-preview .react-spending-chart-detail,
 .landing-dashboard-preview .react-category-distribution-insight,
-.landing-dashboard-preview .react-card-icon,
-.landing-dashboard-preview .react-lead-answer-icon {
+.landing-dashboard-preview .react-card-icon {
 	display: none;
 }
 

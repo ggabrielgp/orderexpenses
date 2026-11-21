@@ -1,0 +1,151 @@
+/*
+ * Landing · identity B brand line (odd/tasks/identidad-b.md, S16).
+ *
+ * The landing marketing tokens (design-tokens.css, styles.css) still carry the old cobalt identity. They
+ * are not edited there: this layer is imported by the landing components, so it loads after them, and
+ * every rule is scoped to `.landing-page` (one class more than the legacy rules) so it wins and never
+ * leaks into the product. Primary actions and accents are ink, surfaces are the warm canvas, state
+ * hues appear only inside the month gauge.
+ */
+
+.landing-page {
+	/* Marketing roles → brand roles (ink primary, warm neutrals). */
+	--marketing-canvas: #f6f5f2;
+	--marketing-surface: #ffffff;
+	--marketing-surface-subtle: #f1f0ec;
+	--marketing-primary: #131b2e;
+	--marketing-primary-rgb: 19 27 46;
+	--marketing-primary-hover: #26324d;
+	--marketing-ink: #131b2e;
+	--marketing-muted: #59647a;
+	--marketing-line: #e3e1dc;
+	--marketing-stage-background: linear-gradient(145deg, #ffffff 0%, #f6f5f2 64%, #efeee9 100%);
+	--marketing-stage-border: #d2d0ca;
+	--marketing-stage-window-border: #e3e1dc;
+	--marketing-stage-shadow: 0 28px 70px rgba(19, 27, 46, 0.12);
+	--marketing-stage-window-shadow: 0 16px 40px rgba(19, 27, 46, 0.1);
+	--marketing-featured-kpi-background: #131b2e;
+
+	/* Product components shown inside the tour read the blue roles: inside the landing they are ink. */
+	--color-blue-deep: #131b2e;
+	--color-blue-deep-rgb: 19 27 46;
+	--color-blue-standard: #26324d;
+	--color-blue-bright: #59647a;
+	--color-blue-soft: #f1f0ec;
+	--color-violet: #8b94a6;
+	--color-focus: #131b2e;
+	--focus: #131b2e;
+	--accent: #131b2e;
+	--accent-hover: #26324d;
+	--accent-soft: rgb(19 27 46 / 0.06);
+	--accent-line: rgb(19 27 46 / 0.18);
+	--primary: #131b2e;
+	--primary-container: #26324d;
+}
+
+/* Primary calls to action are ink with white text (≈15:1), with a visible offset focus ring. */
+.landing-page .landing-primary-button {
+	background: #131b2e;
+	color: #ffffff;
+}
+
+.landing-page .landing-primary-button:hover {
+	background: #26324d;
+}
+
+.landing-page :focus-visible {
+	outline: 3px solid var(--marketing-primary);
+	outline-offset: 3px;
+}
+
+/* Legacy landing rules that hard-code cobalt or blue-tinted fills: same selector, brand colors. */
+.landing-page .landing-hero-badge {
+	border-color: #e3e1dc;
+}
+
+.landing-page .landing-bars > div:nth-child(2) > i > i {
+	background: #59647a;
+}
+
+.landing-page .landing-bars > div:nth-child(3) > i > i {
+	background: #8b94a6;
+}
+
+.landing-page .landing-info-card {
+	border-color: #e3e1dc;
+}
+
+.landing-page .landing-problem-icon.is-view {
+	background: #f1f0ec;
+	color: #3f4b63;
+}
+
+.landing-page .landing-problem-icon.is-correction {
+	background: #f3ecf1;
+	color: #7d5476;
+}
+
+.landing-page .landing-product-icon.is-accent {
+	background: #3f4b63;
+}
+
+.landing-page .landing-compatibility-panel {
+	border-color: #e3e1dc;
+	background: linear-gradient(120deg, #f1f0ec 0%, #f6f5f2 100%);
+}
+
+/* Product rules reused by the tour screens that hard-code a blue (movements view, kind tabs). */
+.landing-page .react-movements-header .react-card-icon {
+	background: #f1f0ec;
+	color: #131b2e;
+}
+
+.landing-page .react-movements-metric-classified > strong {
+	color: #131b2e;
+}
+
+.landing-page .react-movements-kind-tab:hover {
+	background: #f1f0ec;
+	color: #131b2e;
+}
+
+.landing-page .react-movements-kind-tab[aria-pressed="true"] {
+	background: #131b2e;
+	color: #ffffff;
+}
+
+.landing-page .react-movements-view .react-movements-bulk-count {
+	color: #131b2e;
+}
+
+.landing-page .react-movements-view .react-movements-bulk-assign {
+	background: #131b2e;
+	color: #ffffff;
+}
+
+.landing-page .react-movements-view .react-movement-category,
+.landing-page .react-movements-view .react-movement-similar {
+	background: #f1f0ec;
+	color: #131b2e;
+}
+
+.landing-page .react-movements-view .react-movement-category-unassigned,
+.landing-page .react-movements-view .react-movement-kind-badge {
+	background: #f1f0ec;
+	color: #3f4b63;
+}
+
+/* Chart value labels in the tour: secondary ink instead of the legacy blue. */
+.landing-page .react-spending-chart-value-positive,
+.landing-page .react-spending-chart-bar-selected .react-spending-chart-value-positive {
+	color: #3f4b63;
+}
+
+/* Near-white lavender section fills become the warm canvas / surface. */
+.landing-page .landing-product-section {
+	background: #fbfaf8;
+}
+
+.landing-page .landing-footer {
+	background: #f6f5f2;
+}
