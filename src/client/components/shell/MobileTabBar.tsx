@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { DashboardView } from "./AppHeader";
 
 export interface MobileTabBarProps {
-	/** Current view; drives the pressed state. The page owns the state. */
+	/** Current view; drives `aria-current` and the filled pill. The page owns the state. */
 	view: DashboardView;
 	/** Requests a view change. */
 	onViewChange: (view: DashboardView) => void;
@@ -24,7 +24,7 @@ const MovementsIcon = () => (
 );
 
 /**
- * Identity B bottom navigation for narrow screens (artboard 02/05). It mirrors the header's view
+ * Identity B bottom navigation for narrow screens (artboards 02/05/03). It mirrors the header's view
  * navigation, which CSS hides on the same breakpoint, so exactly one navigation is visible and in the
  * accessibility tree at a time. The central button reuses the page's create flow.
  */
@@ -33,7 +33,7 @@ export function MobileTabBar({ view, onViewChange, onAddExpense }: MobileTabBarP
 		<button
 			type="button"
 			className={target === view ? "react-mobile-tabbar-link react-mobile-tabbar-link-active" : "react-mobile-tabbar-link"}
-			aria-pressed={target === view}
+			aria-current={target === view ? "page" : undefined}
 			onClick={() => onViewChange(target)}
 		>
 			{icon}
@@ -41,7 +41,7 @@ export function MobileTabBar({ view, onViewChange, onAddExpense }: MobileTabBarP
 		</button>
 	);
 	return (
-		<nav className="react-mobile-tabbar" aria-label="Navegación principal">
+		<nav className={onAddExpense ? "react-mobile-tabbar" : "react-mobile-tabbar react-mobile-tabbar-two"} aria-label="Navegación principal">
 			{tab("summary", "Resumen", <SummaryIcon />)}
 			{onAddExpense ? (
 				<button type="button" className="react-mobile-tabbar-add" aria-label="Agregar gasto" onClick={onAddExpense}>
@@ -49,9 +49,7 @@ export function MobileTabBar({ view, onViewChange, onAddExpense }: MobileTabBarP
 						<path d="M12 5v14M5 12h14" />
 					</svg>
 				</button>
-			) : (
-				<span className="react-mobile-tabbar-spacer" aria-hidden="true" />
-			)}
+			) : null}
 			{tab("movements", "Movimientos", <MovementsIcon />)}
 		</nav>
 	);

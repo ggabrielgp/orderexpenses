@@ -83,11 +83,16 @@
 		z-index: 40;
 		grid-template-columns: 1fr 72px 1fr;
 		align-items: center;
-		padding: 6px 12px calc(10px + env(safe-area-inset-bottom));
+		padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
 		border-top: 1px solid var(--line);
 		background: rgb(255 255 255 / 0.97);
 		backdrop-filter: blur(16px);
 		box-shadow: 0 -4px 18px rgb(19 27 46 / 0.06);
+	}
+
+	/* Demo (no create flow): the two views share the width, with no empty middle slot. */
+	.react-mobile-tabbar-two {
+		grid-template-columns: 1fr 1fr;
 	}
 
 	/* One navigation at a time: the bar replaces the header tabs on this breakpoint. */
@@ -96,23 +101,31 @@
 	}
 
 	.react-mobile-tabbar-link {
-		display: grid;
-		justify-items: center;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		justify-self: center;
 		gap: 2px;
-		min-height: 48px;
+		min-height: 52px;
+		min-width: 112px;
+		padding: 4px 14px;
 		border: 0;
-		border-radius: var(--radius-control);
+		border-radius: 999px;
 		background: transparent;
 		color: var(--ink-muted);
 		font: inherit;
-		font-size: 0.72rem;
+		font-size: 0.8125rem;
 		font-weight: 600;
 		box-shadow: none;
 		cursor: pointer;
+		transition: background 150ms ease, color 150ms ease;
 	}
 
+	/* Active: a filled pill and inverted color, so it never relies on weight alone. */
 	.react-mobile-tabbar-link-active {
-		color: var(--color-ink);
+		background: var(--color-ink);
+		color: #ffffff;
 		font-weight: 800;
 	}
 
@@ -128,17 +141,31 @@
 		place-items: center;
 		width: 56px;
 		height: 56px;
-		margin-top: -26px;
+		margin-top: -28px;
 		border: 0;
 		border-radius: 50%;
 		background: var(--color-ink);
 		color: #ffffff;
-		box-shadow: 0 10px 22px rgb(19 27 46 / 0.3);
+		box-shadow: 0 0 0 6px #ffffff, 0 10px 22px rgb(19 27 46 / 0.3);
 		cursor: pointer;
 	}
 
-	/* Keep the last panel clear of the fixed bar. */
+	/* Keep the last panel clear of the fixed bar (bar + the 28px the central button rises). */
 	.react-shell {
-		padding-bottom: calc(96px + env(safe-area-inset-bottom));
+		padding-top: 20px;
+		padding-bottom: calc(112px + env(safe-area-inset-bottom));
+	}
+
+	/* Artboard 03 polish: a tighter header block and a full-width "Periodo completo" tab. */
+	.react-shell .react-dashboard-shell {
+		gap: var(--space-4);
+	}
+
+	.react-shell .react-dashboard-header {
+		gap: var(--space-3);
+	}
+
+	.react-analytics-body .react-spending-chart-tab:last-child {
+		grid-column: 1 / -1;
 	}
 }
