@@ -20,15 +20,15 @@ Worktree `../gastoscontrolados-identidad`, branch `feat/identidad-b` from `main`
 
 | ID | Specs | Route | Commit |
 | --- | --- | --- | --- |
-| T1 | S2 | worker W1 (brand, tokens, index.html, public/) | — |
-| T2 | S3 | worker W2 (pace model + gauge component, unmounted) | — |
-| T3 | S6 | worker W3 (manual expense dialog) | — |
-| T4 | S8, S9 | worker W4 (consent copy + onboarding connect component, unmounted) | — |
-| T5 | S1, S3, S5 | inline: mount gauge, empty/failed actions, reskin summary panels | — |
-| T6 | S1, S4 | inline: mobile bottom bar + add button | — |
-| T7 | S7 | inline/worker: recategorize rule + undo | — |
-| T8 | S8 | inline: cycle presets, first-result explainer, mount onboarding connect | — |
-| T9 | S1–S10 | verify: full build + suite, inventory check, differential review | — |
+| T1 | S2 | worker W1 (brand, tokens, index.html, public/) | faa5fe7 ✓ |
+| T2 | S3 | worker W2 (pace model + gauge component, unmounted) | 7fa8867 ✓ |
+| T3 | S6 | worker W3 (manual expense dialog) | 603c616 ✓ |
+| T4 | S8, S9 | worker W4 (consent copy + onboarding connect component, unmounted) | 6d33ddf ✓ |
+| T5 | S1, S3, S5 | inline: mount gauge, empty/failed actions, reskin summary panels | 6714365 ✓ |
+| T6 | S1, S4 | inline: mobile bottom bar + add button | 330014f ✓ |
+| T7 | S7 | inline: recategorize rule + undo | d9f1a9d ✓ |
+| T8 | S8 | worker W6 (presets + explainer components) + inline mount | 22d394a, b41e115 ✓ |
+| T9 | S1–S10 | inline verify: full build + suite, inventory check, differential review | this commit ✓ |
 
 ## Log
 
@@ -36,4 +36,9 @@ Worktree `../gastoscontrolados-identidad`, branch `feat/identidad-b` from `main`
 - **L2** (user decisions): Dónde → "Worktree aparte (recomendado)". Alcance → "Lo anterior + mejoras de UX sin backend" (identity + layout with all current panels intact, plus onboarding 3 steps, manual expense amount-first, recategorize with rule and undo, honest consent copy; no topes/budgets).
 - **L3** (user, earlier): chose direction B only ("dale con la B solamente"); rejected the B+C topes mix (artboard 04).
 - **L4** (evidence): the shared worktree moved to `main`; `framework_react` is merged into `main`, so the branch starts from `main` 8e5fb82. Baseline tests need `dist/` (run build first).
+- **L6** (evidence): T1–T4 focused + foundation suites 164/164; tsc clean. Header assertion `react-vite-foundation.test.js` updated to the SVG logo. Pending for parent: amount input CSS (T5); `src/server.js` mimeTypes lacks .svg/.webmanifest (local server only; Vercel serves public/ natively) — left as-is per S10, reported to user.
+- **L7** (evidence): after T5+T6 full `npm run build && npm test` 427/427; demo screenshots desktop 1440 and mobile 390 checked (gauge above intact KPI band; bottom bar fixed, header tabs hidden ≤760px).
 - **L5** (decision): desktop keeps the top header (restyled) instead of the side rail of artboard 08, to avoid moving header behavior that tests and users rely on; the rail can be a follow-up.
+- **L8** (evidence): T8 mounted (signed-out screen → `OnboardingConnect` wrapping the real `GmailConnectControl`; presets above the setup calendar filling the same inputs; explainer only after the first cycle save, remembered in localStorage, never in the demo). T7: checkbox "Usar siempre para <comercio>" on a real category change; rule saved after the PATCH and before the reload; "Deshacer" restores the previous rule state (or clears it) and then the previous category. Full `npm run build && npm test` 450/450.
+- **L9** (evidence, T9): S10 — `git diff --stat 8e5fb82..HEAD -- src ':!src/client' shared` is empty. S1 — every removed line in `src/client` is a restyle or replacement (brand icon → BrandMark, consent paragraphs → three points, sign-in panel → onboarding step 1, "Catálogo de solo lectura" → plain copy, amount input moved first); the only new `display:none` rules are the bottom bar on desktop and the header tabs ≤760px, replaced by the bottom bar. Differential check (base 330014f vs HEAD, scratch copy): `FeedbackNotice` without action and `createMovementEditSubmitter` without options produce identical output. Demo screenshots desktop 1440 / mobile 390 checked. A first suite run hung in landing-navigation while files were created mid-run; the quiet rerun passed. Independent verifier not admitted (no high-risk item), verification done inline.
+
