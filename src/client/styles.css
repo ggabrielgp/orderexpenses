@@ -2937,6 +2937,9 @@ body:has(.react-movements-page) {
 
 .react-movement-sort-button:hover,
 .react-movement-sort-button:focus-visible {
+	/* Cancels the global button:hover ink fill, which left dark text on a dark background. */
+	background: none;
+	box-shadow: none;
 	color: var(--ink);
 	text-decoration: underline;
 }

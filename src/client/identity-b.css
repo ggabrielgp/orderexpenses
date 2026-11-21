@@ -169,3 +169,22 @@
 		grid-column: 1 / -1;
 	}
 }
+
+/* Hover states for view navigation. The legacy global `button:hover` paints an ink fill; these more
+   specific rules keep the text readable on every surface instead of relying on cascade order. */
+.react-app-navigation .react-app-navigation-link:hover {
+	background: transparent;
+	box-shadow: none;
+	color: var(--color-ink);
+}
+
+.react-mobile-tabbar .react-mobile-tabbar-link:hover {
+	background: var(--color-surface-subtle);
+	box-shadow: none;
+	color: var(--color-ink);
+}
+
+.react-mobile-tabbar .react-mobile-tabbar-link-active:hover {
+	background: var(--color-ink);
+	color: #ffffff;
+}
