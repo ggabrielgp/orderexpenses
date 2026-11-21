@@ -88,7 +88,6 @@ import {
   type DashboardLead,
 } from "../components/analytics/dashboardLead";
 import {
-  getDashboardIncomeBudgetPanel,
   type DashboardIncomeBudgetPanel,
 } from "../components/analytics/dashboardBudget";
 import {
@@ -932,14 +931,6 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
     totalSpending: summary.totalSpending,
     today: today ?? todayInSantiago(new Date()),
   });
-  // The demo shares the authenticated composition, so it mounts the same income/budget truth panel
-  // over the demo-inflow source instead of a demo-only layout.
-  const incomeBudgetPanel = getDashboardIncomeBudgetPanel({
-    source: "demo-inflow",
-    incomeAmount: demoIncomeAmount,
-    periodLabel: formatPeriodLabel(data.period),
-    formatAmount: formatClp,
-  });
   return (
     <>
       {/* View changes stay local; the account offers login, never mutations. */}
@@ -968,7 +959,6 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
           {view === "summary" ? <DashboardAnalyticsBody
             pace={demoPace}
             lead={dashboardLead}
-            budgetPanel={incomeBudgetPanel}
             story={dashboardStory}
             chart={spendingChart}
             chartDetailMovements={detailMovements}
@@ -1032,8 +1022,10 @@ const BALANCE_STATUS_LABELS: Record<DashboardBalancePercentTone, string> = {
 };
 
 /**
- * The hero: the prominent `Total gastado` total with its period/count detail, and the
- * `Saldo disponible` answer.
+ * The lead cards: the `Total gastado` total with its period/count detail, and the `Saldo disponible`
+ * answer. Since S11 the summary no longer mounts them (the month gauge hero holds those figures once and
+ * takes the count/pending notes from the same lead), so they stay exported as the decided presentation
+ * of `getDashboardLead` rather than a second statement of the figures.
  *
  * Exported so both states of the balance are provable from a static render, like the other analytics
  * panels: a live summary only ever reaches its loading state without a session. The component renders
@@ -1109,8 +1101,8 @@ export interface DashboardBudgetPanelProps {
 }
 
 /**
- * The period-adapted income/budget truth panel, mounted by the shared analytics body for both the
- * authenticated summary and the read-only demo.
+ * The period-adapted income/budget truth panel. Since S11 the summary no longer mounts it: the month
+ * gauge hero states the income once and the "Presupuesto · No configurado" card is gone.
  *
  * It states the configured cycle income when one exists and an explicit absence otherwise, and
  * always reports the budget as not configured, because the product stores no budget to read. It
@@ -1433,7 +1425,8 @@ export function SpendingChartView({
                           className="react-spending-chart-fill"
                           style={{
                             height: `${day.heightPercent}%`,
-                            backgroundColor: `hsl(219 85% ${72 - 37 * day.total / series.max}%)`,
+                            // Muted slate ramp (ends at the ink-3 tint), never the old cobalt hue.
+                            backgroundColor: `hsl(220 16% ${72 - 31 * day.total / series.max}%)`,
                           }}
                         />
                       )}
@@ -1877,8 +1870,6 @@ interface DashboardAnalyticsBodyProps {
   counterpartyRanking: DashboardCounterpartyRanking;
   /** The decided lead, from `getDashboardLead`. */
   lead: DashboardLead;
-  /** The decided income/budget truth, from `getDashboardIncomeBudgetPanel`. */
-  budgetPanel: DashboardIncomeBudgetPanel;
   /** The decided month story, from `getDashboardStory`. */
   story: DashboardStory;
   /** The decided chart, from `getSpendingChart`. */
@@ -1907,7 +1898,7 @@ interface DashboardAnalyticsBodyProps {
 
 /**
  * The one dashboard analytics composition both the authenticated summary and the read-only demo mount:
- * primary lead, income/budget truth, month story, spending chart, spending-type
+ * the month gauge hero (which holds the income, spent, remaining and percentage once), spending chart, spending-type
  * breakdown, category distribution/ranking and top insights, in that order.
  *
  * It is deliberately internal and holds no state, data or request: each caller decides the data and
@@ -1916,9 +1907,9 @@ interface DashboardAnalyticsBodyProps {
  * the two differ in capabilities and copy, never in layout. The authenticated movement table and the
  * demo's read-only movements list/footer stay outside this body.
  *
- * Two semantic wrappers express the Stitch composition without changing any shipped data or
- * capability: a four-up KPI band (lead plus income/budget truth) and a two-column region that keeps
- * the chart/history column beside the category/insight column. The spending-type distribution leads
+ * One semantic wrapper keeps the Stitch composition: a two-column region that keeps the
+ * chart/history column beside the category/insight column. The four-up KPI band (lead plus
+ * income/budget truth) was merged into the gauge hero (S11), so no figure is stated twice. The spending-type distribution leads
  * the main column, so it sits physically left of the category distribution, which leads the side
  * column before the `Lectura rápida · Inteligencia de gastos` card. The card keeps its highlights
  * primary and carries the non-duplicative story note below them. Every panel keeps a single mount,
@@ -1928,7 +1919,6 @@ function DashboardAnalyticsBody({
   pace,
   onAddIncome,
   lead,
-  budgetPanel,
   story,
   chart,
   chartDetailMovements,
@@ -1943,15 +1933,18 @@ function DashboardAnalyticsBody({
   breakdown,
   onOpenMovement,
 }: DashboardAnalyticsBodyProps) {
+  // The facts the former KPI band carried that no figure repeats: how many expenses the total sums
+  // (and how many had no clear amount), and the pending-amount caveat when a balance is stated.
+  const heroNotes = [
+    lead.spending.detail,
+    lead.balance.amount !== null ? lead.balance.detail : "",
+  ].filter((note) => note.length > 0);
   return (
     <div className="react-analytics-body">
-      {/* The month gauge answers "am I on track?" first; every panel below keeps its place. */}
-      {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} />}
-      {/* Four-up KPI band: the spending/balance hero and the income/budget truth, side by side. */}
-      <div className="react-analytics-summary">
-        <DashboardLeadView lead={lead} />
-        <DashboardBudgetPanel panel={budgetPanel} />
-      </div>
+      {/* The month gauge is the hero: it answers "am I on track?" first and holds income, spent, remaining
+          and the share of income once, so the former KPI band and the budget card are merged into it.
+          Every panel below keeps its place. */}
+      {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} notes={heroNotes} />}
       {/* Two-column region: the larger chart/history column and the category/insight column. */}
       <div className="react-analytics-columns">
         <div className="react-analytics-main">
@@ -2331,15 +2324,6 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     totalSpending: summary.totalSpending,
     today: todayInSantiago(new Date()),
   });
-  // The budget truth panel reads the same configured income the lead subtracted, so the two
-  // statements cannot disagree. It issues no request and never fabricates a budget, and its
-  // configured-cycle source keeps the stored-income label the authenticated surface has always used.
-  const incomeBudgetPanel = getDashboardIncomeBudgetPanel({
-    source: "configured-cycle",
-    incomeAmount,
-    periodLabel: formatPeriodLabel(selectedPeriod!),
-    formatAmount: formatClp,
-  });
   const periodAnalytics = getPeriodAnalytics(state.data.transactions);
   const spendingByKind = summarizeRecognizedExpensesByKind(state.data.transactions);
   const latestExpense = selectLatestRecognizedExpense(state.data.transactions, selectedPeriod!);
@@ -2600,7 +2584,6 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
             pace={dashboardPace}
             onAddIncome={openCycleEdit}
             lead={dashboardLead}
-            budgetPanel={incomeBudgetPanel}
             story={dashboardStory}
             chart={spendingChart}
             chartDetailMovements={spendingChartDetailMovements}

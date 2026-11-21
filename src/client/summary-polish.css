@@ -1,0 +1,398 @@
+/*
+ * Summary polish · identity B (odd/tasks/identidad-b.md, S11; design/identidad-b-pulido/01).
+ * Imported by identity-b.css, so it loads after every legacy layer. It only restyles the authenticated and
+ * demo summary (`.react-analytics-body` and its header); the movements view is untouched (S1):
+ *   - no cobalt: actions are ink, state hues colour only the month state (the gauge), and categories,
+ *     bars, chips and the donut use the muted categorical palette (`--cat-*`, `--channel-*`);
+ *   - type scale: title 28 / section 18 / body 15-16 / nothing under 12px;
+ *   - panels are quiet white cards on the canvas, like the artboard.
+ */
+
+/* The legacy panel rules read the blue roles; inside the summary those roles resolve to ink and neutrals,
+   so every residual `var(--color-blue-*)` use stops being cobalt at once. */
+.react-analytics-body {
+	--color-blue-deep: var(--color-ink);
+	--color-blue-standard: var(--color-ink-muted);
+	--color-blue-bright: var(--channel-2);
+	--color-blue-soft: var(--color-surface-subtle);
+	--color-violet: var(--channel-3);
+	--text-xs: 0.75rem;
+	--text-sm: 0.9375rem;
+}
+
+/* Header: title 28, greeting and period at body size (summary only). */
+.react-shell:not(.react-movements-page) .react-dashboard-header h1 {
+	font-size: var(--type-title);
+	line-height: 1.15;
+	font-weight: 800;
+	letter-spacing: -0.025em;
+}
+
+.react-shell:not(.react-movements-page) .react-dashboard-greeting,
+.react-shell:not(.react-movements-page) .react-dashboard-period-context {
+	font-size: var(--type-body);
+}
+
+.react-analytics-body > .react-pace-gauge {
+	margin-bottom: var(--space-5);
+}
+
+/* ── Panels: quiet white cards ── */
+.react-analytics-body .react-spending-breakdown,
+.react-analytics-body .react-spending-chart,
+.react-analytics-body .react-category-distribution,
+.react-analytics-body .react-counterparty-ranking,
+.react-analytics-body .react-top-insights {
+	gap: var(--space-4);
+	border: 0;
+	border-radius: var(--radius-card);
+	background: var(--color-surface);
+	padding: var(--space-5);
+	box-shadow: var(--shadow-card);
+}
+
+.react-analytics-body :is(.react-spending-breakdown, .react-spending-chart, .react-category-distribution, .react-counterparty-ranking, .react-top-insights) h3 {
+	font-size: var(--type-section);
+	line-height: 1.3;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+}
+
+/* Secondary copy at body size, captions at 14, never under 12. */
+.react-analytics-body :is(
+	.react-spending-chart-disclosure,
+	.react-spending-chart-empty,
+	.react-category-distribution-copy,
+	.react-category-distribution-disclosure,
+	.react-category-distribution-empty,
+	.react-category-distribution-insight,
+	.react-counterparty-ranking-header p,
+	.react-counterparty-ranking-empty,
+	.react-top-insights-subtitle,
+	.react-insight-callout-detail,
+	.react-insight-callout-hint,
+	.react-top-insights-note
+) {
+	font-size: var(--type-body);
+}
+
+.react-analytics-body :is(.react-counterparty-ranking-denominator, .react-spending-breakdown-total span, .react-spending-chart-heading) {
+	font-size: 14px;
+}
+
+.react-analytics-body .react-spending-breakdown-total strong {
+	font-size: 24px;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+/* Distribution by kind: neutral ink tints, never state hues. */
+.react-analytics-body .react-spending-breakdown-bar {
+	gap: 3px;
+	height: 14px;
+	border-radius: 7px;
+}
+
+.react-analytics-body .react-spending-breakdown-segment-purchase,
+.react-analytics-body .react-spending-breakdown-icon-purchase {
+	background: var(--channel-1);
+}
+
+.react-analytics-body .react-spending-breakdown-segment-transfer,
+.react-analytics-body .react-spending-breakdown-icon-transfer {
+	background: var(--channel-2);
+}
+
+.react-analytics-body .react-spending-breakdown-segment-payment,
+.react-analytics-body .react-spending-breakdown-icon-payment {
+	background: var(--channel-3);
+}
+
+/* ── Gasto por día de la semana ── */
+.react-analytics-body .react-spending-chart-tabs {
+	gap: 6px;
+	padding-bottom: var(--space-3);
+}
+
+.react-analytics-body .react-spending-chart-tab {
+	min-height: 44px;
+	border: 1px solid var(--control-border);
+	border-radius: var(--radius-pill);
+	background: var(--color-surface);
+	padding: 0 12px;
+	color: var(--color-ink-secondary);
+	font-size: var(--type-body);
+	font-weight: 600;
+	transition:
+		background var(--duration-fast),
+		color var(--duration-fast),
+		border-color var(--duration-fast);
+}
+
+.react-analytics-body .react-spending-chart-tab:hover {
+	background: var(--color-surface-subtle);
+	color: var(--color-ink);
+}
+
+.react-analytics-body .react-spending-chart-tab[aria-pressed="true"] {
+	border-color: var(--color-ink);
+	background: var(--color-ink);
+	color: #ffffff;
+	font-weight: 700;
+}
+
+.react-analytics-body .react-spending-chart-tabs > .react-spending-chart-selection-indicator {
+	border-color: var(--color-ink);
+	border-radius: var(--radius-pill);
+	background: var(--color-ink);
+}
+
+.react-analytics-body .react-spending-chart-tabs[data-selection-motion="true"] > .react-spending-chart-tab[aria-pressed="true"] {
+	border-color: transparent;
+	background: transparent;
+	color: #ffffff;
+}
+
+.react-analytics-body .react-spending-chart-heading {
+	color: var(--color-ink-secondary);
+	font-style: normal;
+	font-weight: 600;
+}
+
+.react-analytics-body .react-spending-chart-bars {
+	border-color: var(--color-line);
+	background: var(--color-surface);
+}
+
+.react-analytics-body .react-spending-chart-track {
+	border-color: transparent;
+	background: var(--color-track);
+}
+
+.react-analytics-body .react-spending-chart-track-empty {
+	background: repeating-linear-gradient(
+		-45deg,
+		var(--color-track),
+		var(--color-track) 6px,
+		var(--color-surface) 6px,
+		var(--color-surface) 12px
+	);
+}
+
+.react-analytics-body .react-spending-chart-bar-selected .react-spending-chart-track,
+.react-analytics-body .react-spending-chart-bar:not(:disabled):hover .react-spending-chart-track {
+	border-color: transparent;
+	background: var(--color-surface);
+}
+
+.react-analytics-body .react-spending-chart-bar-selected .react-spending-chart-fill {
+	background-color: var(--color-ink) !important;
+}
+
+.react-analytics-body .react-spending-chart-bar-selected .react-spending-chart-day {
+	color: var(--color-ink);
+	font-weight: 800;
+}
+
+.react-analytics-body .react-spending-chart-day {
+	font-size: 14px;
+	font-weight: 700;
+	color: var(--color-ink-secondary);
+}
+
+.react-analytics-body .react-spending-chart-value,
+.react-analytics-body .react-spending-chart-value-positive,
+.react-analytics-body .react-spending-chart-bar-selected .react-spending-chart-value-positive {
+	color: var(--color-ink-secondary);
+}
+
+.react-analytics-body .react-spending-chart-value {
+	font-size: var(--type-min);
+}
+
+.react-analytics-body .react-spending-chart-detail {
+	font-size: var(--type-min);
+	line-height: 1.2;
+}
+
+.react-analytics-body :is(.react-spending-chart-summary, .react-spending-chart-day-panel) {
+	background: var(--color-canvas);
+}
+
+.react-analytics-body .react-spending-chart-day-info small {
+	font-size: 14px;
+}
+
+/* ── Dónde se fue tu plata ── */
+.react-analytics-body .react-category-distribution-insight {
+	border-color: var(--color-line);
+	border-radius: var(--radius-control);
+}
+
+.react-analytics-body .react-category-legend-marker {
+	width: 12px;
+	height: 12px;
+	margin-top: 0.3rem;
+	border-radius: 4px;
+}
+
+.react-analytics-body .react-category-legend-item strong {
+	font-size: var(--type-body);
+}
+
+.react-analytics-body .react-category-legend-item small {
+	font-size: 14px;
+}
+
+/* ── Top Comercios y Personas ── */
+.react-analytics-body .react-counterparty-ranking-badge {
+	background: var(--color-track);
+	color: var(--color-ink-secondary);
+	padding: 4px 12px;
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.react-analytics-body .react-counterparty-ranking-heading-icon {
+	color: var(--color-ink-muted);
+}
+
+.react-analytics-body .react-counterparty-ranking-list {
+	gap: 0;
+}
+
+.react-analytics-body .react-counterparty-ranking-row {
+	border: 0;
+	border-top: 1px solid var(--color-line);
+	border-radius: 0;
+	padding: 12px 0;
+}
+
+.react-analytics-body .react-counterparty-ranking-row:first-child {
+	border-top: 0;
+}
+
+.react-analytics-body :is(
+	.react-counterparty-ranking-avatar-0,
+	.react-counterparty-ranking-avatar-1,
+	.react-counterparty-ranking-avatar-2,
+	.react-counterparty-ranking-avatar-3
+) {
+	flex-basis: 40px;
+	width: 40px;
+	height: 40px;
+	border-radius: 12px;
+	background: var(--color-track);
+	color: var(--color-ink-secondary);
+	font-size: 13px;
+	font-weight: 800;
+}
+
+.react-analytics-body .react-counterparty-ranking-rank {
+	min-width: 20px;
+	height: 20px;
+	background: var(--color-ink);
+	font-size: var(--type-min);
+}
+
+.react-analytics-body .react-counterparty-ranking-line {
+	font-size: var(--type-body);
+}
+
+.react-analytics-body .react-counterparty-ranking-meta {
+	font-size: 14px;
+}
+
+.react-analytics-body .react-counterparty-ranking-track {
+	height: 6px;
+	border-radius: 3px;
+	background: var(--color-track);
+}
+
+.react-analytics-body .react-counterparty-ranking-track span {
+	background: var(--color-ink-muted);
+	border-radius: 3px;
+}
+
+/* ── Lectura rápida: neutral tiles, state hues stay with the month state ── */
+.react-analytics-body .react-top-insights {
+	border-left: 0;
+}
+
+.react-analytics-body .react-top-insights-badge {
+	border: 0;
+	background: var(--color-track);
+	color: var(--color-ink-secondary);
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0;
+}
+
+.react-analytics-body .react-insight-callout {
+	border: 0;
+	border-radius: var(--radius-card);
+	background: var(--color-canvas);
+	padding: var(--space-4);
+}
+
+.react-analytics-body .react-insight-callout-label {
+	font-size: 14px;
+	letter-spacing: 0;
+}
+
+.react-analytics-body .react-insight-callout-value {
+	font-family: inherit;
+	font-size: var(--type-section);
+	font-weight: 800;
+	line-height: 1.3;
+}
+
+.react-analytics-body .react-insight-callout-largest :is(.react-insight-callout-icon, .react-insight-callout-detail),
+.react-analytics-body .react-insight-callout-frequency :is(.react-insight-callout-icon, .react-insight-callout-detail) {
+	color: var(--color-ink-secondary);
+}
+
+.react-analytics-body .react-insight-callout-uncategorized {
+	border: 0;
+	background: var(--color-canvas);
+}
+
+.react-analytics-body .react-insight-callout-uncategorized :is(.react-insight-callout-label, .react-insight-callout-icon) {
+	color: var(--color-ink-muted);
+}
+
+.react-analytics-body .react-top-insights-note {
+	border: 1px solid var(--color-line);
+	background: transparent;
+	color: var(--color-ink-secondary);
+}
+
+.react-analytics-body .react-top-insights-note-icon {
+	color: var(--color-ink-muted);
+}
+
+@media (max-width: 760px) {
+	.react-analytics-body .react-spending-breakdown,
+	.react-analytics-body .react-spending-chart,
+	.react-analytics-body .react-category-distribution,
+	.react-analytics-body .react-counterparty-ranking,
+	.react-analytics-body .react-top-insights {
+		padding: var(--space-5) var(--space-4);
+	}
+}
+
+/* The mobile summary is a flex column with its own gap: the hero needs no extra margin, and the
+   phone-sized chart text keeps the 12px floor. */
+@media (max-width: 640px) {
+	.react-analytics-body > .react-pace-gauge {
+		margin-bottom: 0;
+	}
+
+	.react-analytics-body .react-spending-chart-bar .react-spending-chart-value,
+	.react-analytics-body .react-spending-chart-detail,
+	.react-analytics-body .react-spending-chart-day,
+	.react-analytics-body .react-spending-chart-tab,
+	.react-analytics-body .react-spending-chart-mobile-note {
+		font-size: var(--type-min);
+	}
+}

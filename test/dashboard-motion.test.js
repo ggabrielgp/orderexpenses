@@ -39,7 +39,10 @@ test("spending selections use a shared decorative surface without removing stati
 	assert.match(css, /\.react-spending-chart-selection-indicator\s*\{[^}]*display: none;[^}]*position: absolute;[^}]*pointer-events: none;/);
 	assert.match(css, /\[data-selection-motion="true"\] > \.react-spending-chart-selection-indicator\s*\{\s*display: block;/);
 	assert.match(css, /\.react-spending-chart-summary-row-active\s*\{[^}]*background: var\(--accent\);/);
-	assert.match(css, /\.react-spending-chart-tab\[aria-pressed="true"\]\s*\{[^}]*background: #e3ecff;/);
+	// S11: the selection pill is ink (white text), no longer the cobalt #e3ecff tint.
+	assert.match(css, /\.react-spending-chart-tab\[aria-pressed="true"\]\s*\{[^}]*background: var\(--color-ink\);[^}]*color: #ffffff;/);
+	assert.match(css, /\.react-spending-chart-tabs > \.react-spending-chart-selection-indicator\s*\{[^}]*background: var\(--color-ink\);/);
+	assert.doesNotMatch(css, /#e3ecff|#e8efff/i);
 });
 
 test("press feedback is subtle and excludes disabled actions", async () => {

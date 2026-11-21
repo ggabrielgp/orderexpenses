@@ -136,4 +136,33 @@
 	--state-over: #b4412f;
 	--state-over-soft: #fbe9e5;
 	--color-track: #efeee9;
+
+	/* Summary polish (identity B, S11). The ajustado text hue is a touch darker than the S2 token so it
+	   reads on its soft fill; state hues are used only for the month state, never for categories. */
+	--state-tight-strong: #8f5f00;
+	--control-border: #8b94a6;
+
+	/* Muted categorical palette for category and chart colours: never a state hue. */
+	--cat-1: #5a67a0;
+	--cat-2: #94678c;
+	--cat-3: #6f93ad;
+	--cat-4: #8e897f;
+	/* Channel inks (purchases / transfers / payments): neutral tints of the ink. */
+	--channel-1: #131b2e;
+	--channel-2: #59647a;
+	--channel-3: #8b94a6;
+
+	/* Type scale for the summary: 28 title / 18 section / 15-16 body / 12 minimum; the gauge number is the
+	   largest figure on screen (48px desktop, 44px mobile). */
+	--type-title: 28px;
+	--type-section: 18px;
+	--type-body: 15px;
+	--type-min: 12px;
+	--gauge-number-size: 48px;
+	--gauge-number-size-mobile: 44px;
+
+	/* Motion: 150 routine, 300 view change, 700 only the gauge. */
+	--duration-fast: 150ms;
+	--duration-view: 300ms;
+	--duration-gauge: 700ms;
 }

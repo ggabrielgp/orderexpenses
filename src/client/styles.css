@@ -2314,7 +2314,7 @@ body:has(.landing-page) { overflow-x: clip; }
 
 .react-spending-chart-tabs > .react-spending-chart-selection-indicator {
 	border-radius: 8px;
-	background: #e3ecff;
+	background: var(--color-ink);
 }
 
 .react-spending-chart-tabs[data-selection-motion="true"] > .react-spending-chart-tab[aria-pressed="true"],
@@ -2343,7 +2343,7 @@ body:has(.landing-page) { overflow-x: clip; }
 }
 
 .react-spending-chart-tab:hover {
-	background: #e8efff;
+	background: var(--color-surface-subtle);
 	color: var(--accent);
 }
 
@@ -2353,9 +2353,9 @@ body:has(.landing-page) { overflow-x: clip; }
 }
 
 .react-spending-chart-tab[aria-pressed="true"] {
-	border-color: var(--accent-line);
-	background: #e3ecff;
-	color: var(--accent);
+	border-color: var(--color-ink);
+	background: var(--color-ink);
+	color: #ffffff;
 }
 
 .react-spending-chart-heading {

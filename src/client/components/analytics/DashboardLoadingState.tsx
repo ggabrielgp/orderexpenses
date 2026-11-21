@@ -4,29 +4,16 @@ function Placeholder({ variant = "label" }: { variant?: "label" | "value" | "det
 	return <span className={`react-loading-placeholder react-loading-placeholder-${variant}`} />;
 }
 
-function LoadingKpi({ className }: { className: string }) {
-	return (
-		<div className={`${className} react-loading-kpi`}>
-			<Placeholder />
-			<Placeholder variant="value" />
-			<Placeholder variant="detail" />
-		</div>
-	);
-}
-
 function LoadingSummary() {
 	return (
 		<div className="react-analytics-body">
-			<div className="react-analytics-summary">
-				<div className="react-dashboard-lead">
-					<LoadingKpi className="react-lead-primary" />
-					<LoadingKpi className="react-lead-answer" />
-				</div>
-				<div className="react-budget-panel">
-					<div className="react-financial-grid">
-						<LoadingKpi className="react-financial-card" />
-						<LoadingKpi className="react-financial-card" />
-					</div>
+			{/* One hero block, like the month gauge that replaced the KPI band (S11). */}
+			<div className="react-loading-card react-loading-hero">
+				<span className="react-loading-placeholder react-loading-circle react-loading-hero-ring" />
+				<div className="react-loading-hero-body">
+					<Placeholder variant="value" />
+					<Placeholder variant="row" />
+					<Placeholder variant="detail" />
 				</div>
 			</div>
 			<div className="react-analytics-columns">

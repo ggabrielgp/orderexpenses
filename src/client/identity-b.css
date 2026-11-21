@@ -5,6 +5,9 @@
  * the landing keeps its marketing palette because the remap is scoped to the product chrome.
  */
 
+/* S11: the summary polish (no cobalt, type scale, quiet panels) loads as part of this last layer. */
+@import "./summary-polish.css";
+
 .react-shell,
 .react-app-header,
 .react-mobile-tabbar {
@@ -27,22 +30,6 @@
 
 .react-app-brand-logo {
 	display: block;
-}
-
-/* Lead: the balance card picks up the calm tint instead of the blue wash. */
-.react-lead-answer {
-	background: linear-gradient(150deg, var(--surface), var(--state-calm-soft, #e2f3ef));
-}
-
-/* Chart: the selected tab reads as a quiet ink chip rather than a blue one. */
-.react-analytics-body .react-spending-chart-tab[aria-pressed="true"] {
-	background: var(--color-track, #efeee9);
-	color: var(--color-ink);
-}
-
-/* The month gauge sits above the KPI band with the same rhythm as the other panels. */
-.react-analytics-body > .react-pace-gauge {
-	margin-bottom: var(--space-4);
 }
 
 /* Empty summary: the existing message plus its two actions. */

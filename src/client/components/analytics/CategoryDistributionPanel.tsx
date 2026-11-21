@@ -37,16 +37,6 @@ import {
  * recognized movements and displays individual records without treating grouped recipients as records.
  */
 
-/** Legacy's darker slice border (`darkenColor`, `public/app.js:2712-2718`). */
-function darkenColor(hex: string, amount = 30): string {
-	const value = Number.parseInt(hex.replace("#", ""), 16);
-	if (!Number.isFinite(value)) return hex;
-	const red = Math.max(0, ((value >> 16) & 0xff) - amount);
-	const green = Math.max(0, ((value >> 8) & 0xff) - amount);
-	const blue = Math.max(0, (value & 0xff) - amount);
-	return `#${((red << 16) | (green << 8) | blue).toString(16).padStart(6, "0")}`;
-}
-
 interface CategoryLegendEntry {
 	category: string;
 	total: number;
@@ -201,7 +191,7 @@ function buildDonutOption(
 					overflow: "truncate",
 					ellipsis: "…",
 					fontSize: 12,
-					fill: "#7a827b",
+					fill: "#59647a",
 					textAlign: "center",
 				},
 			},
@@ -214,7 +204,7 @@ function buildDonutOption(
 					width: 108,
 					overflow: "breakAll",
 					fontSize: centerAmount.length > 16 ? 11 : centerAmount.length > 10 ? 14 : 18,
-					fill: "#17211d",
+					fill: "#131b2e",
 					fontWeight: 700,
 					textAlign: "center",
 				},
@@ -238,7 +228,8 @@ function buildDonutOption(
 					count: entry.count,
 					itemStyle: {
 						color: entry.color,
-						borderColor: darkenColor(entry.color, 30),
+						// A white rim separates the muted slices like the artboard; no darker tint of the colour.
+						borderColor: "#ffffff",
 						borderWidth: 2,
 						borderRadius: 6,
 					},
@@ -304,12 +295,12 @@ export function CategoryDistributionView({
 
 	const legend = useMemo<CategoryLegendEntry[]>(
 		() =>
-			ranking.rows.map((row) => ({
+			ranking.rows.map((row, index) => ({
 				category: row.category,
 				total: row.total,
 				share: row.share,
 				count: row.count,
-				color: getCategoryRowColor(row.category, catalog),
+				color: getCategoryRowColor(row.category, catalog, index),
 			})),
 		[ranking.rows, catalog],
 	);

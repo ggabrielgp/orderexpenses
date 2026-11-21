@@ -9,6 +9,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const noop = () => {};
 const render = (component, props) => renderToStaticMarkup(createElement(component, props));
+const text = (html) => html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
 let vite, cache, pace, gauge;
 
 test.before(async () => {
@@ -29,7 +30,8 @@ const run = (overrides) => pace.getDashboardPace({
 });
 
 test("state labels never claim control", () => {
-	assert.deepEqual(pace.PACE_STATE_LABELS, { calm: "En ritmo", tight: "Ajustado", over: "Pasado" });
+	// S11: one vocabulary for the month state; "Pasado" became "Vas rápido".
+	assert.deepEqual(pace.PACE_STATE_LABELS, { calm: "En ritmo", tight: "Ajustado", over: "Vas rápido" });
 });
 
 test("spent equal to elapsed is calm and just above it is tight", () => {
@@ -150,8 +152,9 @@ test("a calm cycle renders the gauge with exact copy", () => {
 	assert.match(html, />En ritmo</);
 	assert.match(html, /aria-hidden="true">✓</);
 	// Projection: 912430 / (20/30) = 1368645 -> balance 81355 -> "unos $81.000".
-	assert.match(html, /Llevas 63% del ingreso y pasó el 67% del ciclo\. Si sigues así, cierras con unos \$81\.000 de sobra\./);
-	assert.match(html, /transform="rotate\(240 108 108\)"/);
+	assert.match(text(html), /Llevas 63% del ingreso y pasó el 67% del ciclo\. A este ritmo cierras con unos \$81\.000 de sobra\./);
+	assert.doesNotMatch(html, /Si sigues así/);
+	assert.match(html, /transform="rotate\(240 150 150\)"/);
 	const arc = /<circle class="react-pace-gauge-arc"[^>]*stroke-dasharray="([\d.]+) ([\d.]+)"/.exec(html);
 	assert.ok(arc, "arc circle with dash array");
 	assert.ok(Math.abs(Number(arc[1]) / Number(arc[2]) - 912_430 / 1_450_000) < 0.001);
@@ -175,11 +178,12 @@ test("an overspent cycle shows the overshoot and a negative projection", () => {
 	assert.match(html, />\$250\.000</);
 	assert.doesNotMatch(html, />Te quedan</);
 	assert.doesNotMatch(html, / por día</);
-	assert.match(html, />Pasado</);
+	assert.match(html, />Vas rápido</);
+	assert.doesNotMatch(html, /Pasado|Al límite|En peligro/);
 	assert.match(html, /aria-hidden="true">↑</);
 	assert.match(html, /Gastaste 125% de tu ingreso; pasó el 67% del ciclo/);
 	// Projection: 1250000 / (20/30) = 1875000 -> balance -875000.
-	assert.match(html, /Llevas 125% del ingreso y pasó el 67% del ciclo\. Si sigues así, terminas unos \$875\.000 bajo cero\./);
+	assert.match(text(html), /Llevas 125% del ingreso y pasó el 67% del ciclo\. A este ritmo terminas unos \$875\.000 bajo cero\./);
 	assert.doesNotMatch(html, /En control/);
 	// The arc never exceeds the full ring.
 	const arc = /<circle class="react-pace-gauge-arc"[^>]*stroke-dasharray="([\d.]+) ([\d.]+)"/.exec(html);
@@ -199,7 +203,7 @@ test("without income the gauge offers to add it and claims no state", () => {
 	assert.match(html, /\$912\.430/);
 	assert.match(html, /Agrega tu ingreso del ciclo para saber si vas en ritmo\./);
 	assert.match(html, /<button[^>]*type="button"[^>]*>Agregar ingreso<\/button>/);
-	assert.doesNotMatch(html, /En ritmo|Ajustado|Pasado|En control|Te quedan|<svg/);
+	assert.doesNotMatch(html, /En ritmo|Ajustado|Vas rápido|Pasado|En control|Te quedan|<svg/);
 	// Without a handler (demo) there is no dead button, but the copy stays.
 	const demo = render(gauge.DashboardPaceGauge, { pace: result });
 	assert.doesNotMatch(demo, /<button/);
@@ -218,11 +222,115 @@ test("gauge styles are responsive, accessible and motion-safe", async () => {
 	const css = await readFile(new URL("../src/client/components/analytics/dashboard-pace.css", import.meta.url), "utf8");
 	const source = await readFile(new URL("../src/client/components/analytics/DashboardPaceGauge.tsx", import.meta.url), "utf8");
 	assert.match(source, /import "\.\/dashboard-pace\.css";/);
-	assert.match(css, /@media \(min-width: 720px\)/);
-	assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*animation: none/);
-	assert.match(css, /@keyframes react-pace-gauge-fill/);
+	// S11: the hero stacks at <=760px; the sweep is driven from gaugeMotion.ts, not a CSS keyframe.
+	assert.match(css, /@media \(max-width: 760px\)/);
+	assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*transition: none/);
+	assert.doesNotMatch(css, /@keyframes react-pace-gauge-fill/);
 	assert.match(css, /min-height: 44px/);
 	for (const token of ["--state-calm", "--state-tight", "--state-over", "--color-track"]) assert.ok(css.includes(token), token);
 	assert.doesNotMatch(source + css, /En control/);
 	assert.doesNotMatch(source, /new Date\(\s*["']\d{4}-\d{2}-\d{2}/);
+});
+
+// ── S11: the gauge is the hero; its figures appear once ─────────────────────────────────────────────
+
+const countOf = (haystack, needle) => haystack.split(needle).length - 1;
+
+test("the hero states income, spent, remaining and percent once, with the cycle day and the expense note", () => {
+	const result = run({ today: day(11, 20), incomeAmount: 1_450_000, totalSpending: 912_430 });
+	const html = render(gauge.DashboardPaceGauge, { pace: result, notes: ["35 gastos con monto", "2 sin monto claro"] });
+	const plain = text(html);
+	assert.equal(countOf(plain, "$1.450.000"), 1, "income once");
+	assert.equal(countOf(plain, "$912.430"), 1, "spent once");
+	assert.equal(countOf(plain, "$537.570"), 1, "remaining once");
+	assert.equal(countOf(plain, "63%"), 1, "percent of income once, in the sentence");
+	assert.equal(countOf(plain, "día 20 de 30") + countOf(plain, "Día 20 de 30"), 1, "cycle day once");
+	assert.match(html, /<dt>Gastado<\/dt><dd>[^]*?\$912\.430/);
+	assert.match(html, /<dt>Días que quedan<\/dt><dd>[^]*?11[^]*?Día 20 de 30/);
+	assert.match(html, /Raya: hoy/);
+	assert.match(plain, /35 gastos con monto/);
+	assert.match(plain, /2 sin monto claro/);
+	// The number is the hero: the ring centre owns the largest type of the page.
+	assert.match(html, /react-pace-gauge-amount/);
+});
+
+test("very long amounts shrink inside the ring instead of overflowing it", () => {
+	const html = render(gauge.DashboardPaceGauge, { pace: run({ incomeAmount: 12_345_678, totalSpending: 0, today: day(11, 2) }) });
+	assert.match(html, /react-pace-gauge-amount react-pace-gauge-amount--long/);
+	const short = render(gauge.DashboardPaceGauge, { pace: run({ today: day(11, 20), totalSpending: 912_430 }) });
+	assert.doesNotMatch(short, /react-pace-gauge-amount--long/);
+});
+
+test("server markup renders the final values: no sweeping state, full arc, final number", () => {
+	const result = run({ today: day(11, 20), incomeAmount: 1_450_000, totalSpending: 912_430 });
+	const html = render(gauge.DashboardPaceGauge, { pace: result });
+	assert.doesNotMatch(html, /react-pace-gauge--sweeping/);
+	assert.match(html, />\$537\.570</);
+	assert.match(html, />En ritmo</);
+	assert.doesNotMatch(html, /opacity:\s*0/);
+});
+
+test("the entrance runs 700ms ease-out and never starts under prefers-reduced-motion", async () => {
+	const motion = await vite.ssrLoadModule("/src/client/components/analytics/gaugeMotion.ts");
+	assert.equal(motion.GAUGE_ANIMATION_MS, 700);
+	assert.equal(motion.easeOutCubic(0), 0);
+	assert.equal(motion.easeOutCubic(1), 1);
+	assert.equal(motion.easeOutCubic(0.5), 0.875);
+	assert.equal(motion.easeOutCubic(-3), 0);
+	assert.equal(motion.easeOutCubic(9), 1);
+
+	const makeHost = (reduce) => {
+		const frames = [];
+		return {
+			frames,
+			host: {
+				matchMedia: (query) => ({ matches: reduce && /prefers-reduced-motion: reduce/.test(query) }),
+				requestAnimationFrame: (cb) => (frames.push(cb), frames.length),
+				cancelAnimationFrame: (id) => { frames[id - 1] = null; },
+			},
+		};
+	};
+
+	// Reduced motion: no progress callback, no scheduled frame; the final values stay as rendered.
+	const reduced = makeHost(true);
+	const seenReduced = [];
+	const cancelReduced = motion.runGaugeEntrance(reduced.host, (p) => seenReduced.push(p));
+	assert.deepEqual(seenReduced, []);
+	assert.equal(reduced.frames.length, 0);
+	assert.doesNotThrow(() => cancelReduced());
+	// No animation API at all behaves the same.
+	assert.deepEqual(motion.runGaugeEntrance({}, () => { throw new Error("must not run"); })(), undefined);
+
+	// Normal motion: starts at 0, follows the easing and ends exactly at 1 after 700ms.
+	const live = makeHost(false);
+	const seen = [];
+	motion.runGaugeEntrance(live.host, (p) => seen.push(p));
+	assert.deepEqual(seen, [0]);
+	live.frames[0](1000);
+	live.frames[1](1350);
+	live.frames[2](1700);
+	assert.deepEqual(seen, [0, 0, 0.875, 1]);
+	assert.equal(live.frames.length, 3, "no frame is scheduled after the last one");
+
+	// Cancelling stops the loop (unmount in the middle of the sweep).
+	const cancelled = makeHost(false);
+	const seenCancelled = [];
+	const cancel = motion.runGaugeEntrance(cancelled.host, (p) => seenCancelled.push(p));
+	cancelled.frames[0](0);
+	cancel();
+	assert.equal(cancelled.frames[1], null);
+});
+
+test("the gauge sweep, the pill fade and reduced motion are wired in the component and its styles", async () => {
+	const css = await readFile(new URL("../src/client/components/analytics/dashboard-pace.css", import.meta.url), "utf8");
+	const source = await readFile(new URL("../src/client/components/analytics/DashboardPaceGauge.tsx", import.meta.url), "utf8");
+	assert.match(source, /runGaugeEntrance\(/);
+	assert.match(css, /\.react-pace-gauge--sweeping \.react-pace-gauge-pill\s*\{\s*opacity:\s*0/);
+	assert.match(css, /transition:\s*opacity var\(--duration-view/);
+	const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+	assert.match(reduced, /transition:\s*none\s*!important/);
+	assert.match(reduced, /react-pace-gauge-pill/);
+	// The summary has no cobalt: the hero uses ink for actions and the state hues only for the state.
+	assert.doesNotMatch(css, /#(?:003594|004ac6|2878e5|e3ecff|e7f1ff)\b/i);
+	assert.match(css, /--state-tight-strong/);
 });

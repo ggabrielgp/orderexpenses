@@ -6061,9 +6061,10 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.doesNotMatch(bars, /aria-pressed="true"/);
 	assert.match(full, /<header class="react-spending-chart-day-header"><h4>Selecciona una barra[^<]*<\/h4><\/header>/);
 	assert.doesNotMatch(full.slice(detailIndex), /react-spending-chart-day-total/);
-	// Proportional fills use raw day/max ratios and a spending-dependent blue tone.
-	assert.match(full, /<span class="react-spending-chart-fill" style="height:100%;background-color:hsl\(219 85% 35%\)"><\/span>/);
-	assert.match(full, /<span class="react-spending-chart-fill" style="height:2\.5%;background-color:hsl\(219 85% 71\.075%\)"><\/span>/);
+	// Proportional fills use raw day/max ratios and a spending-dependent tone of the muted slate ramp
+	// (S11: no cobalt hue; the darkest end is the ink-3 tint).
+	assert.match(full, /<span class="react-spending-chart-fill" style="height:100%;background-color:hsl\(220 16% 41%\)"><\/span>/);
+	assert.match(full, /<span class="react-spending-chart-fill" style="height:2\.5%;background-color:hsl\(220 16% 71\.225%\)"><\/span>/);
 	// Every bar track keeps the native `title` tooltip, including the period-wide weekday wording.
 	assert.match(full, /title="lun · Total del periodo por lunes: \$2\.000"/);
 	assert.match(full, /title="mar · Total del periodo por martes: \$100"/);
@@ -7484,12 +7485,11 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	);
 	assert.match(demoMarkup, /Solo lectura/);
 	assert.match(demoMarkup, /Mercado/);
-	// The demo shares the authenticated hero: both cards render, so its balance is the demo's own
-	// observed-inflow net labelled as demo data and no demo-only layout modifier appears.
-	assert.match(demoMarkup, /class="react-dashboard-lead"/);
-	assert.match(demoMarkup, /react-lead-answer/);
-	assert.match(demoMarkup, /Saldo disponible/);
-	assert.doesNotMatch(demoMarkup, /react-dashboard-lead-single|Ingreso configurado/);
+	// S11: the demo shares the authenticated month gauge hero, which holds the demo's own observed-inflow
+	// net once; the lead cards were merged into it and no demo-only layout modifier appears.
+	assert.match(demoMarkup, /class="react-pace-gauge/);
+	assert.match(demoMarkup, /<strong class="react-pace-gauge-amount">\$875\.000<\/strong>/);
+	assert.doesNotMatch(demoMarkup, /react-dashboard-lead|react-lead-answer|Saldo disponible|react-dashboard-lead-single|Ingreso configurado/);
 
 	// Scoped styles under the shipped `react-` prefix: one two-column lead and no demo-only modifier.
 	assert.match(styles, /\.react-dashboard-lead \{/);
@@ -7565,9 +7565,11 @@ test("the React authenticated summary mounts the dashboard lead hero without add
 	assert.match(page, /const dashboardLead = getDashboardLead\(\{/);
 	assert.match(page, /totalSpending: summary\.totalSpending,/);
 	assert.match(page, /pendingAmountCount: summary\.pendingAmountCount,/);
-	// The shared analytics body mounts the hero once for both the authenticated summary and the demo.
-	assert.equal((page.match(/<DashboardLeadView/g) ?? []).length, 1);
-	assert.match(page, /<DashboardLeadView lead=\{lead\} \/>/);
+	// S11: the lead cards are no longer mounted by the summary (the month gauge hero holds those figures
+	// once and reads its count/pending notes from the same lead); the view stays exported.
+	assert.equal((page.match(/<DashboardLeadView/g) ?? []).length, 0);
+	assert.match(page, /notes=\{heroNotes\}/);
+	assert.match(page, /lead\.spending\.detail/);
 	assert.match(page, /export function DashboardLeadView\(/);
 	// The authenticated call site declares the configured-cycle source, so its hero keeps the stored
 	// income copy; the demo call site declares the demo source instead.
@@ -7841,9 +7843,11 @@ test("the React authenticated summary renders the shared analytics body in the p
 		page.indexOf("interface FinancialSummaryProps"),
 	);
 	assert.notEqual(bodySource, "", "the shared analytics body must be locatable");
+	// S11: the gauge hero replaces the lead and budget cards at the head of the body.
+	assert.equal(bodySource.indexOf("<DashboardLeadView"), -1, "the KPI band is merged into the hero");
+	assert.equal(bodySource.indexOf("<DashboardBudgetPanel"), -1, "the budget card is removed");
 	const positions = [
-		bodySource.indexOf("<DashboardLeadView lead={lead} />"),
-		bodySource.indexOf("<DashboardBudgetPanel panel={budgetPanel} />"),
+		bodySource.indexOf("<DashboardPaceGauge pace={pace}"),
 		bodySource.indexOf("<SpendingBreakdownView breakdown={breakdown} />"),
 		bodySource.indexOf("<SpendingChartPanel"),
 		bodySource.indexOf("<CategoryRankingPanel"),
@@ -8113,9 +8117,19 @@ test("the React category distribution resolves stored colours with a determinist
 	];
 	assert.equal(distribution.getCategoryRowColor(" comida ", catalog), "#ff8800");
 	// The merged tail and the unnamed bucket keep legacy's fixed colours.
-	assert.equal(distribution.getCategoryRowColor("Otras categorías", catalog), "#94a3b8");
-	assert.equal(distribution.getCategoryRowColor("Sin categoría", catalog), "#64748b");
-	assert.equal(distribution.getCategoryRowColor("", catalog), "#64748b");
+	// S11: muted categorical palette (--cat-4 for the tail, an ink tint for the unnamed bucket).
+	assert.equal(distribution.getCategoryRowColor("Otras categorías", catalog), "#8e897f");
+	assert.equal(distribution.getCategoryRowColor("Sin categoría", catalog), "#59647a");
+	assert.equal(distribution.getCategoryRowColor("", catalog), "#59647a");
+	// Without a stored colour the swatch follows the rank, so the top categories never share one, and
+	// no swatch is a month-state hue.
+	assert.deepEqual(
+		[0, 1, 2].map((rank) => distribution.getCategoryRowColor(`Cat ${rank}`, [], rank)),
+		["#5a67a0", "#94678c", "#6f93ad"],
+	);
+	for (const rank of [0, 1, 2, 3, 4, 5, 9]) {
+		assert.ok(!["#0b7a6b", "#9a6700", "#8f5f00", "#b4412f"].includes(distribution.getCategoryRowColor("X", [], rank)));
+	}
 	// An unusable stored colour falls back to the palette, never to the invalid string.
 	const ropaColor = distribution.getCategoryRowColor("Ropa", catalog);
 	assert.notEqual(ropaColor, "no-es-color");
@@ -8793,8 +8807,9 @@ test("the React movements table renders the selection column, the bulk bar and t
 				assert.match(demo, /\$1\.000/);
 				assert.match(demo, /\$2\.000/);
 			} else {
-				assert.match(demo, /<strong class="react-lead-amount">\$3\.000<\/strong>/);
-				assert.match(demo, /<strong class="react-lead-amount">\$897\.000<\/strong>/);
+				// S11: spent and remaining live once in the gauge hero (the lead cards were merged into it).
+				assert.match(demo, /<dt>Gastado<\/dt><dd>\$3\.000<\/dd>/);
+				assert.match(demo, /<strong class="react-pace-gauge-amount">\$897\.000<\/strong>/);
 			}
 		}
 		assert.equal(requests, 0);
@@ -9282,13 +9297,12 @@ test("the React demo dashboard composes the read-only analytics without API, Gma
 	assert.match(markup, /demo-read-only-badge/);
 	assert.match(markup, /Solo lectura/);
 	assert.match(markup, /demo-dashboard-footer/);
-	// The demo shares the authenticated composition: the same two-card lead, income/budget truth and
-	// analytics panels render, over dummy data and with no demo-only layout modifier.
-	assert.match(markup, /class="react-dashboard-lead"/);
-	assert.match(markup, /react-lead-answer/);
-	assert.match(markup, /react-budget-panel/);
-	assert.match(markup, /Ingresos del periodo/);
-	assert.doesNotMatch(markup, /react-dashboard-lead-single|demo-kpi-grid/);
+	// The demo shares the authenticated composition: the same month gauge hero (S11 merged the lead and
+	// income/budget cards into it) and analytics panels render, over dummy data and with no demo-only
+	// layout modifier.
+	assert.match(markup, /class="react-pace-gauge/);
+	assert.match(markup, /<dt>Ingreso del ciclo<\/dt>/);
+	assert.doesNotMatch(markup, /react-dashboard-lead|react-lead-answer|react-budget-panel|Presupuesto|Ingresos del periodo|react-dashboard-lead-single|demo-kpi-grid/);
 	assert.match(markup, /react-category-distribution/);
 	assert.match(markup, /react-spending-chart/);
 	assert.match(markup, /react-top-insights-note/);

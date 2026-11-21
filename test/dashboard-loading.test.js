@@ -27,8 +27,9 @@ test("initial dashboard load reserves the real analytics layout without fabricat
 	assert.match(html, /role="status" aria-live="polite"/);
 	assert.match(html, /aria-busy="true"/);
 	assert.match(html, /aria-hidden="true"[^>]*><div class="react-analytics-body"/);
-	assert.match(html, /class="react-analytics-summary"/);
-	assert.equal((html.match(/react-loading-kpi/g) ?? []).length, 4);
+	// S11: the four KPI skeletons became one hero skeleton, like the gauge that replaced the KPI band.
+	assert.doesNotMatch(html, /react-analytics-summary|react-loading-kpi/);
+	assert.equal((html.match(/react-loading-hero"/g) ?? []).length, 1);
 	assert.match(html, /class="react-analytics-columns"/);
 	assert.match(html, /react-loading-chart/);
 	assert.doesNotMatch(html, /Cargando resumen financiero|\$0|\d+%|role="progressbar"|Sin movimientos|No se encontraron gastos/);

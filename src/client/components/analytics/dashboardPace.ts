@@ -11,11 +11,14 @@
 
 export type DashboardPaceState = "calm" | "tight" | "over";
 
-/** State words. Never "En control": the gauge only claims a pace, not control. */
+/**
+ * State words: the one vocabulary of the summary (S11). Never "En control": the gauge only claims a
+ * pace, not control. The `over` key keeps its S3 rule; only its word changed from "Pasado".
+ */
 export const PACE_STATE_LABELS: Record<DashboardPaceState, string> = {
 	calm: "En ritmo",
 	tight: "Ajustado",
-	over: "Pasado",
+	over: "Vas rápido",
 };
 
 /** Spending above the elapsed share of the cycle by more than this margin is "over". */

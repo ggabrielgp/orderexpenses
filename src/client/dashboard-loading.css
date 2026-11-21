@@ -14,9 +14,17 @@
 	font-weight: 400;
 }
 
-.react-loading-kpi {
-	min-height: 148px;
+/* The hero skeleton keeps the gauge's two-column footprint so the summary does not jump on load. */
+.react-loading-hero {
+	grid-template-columns: 340px minmax(0, 1fr);
+	align-items: center;
+	gap: 56px;
+	min-height: 340px;
+	padding: 32px;
 }
+
+.react-loading-hero-ring { width: 276px; height: 276px; justify-self: center; }
+.react-loading-hero-body { display: grid; gap: var(--space-4); min-width: 0; }
 
 .react-loading-card {
 	display: grid;
@@ -82,6 +90,11 @@
 @keyframes dashboard-content-reveal {
 	from { opacity: .6; }
 	to { opacity: 1; }
+}
+
+@media (max-width: 760px) {
+	.react-loading-hero { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); min-height: 0; padding: 20px 16px; }
+	.react-loading-hero-ring { width: 200px; height: 200px; }
 }
 
 @media (max-width: 640px) {

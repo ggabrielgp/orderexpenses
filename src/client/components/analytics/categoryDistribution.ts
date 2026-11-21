@@ -27,30 +27,21 @@ import {
  * No request, no endpoint, no currency formatting and no React: these are decisions, not rendering.
  */
 
-/** Legacy's fixed colour for the merged tail (`buildCategoryDisplayRows`, `public/app.js:2956`). */
-const MERGED_CATEGORY_COLOR = "#94a3b8";
-/** Legacy's colour for an unnamed category (`categoryVisualColor`, `public/app.js:3324-3330`). */
-const UNCATEGORIZED_COLOR = "#64748b";
+/**
+ * Muted categorical palette of identity B (S11; `--cat-1..4` in `design-tokens.css`). None of these is a
+ * month-state hue, so a category colour never reads as "en ritmo", "ajustado" or "vas rápido".
+ */
+const MERGED_CATEGORY_COLOR = "#8e897f";
+/** An unnamed category is a neutral ink tint, distinct from every categorical swatch. */
+const UNCATEGORIZED_COLOR = "#59647a";
 
 /**
- * Deterministic fallback palette for the authenticated dashboard, used only when the stored catalog
- * has no usable colour for a category. A category always resolves to the same swatch because the
- * assignment is a hash of its normalized key, so a reload never reshuffles the chart.
+ * Default swatches for categories without a usable stored colour: the three artboard categories first
+ * (the ranking shows three before merging), then ink tints. Rank decides the swatch when the surface
+ * knows it, so the top categories never share a colour; otherwise a hash of the normalized key keeps a
+ * category on the same swatch across reloads.
  */
-const FALLBACK_PALETTE = [
-	"#2563eb",
-	"#16a34a",
-	"#f97316",
-	"#dc2626",
-	"#7c3aed",
-	"#0891b2",
-	"#db2777",
-	"#a855f7",
-	"#65a30d",
-	"#0d9488",
-	"#ea580c",
-	"#4f46e5",
-];
+const FALLBACK_PALETTE = ["#5a67a0", "#94678c", "#6f93ad", "#3f4b63", "#8b94a6"];
 
 const CATEGORY_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
@@ -68,13 +59,15 @@ function hashKey(key: string): number {
 }
 
 /**
- * The colour a slice and its legend row use. The merged tail and the unnamed bucket keep legacy's
- * fixed colours; a real category prefers the stored catalog colour and otherwise gets a stable
- * swatch from the fallback palette. A missing catalog is not an error: it only means the palette.
+ * The colour a slice and its legend row use. The merged tail and the unnamed bucket keep fixed muted
+ * colours; a real category prefers the stored catalog colour (the user's own choice in the category
+ * settings) and otherwise gets the muted palette swatch of its `rank` (or a stable hash of its key when
+ * the caller has no rank). A missing catalog is not an error: it only means the palette.
  */
 export function getCategoryRowColor(
 	category: string,
 	catalog: readonly Category[] | undefined,
+	rank?: number,
 ): string {
 	const key = getCategoryKey(category);
 	if (!key) return UNCATEGORIZED_COLOR;
@@ -86,7 +79,8 @@ export function getCategoryRowColor(
 	);
 	if (stored && isUsableColor(stored.color)) return stored.color.trim();
 
-	return FALLBACK_PALETTE[hashKey(key) % FALLBACK_PALETTE.length];
+	const slot = rank !== undefined && rank >= 0 ? rank : hashKey(key);
+	return FALLBACK_PALETTE[slot % FALLBACK_PALETTE.length];
 }
 
 /** A raw share rounded once. A zero total has no share, never a fabricated one. */

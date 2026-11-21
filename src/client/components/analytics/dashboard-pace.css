@@ -1,19 +1,21 @@
-/* Month gauge — identity B "Semáforo sereno" (artboards 02 and 08). */
+/* Month gauge hero — identity B "Semáforo sereno" (artboards 02/08, pulido/01).
+   State hues colour only the ring and the pill; every action is ink. */
 .react-pace-gauge {
 	--pace-color: var(--state-calm, #0b7a6b);
 	--pace-soft: var(--state-calm-soft, #e2f3ef);
 	display: grid;
-	justify-items: center;
-	gap: 16px;
-	padding: 18px 18px 16px;
-	border-radius: var(--radius-xl, 24px);
+	grid-template-columns: 340px minmax(0, 1fr);
+	align-items: center;
+	gap: 56px;
+	padding: 32px;
+	border-radius: var(--radius-featured, 20px);
 	background: var(--color-surface, #ffffff);
 	color: var(--color-ink, #131b2e);
-	box-shadow: 0 1px 2px rgba(19, 27, 46, 0.04), 0 8px 24px rgba(19, 27, 46, 0.06);
+	box-shadow: var(--shadow-panel, 0 8px 30px rgba(30, 38, 52, 0.06));
 }
 
 .react-pace-gauge--tight {
-	--pace-color: var(--state-tight, #9a6700);
+	--pace-color: var(--state-tight-strong, #8f5f00);
 	--pace-soft: var(--state-tight-soft, #fdf3d8);
 }
 
@@ -24,13 +26,15 @@
 
 .react-pace-gauge-ring {
 	position: relative;
-	width: 216px;
-	height: 216px;
+	width: 340px;
+	aspect-ratio: 1;
 	flex: none;
 }
 
 .react-pace-gauge-ring svg {
 	display: block;
+	width: 100%;
+	height: 100%;
 }
 
 .react-pace-gauge-track {
@@ -39,10 +43,15 @@
 
 .react-pace-gauge-arc {
 	stroke: var(--pace-color);
+	transition: stroke var(--duration-view, 300ms);
 }
 
 .react-pace-gauge-tick {
 	stroke: var(--color-ink, #131b2e);
+}
+
+.react-pace-gauge-tick-core {
+	stroke: var(--color-surface, #ffffff);
 }
 
 .react-pace-gauge-center {
@@ -50,49 +59,71 @@
 	inset: 0;
 	display: grid;
 	place-content: center;
-	gap: 2px;
-	padding: 0 30px;
+	justify-items: center;
+	gap: 6px;
+	padding: 0 40px;
 	text-align: center;
 }
 
 .react-pace-gauge-label {
-	font-size: 0.75rem;
+	font-size: var(--type-body, 15px);
+	font-weight: 600;
 	color: var(--color-ink-muted, #59647a);
 }
 
 .react-pace-gauge-amount {
-	font-size: 1.55rem;
-	font-weight: 800;
-	letter-spacing: -0.04em;
+	font-size: var(--gauge-number-size, 48px);
 	line-height: 1;
+	font-weight: 800;
+	letter-spacing: -0.045em;
 	font-variant-numeric: tabular-nums;
+}
+
+/* Seven-digit amounts and longer would cross the ring: shrink them, still the largest type on screen. */
+.react-pace-gauge-amount--long {
+	font-size: 40px;
 }
 
 .react-pace-gauge-per-day {
 	font-style: normal;
-	font-size: 0.82rem;
+	font-size: var(--type-body, 15px);
 	color: var(--color-ink-secondary, #3f4b63);
 	font-variant-numeric: tabular-nums;
 }
 
 .react-pace-gauge-body {
 	display: grid;
-	justify-items: center;
-	gap: 10px;
-	text-align: center;
+	justify-items: start;
+	gap: 20px;
+	min-width: 0;
+}
+
+.react-pace-gauge-body > * {
+	margin: 0;
 }
 
 .react-pace-gauge-pill {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	min-height: 32px;
-	padding: 6px 12px;
-	border-radius: 999px;
+	gap: 8px;
+	padding: 6px 16px;
+	border-radius: var(--radius-pill, 999px);
 	background: var(--pace-soft);
 	color: var(--pace-color);
-	font-size: 0.82rem;
+	font-size: var(--type-body, 15px);
 	font-weight: 700;
+	opacity: 1;
+	transition:
+		opacity var(--duration-view, 300ms) ease-out,
+		background var(--duration-view, 300ms),
+		color var(--duration-view, 300ms);
+}
+
+/* The pill appears after the ring has finished sweeping: hidden at once while it sweeps (no fade-out),
+   then the base transition fades it in. */
+.react-pace-gauge--sweeping .react-pace-gauge-pill {
+	opacity: 0;
+	transition: none;
 }
 
 .react-pace-gauge-pill-icon {
@@ -100,10 +131,16 @@
 }
 
 .react-pace-gauge-sentence {
-	margin: 0;
-	max-width: 36ch;
-	font-size: 0.88rem;
+	max-width: 62ch;
+	font-size: var(--type-section, 18px);
+	line-height: 1.5;
 	color: var(--color-ink-secondary, #3f4b63);
+}
+
+.react-pace-gauge-sentence b {
+	color: var(--color-ink, #131b2e);
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
 }
 
 .react-pace-gauge-action {
@@ -112,93 +149,197 @@
 	justify-content: center;
 	min-height: 44px;
 	min-width: 44px;
-	padding: 0 16px;
+	padding: 0 18px;
 	border: 0;
-	border-radius: var(--radius-md, 12px);
+	border-radius: var(--radius-control, 12px);
 	background: var(--color-ink, #131b2e);
 	color: #ffffff;
 	font: inherit;
-	font-size: 0.88rem;
+	font-size: var(--type-body, 15px);
 	font-weight: 700;
 	cursor: pointer;
+	transition: background var(--duration-fast, 150ms);
+}
+
+.react-pace-gauge-action:hover {
+	background: var(--accent-hover, #26324d);
 }
 
 .react-pace-gauge-action:focus-visible {
-	outline: 2px solid var(--color-ink, #131b2e);
+	outline: 3px solid var(--color-ink, #131b2e);
 	outline-offset: 3px;
 }
 
-/* Supporting facts: the inputs behind the gauge, as a compact definition row. */
+/* The figures behind the gauge, each stated once. */
 .react-pace-gauge-facts {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 12px;
 	width: 100%;
-	margin: 6px 0 0;
-	padding-top: 12px;
+	margin: 0;
+	padding-top: 20px;
 	border-top: 1px solid var(--color-line, #e3e1dc);
-	text-align: left;
+}
+
+.react-pace-gauge-facts > div {
+	padding: 0 24px;
+}
+
+.react-pace-gauge-facts > div:first-child {
+	padding-left: 0;
+}
+
+.react-pace-gauge-facts > div + div {
+	border-left: 1px solid var(--color-line, #e3e1dc);
 }
 
 .react-pace-gauge-facts dt {
-	font-size: 0.72rem;
+	font-size: 14px;
+	font-weight: 600;
 	color: var(--color-ink-muted, #59647a);
 }
 
 .react-pace-gauge-facts dd {
 	margin: 2px 0 0;
-	font-size: 1rem;
-	font-weight: 700;
-	font-variant-numeric: tabular-nums;
+	font-size: 24px;
+	line-height: 1.2;
+	font-weight: 800;
 	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
 }
 
-/* Without income there is no ring: a single left-aligned block. */
+.react-pace-gauge-facts dd small {
+	display: block;
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: 0;
+	color: var(--color-ink-muted, #59647a);
+}
+
+.react-pace-gauge-key {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	font-size: 13px;
+	color: var(--color-ink-muted, #59647a);
+}
+
+.react-pace-gauge-key span {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.react-pace-gauge-key-dot {
+	fill: var(--pace-color);
+}
+
+.react-pace-gauge-tick-key {
+	fill: var(--color-ink, #131b2e);
+}
+
+.react-pace-gauge-tick-key-core {
+	fill: var(--color-surface, #ffffff);
+}
+
+.react-pace-gauge-notes {
+	font-size: 14px;
+	color: var(--color-ink-muted, #59647a);
+}
+
+/* Without income there is no ring: a single left-aligned block with the spent figure as the number. */
 .react-pace-gauge--none {
-	justify-items: start;
+	grid-template-columns: minmax(0, 1fr);
 }
 
 .react-pace-gauge--none .react-pace-gauge-body {
-	justify-items: start;
-	text-align: left;
+	gap: 12px;
 }
 
-.react-pace-gauge-arc {
-	animation: react-pace-gauge-fill 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes react-pace-gauge-fill {
-	from {
-		stroke-dasharray: 0 503;
+@media (max-width: 760px) {
+	.react-pace-gauge {
+		grid-template-columns: minmax(0, 1fr);
+		justify-items: center;
+		gap: 20px;
+		padding: 20px 16px;
 	}
-}
 
-@media (min-width: 720px) {
-	.react-pace-gauge:not(.react-pace-gauge--none) {
-		grid-template-columns: 220px 1fr;
+	.react-pace-gauge--none {
 		justify-items: stretch;
-		align-items: center;
-		gap: 28px;
-		padding: 22px;
 	}
 
-	.react-pace-gauge:not(.react-pace-gauge--none) .react-pace-gauge-body {
+	.react-pace-gauge-ring {
+		width: min(100%, 296px);
+	}
+
+	.react-pace-gauge-amount {
+		font-size: var(--gauge-number-size-mobile, 44px);
+	}
+
+	.react-pace-gauge-amount--long {
+		font-size: 36px;
+	}
+
+	.react-pace-gauge-center {
+		padding: 0 34px;
+	}
+
+	.react-pace-gauge-body {
+		justify-items: center;
+		width: 100%;
+		text-align: center;
+	}
+
+	.react-pace-gauge--none .react-pace-gauge-body {
 		justify-items: start;
 		text-align: left;
 	}
 
 	.react-pace-gauge-sentence {
-		max-width: 52ch;
-		font-size: 1rem;
+		font-size: 16px;
+	}
+
+	.react-pace-gauge-facts {
+		display: block;
+		padding-top: 4px;
+		text-align: left;
+	}
+
+	.react-pace-gauge-facts > div,
+	.react-pace-gauge-facts > div:first-child,
+	.react-pace-gauge-facts > div + div {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 12px;
+		padding: 12px 0;
+		border-left: 0;
+		border-top: 1px solid var(--color-line, #e3e1dc);
+	}
+
+	.react-pace-gauge-facts > div:first-child {
+		border-top: 0;
 	}
 
 	.react-pace-gauge-facts dd {
-		font-size: 1.2rem;
+		font-size: 20px;
+		text-align: right;
+	}
+
+	.react-pace-gauge-facts dd small {
+		font-size: 13px;
+	}
+
+	.react-pace-gauge-key {
+		justify-content: center;
 	}
 }
 
+/* Nothing animates under reduced motion: the final values are rendered and transitions are off. */
 @media (prefers-reduced-motion: reduce) {
-	.react-pace-gauge-arc {
-		animation: none;
+	.react-pace-gauge-arc,
+	.react-pace-gauge-pill,
+	.react-pace-gauge-action {
+		transition: none !important;
+		animation: none !important;
 	}
 }
