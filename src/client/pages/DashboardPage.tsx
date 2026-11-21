@@ -46,7 +46,15 @@ import {
   updateTransaction,
   upsertCategory,
   upsertCounterpartyRule,
+  getCounterpartyRules,
 } from "../api/client";
+import {
+  getRecategorizeNotice,
+  getUndoNotice,
+  saveAlwaysUseRule,
+  undoRecategorize,
+  type RecategorizeUndo,
+} from "../components/movements/recategorizeRule";
 import { getGoogleLoginUrl } from "../api/googleLogin";
 import { AccountMenu } from "../components/account/AccountMenuComponent";
 import { MobileMovementList, MovementFilterDisclosure } from "../components/movements/MobileMovementList";
@@ -123,6 +131,7 @@ import {
   createMovementEditSubmitter,
   getMovementEditNotice,
   type MovementEditNotice,
+  type MovementRecategorized,
 } from "../components/movements/EditMovementDialog";
 import { RemoveMovementDialog } from "../components/movements/RemoveMovementDialog";
 import { ViewMovementDialog } from "../components/movements/ViewMovementDialog";
@@ -2040,7 +2049,9 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   const [creationNotice, setCreationNotice] = useState<ManualExpenseCreationNotice | null>(null);
   /** Movement being edited; `null` keeps the edit dialog closed. */
   const [editMovement, setEditMovement] = useState<EditableRecognizedExpenseMovement | null>(null);
-  const [editNotice, setEditNotice] = useState<MovementEditNotice | null>(null);
+  // A recategorization notice also carries what "Deshacer" restores (S7).
+  const [editNotice, setEditNotice] = useState<(MovementEditNotice & { undo?: RecategorizeUndo }) | null>(null);
+  const [isUndoingEdit, setIsUndoingEdit] = useState(false);
   /**
    * Identity the chart's read-only day detail opened; `null` keeps the dialog closed. Only the id is
    * stored, so a reload that drops the row closes the dialog instead of showing stale bytes.
@@ -2401,6 +2412,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     period: selectedPeriod!,
     updateMovement: updateTransaction,
     reload: reloadFinancialDashboard,
+    saveRule: (input) =>
+      saveAlwaysUseRule({ getRules: () => getCounterpartyRules(), upsertRule: upsertCounterpartyRule }, input),
   });
   const submitRemoval = createMovementRemovalSubmitter({
     removeMovement: removeTransaction,
@@ -2422,9 +2435,30 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     setEditMovement(movement);
   };
 
-  const handleMovementEditSaved = (reloadFailed: boolean) => {
-    setEditNotice(getMovementEditNotice(reloadFailed));
+  const handleMovementEditSaved = (reloadFailed: boolean, recategorized?: MovementRecategorized) => {
+    setEditNotice(
+      recategorized
+        ? { ...getRecategorizeNotice({ reloadFailed, ...recategorized }), undo: recategorized.undo }
+        : getMovementEditNotice(reloadFailed),
+    );
     setEditMovement(null);
+  };
+
+  const undoMovementEdit = async (undo: RecategorizeUndo) => {
+    if (isUndoingEdit) return;
+    setIsUndoingEdit(true);
+    try {
+      const { reloadFailed } = await undoRecategorize(
+        { upsertRule: upsertCounterpartyRule, updateMovement: updateTransaction, reload: reloadFinancialDashboard },
+        undo,
+      );
+      setEditNotice(getUndoNotice({ status: "done", reloadFailed }));
+    } catch {
+      // Nothing confirms the revert, so the action stays available for another attempt.
+      setEditNotice({ ...getUndoNotice({ status: "failed" }), undo });
+    } finally {
+      setIsUndoingEdit(false);
+    }
   };
 
   const openMovementRemoval = (movement: EditableRecognizedExpenseMovement) => {
@@ -2530,6 +2564,15 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
           className={`react-financial-mutation-notice react-financial-mutation-notice-${editNotice.tone}`}
           tone={editNotice.tone}
           message={editNotice.message}
+          action={
+            editNotice.undo
+              ? {
+                  label: isUndoingEdit ? "Deshaciendo..." : "Deshacer",
+                  onClick: () => void undoMovementEdit(editNotice.undo!),
+                  disabled: isUndoingEdit,
+                }
+              : undefined
+          }
         />
       )}
       {removalNotice && (

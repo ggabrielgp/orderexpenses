@@ -102,3 +102,30 @@
 		transition: none !important;
 	}
 }
+
+/* S7: inline "Deshacer" after a recategorization, and the "Usar siempre para" opt-in. */
+.react-feedback-notice-action {
+	margin-left: auto;
+	flex: 0 0 auto;
+	min-height: 32px;
+	padding: 4px 12px;
+	border: 1px solid currentColor;
+	border-radius: var(--radius-control);
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.react-feedback-notice-action:disabled { opacity: .6; cursor: progress; }
+
+.react-edit-movement-always {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	align-items: center;
+	column-gap: 10px;
+}
+
+.react-edit-movement-always input { width: 18px; height: 18px; accent-color: var(--state-calm); }
+.react-edit-movement-always small { grid-column: 2; }

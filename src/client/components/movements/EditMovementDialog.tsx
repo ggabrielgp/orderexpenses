@@ -28,6 +28,8 @@ import {
 	type EditableRecognizedExpenseMovement,
 	type MovementEditDraft,
 } from "./manualExpense";
+import type { UpsertCounterpartyRuleRequest } from "../../api/types";
+import { getAlwaysUseLabel, type RecategorizeUndo, type RuleOutcome } from "./recategorizeRule";
 
 /**
  * Edit flow for a recognized expense.
@@ -196,13 +198,26 @@ export function getMovementEditErrorMessage(
 }
 
 export type MovementEditSubmitOutcome =
-	| { status: "saved"; reloadFailed: boolean }
+	| {
+			status: "saved";
+			reloadFailed: boolean;
+			/** Present only when an "always use" rule was requested with the save. */
+			ruleOutcome?: Exclude<RuleOutcome, "none">;
+			/** Rule state before the save; null when the rule was not saved. */
+			previousRule?: UpsertCounterpartyRuleRequest | null;
+	  }
 	| { status: "notFound" }
 	| { status: "failed"; message: string };
+
+/** Optional "always use" rule saved in the same step as the PATCH (S7). */
+export interface MovementEditSubmitOptions {
+	alwaysUse?: { counterparty: string; category: string };
+}
 
 export type MovementEditSubmitter = (
 	target: MovementUpdateTarget,
 	payload: UpdateTransactionRequest,
+	options?: MovementEditSubmitOptions,
 ) => Promise<MovementEditSubmitOutcome>;
 
 export interface MovementEditSubmitterDeps {
@@ -215,10 +230,15 @@ export interface MovementEditSubmitterDeps {
 	) => Promise<void>;
 	/** Re-runs the cycle-first dashboard load. Resolves `false` when the reload failed. */
 	reload: () => Promise<boolean>;
+	/** Stores an "always use" rule and returns the previous rule state; rejects when it fails. */
+	saveRule?: (input: { counterparty: string; category: string }) => Promise<UpsertCounterpartyRuleRequest>;
 }
 
 /**
  * Creates the submit callback the dialog awaits.
+ *
+ * A requested rule is saved after the PATCH succeeds and before the reload, so the refreshed list
+ * already reflects it. A failed rule never turns the saved movement into a failed save.
  *
  * A rejected PATCH is classified: a 404 becomes a terminal `notFound` so the dialog can state the
  * real situation without retrying, and anything else is a retryable failure. A successful PATCH
@@ -229,19 +249,30 @@ export function createMovementEditSubmitter({
 	period,
 	updateMovement,
 	reload,
+	saveRule,
 }: MovementEditSubmitterDeps): MovementEditSubmitter {
-	return async (target, payload) => {
+	return async (target, payload, options) => {
 		try {
 			await updateMovement(target, payload);
 		} catch (error) {
 			if (isMovementNotFoundError(error)) return { status: "notFound" };
 			return { status: "failed", message: getMovementEditErrorMessage(error, period) };
 		}
-		try {
-			return { status: "saved", reloadFailed: (await reload()) === false };
-		} catch {
-			return { status: "saved", reloadFailed: true };
+		let rule: { ruleOutcome: "saved" | "failed"; previousRule: UpsertCounterpartyRuleRequest | null } | null = null;
+		if (options?.alwaysUse && saveRule) {
+			try {
+				rule = { ruleOutcome: "saved", previousRule: await saveRule(options.alwaysUse) };
+			} catch {
+				rule = { ruleOutcome: "failed", previousRule: null };
+			}
 		}
+		let reloadFailed: boolean;
+		try {
+			reloadFailed = (await reload()) === false;
+		} catch {
+			reloadFailed = true;
+		}
+		return rule ? { status: "saved", reloadFailed, ...rule } : { status: "saved", reloadFailed };
 	};
 }
 
@@ -302,8 +333,19 @@ export interface EditMovementDialogProps {
 	onClose: () => void;
 	/** Performs the PATCH and the follow-up reload; it never rejects for a reload failure. */
 	submitEdit: MovementEditSubmitter;
-	/** Called after a successful save so the parent can report the outcome and close. */
-	onSaved: (reloadFailed: boolean) => void;
+	/**
+	 * Called after a successful save so the parent can report the outcome and close. A changed
+	 * category also carries what undo needs to restore it (and the previous rule state).
+	 */
+	onSaved: (reloadFailed: boolean, recategorized?: MovementRecategorized) => void;
+}
+
+/** A saved category change, with everything the dashboard notice needs to offer "Deshacer". */
+export interface MovementRecategorized {
+	undo: RecategorizeUndo;
+	ruleOutcome: RuleOutcome;
+	counterparty: string;
+	category: string;
 }
 
 export function EditMovementDialog({
@@ -323,6 +365,7 @@ export function EditMovementDialog({
 	);
 	const [catalog, setCatalog] = useState<CategoryCatalogState>(createCategoryCatalogState);
 	const [catalogRetryToken, setCatalogRetryToken] = useState(0);
+	const [alwaysUse, setAlwaysUse] = useState(false);
 	const reviewPeriod = ReviewPeriod.create(period);
 	const minDateTime = `${reviewPeriod.startDate}T00:00`;
 	const maxDateTime = `${reviewPeriod.visibleEndDate}T23:59`;
@@ -347,6 +390,7 @@ export function EditMovementDialog({
 	useEffect(() => {
 		if (!isOpen || !movement) return;
 		releaseInFlightLock(saveLock);
+		setAlwaysUse(false);
 		setEdit(createMovementEditState(createMovementEditDraft(movement)));
 		// `movementId`/`movementOccurredAt` identify the record; the object identity may change
 		// on every parent render.
@@ -386,6 +430,12 @@ export function EditMovementDialog({
 	// rejecting a save the user cannot repair.
 	const categoryValue = resolveCategoryForSubmission(catalog, draft.category);
 	const isCatalogReady = catalog.phase === "ready";
+	const originalCategory = movement.category ?? null;
+	const alwaysUseLabel = getAlwaysUseLabel({
+		originalCategory,
+		category: categoryValue,
+		counterparty: draft.counterparty,
+	});
 
 	const updateDraft = (patch: Partial<MovementEditDraft>) =>
 		setEdit((current) => reduceMovementEdit(current, { type: "change", patch }));
@@ -417,7 +467,14 @@ export function EditMovementDialog({
 		if (!acquireInFlightLock(saveLock)) return;
 		setEdit((current) => reduceMovementEdit(current, { type: "submitted" }));
 		try {
-			const outcome = await submitEdit(target, payload);
+			const savedCategory = typeof payload.category === "string" ? payload.category : null;
+			const categoryChanged = (savedCategory ?? "") !== (originalCategory ?? "");
+			const wantsRule = alwaysUse && alwaysUseLabel !== null && savedCategory !== null;
+			const outcome = await submitEdit(
+				target,
+				payload,
+				wantsRule ? { alwaysUse: { counterparty: draft.counterparty, category: savedCategory } } : undefined,
+			);
 			if (outcome.status === "saved") {
 				setEdit((current) =>
 					reduceMovementEdit(current, {
@@ -426,7 +483,22 @@ export function EditMovementDialog({
 					}),
 				);
 				// The parent reports the outcome on the dashboard and closes the dialog.
-				onSaved(outcome.reloadFailed);
+				onSaved(
+					outcome.reloadFailed,
+					categoryChanged
+						? {
+								undo: {
+									target,
+									payload,
+									previousCategory: originalCategory,
+									previousRule: outcome.previousRule ?? null,
+								},
+								ruleOutcome: outcome.ruleOutcome ?? "none",
+								counterparty: draft.counterparty,
+								category: savedCategory ?? "",
+							}
+						: undefined,
+				);
 				return;
 			}
 			if (outcome.status === "notFound") {
@@ -570,6 +642,19 @@ export function EditMovementDialog({
 						</select>
 						<small>Elige una de tus categorías o déjalo sin categoría.</small>
 					</label>
+					{alwaysUseLabel !== null && (
+						<label className="react-edit-movement-full react-edit-movement-always" htmlFor="edit-movement-always-use">
+							<input
+								id="edit-movement-always-use"
+								type="checkbox"
+								checked={alwaysUse}
+								onChange={(event) => setAlwaysUse(event.target.checked)}
+								disabled={isSaving}
+							/>
+							<span>{alwaysUseLabel}</span>
+							<small>Los próximos movimientos de este comercio irán a esta categoría.</small>
+						</label>
+					)}
 					{catalog.phase === "failed" ? (
 						<>
 							<p className="react-edit-movement-catalog-error" role="status">
