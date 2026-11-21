@@ -1574,7 +1574,7 @@ test("the React dashboard owns category management instead of redirecting to the
 	// the settings surface or its trigger.
 	const demoTree = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface DashboardLeadViewProps"),
+		page.indexOf("export interface CategoryRankingViewProps"),
 	);
 	assert.ok(demoTree.length > 0);
 	assert.doesNotMatch(demoTree, /AccountSettingsDialog|isAccountSettingsOpen|Configuración/);
@@ -6454,7 +6454,7 @@ test("the React authenticated summary mounts the spending chart without adding a
 	// The demo tree reuses the same chart over its fixture.
 	const demoSource = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface DashboardLeadViewProps"),
+		page.indexOf("export interface CategoryRankingViewProps"),
 	);
 	assert.notEqual(demoSource, "", "the demo tree must be locatable");
 	assert.match(demoSource, /SpendingChart/);
@@ -6710,7 +6710,7 @@ test("the React authenticated header exposes one Configuración action opening t
 	// action, its dialog and every mutation surface stay out of the read-only tree.
 	const demoTree = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface DashboardLeadViewProps"),
+		page.indexOf("export interface CategoryRankingViewProps"),
 	);
 	assert.notEqual(demoTree, "", "the demo tree must be locatable");
 	assert.doesNotMatch(
@@ -7068,7 +7068,7 @@ test("the React authenticated page composes the app header over a page-owned vie
 	);
 	assert.equal((page.match(/<AppHeader/g) ?? []).length, 2);
 	assert.match(page, /<AppHeader view=\{view\} onViewChange=\{setView\}>/);
-	assert.match(page, /const \[view, setView\] = useState<DashboardView>\("summary"\);/);
+	assert.match(page, /const \[view, setView\] = useAnimatedView<DashboardView>\("summary"\);/);
 
 	// The body is driven by the same state instead of owning a second toggle.
 	assert.match(
@@ -7080,7 +7080,7 @@ test("the React authenticated page composes the app header over a page-owned vie
 	// The read-only demo reuses the chrome with local, state-driven navigation.
 	const demoTree = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface DashboardLeadViewProps"),
+		page.indexOf("export interface CategoryRankingViewProps"),
 	);
 	assert.notEqual(demoTree, "", "the demo tree must be locatable");
 	assert.match(demoTree, /<AppHeader view=\{view\} onViewChange=\{onViewChange\}>/);
@@ -7290,7 +7290,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 	assert.doesNotMatch(allCopy, /\bvos\b|ten[e\u00e9]s|quer[e\u00e9]s|pod[e\u00e9]s|hac[e\u00e9]|and[a\u00e1]/i);
 });
 
-test("the React dashboard hero renders the prominent total and never a fabricated balance", async (t) => {
+test("the demo shares the month gauge hero and the removed lead cards leave no markup or styles (S14, S16)", async (t) => {
 	const configPath = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 	const loadedConfig = await loadConfigFromFile(
 		{ command: "serve", mode: "test" },
@@ -7304,165 +7304,16 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	});
 	t.after(() => vite.close());
 
-	const [React, renderer, pageModule, lead, styles] = await Promise.all([
+	const [React, renderer, pageModule, styles] = await Promise.all([
 		import("react"),
 		import("react-dom/server"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
-		vite.ssrLoadModule("/src/client/components/analytics/dashboardLead.ts"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 
-	const renderHero = (input) =>
-		renderer.renderToStaticMarkup(
-			React.createElement(pageModule.DashboardLeadView, {
-				lead: lead.getDashboardLead(input),
-			}),
-		);
-
-	const configured = renderHero({
-		periodLabel: "2026-02-01 \u2013 2026-02-28",
-		totalSpending: 25000,
-		expenseCount: 3,
-		pendingAmountCount: 2,
-		incomeAmount: 900000,
-	});
-	assert.match(configured, /<span class="react-lead-question">Total gastado<\/span>/);
-	assert.match(configured, /<strong class="react-lead-amount">\$25\.000<\/strong>/);
-	assert.match(configured, /3 gastos con monto \u00b7 2 sin monto claro/);
-	// The lead card no longer repeats the selected period; the range lives in the period control only.
-	assert.doesNotMatch(configured, /2026-02-01 \u2013 2026-02-28|01\/02\/2026 a 28\/02\/2026/);
-	assert.match(configured, /<span class="react-lead-question">Saldo disponible<\/span>/);
-	assert.match(configured, /<strong class="react-lead-amount">\$875\.000<\/strong>/);
-	// The positive balance card renders only the pending caveat, never the subtraction prose.
-	assert.match(
-		configured,
-		/<p class="react-lead-detail">2 movimientos sin monto conocido no se descuentan\.<\/p>/,
-	);
-	assert.doesNotMatch(configured, /Ingreso configurado menos los gastos reconocidos del periodo\./);
-
-	// No configured income: the sentinel instead of a number, and the reason instead of a claim.
-	const unconfigured = renderHero({
-		periodLabel: "2026-02-01 \u2013 2026-02-28",
-		totalSpending: 25000,
-		expenseCount: 3,
-		pendingAmountCount: 0,
-		incomeAmount: null,
-	});
-	assert.match(
-		unconfigured,
-		/<span class="react-lead-question">Saldo disponible<\/span><\/div><strong class="react-lead-amount">\u2014<\/strong>/,
-	);
-	assert.match(
-		unconfigured,
-		/No hay un ingreso configurado para el periodo, as\u00ed que no se puede calcular cu\u00e1nto te queda\./,
-	);
-	assert.doesNotMatch(unconfigured, /react-lead-derivation/);
-	assert.doesNotMatch(unconfigured, /\$0/);
-	// The prominent total is still shown even without an income.
-	assert.match(unconfigured, /<strong class="react-lead-amount">\$25\.000<\/strong>/);
-
-	// The `ingreso − gastos` derivation is gone from the highlighted card: the amount and the
-	// percentage row already state the result, so no redundant subtraction line is rendered in either
-	// income state. The pure module keeps the balance data it always produced.
-	assert.doesNotMatch(configured, /react-lead-derivation|\$900\.000 ingreso \u2212/);
-	assert.doesNotMatch(unconfigured, /react-lead-derivation/);
-
-	// The demo source keeps the truthful net but labels it as observed demo data, so the rendered hero
-	// never claims a configured income even though the number is preserved.
-	const demoInflow = renderHero({
-		periodLabel: "2026-02-01 \u2013 2026-02-28",
-		totalSpending: 25000,
-		expenseCount: 3,
-		pendingAmountCount: 0,
-		incomeAmount: 900000,
-		incomeSource: "demo-inflow",
-	});
-	assert.match(demoInflow, /<span class="react-lead-question">Saldo disponible<\/span>/);
-	assert.match(demoInflow, /<strong class="react-lead-amount">\$875\.000<\/strong>/);
-	assert.doesNotMatch(demoInflow, /react-lead-derivation|ingresos de la demo \u2212/);
-	// With no pending amounts the positive detail is empty, so the amount is followed by the percentage
-	// row directly instead of an empty paragraph.
-	assert.match(
-		demoInflow,
-		/<strong class="react-lead-amount">\$875\.000<\/strong><div class="react-lead-balance-status-row">/,
-	);
-	assert.doesNotMatch(
-		demoInflow,
-		/Ingresos observados en los datos de la demo menos los gastos reconocidos del periodo\./,
-	);
-	assert.doesNotMatch(demoInflow, /Ingreso configurado|\$0/);
-
-	// A demo without an observed inflow states that absence explicitly, with no balance, no derivation
-	// line and no configured-income claim.
-	const demoAbsent = renderHero({
-		periodLabel: "2026-02-01 \u2013 2026-02-28",
-		totalSpending: 25000,
-		expenseCount: 3,
-		pendingAmountCount: 0,
-		incomeAmount: null,
-		incomeSource: "demo-inflow",
-	});
-	assert.match(
-		demoAbsent,
-		/<span class="react-lead-question">Saldo disponible<\/span><\/div><strong class="react-lead-amount">\u2014<\/strong>/,
-	);
-	assert.match(demoAbsent, /no registran ingresos en el periodo/);
-	assert.doesNotMatch(demoAbsent, /Ingreso configurado|\$0|react-lead-derivation/);
-
-	// A positive remainder is a neutral share of income, not a safety rating or an upward trend.
-	// Its exact amount and rounded percentage stay visible; absent income still omits the row.
-	assert.match(configured, /react-lead-balance-percent-neutral/);
-	assert.match(configured, /<span>97%<\/span>/);
-	assert.doesNotMatch(configured, /% disponible/);
-	assert.match(configured, /react-lead-balance-status-neutral/);
-	assert.match(configured, />del ingreso disponible</);
-	assert.doesNotMatch(configured, /En control|react-lead-balance-(?:percent|status)-positive/);
-	// No trend glyph or other hidden content precedes the neutral percentage in the same status row.
-	assert.match(
-		configured,
-		/<span class="react-lead-balance-percent react-lead-balance-percent-neutral"><span>97%<\/span><\/span><span class="react-lead-balance-status react-lead-balance-status-neutral">del ingreso disponible<\/span>/,
-	);
-	assert.doesNotMatch(configured, /Al l\u00edmite|Peligro/);
-	assert.doesNotMatch(configured, /react-lead-balance-status-negative/);
-	assert.doesNotMatch(configured, /react-lead-balance-percent-negative/);
-	assert.doesNotMatch(unconfigured, /react-lead-balance-percent/);
-	assert.doesNotMatch(unconfigured, /react-lead-balance-status/);
-	assert.doesNotMatch(demoAbsent, /react-lead-balance-percent/);
-	assert.doesNotMatch(demoAbsent, /react-lead-balance-status/);
-
-	// Overspending the income and spending exactly the income take the negative and flat icon tones
-	// instead of a positive trend, so the direction is never inferred from the amount alone.
-	const overspent = renderHero({
-		periodLabel: "2026-02-01 \u2013 2026-02-28",
-		totalSpending: 25000,
-		expenseCount: 1,
-		pendingAmountCount: 0,
-		incomeAmount: 10000,
-	});
-	assert.match(overspent, /react-lead-balance-percent-negative/);
-	assert.match(overspent, /react-lead-balance-status-negative/);
-	assert.match(overspent, />En peligro</);
-	assert.match(overspent, /<span>-150%<\/span>/);
-	const exactIncome = renderHero({
-		periodLabel: "2026-02-01 \u2013 2026-02-28",
-		totalSpending: 25000,
-		expenseCount: 1,
-		pendingAmountCount: 0,
-		incomeAmount: 25000,
-	});
-	assert.match(exactIncome, /react-lead-balance-percent-flat/);
-	assert.match(exactIncome, /react-lead-balance-status-flat/);
-	assert.match(exactIncome, />Al l\u00edmite</);
-	assert.match(exactIncome, /<span>0%<\/span>/);
-
-	// The hero replaces the primitive card deck, so it does not repeat those card labels; the check
-	// matches the labels as the removed card spans rendered them.
-	assert.doesNotMatch(
-		configured,
-		/<span>Ingreso configurado<\/span>|<span>Gasto total<\/span>|<span>Gastos reconocidos<\/span>|<span>Montos pendientes<\/span>/,
-	);
-
-	// The same read-only hero is reused by the demo tree.
+	// The component is gone; the demo hero is the month gauge, which holds the demo's own observed-inflow
+	// net once (the old lead cards were merged into it and no demo-only layout modifier appears).
+	assert.equal(pageModule.DashboardLeadView, undefined);
 	const demoMarkup = renderer.renderToStaticMarkup(
 		React.createElement(pageModule.DemoDashboardPage, {
 			data: {
@@ -7485,58 +7336,12 @@ test("the React dashboard hero renders the prominent total and never a fabricate
 	);
 	assert.match(demoMarkup, /Solo lectura/);
 	assert.match(demoMarkup, /Mercado/);
-	// S11: the demo shares the authenticated month gauge hero, which holds the demo's own observed-inflow
-	// net once; the lead cards were merged into it and no demo-only layout modifier appears.
 	assert.match(demoMarkup, /class="react-pace-gauge/);
 	assert.match(demoMarkup, /<strong class="react-pace-gauge-amount">\$875\.000<\/strong>/);
-	assert.doesNotMatch(demoMarkup, /react-dashboard-lead|react-lead-answer|Saldo disponible|react-dashboard-lead-single|Ingreso configurado/);
+	assert.doesNotMatch(demoMarkup, /react-dashboard-lead|react-lead-|Saldo disponible|Ingreso configurado|Al l\u00edmite|En peligro/);
 
-	// Scoped styles under the shipped `react-` prefix: one two-column lead and no demo-only modifier.
-	assert.match(styles, /\.react-dashboard-lead \{/);
-	assert.doesNotMatch(styles, /\.react-dashboard-lead-single/);
-	assert.match(styles, /\.react-lead-primary,/);
-	assert.match(styles, /\.react-lead-amount \{/);
-	// The highlighted balance card keeps its light, cool surface, with a neutral positive remainder
-	// and the existing zero/negative warning colours.
-	const answerCardBlock =
-		styles.match(/\.react-lead-answer \{\r?\n\tdisplay: flex;[\s\S]*?\}/)?.[0] ?? "";
-	assert.match(
-		answerCardBlock,
-		/background: linear-gradient\(150deg, var\(--surface\), var\(--color-blue-soft\)\);/,
-	);
-	assert.doesNotMatch(answerCardBlock, /var\(--primary\)|var\(--primary-container\)/);
-	// The card is a column flex so the status row can be pushed to the bottom edge.
-	assert.match(answerCardBlock, /flex-direction: column;/);
-	// The percentage/status row stretches across the card content and anchors to the bottom edge:
-	// the percentage sits at the bottom-left and the flag at the bottom-right of that same row.
-	const balanceStatusRowBlock =
-		styles.match(/\.react-lead-balance-status-row \{[\s\S]*?\}/)?.[0] ?? "";
-	assert.match(balanceStatusRowBlock, /margin-top: auto;/);
-	assert.match(balanceStatusRowBlock, /align-self: stretch;/);
-	assert.match(balanceStatusRowBlock, /display: flex;/);
-	assert.match(balanceStatusRowBlock, /justify-content: space-between;/);
-	assert.doesNotMatch(balanceStatusRowBlock, /align-self: flex-end;/);
-	// The percentage is plain text, with a glyph only for zero/negative warnings, never a chip.
-	const balancePercentBlock =
-		styles.match(/\.react-lead-balance-percent \{[\s\S]*?\}/)?.[0] ?? "";
-	assert.ok(balancePercentBlock.length > 0);
-	assert.doesNotMatch(balancePercentBlock, /background/);
-	// The positive remainder uses neutral ink/surface; zero/negative warning flags retain their tones.
-	assert.match(styles, /\.react-lead-balance-status \{/);
-	assert.match(styles, /\.react-lead-balance-percent-neutral\s*\{\s*color: var\(--ink\);/);
-	assert.match(styles, /\.react-lead-balance-status-neutral\s*\{\s*background: var\(--surface-subtle\);\s*color: var\(--ink-muted\);/);
-	assert.match(
-		styles,
-		/\.react-lead-balance-status-flat \{\s*background: var\(--warning-soft\);/,
-	);
-	assert.match(
-		styles,
-		/\.react-lead-balance-status-negative \{\s*background: var\(--danger-soft\);/,
-	);
-	assert.match(
-		styles,
-		/@media \(max-width: 640px\) \{[\s\S]*?\.react-dashboard-lead \{\s*grid-template-columns: 1fr;\s*\}/,
-	);
+	// Removed (S14): the lead cards' styles no longer ship.
+	assert.doesNotMatch(styles, /\.react-dashboard-lead|\.react-lead-/);
 });
 
 test("the React authenticated summary mounts the dashboard lead hero without adding a request", async (t) => {
@@ -7566,11 +7371,11 @@ test("the React authenticated summary mounts the dashboard lead hero without add
 	assert.match(page, /totalSpending: summary\.totalSpending,/);
 	assert.match(page, /pendingAmountCount: summary\.pendingAmountCount,/);
 	// S11: the lead cards are no longer mounted by the summary (the month gauge hero holds those figures
-	// once and reads its count/pending notes from the same lead); the view stays exported.
+	// once and reads its count/pending notes from the same lead); the view itself was removed (S14, S16).
 	assert.equal((page.match(/<DashboardLeadView/g) ?? []).length, 0);
 	assert.match(page, /notes=\{heroNotes\}/);
 	assert.match(page, /lead\.spending\.detail/);
-	assert.match(page, /export function DashboardLeadView\(/);
+	assert.doesNotMatch(page, /DashboardLeadView/);
 	// The authenticated call site declares the configured-cycle source, so its hero keeps the stored
 	// income copy; the demo call site declares the demo source instead.
 	assert.match(
@@ -7587,7 +7392,7 @@ test("the React authenticated summary mounts the dashboard lead hero without add
 	// The demo tree reuses the same hero over its fixture.
 	const demoSource = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface DashboardLeadViewProps"),
+		page.indexOf("export interface CategoryRankingViewProps"),
 	);
 	assert.notEqual(demoSource, "", "the demo tree must be locatable");
 	assert.match(demoSource, /DashboardLead/);
@@ -8792,7 +8597,7 @@ test("the React movements table renders the selection column, the bulk bar and t
 	// The demo shares the production table with no editable targets or mutation capabilities.
 	const demoSource = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface DashboardLeadViewProps"),
+		page.indexOf("export interface CategoryRankingViewProps"),
 	);
 	assert.match(demoSource, /<MovementsTable\b[\s\S]*?editableMovements=\{\[\]\}[\s\S]*?readOnlyReason="Edición deshabilitada en la demo"/);
 	assert.doesNotMatch(demoSource, /submitBulkCategory|updateTransaction|syncGmail|createManualExpense|react-movements-bulk/);
@@ -9215,7 +9020,7 @@ test("the React demo dashboard composes the read-only analytics without API, Gma
 	// The composition reads no API: the demo tree imports no client and calls no fetch.
 	const demoSource = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface DashboardLeadViewProps"),
+		page.indexOf("export interface CategoryRankingViewProps"),
 	);
 	assert.notEqual(demoSource, "", "the demo tree must be locatable");
 	assert.doesNotMatch(

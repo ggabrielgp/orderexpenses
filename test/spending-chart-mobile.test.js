@@ -144,11 +144,12 @@ test("mobile compact labels and touch-sized tabs preserve desktop and preview ru
  assert.doesNotMatch(compact, /selection-indicator|dialog|transition|animation/);
 });
 
-test("mobile composition declares compact side-by-side balances, chart then categories, preserving budget below", async () => {
+test("mobile composition declares chart then categories, preserving budget below", async () => {
  const css = await readFile(new URL("../src/client/styles.css", import.meta.url), "utf8");
  const mobile = css.slice(css.indexOf("/* Mobile summary: balances"));
  assert.match(mobile, /@media \(max-width: 640px\)/);
- assert.match(mobile, /\.react-dashboard-lead\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/s);
+ // The lead cards were removed (S14, S16), so no compact two-column lead rule remains.
+ assert.doesNotMatch(css, /\.react-dashboard-lead|\.react-lead-/);
  for (const [name, order] of [["evolution", 2], ["categories", 3], ["breakdown", 5]]) assert.match(mobile, new RegExp(`\\.react-mobile-${name}\\s*\\{\\s*order: ${order}`));
  // The budget panel was removed (S14), so it no longer takes an order slot.
  assert.doesNotMatch(css, /\.react-budget-panel/);

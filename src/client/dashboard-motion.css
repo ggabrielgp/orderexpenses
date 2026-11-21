@@ -47,25 +47,15 @@
 	scale: 1;
 }
 
-dialog[class*="react-"][open],
+/* Dialog and view entrances now live in motion.css (150ms / 300ms tokens, closing included). */
 .react-category-detail,
-.react-spending-chart-day-panel,
-.react-movements-view {
+.react-spending-chart-day-panel {
 	animation: dashboard-surface-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-dialog[class*="react-"][open]::backdrop {
-	animation: dashboard-backdrop-in 180ms ease-out;
 }
 
 @keyframes dashboard-surface-in {
 	from { opacity: 0; transform: translateY(6px); }
 	to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes dashboard-backdrop-in {
-	from { opacity: 0; }
-	to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -75,11 +65,8 @@ dialog[class*="react-"][open]::backdrop {
 		scale: 1 !important;
 	}
 
-	dialog[class*="react-"][open],
-	dialog[class*="react-"][open]::backdrop,
 	.react-category-detail,
-	.react-spending-chart-day-panel,
-	.react-movements-view {
+	.react-spending-chart-day-panel {
 		animation: none !important;
 	}
 }

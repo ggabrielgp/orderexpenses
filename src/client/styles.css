@@ -1176,163 +1176,6 @@ body:has(.landing-page) { overflow-x: clip; }
 	font-size: .875rem;
 }
 
-/* The hero: the prominent spending total and the period balance. It reuses the shipped tokens and
-   card treatment; the two-column split and the display-size amount are the only layout it adds. */
-.react-dashboard-lead {
-	display: grid;
-	grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-	gap: var(--space-3);
-}
-
-.react-lead-primary,
-.react-lead-answer {
-	display: grid;
-	align-content: start;
-	gap: var(--space-2);
-	border: 1px solid var(--line);
-	border-radius: var(--radius-card);
-	background: var(--surface);
-	padding: var(--space-4);
-	box-shadow: var(--card-shadow-soft);
-}
-
-.react-lead-primary {
-	background: var(--surface-raised);
-}
-
-/* The balance answer is the highlighted Stitch card, but on a light, cool blue surface instead of the
-   former dark gradient: the deep-blue amount and the tone-coloured percentage/status flag stay legible,
-   and the danger-tone text reads naturally against a pale surface. The column flex lets the status row
-   sit at the bottom-right of the card without a wrapper. */
-.react-lead-answer {
-	display: flex;
-	flex-direction: column;
-	border-color: transparent;
-	background: linear-gradient(150deg, var(--surface), var(--color-blue-soft));
-	color: var(--ink);
-	box-shadow: var(--card-shadow-soft);
-}
-
-.react-lead-answer .react-lead-question,
-.react-lead-answer .react-lead-detail,
-.react-lead-answer .react-lead-derivation {
-	color: var(--ink-muted);
-}
-
-.react-lead-answer-heading {
-	display: flex;
-	align-items: center;
-	gap: var(--space-2);
-}
-
-.react-lead-primary-heading {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--space-2);
-}
-
-.react-lead-answer-icon {
-	display: grid;
-	place-items: center;
-	width: 28px;
-	height: 28px;
-	border-radius: var(--radius-control);
-	background: var(--surface);
-	color: var(--color-blue-deep);
-	font-size: .9rem;
-}
-
-/* The available-income row spans the full content width at the bottom of the highlighted card: the
-   tone-coloured percentage with its trend icon on the bottom-left, and the compact flag naming the
-   same status on the bottom-right. `margin-top: auto` pushes the row down inside the column flex and
-   `align-self: stretch` widens it to the card content, so `space-between` separates the two ends. */
-.react-lead-balance-status-row {
-	display: flex;
-	justify-content: space-between;
-	align-self: stretch;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: var(--space-2);
-	margin-top: auto;
-}
-
-/* The number and its trend icon are plain tone-coloured text and glyph, with no chip or background:
-   they sit directly on the pale card. The percentage itself is never inferred here; the row only
-   renders when the module derived a truthful value. */
-.react-lead-balance-percent {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-1);
-	font-size: .8rem;
-	font-weight: 700;
-}
-
-.react-lead-balance-percent svg {
-	font-size: .85rem;
-}
-
-.react-lead-balance-percent-positive {
-	color: var(--success);
-}
-
-.react-lead-balance-percent-flat {
-	color: var(--warning);
-}
-
-.react-lead-balance-percent-negative {
-	color: var(--danger);
-}
-
-/* The status flag beside the percentage: the matching soft tone surface and colour, kept compact so
-   it reads as a badge next to the figure rather than a second number. */
-.react-lead-balance-status {
-	display: inline-flex;
-	align-items: center;
-	padding: 1px var(--space-2);
-	border-radius: var(--radius-pill);
-	font-size: .7rem;
-	font-weight: 600;
-	line-height: 1.5;
-}
-
-.react-lead-balance-status-positive {
-	background: var(--success-soft);
-	color: var(--success);
-}
-
-.react-lead-balance-status-flat {
-	background: var(--warning-soft);
-	color: var(--warning);
-}
-
-.react-lead-balance-status-negative {
-	background: var(--danger-soft);
-	color: var(--danger);
-}
-
-.react-lead-question {
-	color: var(--ink-muted);
-	font-size: .875rem;
-}
-
-.react-lead-amount {
-	font-family: var(--font-display);
-	font-size: 2rem;
-	line-height: 1.1;
-}
-
-.react-lead-answer .react-lead-amount {
-	font-size: 1.5rem;
-}
-
-.react-lead-detail,
-.react-lead-derivation {
-	margin: 0;
-	color: var(--ink-muted);
-	font-size: .875rem;
-}
-
 .react-latest-expense {
 	display: grid;
 	gap: var(--space-3);
@@ -4355,10 +4198,6 @@ body:has(.react-movements-page) {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
-	.react-dashboard-lead {
-		grid-template-columns: 1fr;
-	}
-
 	.react-movements-filters,
 	.react-movements-bulk {
 		grid-template-columns: 1fr;
@@ -4629,11 +4468,6 @@ body:has(.react-movements-page) {
 	gap: var(--space-3);
 }
 
-.react-analytics-summary .react-dashboard-lead {
-	grid-column: 1 / span 2;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 /* Two-column analytics region: the larger chart/history column and the category/insight column. */
 .react-analytics-columns {
 	display: grid;
@@ -4661,10 +4495,6 @@ body:has(.react-movements-page) {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
-	.react-analytics-summary .react-dashboard-lead {
-		grid-column: 1 / -1;
-	}
-
 	.react-analytics-columns {
 		grid-template-columns: 1fr;
 	}
@@ -4672,10 +4502,6 @@ body:has(.react-movements-page) {
 
 @media (max-width: 640px) {
 	.react-analytics-summary {
-		grid-template-columns: 1fr;
-	}
-
-	.react-analytics-summary .react-dashboard-lead {
 		grid-template-columns: 1fr;
 	}
 }
@@ -4712,18 +4538,6 @@ body:has(.react-movements-page) {
 	.react-analytics-body { display: flex; flex-direction: column; gap: var(--space-3); }
 	.react-analytics-body .react-analytics-summary,
 	.react-analytics-body .react-analytics-columns { display: contents; }
-	.react-analytics-body .react-analytics-summary .react-dashboard-lead {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		order: 1;
-		gap: var(--space-2);
-	}
-	.react-analytics-body .react-dashboard-lead article { min-width: 0; padding: var(--space-3); }
-	.react-analytics-body .react-lead-amount { font-size: clamp(1.1rem, 5vw, 1.6rem); }
-	.react-analytics-body .react-lead-question { font-size: .75rem; }
-	.react-analytics-body .react-lead-detail { font-size: .65rem; }
-	.react-analytics-body .react-lead-primary-heading,
-	.react-analytics-body .react-lead-answer-heading { gap: 6px; }
-	.react-analytics-body .react-lead-balance-status-row { flex-wrap: wrap; gap: 6px; }
 	.react-analytics-body .react-mobile-evolution { order: 2; }
 	.react-analytics-body .react-mobile-categories { order: 3; }
 	.react-analytics-body .react-mobile-breakdown { order: 5; }
@@ -4734,8 +4548,6 @@ body:has(.react-movements-page) {
 .react-spending-chart-value-compact,
 .react-spending-chart-mobile-note { display: none; }
 .react-dashboard-period-context { margin: 0 0 8px; color: var(--ink-muted); font-size: .875rem; line-height: 1.5; }
-.react-lead-balance-percent-neutral { color: var(--ink); }
-.react-lead-balance-status-neutral { background: var(--surface-subtle); color: var(--ink-muted); }
 .react-movements-page .demo-dashboard .react-dashboard-header { align-items: start; }
 
 /* Mobile chart: seven visible days without changing static phone illustrations. */

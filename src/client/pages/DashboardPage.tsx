@@ -6,8 +6,6 @@ import { getDashboardPace, todayInSantiago, type DashboardPace, type PaceToday }
 import { config } from "@fortawesome/fontawesome-svg-core";
 import {
   faArrowRightArrowLeft,
-  faArrowTrendDown,
-  faArrowTrendUp,
   faArrowsRotate,
   faBolt,
   faCalendarDays,
@@ -15,15 +13,12 @@ import {
   faChartColumn,
   faChartPie,
   faClock,
-  faCoins,
   faLightbulb,
-  faMinus,
   faReceipt,
   faRightFromBracket,
   faStore,
   faTags,
   faUser,
-  faWallet,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 // The base Font Awesome stylesheet is imported once here and runtime injection is disabled, so the
@@ -57,6 +52,9 @@ import { getGoogleLoginUrl } from "../api/googleLogin";
 import { AccountMenu } from "../components/account/AccountMenuComponent";
 import { MobileMovementList, MovementFilterDisclosure } from "../components/movements/MobileMovementList";
 import { FeedbackNotice } from "../components/feedback/FeedbackNotice";
+import { useAnimatedView, useEditHighlight } from "../components/feedback/motion";
+import { DemoScenarioControl } from "../components/demo/DemoScenarioControl";
+import { DEFAULT_DEMO_SCENARIO, getDemoScenarioToday, type DemoScenario } from "../components/demo/demoScenarios";
 import { DashboardLoadingState } from "../components/analytics/DashboardLoadingState";
 import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
 import { MobileTabBar } from "../components/shell/MobileTabBar";
@@ -82,7 +80,6 @@ import {
 import { formatMovementCount } from "../components/analytics/categoryDistribution";
 import {
   getDashboardLead,
-  type DashboardBalancePercentTone,
   type DashboardLead,
 } from "../components/analytics/dashboardLead";
 import {
@@ -583,7 +580,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
    * Active dashboard view, owned here so the header navigation and the financial body stay in
    * sync. It starts on the summary, exactly like the previous in-body toggle default.
    */
-  const [view, setView] = useState<DashboardView>("summary");
+  const [view, setView] = useAnimatedView<DashboardView>("summary");
   /** The C1 single in-flight lock, reused for the category mutations. */
   const categorySettingsLock = useRef(false);
   const submitCategoryMutation = useMemo(
@@ -838,26 +835,33 @@ const DEMO_PROFILE: SessionProfile = {
 };
 
 export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
-  const [view, setView] = useState<DashboardView>("summary");
+  const [view, setView] = useAnimatedView<DashboardView>("summary");
   const [requestedCategory, setRequestedCategory] = useState<string | null>(null);
+  // S17: the demo opens on "Ajustado"; the choice only changes which day of the cycle is simulated.
+  const [scenario, setScenario] = useState<DemoScenario>(DEFAULT_DEMO_SCENARIO);
   return <DemoDashboardView
     data={data}
     view={view}
     onViewChange={setView}
+    scenario={scenario}
+    onScenarioChange={setScenario}
     requestedCategory={requestedCategory ?? undefined}
     onRequestedCategoryChange={setRequestedCategory}
   />;
 }
 
 /** Read-only production composition, with local navigation and no mutation capabilities. */
-export function DemoDashboardView({ data, view, onViewChange, requestedCategory, onRequestedCategoryChange, today }: {
+export function DemoDashboardView({ data, view, onViewChange, requestedCategory, onRequestedCategoryChange, today, scenario = DEFAULT_DEMO_SCENARIO, onScenarioChange }: {
   data: DemoDashboardData;
   view: DashboardView;
   onViewChange: (view: DashboardView) => void;
   requestedCategory?: string;
   onRequestedCategoryChange: (category: string) => void;
-  /** Calendar day the gauge measures against; defaults to today in Santiago. */
+  /** Calendar day the gauge measures against; when absent it is the day the scenario simulates. */
   today?: PaceToday;
+  /** "Ver la demo como": which pace state the same data is read as (S17). */
+  scenario?: DemoScenario;
+  onScenarioChange?: (scenario: DemoScenario) => void;
 }) {
   // Every value below comes from the same pure modules the authenticated summary uses, over the
   // fixture projected to the server's transaction shape: no API client, no request and no
@@ -924,7 +928,12 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
     endDateExclusive: data.period.endDateExclusive,
     incomeAmount: demoIncomeAmount,
     totalSpending: summary.totalSpending,
-    today: today ?? todayInSantiago(new Date()),
+    today: today ?? getDemoScenarioToday({
+      startDate: data.period.startDate,
+      endDateExclusive: data.period.endDateExclusive,
+      incomeAmount: demoIncomeAmount,
+      totalSpending: summary.totalSpending,
+    }, scenario),
   });
   return (
     <>
@@ -945,7 +954,10 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
                 <p className="subtitle">Control y análisis de gastos detectados automáticamente.</p>
               )}
             </div>
-            <span className="demo-read-only-badge">Datos de ejemplo · Solo lectura</span>
+            <div className="demo-dashboard-aside">
+              <span className="demo-read-only-badge">Datos de ejemplo · Solo lectura</span>
+              {view === "summary" && <DemoScenarioControl scenario={scenario} onChange={(next) => onScenarioChange?.(next)} />}
+            </div>
           </header>
 
           {/* The one shared analytics body: the same sections and order as the authenticated summary.
@@ -953,6 +965,7 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
 					    stays read-only and the account/mutation surfaces never mount. */}
           {view === "summary" ? <DashboardAnalyticsBody
             pace={demoPace}
+            paceReplayKey={scenario}
             lead={dashboardLead}
             story={dashboardStory}
             chart={spendingChart}
@@ -987,106 +1000,6 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
       </main>
       <MobileTabBar view={view} onViewChange={onViewChange} />
     </>
-  );
-}
-
-export interface DashboardLeadViewProps {
-  /** The decided lead, from `getDashboardLead`. */
-  lead: DashboardLead;
-}
-
-/**
- * The free solid icon each available-income direction uses. The tone is decided by the analytics
- * module, so the surface only maps it to an icon and never re-interprets the number.
- */
-const BALANCE_PERCENT_ICONS: Record<DashboardBalancePercentTone, typeof faArrowTrendUp> = {
-  positive: faArrowTrendUp,
-  flat: faMinus,
-  negative: faArrowTrendDown,
-};
-
-/**
- * The compact Spanish status the adjacent flag names for each tone the analytics module decided. The
- * module owns the threshold behind `availablePercentTone`; this surface only maps its tone to copy, so
- * no rule is re-derived from the number here.
- */
-const BALANCE_STATUS_LABELS: Record<DashboardBalancePercentTone, string> = {
-  positive: "En control",
-  flat: "Al límite",
-  negative: "En peligro",
-};
-
-/**
- * The lead cards: the `Total gastado` total with its period/count detail, and the `Saldo disponible`
- * answer. Since S11 the summary no longer mounts them (the month gauge hero holds those figures once and
- * takes the count/pending notes from the same lead), so they stay exported as the decided presentation
- * of `getDashboardLead` rather than a second statement of the figures.
- *
- * Exported so both states of the balance are provable from a static render, like the other analytics
- * panels: a live summary only ever reaches its loading state without a session. The component renders
- * the decisions the pure module made and formats their amounts; it computes no balance of its own.
- *
- * The balance shows a number only when the module derived one from an income: the configured cycle
- * income on the authenticated summary, or the demo's observed inflows. Without one the value is the
- * shipped sentinel, never a fabricated `$0`, and the detail says why. Both cards always render, so the
- * authenticated summary and the read-only demo differ in the income source and its copy, not in layout.
- */
-export function DashboardLeadView({ lead }: DashboardLeadViewProps) {
-  return (
-    <section className="react-dashboard-lead" aria-label="Resumen principal del periodo">
-      <article className="react-lead-primary">
-        <div className="react-lead-primary-heading">
-          <span className="react-lead-question">{lead.spending.label}</span>
-          {/* Decorative: the label beside it already names the card, so the glyph is hidden. */}
-          <span className="react-card-icon" aria-hidden="true">
-            <FontAwesomeIcon icon={faCoins} />
-          </span>
-        </div>
-        <strong className="react-lead-amount">{formatClp(lead.spending.amount)}</strong>
-        <p className="react-lead-detail">{lead.spending.detail}</p>
-      </article>
-      <article className="react-lead-answer">
-        <div className="react-lead-answer-heading">
-          <span className="react-lead-answer-icon" aria-hidden="true">
-            <FontAwesomeIcon icon={faWallet} />
-          </span>
-          <span className="react-lead-question">{lead.balance.label}</span>
-        </div>
-        <strong className="react-lead-amount">
-          {lead.balance.amount === null
-            ? lead.balance.emptyValue
-            : formatClp(lead.balance.amount)}
-        </strong>
-        {/* The `ingreso − gastos` derivation is deliberately not rendered and the positive detail is
-				    only the pending caveat: an empty value renders no paragraph and adds no visual spacing. */}
-        {lead.balance.detail.length > 0 && (
-          <p className="react-lead-detail">{lead.balance.detail}</p>
-        )}
-        {/* Keep the computed percentage; a positive remainder is not a safety rating or trend.
-            Existing zero/negative warnings and the absent-income branch stay unchanged. */}
-        {lead.balance.availablePercent !== null &&
-          lead.balance.availablePercentTone !== null && (
-            <div className="react-lead-balance-status-row">
-              <span
-                className={`react-lead-balance-percent react-lead-balance-percent-${lead.balance.availablePercentTone === "positive" ? "neutral" : lead.balance.availablePercentTone}`}
-              >
-                {lead.balance.availablePercentTone !== "positive" && <FontAwesomeIcon
-                  icon={BALANCE_PERCENT_ICONS[lead.balance.availablePercentTone]}
-                  aria-hidden="true"
-                />}
-                <span>{lead.balance.availablePercent}%</span>
-              </span>
-              <span
-                className={`react-lead-balance-status react-lead-balance-status-${lead.balance.availablePercentTone === "positive" ? "neutral" : lead.balance.availablePercentTone}`}
-              >
-                {lead.balance.availablePercentTone === "positive"
-                  ? "del ingreso disponible"
-                  : BALANCE_STATUS_LABELS[lead.balance.availablePercentTone]}
-              </span>
-            </div>
-          )}
-      </article>
-    </section>
   );
 }
 
@@ -1817,6 +1730,8 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
 interface DashboardAnalyticsBodyProps {
   /** The month gauge (identity B); absent when the caller has no cycle to measure. */
   pace?: DashboardPace;
+  /** Replays the gauge sweep when it changes (the demo scenario); omitted, the gauge sweeps only once. */
+  paceReplayKey?: string;
   /** Opens the cycle editor so the user can add the income the gauge needs. */
   onAddIncome?: () => void;
   /** Named counterparties from the same period's raw transactions. */
@@ -1871,6 +1786,7 @@ interface DashboardAnalyticsBodyProps {
  */
 function DashboardAnalyticsBody({
   pace,
+  paceReplayKey,
   onAddIncome,
   lead,
   story,
@@ -1898,7 +1814,7 @@ function DashboardAnalyticsBody({
       {/* The month gauge is the hero: it answers "am I on track?" first and holds income, spent, remaining
           and the share of income once, so the former KPI band and the budget card are merged into it.
           Every panel below keeps its place. */}
-      {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} notes={heroNotes} />}
+      {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} notes={heroNotes} replayKey={paceReplayKey} />}
       {/* Two-column region: the larger chart/history column and the category/insight column. */}
       <div className="react-analytics-columns">
         <div className="react-analytics-main">
@@ -2000,6 +1916,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   // A recategorization notice also carries what "Deshacer" restores (S7).
   const [editNotice, setEditNotice] = useState<(MovementEditNotice & { undo?: RecategorizeUndo }) | null>(null);
   const [isUndoingEdit, setIsUndoingEdit] = useState(false);
+  // The row just edited is highlighted for ~1.2s in the movements table and list (S15).
+  const [highlightedMovementId, flashEdited] = useEditHighlight();
   /**
    * Identity the chart's read-only day detail opened; `null` keeps the dialog closed. Only the id is
    * stored, so a reload that drops the row closes the dialog instead of showing stale bytes.
@@ -2380,6 +2298,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
         ? { ...getRecategorizeNotice({ reloadFailed, ...recategorized }), undo: recategorized.undo }
         : getMovementEditNotice(reloadFailed),
     );
+    flashEdited(editMovement?.id);
     setEditMovement(null);
   };
 
@@ -2579,6 +2498,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
           onRemove={openMovementRemoval}
           submitBulkCategory={submitBulkCategory}
           categoryCatalog={categoryCatalog}
+          highlightedMovementId={highlightedMovementId}
         />
       )}
       {/* Only a configured summary can create an expense: the trigger lives here, and the
@@ -3018,6 +2938,8 @@ export interface MovementsTableViewProps {
   bulkNotice?: BulkCategoryFeedback | null;
   /** Explicit read-only presentation reason; omitted preserves normal eligibility explanations. */
   readOnlyReason?: string;
+  /** The movement just edited; its row and card carry `data-highlighted` while the page flashes it. */
+  highlightedMovementId?: string | null;
 }
 
 export function MovementsTableView({
@@ -3048,6 +2970,7 @@ export function MovementsTableView({
   isBulkAssigning,
   bulkNotice,
   readOnlyReason,
+  highlightedMovementId,
 }: MovementsTableViewProps) {
   // The rows the table renders: the filter's own rows put in the order the sort decided. Sorting is
   // applied to the filtered rows, never to the loaded ones, and the count stays the filter's own — it
@@ -3193,7 +3116,7 @@ export function MovementsTableView({
         </header>
         <MobileMovementList
           rows={visibleRows} editableById={editableById} sort={sort} onActivate={onActivate}
-          readOnlyReason={readOnlyReason}
+          readOnlyReason={readOnlyReason} highlightedMovementId={highlightedMovementId}
           selection={selection} onToggleSelection={onToggleSelection}
           onToggleAllSelection={onToggleAllSelection} onSelectSimilar={onSelectSimilar}
           onView={onView} onEdit={onEdit} onRemove={onRemove}
@@ -3230,7 +3153,7 @@ export function MovementsTableView({
                   )
                   : null;
               return (
-                <tr key={`${movement.counterparty}-${movement.date}-${index}`} data-selected={movement.id !== null && selectedIds.has(movement.id) ? "true" : undefined}>
+                <tr key={`${movement.counterparty}-${movement.date}-${index}`} data-selected={movement.id !== null && selectedIds.has(movement.id) ? "true" : undefined} data-highlighted={movement.id !== null && movement.id === highlightedMovementId ? "true" : undefined}>
                   {selectionEnabled && (
                     <td className="react-movements-select-column">
                       {editable ? (
@@ -3342,6 +3265,8 @@ export interface MovementsTableProps {
   categoryCatalog?: Category[];
   /** Presentation only: demo passes this explicitly, never inferred from missing identity. */
   readOnlyReason?: string;
+  /** The movement just edited, highlighted in the table and list for a moment. */
+  highlightedMovementId?: string | null;
 }
 
 export function MovementsTable({
@@ -3355,6 +3280,7 @@ export function MovementsTable({
   submitBulkCategory,
   categoryCatalog = [],
   readOnlyReason,
+  highlightedMovementId,
 }: MovementsTableProps) {
   // Initialised for the period the rows belong to; the unified view also renders for empty periods.
   // the rows belong to. The requested category is only read here, which is what makes it a mount-time
@@ -3498,6 +3424,7 @@ export function MovementsTable({
         onRemove={onRemove}
         onView={openDetail}
         readOnlyReason={readOnlyReason}
+        highlightedMovementId={highlightedMovementId}
         selection={readOnlyReason ? undefined : selectionView}
         onToggleSelection={(id) =>
           setRowSelection((current) =>

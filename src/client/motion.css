@@ -1,0 +1,151 @@
+/* Phase 2 motion (identity B, S15). Durations come from the motion tokens: 150 routine, 300 view change.
+   Loaded after every other sheet so the sheet geometry below wins over the legacy dialog widths.
+   Nothing here touches the dialog open/close code: dialogs animate through transitions on the native
+   `open` attribute, so Esc, backdrop dismissal and focus handling stay exactly as before. */
+
+/* Resumen <-> Movimientos: the native root view transition crossfades old and new page without
+   moving layout, focus or scroll (the DOM swap is the same one as without motion). */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: var(--duration-view);
+	animation-timing-function: ease;
+}
+
+/* Browsers without view transitions get a plain fade-in of the incoming movements view. */
+@supports not (view-transition-name: none) {
+	.react-movements-view {
+		animation: motion-view-in var(--duration-view) ease both;
+	}
+}
+
+@keyframes motion-view-in {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+/* Desktop dialogs fade and scale in 150ms and out the same way: `display` and `overlay` are
+   transitioned discretely so the closing state stays rendered until the fade ends. */
+dialog[class*="react-"] {
+	opacity: 0;
+	transform: scale(0.97);
+	transition:
+		opacity var(--duration-fast) ease,
+		transform var(--duration-fast) var(--ease-out-expo),
+		overlay var(--duration-fast) allow-discrete,
+		display var(--duration-fast) allow-discrete;
+}
+
+dialog[class*="react-"][open] {
+	opacity: 1;
+	transform: none;
+}
+
+@starting-style {
+	dialog[class*="react-"][open] {
+		opacity: 0;
+		transform: scale(0.97);
+	}
+}
+
+dialog[class*="react-"]::backdrop {
+	opacity: 0;
+	transition:
+		opacity var(--duration-fast) ease,
+		overlay var(--duration-fast) allow-discrete,
+		display var(--duration-fast) allow-discrete;
+}
+
+dialog[class*="react-"][open]::backdrop {
+	opacity: 1;
+}
+
+@starting-style {
+	dialog[class*="react-"][open]::backdrop {
+		opacity: 0;
+	}
+}
+
+/* Narrow screens: the same dialogs become bottom sheets that slide up and back down in 300ms. */
+@media (max-width: 760px) {
+	dialog[class*="react-"] {
+		margin: auto 0 0;
+		width: 100%;
+		max-width: none;
+		border-bottom-right-radius: 0;
+		border-bottom-left-radius: 0;
+		opacity: 1;
+		transform: translateY(100%);
+		transition:
+			transform var(--duration-view) var(--ease-out-expo),
+			overlay var(--duration-view) allow-discrete,
+			display var(--duration-view) allow-discrete;
+	}
+
+	dialog[class*="react-"][open] {
+		transform: none;
+	}
+
+	@starting-style {
+		dialog[class*="react-"][open] {
+			opacity: 1;
+			transform: translateY(100%);
+		}
+	}
+
+	dialog[class*="react-"]::backdrop {
+		transition:
+			opacity var(--duration-view) ease,
+			overlay var(--duration-view) allow-discrete,
+			display var(--duration-view) allow-discrete;
+	}
+}
+
+/* Feedback notices slide in from above over the view-change duration. */
+.react-feedback-notice {
+	animation: motion-notice-in var(--duration-view) var(--ease-out-expo) both;
+}
+
+@keyframes motion-notice-in {
+	from { opacity: 0; transform: translateY(-12px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+/* The movement that was just edited glows ink and fades out over ~1.2s, in the table and the list. */
+[data-highlighted="true"],
+tr[data-highlighted="true"] > td {
+	animation: motion-row-highlight 1200ms ease-out backwards;
+}
+
+@keyframes motion-row-highlight {
+	from { background-color: rgb(19 27 46 / 14%); }
+	to { background-color: rgb(19 27 46 / 0%); }
+}
+
+/* Reduced motion: every change above is immediate and carries the same information. The highlight
+   stays as a static tint for as long as the page flags the row. */
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
+	}
+
+	.react-movements-view {
+		animation: none !important;
+	}
+
+	dialog[class*="react-"],
+	dialog[class*="react-"]::backdrop {
+		transition: none !important;
+	}
+
+	.react-feedback-notice {
+		animation: none !important;
+	}
+
+	[data-highlighted="true"],
+	tr[data-highlighted="true"] > td {
+		animation: none !important;
+		background-color: rgb(19 27 46 / 10%);
+	}
+}

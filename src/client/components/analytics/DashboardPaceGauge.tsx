@@ -22,6 +22,8 @@ export interface DashboardPaceGaugeProps {
 	onAddIncome?: () => void;
 	/** Short facts about the figures (e.g. "35 gastos con monto"), shown once under the stats. */
 	notes?: readonly string[];
+	/** When it changes after the first render the sweep and count-up replay (the demo scenarios, S17). */
+	replayKey?: string;
 }
 
 const RING_RADIUS = 118;
@@ -38,11 +40,11 @@ const defaultFormatClp = (amount: number) => new Intl.NumberFormat("es-CL", {
 const percent = (share: number) => Math.round(share * 100);
 const roundToThousand = (amount: number) => Math.round(amount / 1000) * 1000;
 
-export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIncome, notes = [] }: DashboardPaceGaugeProps) {
+export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIncome, notes = [], replayKey }: DashboardPaceGaugeProps) {
 	const labelId = useId();
 	// 1 = final values (what the server and reduced motion render); the entrance drives it 0 -> 1 once.
 	const [progress, setProgress] = useState(1);
-	useLayoutEffect(() => runGaugeEntrance(window, setProgress), []);
+	useLayoutEffect(() => runGaugeEntrance(window, setProgress), [replayKey]);
 	const sweeping = progress < 1;
 	const noteLine = notes.length > 0 ? <p className="react-pace-gauge-notes">{notes.join(" · ")}</p> : null;
 

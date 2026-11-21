@@ -21,7 +21,7 @@ export function MovementFilterDisclosure({ children }: { children: ReactNode }) 
 
 export type MobileMovementListProps = Pick<MovementsTableViewProps,
   "sort" | "onActivate" | "onView" | "onEdit" | "onRemove" | "selection" |
-  "onToggleSelection" | "onToggleAllSelection" | "onSelectSimilar" | "readOnlyReason"> & {
+  "onToggleSelection" | "onToggleAllSelection" | "onSelectSimilar" | "readOnlyReason" | "highlightedMovementId"> & {
   /** Already filtered and sorted by the shared public view; never sort or filter again here. */
   rows: RecognizedExpenseMovement[];
   editableById: ReadonlyMap<string | null, EditableRecognizedExpenseMovement>;
@@ -38,7 +38,7 @@ const formatClp = (amount: number) => {
 /** A responsive projection of the same rows and capabilities as the desktop table, not a data owner. */
 export function MobileMovementList({ rows, editableById, emptyMessage, sort, onActivate,
   onView, onEdit, onRemove, selection, onToggleSelection, onToggleAllSelection,
-  onSelectSimilar, readOnlyReason }: MobileMovementListProps) {
+  onSelectSimilar, readOnlyReason, highlightedMovementId }: MobileMovementListProps) {
   const selectionEnabled = selection !== undefined && onToggleSelection !== undefined;
   const selectedIds = new Set(selection?.selectedIds ?? []);
   return (
@@ -69,7 +69,8 @@ export function MobileMovementList({ rows, editableById, emptyMessage, sort, onA
           ? getSimilarCounterpartyAffordance(movement, rows, selection.selectableIds) : null;
         return (
           <article className="react-mobile-movement-card" key={`${movement.counterparty}-${movement.date}-${index}`}
-            data-selected={movement.id !== null && selectedIds.has(movement.id) ? "true" : undefined}>
+            data-selected={movement.id !== null && selectedIds.has(movement.id) ? "true" : undefined}
+            data-highlighted={movement.id !== null && movement.id === highlightedMovementId ? "true" : undefined}>
             <div className="react-mobile-movement-primary">
               {selectionEnabled && (
                 <label className="react-mobile-movement-selection">

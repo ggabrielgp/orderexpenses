@@ -77,21 +77,6 @@ test("shared movement defaults keep invalid reasons, selection and editable acti
  assert.doesNotMatch(demo, /no tiene identificación|>Editar<|>Eliminar</);
 });
 
-test("positive balance is neutral and budget absence is concise without changing other branches", async () => {
- const { getDashboardLead } = await vite.ssrLoadModule("/src/client/components/analytics/dashboardLead.ts");
- for (const incomeAmount of [100, null]) {
-  for (const totalSpending of [92, 100, 110]) {
-   const lead = getDashboardLead({ periodLabel: "Periodo", incomeAmount, totalSpending, expenseCount: 1, pendingAmountCount: 0, incomeSource: "configured-cycle" });
-   const html = render(page.DashboardLeadView, { lead });
-   if (incomeAmount === 100 && totalSpending === 92) {
-    assert.match(html, /8%/); assert.match(html, /del ingreso disponible/);
-    assert.doesNotMatch(html, /En control|arrow-trend-up|percent-positive/);
-   } else if (incomeAmount === null) assert.doesNotMatch(html, /balance-status-row/);
-   else assert.match(html, new RegExp(totalSpending === 100 ? "Al límite" : "En peligro"));
-  }
- }
-});
-
 test("mobile compact typography cannot split digits and tabs keep touch height", async () => {
  const css = await read("src/client/styles.css");
  assert.match(css, /\.react-analytics-body \.react-spending-chart-value-compact\s*\{[^}]*overflow-wrap: normal;[^}]*word-break: normal/s);

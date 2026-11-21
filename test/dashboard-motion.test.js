@@ -52,18 +52,18 @@ test("press feedback is subtle and excludes disabled actions", async () => {
 	assert.doesNotMatch(css, /pointer-events|outline:\s*(?:none|0)/);
 });
 
-test("dialog and detail entrance is short, scoped and respects reduced motion", async () => {
+test("detail entrance is short, scoped and respects reduced motion; dialogs and views moved to motion.css", async () => {
 	const css = await read("src/client/dashboard-motion.css");
-	assert.match(css, /dialog\[class\*="react-"\]\[open\][^]*animation:\s*dashboard-surface-in 220ms/);
-	assert.match(css, /\.react-category-detail/);
-	assert.match(css, /\.react-spending-chart-day-panel/);
-	assert.match(css, /\.react-movements-view/);
+	assert.match(css, /\.react-category-detail,\s*\.react-spending-chart-day-panel\s*\{[^}]*animation:\s*dashboard-surface-in 220ms/);
 	assert.match(css, /@keyframes dashboard-surface-in\s*\{[^]*translateY\(6px\)/);
 	const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
 	assert.match(reduced, /transition:\s*none\s*!important/);
 	assert.match(reduced, /animation:\s*none\s*!important/);
 	assert.match(reduced, /scale:\s*1\s*!important/);
 	assert.doesNotMatch(css, /infinite|animation-delay/);
-	const entry = await read("src/client/main.tsx");
+	// S15: the dialog and movements-view entrances are owned by motion.css (see motion-phase2.test.js).
+	assert.doesNotMatch(css, /dialog\[class\*="react-"\]/);
+	assert.doesNotMatch(css, /\.react-movements-view/);
+const entry = await read("src/client/main.tsx");
 	assert.ok(entry.indexOf('"./dashboard-motion.css"') > entry.indexOf('"./styles.css"'));
 });

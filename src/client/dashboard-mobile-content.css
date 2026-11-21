@@ -33,11 +33,6 @@
   .react-analytics-side > * { min-width: 0; }
 
   .react-analytics-summary { grid-template-columns: 1fr; }
-  .react-analytics-summary .react-dashboard-lead {
-    grid-column: 1 / -1;
-    grid-template-columns: 1fr;
-  }
-  .react-analytics-summary .react-dashboard-lead strong { overflow-wrap: anywhere; }
 
   /* Complementary display removes inactive controls from both focus and accessibility trees. */
   .react-movements-table-wrapper { display: none; }
