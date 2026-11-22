@@ -69,7 +69,13 @@ import { MobileTabBar } from "../components/shell/MobileTabBar";
 import { OnboardingConnect } from "../components/onboarding/OnboardingConnect";
 import { FirstResultExplainer } from "../components/onboarding/FirstResultExplainer";
 import { hasSeenFirstResult, markFirstResultSeen } from "../components/onboarding/firstResult";
+import { CyclePeriodSummary } from "../components/financial-cycle/CyclePeriodSummary";
 import { CyclePresets } from "../components/financial-cycle/CyclePresets";
+import {
+  DEFAULT_PAY_DAY,
+  resolveCycleOption,
+  type CycleOptionChoice,
+} from "../components/financial-cycle/cycleOptions";
 import { getPeriodAnalytics } from "../components/analytics/periodAnalytics";
 import {
   getDashboardCounterpartyRanking,
@@ -2594,14 +2600,32 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
   const presetToday = useMemo(() => todayInSantiago(new Date()), []);
   const [startDate, setStartDate] = useState(configuredPeriod.startDate);
   const [endDate, setEndDate] = useState<string>(ReviewPeriod.create(configuredPeriod).visibleEndDate);
+  // "¿Cuándo empieza tu mes?": the calendar month is the default, so the form is valid without extra
+  // input and starts on the same range it always did. The option only decides how the start/end
+  // state is filled; validation and the saved payload read that state, as before.
+  const [option, setOption] = useState<CycleOptionChoice>("calendar");
+  const [payDay, setPayDay] = useState(DEFAULT_PAY_DAY);
   const [incomeValue, setIncomeValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const saveLock = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [incomeError, setIncomeError] = useState<string | null>(null);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   /** The legacy two-click range: the first click sets the start, the second sets the end. */
   const [awaitingRangeEnd, setAwaitingRangeEnd] = useState(false);
   const calendarRange = { ...createCalendarRange(startDate, endDate), awaitingEnd: awaitingRangeEnd };
+  // The date error lives inside the "Otro rango" reveal, which can be scrolled out of view above the
+  // sticky footer: bring it next to the field that needs fixing.
+  useEffect(() => {
+    if (calendarError) {
+      dialogRef.current?.querySelector(".react-cycle-calendar-error")?.scrollIntoView({ block: "nearest" });
+    }
+  }, [calendarError]);
+  useEffect(() => {
+    if (incomeError) {
+      dialogRef.current?.querySelector(".cycle-field-error")?.scrollIntoView({ block: "nearest" });
+    }
+  }, [incomeError]);
 
   const handleCalendarSelect = (dateKey: string) => {
     const next = selectCalendarDate(calendarRange, dateKey);
@@ -2611,9 +2635,32 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
     setCalendarError(null);
   };
 
+  const applyRange = (range: { startDate: string; endDate: string }) => {
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+    setAwaitingRangeEnd(false);
+    setCalendarError(null);
+    setError(null);
+  };
+
+  const handleOptionChange = (next: CycleOptionChoice) => {
+    setOption(next);
+    // "Otro rango" keeps the dates already there; the other two put their own range in the state.
+    if (next !== "custom") {
+      applyRange(resolveCycleOption(next, presetToday, payDay, { startDate, endDate }));
+    }
+  };
+
+  const handlePayDayChange = (next: number) => {
+    setPayDay(next);
+    applyRange(resolveCycleOption("payDay", presetToday, next, { startDate, endDate }));
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (saveLock.current) return;
+    setIncomeError(null);
+    setError(null);
 
     // The calendar error is derived here, not rendered on every keystroke: the date half of the
     // validation is stated inline while the income half keeps the form's existing copy.
@@ -2629,7 +2676,8 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
     try {
       cycle = createFinancialCycleSetupPayload(startDate, endDate, incomeValue);
     } catch {
-      setError("Ingresa un rango de fechas válido y un ingreso en CLP positivo sin decimales, o deja el ingreso en blanco.");
+      // The dates were just validated, so what is left to fix is the income, shown next to its field.
+      setIncomeError("Ingresa un rango de fechas válido y un ingreso en CLP positivo sin decimales, o deja el ingreso en blanco.");
       return;
     }
 
@@ -2665,7 +2713,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
     )}
     <dialog
       ref={dialogRef}
-      className="react-financial-setup-dialog react-financial-state"
+      className="react-financial-setup-dialog react-financial-state cycle-dialog"
       aria-labelledby="react-financial-setup-title"
       onCancel={(event) => {
         event.preventDefault();
@@ -2677,89 +2725,117 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
         }
       }}
     >
-      <div>
-        <span className="section-kicker">Configuración financiera</span>
-        <h2 id="react-financial-setup-title">Configura tu periodo financiero</h2>
-        <p>Elige las fechas inclusivas del periodo que quieres revisar.</p>
-      </div>
-      <form className="react-financial-setup-form" onSubmit={handleSubmit}>
-        {/* Presets fill the same date inputs below; the calendar and inputs stay editable. */}
-        <CyclePresets
-          today={presetToday}
-          onApply={(range) => {
-            setStartDate(range.startDate);
-            setEndDate(range.endDate);
-            setAwaitingRangeEnd(false);
-            setCalendarError(null);
-          }}
-          onCustom={() => document.getElementById("financial-cycle-start-date")?.focus()}
-        />
-        {/* The calendar augments the text inputs; it never replaces them. It is bounded to the current
-				    year through the current month, so any month of the year so far is selectable. */}
-        <CycleCalendar
-          bounds={calendarBounds}
-          range={calendarRange}
-          onSelectDate={handleCalendarSelect}
-          disabled={isSaving}
-          error={calendarError}
-        />
-        <div className="react-financial-setup-fields">
-          <label htmlFor="financial-cycle-start-date">
-            <span>Fecha de inicio</span>
-            <input
-              id="financial-cycle-start-date"
-              type="date"
-              value={startDate}
-              onChange={(event) => {
-                setStartDate(event.target.value);
-                setCalendarError(null);
-              }}
-              disabled={isSaving}
-              required
-            />
-          </label>
-          <label htmlFor="financial-cycle-end-date">
-            <span>Fecha de término (inclusive)</span>
-            <input
-              id="financial-cycle-end-date"
-              type="date"
-              value={endDate}
-              onChange={(event) => {
-                setEndDate(event.target.value);
-                setCalendarError(null);
-              }}
-              disabled={isSaving}
-              required
-            />
-          </label>
-          <label htmlFor="financial-cycle-income">
-            <span>Ingreso mensual (opcional)</span>
-            <input
-              id="financial-cycle-income"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9.]*"
-              value={incomeValue}
-              onChange={(event) => setIncomeValue(event.target.value)}
-              onBlur={formatIncomeOnBlur}
-              disabled={isSaving}
-              aria-describedby="financial-cycle-income-help"
-            />
-            <small id="financial-cycle-income-help">Monto en CLP sin decimales. Ejemplo: 900.000</small>
-          </label>
+      <form className="react-financial-setup-form cycle-form" onSubmit={handleSubmit} aria-busy={isSaving}>
+        <div className="cycle-body">
+          <div className="cycle-grab" aria-hidden="true" />
+          <header>
+            <ol className="cycle-steps" aria-label="Pasos para empezar">
+              <li className="is-done"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 1, Conectar, hecho</span></li>
+              <li aria-current="step"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 2, Tu ciclo, paso actual</span></li>
+              <li><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 3, Tu medidor</span></li>
+            </ol>
+            <p className="cycle-kicker">Paso 2 de 3 · Tu ciclo</p>
+            <h2 id="react-financial-setup-title" className="cycle-title">¿Cuándo empieza tu mes?</h2>
+            <p className="cycle-why">Así sabemos cuánto del mes pasó y cuánto te queda.</p>
+          </header>
+          {/* One question, three options; each reveals only what it needs. The date inputs and the
+              calendar live in "Otro rango", and every option fills the same start/end state below. */}
+          <CyclePresets
+            option={option}
+            onOptionChange={handleOptionChange}
+            payDay={payDay}
+            onPayDayChange={handlePayDayChange}
+            range={{ startDate, endDate }}
+            disabled={isSaving}
+            customPane={
+              <>
+                {/* The calendar augments the text inputs; it never replaces them. It is bounded to the
+                    current year through the current month, so any month of the year so far is selectable. */}
+                <CycleCalendar
+                  bounds={calendarBounds}
+                  range={calendarRange}
+                  onSelectDate={handleCalendarSelect}
+                  disabled={isSaving}
+                  error={calendarError}
+                />
+                <div className="cycle-dates">
+                  <label htmlFor="financial-cycle-start-date">
+                    <span>Fecha de inicio</span>
+                    <input
+                      id="financial-cycle-start-date"
+                      type="date"
+                      value={startDate}
+                      onChange={(event) => {
+                        setStartDate(event.target.value);
+                        setCalendarError(null);
+                      }}
+                      disabled={isSaving}
+                      required
+                    />
+                  </label>
+                  <label htmlFor="financial-cycle-end-date">
+                    <span>Fecha de término (inclusive)</span>
+                    <input
+                      id="financial-cycle-end-date"
+                      type="date"
+                      value={endDate}
+                      onChange={(event) => {
+                        setEndDate(event.target.value);
+                        setCalendarError(null);
+                      }}
+                      disabled={isSaving}
+                      required
+                    />
+                  </label>
+                </div>
+              </>
+            }
+          />
+          <section className="cycle-income">
+            <label className="cycle-income-label" htmlFor="financial-cycle-income">
+              ¿Cuánto ganas al mes? <span>(opcional)</span>
+            </label>
+            <div className="cycle-money">
+              <span className="cycle-money-unit cycle-money-prefix" aria-hidden="true">$</span>
+              <input
+                id="financial-cycle-income"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9.]*"
+                autoComplete="off"
+                placeholder="Ej: 900.000"
+                value={incomeValue}
+                onChange={(event) => {
+                  setIncomeValue(event.target.value);
+                  setIncomeError(null);
+                }}
+                onBlur={formatIncomeOnBlur}
+                disabled={isSaving}
+                aria-describedby="financial-cycle-income-help"
+                aria-invalid={incomeError !== null}
+              />
+              <span className="cycle-money-unit cycle-money-suffix" aria-hidden="true">CLP</span>
+            </div>
+            <p className="cycle-help" id="financial-cycle-income-help">Lo usamos para tu medidor. Puedes agregarlo después.</p>
+            {incomeError && <p className="cycle-field-error" role="alert">{incomeError}</p>}
+          </section>
         </div>
-        {error && <p className="react-financial-setup-error" role="alert">{error}</p>}
-        <div className="react-shell-actions">
-          <button type="button" className="secondary" disabled={isSaving}
-            onClick={() => requestFinancialSetupDismiss(saveLock, isSaving, () => setIsOpen(false))}>
-            Cerrar
-          </button>
-          <button type="submit" disabled={isSaving}>
-            {isSaving ? "Guardando periodo financiero..." : "Guardar periodo financiero"}
-          </button>
+        <div className="cycle-foot">
+          <CyclePeriodSummary startDate={startDate} endDate={endDate} awaitingEnd={awaitingRangeEnd && !endDate} />
+          {error && <p className="react-financial-setup-error cycle-foot-error" role="alert">{error}</p>}
+          <div className="cycle-actions">
+            <button type="button" className="secondary cycle-btn cycle-btn-ghost" disabled={isSaving}
+              onClick={() => requestFinancialSetupDismiss(saveLock, isSaving, () => setIsOpen(false))}>
+              Cancelar
+            </button>
+            <button type="submit" className="cycle-btn cycle-btn-primary" disabled={isSaving}>
+              {isSaving ? <span className="cycle-spinner" aria-hidden="true" /> : null}
+              {isSaving ? "Guardando periodo financiero..." : "Guardar y ver mi medidor"}
+            </button>
+          </div>
+          <p className="cycle-sr" aria-live="polite">{isSaving ? "Guardando periodo financiero..." : ""}</p>
         </div>
       </form>
-      <p aria-live="polite">{isSaving ? "Guardando periodo financiero..." : ""}</p>
     </dialog>
     </>
   );

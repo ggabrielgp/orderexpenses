@@ -3018,7 +3018,7 @@ test("the React financial-cycle edit dialog renders the prefilled fields and sta
 	assert.match(dialogMarkup, /Cambiar período/);
 	assert.match(dialogMarkup, /Fecha de inicio/);
 	assert.match(dialogMarkup, /Fecha de término \(inclusive\)/);
-	assert.match(dialogMarkup, /Ingreso mensual \(opcional\)/);
+	assert.match(dialogMarkup, /¿Cuánto ganas al mes\? <span>\(opcional\)<\/span>/);
 	assert.equal((dialogMarkup.match(/type="date"/g) ?? []).length, 2);
 	assert.match(dialogMarkup, /value="2026-02-01"/);
 	assert.match(dialogMarkup, /value="2026-02-28"/);
@@ -8924,12 +8924,14 @@ test("the React financial-cycle setup and edit flows mount the modal setup and t
 	// The edit calendar uses the same year-to-date window as the setup modal, not the stored cycle.
 	assert.match(dialogSource, /getCurrentYearCalendarBounds/);
 	assert.match(dialogSource, /bounds=\{calendarBounds\}/);
-	// The calendar sits inside the form and before the field grid it augments.
+	// The calendar sits inside the form, in the "Otro rango" reveal and before the date fields it
+	// augments; the income is its own section after the options.
 	const formSource = dialogSource.slice(
 		dialogSource.indexOf("react-financial-cycle-form"),
 		dialogSource.indexOf("react-financial-cycle-status"),
 	);
-	assert.match(formSource, /<CycleCalendar[\s\S]*?<div className="react-financial-setup-fields">/);
+	assert.match(formSource, /<CycleCalendar[\s\S]*?<div className="cycle-dates">/);
+	assert.match(formSource, /<div className="cycle-dates">[\s\S]*?<section className="cycle-income">/);
 });
 
 test("the React demo dashboard composes the read-only analytics without API, Gmail or mutations", async (t) => {

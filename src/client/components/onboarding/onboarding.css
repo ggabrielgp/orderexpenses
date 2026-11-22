@@ -398,111 +398,6 @@
 	}
 }
 
-/* Cycle presets (artboard 06, phone 2). */
-.cycle-presets {
-	display: grid;
-	gap: 10px;
-}
-
-.cycle-preset {
-	display: grid;
-	grid-template-columns: 24px 1fr;
-	gap: 12px;
-	align-items: start;
-	width: 100%;
-	min-height: 44px;
-	padding: 12px 14px;
-	border: 1.5px solid var(--color-line, #e3e1dc);
-	border-radius: 14px;
-	background: var(--color-surface, #ffffff);
-	color: inherit;
-	font: inherit;
-	text-align: left;
-	cursor: pointer;
-}
-
-/* Hover: a subtle surface with ink text (the legacy global button hover paints an ink fill). */
-.cycle-preset:hover {
-	border-color: var(--color-line-strong, #d2d0ca);
-	background: var(--color-surface-subtle, #f1f0ec);
-	color: var(--color-ink, #131b2e);
-	box-shadow: none;
-}
-
-/* Selected: ink border and a soft fill, ink text. */
-.cycle-preset[aria-checked="true"] {
-	border-color: var(--color-ink, #131b2e);
-	background: var(--color-surface-subtle, #f1f0ec);
-	color: var(--color-ink, #131b2e);
-	box-shadow: 0 0 0 1px var(--color-ink, #131b2e) inset;
-}
-
-.cycle-preset[aria-checked="true"]:hover {
-	background: var(--color-surface-pressed, #e8e7e2);
-	box-shadow: 0 0 0 1px var(--color-ink, #131b2e) inset;
-}
-
-.cycle-preset:focus-visible,
-.cycle-preset-payday select:focus-visible,
-.first-result-explainer-dismiss:focus-visible {
-	outline: 3px solid var(--color-ink, #131b2e);
-	outline-offset: 2px;
-}
-
-.cycle-preset-radio {
-	position: relative;
-	width: 22px;
-	height: 22px;
-	margin-top: 1px;
-	border: 2px solid var(--color-ink-muted, #59647a);
-	border-radius: 50%;
-}
-
-.cycle-preset[aria-checked="true"] .cycle-preset-radio {
-	border-color: var(--color-ink, #131b2e);
-}
-
-.cycle-preset[aria-checked="true"] .cycle-preset-radio::after {
-	content: "";
-	position: absolute;
-	inset: 4px;
-	border-radius: 50%;
-	background: var(--color-ink, #131b2e);
-}
-
-.cycle-preset b {
-	display: block;
-	font-size: .9rem;
-}
-
-.cycle-preset small {
-	color: var(--color-ink-secondary, #3f4b63);
-	font-size: .78rem;
-}
-
-.cycle-preset-payday {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 0 14px 0 50px;
-}
-
-.cycle-preset-payday label {
-	font-size: .85rem;
-	font-weight: 700;
-}
-
-.cycle-preset-payday select {
-	min-height: 44px;
-	min-width: 5rem;
-	padding: 0 12px;
-	border: 1.5px solid var(--color-line, #e3e1dc);
-	border-radius: 12px;
-	background: var(--color-surface, #ffffff);
-	color: inherit;
-	font: inherit;
-}
-
 /* First result explainer (artboard 06, phone 3). */
 .first-result-explainer {
 	display: grid;
@@ -527,6 +422,11 @@
 	color: var(--color-ink-secondary, #3f4b63);
 	font-size: .85rem;
 	line-height: 1.45;
+}
+
+.first-result-explainer-dismiss:focus-visible {
+	outline: 3px solid var(--color-ink, #131b2e);
+	outline-offset: 2px;
 }
 
 .first-result-explainer-dismiss {

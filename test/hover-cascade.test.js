@@ -61,18 +61,24 @@ test("primary ink buttons keep an explicit darker-ink hover now that the global 
 	for (const rule of primary) assert.match(rule.body, /color:\s*#ffffff/, `${rule.selector} keeps white text`);
 });
 
-test("cycle presets: hover is a subtle surface with ink text, selected has an ink border and a soft fill, focus is visible", async () => {
-	const css = await read("src/client/components/onboarding/onboarding.css");
-	const hover = ruleFor(css, /^\.cycle-preset:hover(:not\([^)]*\))?$/);
+test("cycle options: hover is a subtle surface with ink text, selected has an ink border, chips fill with ink, focus is visible", async () => {
+	const css = await read("src/client/components/financial-cycle/cycle-setup.css");
+	const hover = ruleFor(css, /^dialog\.cycle-dialog \.cycle-option:not\(\.is-on\):hover$/);
 	assert.match(hover, /background:\s*var\(--color-surface-subtle,\s*#f1f0ec\)/);
 	assert.match(hover, /color:\s*var\(--color-ink,\s*#131b2e\)/);
-	assert.match(hover, /box-shadow:\s*none/);
-	const selected = ruleFor(css, /^\.cycle-preset\[aria-checked="true"\]$/);
+	const selected = ruleFor(css, /^dialog\.cycle-dialog \.cycle-option\.is-on$/);
 	assert.match(selected, /border-color:\s*var\(--color-ink,\s*#131b2e\)/);
-	assert.match(selected, /background:\s*var\(--color-surface-subtle,\s*#f1f0ec\)/);
-	assert.match(selected, /color:\s*var\(--color-ink,\s*#131b2e\)/);
-	assert.match(ruleFor(css, /\.cycle-preset:focus-visible/), /outline:\s*3px solid/);
-	assert.match(ruleFor(css, /^\.cycle-preset small$/), /color:\s*var\(--color-ink-secondary/);
+	assert.match(ruleFor(css, /\.cycle-option:has\(\.cycle-option-head input:focus-visible\)/), /outline:\s*3px solid/);
+	assert.match(ruleFor(css, /\.cycle-chip input:focus-visible \+ span/), /outline:\s*3px solid/);
+	assert.match(ruleFor(css, /^dialog\.cycle-dialog \.cycle-option-text span$/), /color:\s*var\(--color-ink-secondary/);
+	const chipOn = ruleFor(css, /^dialog\.cycle-dialog \.cycle-chip input:checked \+ span$/);
+	assert.match(chipOn, /background:\s*var\(--color-ink,\s*#131b2e\)/);
+	assert.match(chipOn, /color:\s*#ffffff/);
+	const chipHover = ruleFor(css, /^dialog\.cycle-dialog \.cycle-chip:hover input:not\(:checked\):not\(:disabled\) \+ span$/);
+	assert.match(chipHover, /background:\s*var\(--color-surface-subtle,\s*#f1f0ec\)/);
+	// The primary action is ink with its own darker-ink hover; the secondary stays a light surface.
+	assert.match(ruleFor(css, /^dialog\.cycle-dialog \.cycle-actions \.cycle-btn-primary:hover:not\(:disabled\)$/), /color:\s*#ffffff/);
+	assert.match(ruleFor(css, /^dialog\.cycle-dialog \.cycle-actions \.cycle-btn-ghost:hover:not\(:disabled\)$/), /background:\s*var\(--color-surface-subtle/);
 });
 
 test("cycle calendar: selected range is ink with white text, the middle is a soft neutral, today is marked, nav hover stays light", async () => {

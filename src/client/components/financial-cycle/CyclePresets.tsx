@@ -1,74 +1,141 @@
-import { useId, useState } from "react";
-import "../onboarding/onboarding.css";
-import { calendarMonthCycle, payDayCycle, type CalendarDay, type CyclePresetRange } from "./cyclePresets";
-
-export type CyclePresetChoice = "calendar" | "payDay" | "custom";
+import { useId, type ReactNode } from "react";
+import "./cycle-setup.css";
+import { CalendarGlyph } from "./CycleIcons";
+import {
+	PAY_DAYS,
+	PAY_DAY_QUICK_CHOICES,
+	formatCycleResult,
+	payDayLabel,
+	type CycleOptionChoice,
+} from "./cycleOptions";
+import type { CyclePresetRange } from "./cyclePresets";
 
 export interface CyclePresetsProps {
-	/** The viewer's local calendar day. */
-	today: CalendarDay;
-	/** Called with the range to put in the start/end inputs when a preset is chosen or the pay day changes. */
-	onApply: (range: CyclePresetRange) => void;
-	/** Called when the person wants to pick the range in the calendar instead. */
-	onCustom?: () => void;
-	initialPreset?: CyclePresetChoice;
-	initialPayDay?: number;
+	option: CycleOptionChoice;
+	onOptionChange: (option: CycleOptionChoice) => void;
+	payDay: number;
+	onPayDayChange: (payDay: number) => void;
+	/** The range the form would save; the calendar-month and pay day result lines read it. */
+	range: CyclePresetRange;
+	/** What "Otro rango" reveals: the calendar and the start/end inputs, owned by the form. */
+	customPane?: ReactNode;
+	/** Disables every control while a save is in flight. */
+	disabled?: boolean;
 }
 
-const DEFAULT_PAY_DAY = 25;
-const PAY_DAYS = Array.from({ length: 31 }, (_, index) => index + 1);
+/**
+ * "¿Cuándo empieza tu mes?" (S20): three option cards in one radiogroup. Each card reveals only what
+ * it needs — the calendar month a result line, the pay day one question plus the resulting range, and
+ * "Otro rango" whatever the form passes as `customPane`. The component is controlled: the form keeps
+ * the option and the start/end state, so its validation and saved payload do not change.
+ */
+export function CyclePresets({
+	option,
+	onOptionChange,
+	payDay,
+	onPayDayChange,
+	range,
+	customPane,
+	disabled = false,
+}: CyclePresetsProps) {
+	const groupName = useId();
+	const result = formatCycleResult(range);
+	const isQuickChoice = PAY_DAY_QUICK_CHOICES.includes(payDay);
 
-/** Cycle setup presets (artboard 06, phone 2): one tap fills the existing date inputs. */
-export function CyclePresets({ today, onApply, onCustom, initialPreset, initialPayDay = DEFAULT_PAY_DAY }: CyclePresetsProps) {
-	const [selected, setSelected] = useState<CyclePresetChoice | null>(initialPreset ?? null);
-	const [payDay, setPayDay] = useState(initialPayDay);
-	const payDayId = useId();
-
-	const choose = (choice: CyclePresetChoice) => {
-		setSelected(choice);
-		if (choice === "calendar") onApply(calendarMonthCycle(today));
-		else if (choice === "payDay") onApply(payDayCycle(today, payDay));
-		else onCustom?.();
+	const card = (choice: CycleOptionChoice, label: string, detail: string, reveal: ReactNode) => {
+		const isOn = option === choice;
+		return (
+			<div className={isOn ? "cycle-option is-on" : "cycle-option"} data-option={choice}>
+				<label className="cycle-option-head">
+					<input
+						type="radio"
+						name={groupName}
+						value={choice}
+						checked={isOn}
+						disabled={disabled}
+						onChange={() => onOptionChange(choice)}
+					/>
+					<span className="cycle-option-radio" aria-hidden="true" />
+					<span className="cycle-option-text">
+						<b>{label}</b>
+						<span>{detail}</span>
+					</span>
+				</label>
+				{isOn ? (
+					<div className="cycle-option-reveal">
+						<div className="cycle-option-reveal-in">
+							<div className="cycle-option-pad">{reveal}</div>
+						</div>
+					</div>
+				) : null}
+			</div>
+		);
 	};
-
-	const changePayDay = (value: number) => {
-		setPayDay(value);
-		onApply(payDayCycle(today, value));
-	};
-
-	const option = (choice: CyclePresetChoice, label: string, detail: string) => (
-		<button
-			className="cycle-preset"
-			type="button"
-			role="radio"
-			aria-checked={selected === choice}
-			onClick={() => choose(choice)}
-		>
-			<span className="cycle-preset-radio" aria-hidden="true" />
-			<span>
-				<b>{label}</b>
-				<small>{detail}</small>
-			</span>
-		</button>
-	);
 
 	return (
-		<div className="cycle-presets" role="radiogroup" aria-label="¿Cuándo empieza tu mes?">
-			{option("calendar", "Mes calendario", "Del 1 al último día")}
-			{option("payDay", "Desde mi día de pago", "De pago a pago; por ejemplo, del 25 al 24")}
-			{selected === "payDay" ? (
-				<div className="cycle-preset-payday">
-					<label htmlFor={payDayId}>Día de pago</label>
-					<select id={payDayId} value={payDay} onChange={(event) => changePayDay(Number(event.target.value))}>
-						{PAY_DAYS.map((value) => (
-							<option key={value} value={value}>
-								{value}
-							</option>
-						))}
-					</select>
-				</div>
-			) : null}
-			{option("custom", "Otro rango", "Elige inicio y fin en el calendario")}
+		<div className="cycle-options" role="radiogroup" aria-label="¿Cuándo empieza tu mes?">
+			{card(
+				"calendar",
+				"Mes calendario",
+				"Del 1 al último día",
+				<p className="cycle-result">
+					<CalendarGlyph />
+					<span>
+						Tu mes: <b>{result}</b>
+					</span>
+				</p>,
+			)}
+			{card(
+				"payDay",
+				"Desde mi día de pago",
+				"De un pago al siguiente",
+				<>
+					<fieldset className="cycle-payday">
+						<legend>¿Qué día te pagan?</legend>
+						<div className="cycle-chips">
+							{PAY_DAY_QUICK_CHOICES.map((value) => (
+								<label className="cycle-chip" key={value}>
+									<input
+										type="radio"
+										name={`${groupName}-pay-day`}
+										value={value}
+										checked={payDay === value}
+										disabled={disabled}
+										onChange={() => onPayDayChange(value)}
+									/>
+									<span>{payDayLabel(value)}</span>
+								</label>
+							))}
+							<span className={isQuickChoice ? "cycle-select" : "cycle-select is-on"}>
+								<select
+									id="financial-cycle-pay-day"
+									aria-label="Otro día de pago"
+									value={isQuickChoice ? "" : String(payDay)}
+									disabled={disabled}
+									onChange={(event) => {
+										if (event.target.value !== "") onPayDayChange(Number(event.target.value));
+									}}
+								>
+									<option value="">Otro día</option>
+									{PAY_DAYS.map((value) => (
+										<option key={value} value={value}>
+											{`Día ${value}`}
+										</option>
+									))}
+								</select>
+							</span>
+						</div>
+					</fieldset>
+					<p className="cycle-result">
+						<CalendarGlyph />
+						<span>
+							Tu mes: <b>{result}</b>
+						</span>
+					</p>
+					{payDay >= 29 ? <p className="cycle-note">En los meses más cortos usamos su último día.</p> : null}
+				</>,
+			)}
+			{card("custom", "Otro rango", "Elige inicio y fin", customPane)}
 		</div>
 	);
 }

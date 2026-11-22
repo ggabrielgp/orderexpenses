@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
 import { useRetainedWhileClosing } from "../feedback/motion";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
+import { todayInSantiago } from "../analytics/dashboardPace";
+import { CyclePeriodSummary } from "./CyclePeriodSummary";
+import { CyclePresets } from "./CyclePresets";
 import { CycleCalendar } from "./FinancialCycleCalendar";
+import { inferCycleOption, resolveCycleOption, type CycleOptionChoice } from "./cycleOptions";
 import {
 	createCalendarRange,
 	getCurrentYearCalendarBounds,
@@ -9,6 +13,7 @@ import {
 	validateCalendarRange,
 } from "./cycleCalendar";
 import {
+	CYCLE_INCOME_INVALID_MESSAGE,
 	createCycleEditDraft,
 	getCycleClosureNotice,
 	getCycleEditFailureMessage,
@@ -28,6 +33,12 @@ import type { FinancialCycleResponse } from "../../api/types";
  * range. Every decision it renders comes from `cycleSettings`: the prefilled draft, the validation
  * copy, and the completion consequence that a range change would otherwise lose silently. This file
  * owns only React state.
+ *
+ * The structure is the first-cycle setup's (S20): "¿Cuándo empieza tu mes?" with three options that
+ * reveal only what they need, the optional income as its own field, and a sticky footer with the
+ * chosen period. It opens on the option that produces the configured range (a historical range opens
+ * on "Otro rango" with the calendar and both date inputs), and its save, validation and messages are
+ * the ones it always had.
  *
  * It is a real modal through the same `syncNativeModalDialog` helper as the movement, Gmail, settings
  * and counterparty dialogs, and it is mounted only inside the authenticated summary, so the read-only
@@ -98,6 +109,15 @@ export function FinancialCycleEditDialog({
 	// fields first and the prefilled values are what the markup shows.
 	const [draft, setDraft] = useState<CycleEditDraft>(() => createCycleEditDraft(cycle));
 	const [status, setStatus] = useState<CycleEditStatus | null>(null);
+	// The option that fills the draft's dates. It only decides how the start/end state is filled;
+	// validation and the save read the draft, as before.
+	const presetToday = useMemo(() => todayInSantiago(new Date()), []);
+	const [option, setOption] = useState<CycleOptionChoice>(
+		() => inferCycleOption(createCycleEditDraft(cycle), presetToday).option,
+	);
+	const [payDay, setPayDay] = useState(
+		() => inferCycleOption(createCycleEditDraft(cycle), presetToday).payDay,
+	);
 	/** The date validation error, shown on the calendar as well as in the status line. */
 	const [calendarError, setCalendarError] = useState<string | null>(null);
 	/** The legacy two-click range: the first click sets the start, the second sets the end. */
@@ -114,11 +134,28 @@ export function FinancialCycleEditDialog({
 		syncNativeModalDialog(dialogRef.current, isOpen);
 	}, [isOpen]);
 
+	// The date error lives inside the "Otro rango" reveal, which can be scrolled out of view above the
+	// sticky footer: bring it next to the field that needs fixing.
+	useEffect(() => {
+		if (calendarError) {
+			dialogRef.current?.querySelector(".react-cycle-calendar-error")?.scrollIntoView({ block: "nearest" });
+		}
+	}, [calendarError]);
+	useEffect(() => {
+		if (status?.tone === "error") {
+			dialogRef.current?.querySelector(".cycle-field-error")?.scrollIntoView({ block: "nearest" });
+		}
+	}, [status]);
+
 	// Opening starts a fresh surface prefilled from the configured cycle: no previous outcome and no
 	// stale draft can leak into a new attempt.
 	useEffect(() => {
 		if (!isOpen) return;
-		setDraft(createCycleEditDraft(cycle));
+		const fresh = createCycleEditDraft(cycle);
+		const inferred = inferCycleOption(fresh, presetToday);
+		setDraft(fresh);
+		setOption(inferred.option);
+		setPayDay(inferred.payDay);
 		setStatus(null);
 		setCalendarError(null);
 		setAwaitingRangeEnd(false);
@@ -142,6 +179,25 @@ export function FinancialCycleEditDialog({
 		}));
 		setAwaitingRangeEnd(next.awaitingEnd);
 		setCalendarError(null);
+	};
+
+	const applyRange = (range: { startDate: string; endDate: string }) => {
+		updateDraft({ startDate: range.startDate, endDate: range.endDate });
+		setAwaitingRangeEnd(false);
+		setCalendarError(null);
+	};
+
+	const handleOptionChange = (next: CycleOptionChoice) => {
+		setOption(next);
+		// "Otro rango" keeps the dates already in the draft; the other two put their own range there.
+		if (next !== "custom") {
+			applyRange(resolveCycleOption(next, presetToday, payDay, draft));
+		}
+	};
+
+	const handlePayDayChange = (next: number) => {
+		setPayDay(next);
+		applyRange(resolveCycleOption("payDay", presetToday, next, draft));
 	};
 
 	/**
@@ -198,93 +254,155 @@ export function FinancialCycleEditDialog({
 	const shownCycle = shown.value;
 	if (shownCycle === null) return null;
 
+	// The income message is shown next to the income field; every other message stays in the footer.
+	const incomeError =
+		status?.tone === "error" && status.message === CYCLE_INCOME_INVALID_MESSAGE
+			? status.message
+			: null;
+	const footerStatus = incomeError === null ? status : null;
+
 	return (
 		<dialog
 			ref={dialogRef}
-			className="react-financial-cycle-dialog react-financial-cycle-edit-dialog"
+			className="react-financial-cycle-dialog react-financial-cycle-edit-dialog cycle-dialog"
 			aria-labelledby="react-financial-cycle-edit-title"
 			inert={!isOpen}
 			onCancel={handleDialogCancel}
 			onClose={isOpen ? onClose : undefined}
 			onTransitionEnd={shown.onTransitionEnd}
 		>
-			<h2 id="react-financial-cycle-edit-title">Cambiar período</h2>
-			<FinancialCycleClosureNote cycle={shownCycle} draft={draft} />
-			<form className="react-financial-cycle-form" onSubmit={handleSubmit} aria-busy={isSaving}>
-				{/* The calendar augments the text fields and is bounded by the current year through the
-				    current month, not by the stored cycle; the fields below keep the unchanged submit
-				    behaviour. */}
-				{shownCycle.selectedPeriod && (
-					<CycleCalendar
-						bounds={calendarBounds}
-						range={calendarRange}
-						onSelectDate={handleCalendarSelect}
+			<form
+				className="react-financial-cycle-form cycle-form"
+				onSubmit={handleSubmit}
+				aria-busy={isSaving}
+			>
+				<div className="cycle-body">
+					<div className="cycle-grab" aria-hidden="true" />
+					<header>
+						<h2 id="react-financial-cycle-edit-title" className="cycle-title">
+							Cambiar período
+						</h2>
+						<p className="cycle-why">¿Cuándo empieza tu mes?</p>
+					</header>
+					<FinancialCycleClosureNote cycle={shownCycle} draft={draft} />
+					{/* One question, three options; each reveals only what it needs. The calendar and the
+					    date inputs live in "Otro rango", bounded by the current year through the current
+					    month rather than by the stored cycle. */}
+					<CyclePresets
+						option={option}
+						onOptionChange={handleOptionChange}
+						payDay={payDay}
+						onPayDayChange={handlePayDayChange}
+						range={{ startDate: draft.startDate, endDate: draft.endDate }}
 						disabled={isSaving}
-						error={calendarError}
+						customPane={
+							<>
+								{shownCycle.selectedPeriod && (
+									<CycleCalendar
+										bounds={calendarBounds}
+										range={calendarRange}
+										onSelectDate={handleCalendarSelect}
+										disabled={isSaving}
+										error={calendarError}
+									/>
+								)}
+								{/* The same fields and ids the setup form uses. The two forms cannot be on screen at
+								    the same time: the setup form is the unconfigured state and this dialog is the ready one. */}
+								<div className="cycle-dates">
+									<label htmlFor="financial-cycle-start-date">
+										<span>Fecha de inicio</span>
+										<input
+											id="financial-cycle-start-date"
+											type="date"
+											value={draft.startDate}
+											onChange={(event) => {
+												updateDraft({ startDate: event.target.value });
+												setCalendarError(null);
+											}}
+											disabled={isSaving}
+											required
+										/>
+									</label>
+									<label htmlFor="financial-cycle-end-date">
+										<span>Fecha de término (inclusive)</span>
+										<input
+											id="financial-cycle-end-date"
+											type="date"
+											value={draft.endDate}
+											onChange={(event) => {
+												updateDraft({ endDate: event.target.value });
+												setCalendarError(null);
+											}}
+											disabled={isSaving}
+											required
+										/>
+									</label>
+								</div>
+							</>
+						}
 					/>
-				)}
-				{/* The same three fields and ids the setup form uses. The two forms cannot be on screen at
-				    the same time: the setup form is the unconfigured state and this dialog is the ready one. */}
-				<div className="react-financial-setup-fields">
-					<label htmlFor="financial-cycle-start-date">
-						<span>Fecha de inicio</span>
-						<input
-							id="financial-cycle-start-date"
-							type="date"
-							value={draft.startDate}
-							onChange={(event) => {
-								updateDraft({ startDate: event.target.value });
-								setCalendarError(null);
-							}}
-							disabled={isSaving}
-							required
-						/>
-					</label>
-					<label htmlFor="financial-cycle-end-date">
-						<span>Fecha de término (inclusive)</span>
-						<input
-							id="financial-cycle-end-date"
-							type="date"
-							value={draft.endDate}
-							onChange={(event) => {
-								updateDraft({ endDate: event.target.value });
-								setCalendarError(null);
-							}}
-							disabled={isSaving}
-							required
-						/>
-					</label>
-					<label htmlFor="financial-cycle-income">
-						<span>Ingreso mensual (opcional)</span>
-						<input
-							id="financial-cycle-income"
-							type="text"
-							inputMode="numeric"
-							value={draft.incomeValue}
-							onChange={(event) => updateDraft({ incomeValue: event.target.value })}
-							disabled={isSaving}
-							aria-describedby="financial-cycle-income-help"
-						/>
-						<small id="financial-cycle-income-help">
-							Monto en CLP sin decimales. Ejemplo: 900.000
-						</small>
-					</label>
+					<section className="cycle-income">
+						<label className="cycle-income-label" htmlFor="financial-cycle-income">
+							¿Cuánto ganas al mes? <span>(opcional)</span>
+						</label>
+						<div className="cycle-money">
+							<span className="cycle-money-unit cycle-money-prefix" aria-hidden="true">
+								$
+							</span>
+							<input
+								id="financial-cycle-income"
+								type="text"
+								inputMode="numeric"
+								autoComplete="off"
+								placeholder="Ej: 900.000"
+								value={draft.incomeValue}
+								onChange={(event) => updateDraft({ incomeValue: event.target.value })}
+								disabled={isSaving}
+								aria-describedby="financial-cycle-income-help"
+								aria-invalid={incomeError !== null}
+							/>
+							<span className="cycle-money-unit cycle-money-suffix" aria-hidden="true">
+								CLP
+							</span>
+						</div>
+						<p className="cycle-help" id="financial-cycle-income-help">
+							Lo usamos para tu medidor. Puedes agregarlo después.
+						</p>
+						{incomeError !== null && (
+							<p className="cycle-field-error" role="alert">
+								{incomeError}
+							</p>
+						)}
+					</section>
 				</div>
-				{status !== null && (
-					<p
-						className={`react-financial-cycle-status react-financial-cycle-status-${status.tone}`}
-						role={status.tone === "error" ? "alert" : "status"}
-					>
-						{status.message}
-					</p>
-				)}
-				<div className="react-shell-actions">
-					<button type="submit" disabled={isSaving}>
-						{isSaving ? "Guardando..." : "Guardar cambios"}
-					</button>
-					<button type="button" className="secondary" onClick={onClose} disabled={isSaving}>
-						Cancelar
-					</button>
+				<div className="cycle-foot">
+					<CyclePeriodSummary
+						startDate={draft.startDate}
+						endDate={draft.endDate}
+						awaitingEnd={awaitingRangeEnd && !draft.endDate}
+					/>
+					{footerStatus !== null && (
+						<p
+							className={`react-financial-cycle-status react-financial-cycle-status-${footerStatus.tone} ${footerStatus.tone === "error" ? "cycle-foot-error" : "cycle-foot-status"}`}
+							role={footerStatus.tone === "error" ? "alert" : "status"}
+						>
+							{footerStatus.message}
+						</p>
+					)}
+					<div className="cycle-actions">
+						<button
+							type="button"
+							className="secondary cycle-btn cycle-btn-ghost"
+							onClick={onClose}
+							disabled={isSaving}
+						>
+							Cancelar
+						</button>
+						<button type="submit" className="cycle-btn cycle-btn-primary" disabled={isSaving}>
+							{isSaving ? <span className="cycle-spinner" aria-hidden="true" /> : null}
+							{isSaving ? "Guardando..." : "Guardar cambios"}
+						</button>
+					</div>
 				</div>
 			</form>
 		</dialog>

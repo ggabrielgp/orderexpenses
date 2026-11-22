@@ -27,12 +27,14 @@ test("signed-out screen is onboarding step 1 with the trust points, demo link an
 	assert.equal((html.match(/<main/g) ?? []).length, 1);
 });
 
-test("first cycle setup offers the presets above the unchanged calendar and date inputs", () => {
+test("first cycle setup offers the options with the unchanged calendar and date inputs revealed by Otro rango", () => {
 	const form = source.slice(source.indexOf("function FinancialCycleSetupForm"), source.indexOf("export interface MovementFilterBarProps"));
 	const presets = form.indexOf("<CyclePresets");
 	assert.ok(presets > 0);
 	assert.ok(presets < form.indexOf("<CycleCalendar"));
-	assert.match(form, /onApply=\{\(range\) => \{\s*setStartDate\(range.startDate\);\s*setEndDate\(range.endDate\);/);
+	// Every option fills the same start/end state the inputs and the payload read.
+	assert.match(form, /onOptionChange=\{handleOptionChange\}/);
+	assert.match(form, /const applyRange = [\s\S]*?setStartDate\(range.startDate\);\s*setEndDate\(range.endDate\);/);
 	assert.match(form, /id="financial-cycle-start-date"/);
 	assert.match(form, /id="financial-cycle-end-date"/);
 });

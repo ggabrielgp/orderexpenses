@@ -1,0 +1,816 @@
+/*
+ * Cycle setup (S20, artboard 08-configurar-ciclo): one question, three option cards that reveal only
+ * what they need, a separate income field and a sticky footer with the chosen period. It styles both
+ * the first-cycle setup dialog and the edit-period dialog. Desktop is a ~560px modal; at 760px and
+ * below the same dialog is the bottom sheet that motion.css already slides. Ink for every action, no
+ * cobalt, targets >= 44px. Selectors carry a `dialog.cycle-dialog` prefix to win over the legacy
+ * `.react-financial-*` dialog rules without touching them.
+ */
+
+/* `[class]` lifts the shell above the generic mobile dialog padding/width rules loaded after this sheet. */
+dialog.cycle-dialog[class] {
+	--cycle-ctl: #8b94a6; /* control border, 3:1 on white */
+	--cycle-ink-hover: #26324d;
+	width: min(35rem, calc(100vw - 32px));
+	max-width: none;
+	max-height: min(52rem, calc(100vh - 32px));
+	max-height: min(52rem, calc(100dvh - 32px));
+	margin: auto;
+	padding: 0;
+	overflow: hidden;
+	border: 0;
+	border-radius: var(--radius-featured, 20px);
+	background: var(--color-surface, #ffffff);
+	color: var(--color-ink, #131b2e);
+	box-shadow: 0 20px 56px rgb(19 27 46 / 18%), 0 2px 8px rgb(19 27 46 / 8%);
+}
+
+dialog.cycle-dialog:not([open]) {
+	display: none;
+}
+
+dialog.cycle-dialog[open] {
+	display: flex;
+	flex-direction: column;
+}
+
+dialog.cycle-dialog::backdrop {
+	background: rgb(19 27 46 / 55%);
+}
+
+dialog.cycle-dialog .cycle-form {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+	gap: 0;
+}
+
+/* The body scrolls; the shadows hint that there is more under the footer. */
+dialog.cycle-dialog .cycle-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 24px 32px 20px;
+	background:
+		linear-gradient(#fff 30%, rgb(255 255 255 / 0)) center top,
+		linear-gradient(rgb(255 255 255 / 0), #fff 70%) center bottom,
+		radial-gradient(farthest-side at 50% 0, rgb(19 27 46 / 16%), rgb(19 27 46 / 0)) center top,
+		radial-gradient(farthest-side at 50% 100%, rgb(19 27 46 / 16%), rgb(19 27 46 / 0)) center bottom;
+	background-repeat: no-repeat;
+	background-size: 100% 40px, 100% 40px, 100% 12px, 100% 12px;
+	background-attachment: local, local, scroll, scroll;
+}
+
+dialog.cycle-dialog .cycle-grab {
+	display: none;
+	width: 40px;
+	height: 4px;
+	margin: 0 auto 16px;
+	border-radius: 2px;
+	background: var(--color-line-strong, #d2d0ca);
+}
+
+dialog.cycle-dialog .cycle-steps {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+	margin: 0 0 12px;
+	padding: 0;
+	list-style: none;
+}
+
+dialog.cycle-dialog .cycle-steps .cycle-step-bar {
+	display: block;
+	height: 4px;
+	border-radius: 2px;
+	background: var(--color-line-strong, #d2d0ca);
+}
+
+dialog.cycle-dialog .cycle-steps li.is-done .cycle-step-bar {
+	background: var(--color-ink-muted, #59647a);
+}
+
+dialog.cycle-dialog .cycle-steps li[aria-current="step"] .cycle-step-bar {
+	background: var(--color-ink, #131b2e);
+}
+
+dialog.cycle-dialog .cycle-kicker {
+	margin: 0;
+	color: var(--color-ink-muted, #59647a);
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+
+dialog.cycle-dialog h2.cycle-title {
+	margin: 2px 0 6px;
+	color: var(--color-ink, #131b2e);
+	font-family: var(--font-body);
+	font-size: 28px;
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	line-height: 1.15;
+}
+
+dialog.cycle-dialog p.cycle-why {
+	margin: 0;
+	color: var(--color-ink-secondary, #3f4b63);
+	font-size: 16px;
+}
+
+dialog.cycle-dialog .cycle-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* ───────── option cards ───────── */
+
+dialog.cycle-dialog .cycle-options {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 8px;
+	margin-top: 16px;
+}
+
+dialog.cycle-dialog .cycle-option {
+	position: relative;
+	border: 1px solid var(--color-line-strong, #d2d0ca);
+	border-radius: var(--radius-card, 16px);
+	background: var(--color-surface, #ffffff);
+	color: var(--color-ink, #131b2e);
+	transition:
+		background var(--duration-fast, 150ms),
+		border-color var(--duration-fast, 150ms),
+		box-shadow var(--duration-fast, 150ms);
+}
+
+dialog.cycle-dialog .cycle-option:not(.is-on):hover {
+	border-color: var(--cycle-ctl);
+	background: var(--color-surface-subtle, #f1f0ec);
+	color: var(--color-ink, #131b2e);
+}
+
+dialog.cycle-dialog .cycle-option.is-on {
+	border-color: var(--color-ink, #131b2e);
+	box-shadow: 0 0 0 1px var(--color-ink, #131b2e);
+}
+
+dialog.cycle-dialog .cycle-option:has(.cycle-option-head input:focus-visible) {
+	outline: 3px solid var(--color-ink, #131b2e);
+	outline-offset: 3px;
+}
+
+dialog.cycle-dialog .cycle-option-head {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	min-height: 60px;
+	padding: 10px 16px;
+	color: var(--color-ink, #131b2e);
+	font-size: 16px;
+	font-weight: 400;
+	cursor: pointer;
+}
+
+dialog.cycle-dialog .cycle-option-head input,
+dialog.cycle-dialog .cycle-chip input {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border-radius: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+dialog.cycle-dialog .cycle-option-head input:disabled,
+dialog.cycle-dialog .cycle-chip input:disabled {
+	cursor: progress;
+}
+
+dialog.cycle-dialog .cycle-option-radio {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 22px;
+	height: 22px;
+	border: 2px solid var(--cycle-ctl);
+	border-radius: 50%;
+	background: #ffffff;
+	transition: border-color var(--duration-fast, 150ms);
+}
+
+dialog.cycle-dialog .cycle-option-radio::after {
+	content: "";
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--color-ink, #131b2e);
+	transform: scale(0);
+	transition: transform var(--duration-fast, 150ms);
+}
+
+dialog.cycle-dialog .cycle-option.is-on .cycle-option-radio {
+	border-color: var(--color-ink, #131b2e);
+}
+
+dialog.cycle-dialog .cycle-option.is-on .cycle-option-radio::after {
+	transform: scale(1);
+}
+
+dialog.cycle-dialog .cycle-option-text {
+	display: grid;
+	min-width: 0;
+}
+
+dialog.cycle-dialog .cycle-option-text b {
+	font-size: 16px;
+	font-weight: 800;
+	line-height: 1.3;
+}
+
+dialog.cycle-dialog .cycle-option-text span {
+	color: var(--color-ink-secondary, #3f4b63);
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.35;
+}
+
+/* What a card reveals: only the selected one is rendered, and it opens over the view-change duration. */
+dialog.cycle-dialog .cycle-option-reveal {
+	display: grid;
+	grid-template-rows: 1fr;
+	animation: cycle-reveal var(--duration-view, 300ms) var(--ease-out-expo, ease-out) both;
+}
+
+dialog.cycle-dialog .cycle-option-reveal-in {
+	min-height: 0;
+	margin: -8px;
+	padding: 8px;
+	overflow: hidden;
+}
+
+@keyframes cycle-reveal {
+	from {
+		grid-template-rows: 0fr;
+		opacity: 0;
+	}
+	to {
+		grid-template-rows: 1fr;
+		opacity: 1;
+	}
+}
+
+dialog.cycle-dialog .cycle-option-pad {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 12px;
+	margin: 0 14px;
+	padding: 14px 0;
+	border-top: 1px solid var(--color-line, #e3e1dc);
+}
+
+dialog.cycle-dialog p.cycle-result {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 44px;
+	margin: 0;
+	padding: 8px 14px;
+	border-radius: var(--radius-control, 12px);
+	background: var(--color-surface-subtle, #f1f0ec);
+	color: var(--color-ink-secondary, #3f4b63);
+	font-size: 16px;
+}
+
+dialog.cycle-dialog p.cycle-result b {
+	color: var(--color-ink, #131b2e);
+	font-variant-numeric: tabular-nums;
+	font-weight: 800;
+}
+
+dialog.cycle-dialog p.cycle-note {
+	margin: 0;
+	color: var(--color-ink-muted, #59647a);
+	font-size: 14px;
+}
+
+dialog.cycle-dialog fieldset.cycle-payday {
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+dialog.cycle-dialog .cycle-payday legend {
+	margin: 0 0 8px;
+	padding: 0;
+	color: var(--color-ink, #131b2e);
+	font-size: 15px;
+	font-weight: 700;
+}
+
+dialog.cycle-dialog .cycle-chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+dialog.cycle-dialog .cycle-chip {
+	position: relative;
+}
+
+dialog.cycle-dialog .cycle-chip span {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 44px;
+	min-height: 44px;
+	padding: 0 14px;
+	border: 1px solid var(--cycle-ctl);
+	border-radius: var(--radius-pill, 999px);
+	background: #ffffff;
+	color: var(--color-ink, #131b2e);
+	font-size: 16px;
+	font-variant-numeric: tabular-nums;
+	font-weight: 700;
+	white-space: nowrap;
+	cursor: pointer;
+	transition:
+		background var(--duration-fast, 150ms),
+		color var(--duration-fast, 150ms),
+		border-color var(--duration-fast, 150ms);
+}
+
+dialog.cycle-dialog .cycle-chip:hover input:not(:checked):not(:disabled) + span {
+	border-color: var(--color-ink-secondary, #3f4b63);
+	background: var(--color-surface-subtle, #f1f0ec);
+}
+
+dialog.cycle-dialog .cycle-chip input:checked + span {
+	border-color: var(--color-ink, #131b2e);
+	background: var(--color-ink, #131b2e);
+	color: #ffffff;
+}
+
+dialog.cycle-dialog .cycle-chip:hover input:checked:not(:disabled) + span {
+	background: var(--cycle-ink-hover);
+}
+
+dialog.cycle-dialog .cycle-chip input:focus-visible + span {
+	outline: 3px solid var(--color-ink, #131b2e);
+	outline-offset: 3px;
+}
+
+dialog.cycle-dialog .cycle-chip input:disabled + span {
+	cursor: progress;
+	opacity: 0.6;
+}
+
+/* "Otro día": the 1–31 select, drawn as a chip. The id wins over the shared dialog field rule. */
+dialog.cycle-dialog .cycle-select {
+	position: relative;
+	display: inline-block;
+	color: var(--color-ink, #131b2e);
+}
+
+dialog.cycle-dialog .cycle-select::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	right: 16px;
+	width: 7px;
+	height: 7px;
+	border-right: 2px solid currentColor;
+	border-bottom: 2px solid currentColor;
+	transform: translateY(-70%) rotate(45deg);
+	pointer-events: none;
+}
+
+dialog.cycle-dialog .cycle-select.is-on {
+	color: #ffffff;
+}
+
+dialog.cycle-dialog select#financial-cycle-pay-day {
+	appearance: none;
+	width: auto;
+	min-height: 44px;
+	margin: 0;
+	padding: 0 38px 0 16px;
+	border: 1px solid var(--cycle-ctl);
+	border-radius: var(--radius-pill, 999px);
+	background: #ffffff;
+	color: inherit;
+	font-size: 16px;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+dialog.cycle-dialog select#financial-cycle-pay-day:hover:not(:disabled) {
+	border-color: var(--color-ink-secondary, #3f4b63);
+	background: var(--color-surface-subtle, #f1f0ec);
+}
+
+dialog.cycle-dialog .cycle-select.is-on select#financial-cycle-pay-day {
+	border-color: var(--color-ink, #131b2e);
+	background: var(--color-ink, #131b2e);
+}
+
+dialog.cycle-dialog .cycle-select.is-on select#financial-cycle-pay-day:hover:not(:disabled) {
+	background: var(--cycle-ink-hover);
+}
+
+dialog.cycle-dialog select#financial-cycle-pay-day option {
+	background: #ffffff;
+	color: var(--color-ink, #131b2e);
+}
+
+/* ───────── "Otro rango": the existing calendar and the start/end inputs ───────── */
+
+dialog.cycle-dialog .react-cycle-calendar {
+	gap: 4px;
+	padding: 8px 8px 12px;
+	border-color: var(--color-line, #e3e1dc);
+}
+
+dialog.cycle-dialog .react-cycle-calendar-nav strong {
+	font-size: 16px;
+	font-weight: 800;
+	text-transform: none;
+}
+
+dialog.cycle-dialog .react-cycle-calendar-nav strong::first-letter {
+	text-transform: uppercase;
+}
+
+dialog.cycle-dialog .react-cycle-calendar-nav-button {
+	width: 44px;
+	height: 44px;
+	min-height: 44px;
+	padding: 0;
+	border-color: transparent;
+	background: transparent;
+	box-shadow: none;
+}
+
+dialog.cycle-dialog .react-cycle-calendar-grid {
+	row-gap: 2px;
+}
+
+dialog.cycle-dialog .react-cycle-calendar-weekday {
+	padding: 4px 0;
+	color: var(--color-ink-muted, #59647a);
+	font-size: 13px;
+	font-weight: 700;
+}
+
+dialog.cycle-dialog .react-cycle-calendar-day,
+dialog.cycle-dialog .react-cycle-calendar-blank {
+	height: 40px;
+	min-height: 40px;
+}
+
+dialog.cycle-dialog .react-cycle-calendar-day {
+	padding: 0;
+	font-size: 15px;
+	font-weight: 600;
+	box-shadow: none;
+}
+
+dialog.cycle-dialog .react-cycle-calendar-summary {
+	color: var(--color-ink-secondary, #3f4b63);
+	font-size: 14px;
+}
+
+dialog.cycle-dialog .cycle-dates {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+dialog.cycle-dialog .cycle-dates label {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+	color: var(--color-ink-secondary, #3f4b63);
+	font-size: 14px;
+	font-weight: 700;
+}
+
+dialog.cycle-dialog .cycle-dates input {
+	margin: 0;
+	min-height: 48px;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+/* ───────── income: its own, explained field ───────── */
+
+dialog.cycle-dialog .cycle-income {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 8px;
+	margin-top: 20px;
+	padding-top: 20px;
+	border-top: 1px solid var(--color-line, #e3e1dc);
+}
+
+dialog.cycle-dialog .cycle-income-label {
+	color: var(--color-ink, #131b2e);
+	font-size: 16px;
+	font-weight: 800;
+}
+
+dialog.cycle-dialog .cycle-income-label span {
+	color: var(--color-ink-muted, #59647a);
+	font-weight: 600;
+}
+
+dialog.cycle-dialog .cycle-money {
+	position: relative;
+}
+
+dialog.cycle-dialog .cycle-money-unit {
+	position: absolute;
+	top: 50%;
+	color: var(--color-ink-muted, #59647a);
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1;
+	pointer-events: none;
+	transform: translateY(-50%);
+}
+
+dialog.cycle-dialog .cycle-money-prefix {
+	left: 14px;
+}
+
+dialog.cycle-dialog .cycle-money-suffix {
+	right: 14px;
+}
+
+dialog.cycle-dialog input#financial-cycle-income {
+	min-height: 52px;
+	margin: 0;
+	padding: 0 52px 0 32px;
+	background: #ffffff;
+	font-size: 18px;
+	font-variant-numeric: tabular-nums;
+	font-weight: 700;
+}
+
+dialog.cycle-dialog input#financial-cycle-income::placeholder {
+	color: var(--color-ink-muted, #59647a);
+	font-weight: 500;
+	opacity: 1;
+}
+
+dialog.cycle-dialog .cycle-help {
+	margin: 0;
+	color: var(--color-ink-muted, #59647a);
+	font-size: 14px;
+}
+
+dialog.cycle-dialog p.cycle-field-error {
+	margin: 0;
+	color: var(--color-danger, #b42318);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+/* ───────── sticky footer: chosen period + the one clear action ───────── */
+
+dialog.cycle-dialog .cycle-foot {
+	display: grid;
+	flex: none;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 12px;
+	padding: 14px 32px 20px;
+	border-top: 1px solid var(--color-line, #e3e1dc);
+	background: var(--color-surface, #ffffff);
+}
+
+dialog.cycle-dialog .cycle-summary {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 12px;
+}
+
+dialog.cycle-dialog .cycle-summary-label {
+	color: var(--color-ink-muted, #59647a);
+	font-size: 14px;
+	white-space: nowrap;
+}
+
+dialog.cycle-dialog .cycle-summary-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 36px;
+	padding: 0 14px;
+	border-radius: var(--radius-pill, 999px);
+	background: var(--color-surface-subtle, #f1f0ec);
+	color: var(--color-ink, #131b2e);
+	font-size: 15px;
+	font-variant-numeric: tabular-nums;
+	font-weight: 800;
+	text-align: right;
+	white-space: nowrap;
+}
+
+dialog.cycle-dialog .cycle-summary-chip[data-tone="pending"] {
+	color: var(--color-ink-secondary, #3f4b63);
+}
+
+dialog.cycle-dialog .cycle-summary-chip[data-tone="invalid"] {
+	background: var(--color-danger-soft, #fff1f0);
+	color: var(--color-danger, #b42318);
+}
+
+dialog.cycle-dialog p.cycle-foot-error,
+dialog.cycle-dialog p.cycle-foot-status {
+	margin: 0;
+	padding: 10px 12px;
+	border-radius: var(--radius-control, 12px);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+dialog.cycle-dialog p.cycle-foot-error {
+	background: var(--color-danger-soft, #fff1f0);
+	color: var(--color-danger, #b42318) !important;
+}
+
+dialog.cycle-dialog p.cycle-foot-status {
+	background: var(--color-surface-subtle, #f1f0ec);
+	color: var(--color-ink-secondary, #3f4b63);
+}
+
+dialog.cycle-dialog .cycle-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 12px;
+	margin: 0;
+}
+
+dialog.cycle-dialog .cycle-actions .cycle-btn {
+	min-height: 52px;
+	padding: 0 20px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-control, 12px);
+	box-shadow: none;
+	font-size: 16px;
+	font-weight: 800;
+	text-align: center;
+	white-space: normal;
+}
+
+dialog.cycle-dialog .cycle-actions .cycle-btn-primary {
+	background: var(--color-ink, #131b2e);
+	color: #ffffff;
+}
+
+dialog.cycle-dialog .cycle-actions .cycle-btn-primary:hover:not(:disabled) {
+	background: var(--cycle-ink-hover);
+	color: #ffffff;
+	box-shadow: none;
+}
+
+dialog.cycle-dialog .cycle-actions .cycle-btn-primary:disabled {
+	background: var(--color-ink-muted, #59647a);
+	opacity: 1;
+	cursor: progress;
+}
+
+dialog.cycle-dialog .cycle-actions .cycle-btn-ghost {
+	border-color: var(--cycle-ctl);
+	background: var(--color-surface, #ffffff);
+	color: var(--color-ink, #131b2e);
+	font-weight: 700;
+}
+
+dialog.cycle-dialog .cycle-actions .cycle-btn-ghost:hover:not(:disabled) {
+	border-color: var(--color-ink-secondary, #3f4b63);
+	background: var(--color-surface-subtle, #f1f0ec);
+	color: var(--color-ink, #131b2e);
+	box-shadow: none;
+}
+
+dialog.cycle-dialog .cycle-actions .cycle-btn-ghost:disabled {
+	border-color: var(--color-line-strong, #d2d0ca);
+	color: var(--color-ink-muted, #59647a);
+	opacity: 1;
+	cursor: not-allowed;
+}
+
+dialog.cycle-dialog .cycle-spinner {
+	width: 18px;
+	height: 18px;
+	border: 3px solid rgb(255 255 255 / 35%);
+	border-top-color: #ffffff;
+	border-radius: 50%;
+	animation: cycle-spin 0.8s linear infinite;
+}
+
+@keyframes cycle-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Edit dialog: the closure note keeps its own box above the question. */
+dialog.cycle-dialog .react-financial-cycle-closure-note {
+	margin-bottom: 16px;
+}
+
+/* ───────── bottom sheet (<= 760px): motion.css slides it, this sets its shape ───────── */
+
+@media (max-width: 760px) {
+	dialog.cycle-dialog[class] {
+		width: 100%;
+		max-height: calc(100vh - 56px);
+		max-height: calc(100dvh - 56px);
+		margin: auto 0 0;
+		border-radius: var(--radius-featured, 20px) var(--radius-featured, 20px) 0 0;
+	}
+
+	dialog.cycle-dialog .cycle-body {
+		padding: 12px 20px 20px;
+	}
+
+	dialog.cycle-dialog .cycle-grab {
+		display: block;
+	}
+
+	dialog.cycle-dialog .cycle-option-head {
+		padding: 10px 14px;
+	}
+
+	dialog.cycle-dialog .cycle-option-pad {
+		margin: 0 12px;
+	}
+
+	dialog.cycle-dialog .react-cycle-calendar {
+		padding: 4px 4px 8px;
+	}
+
+	dialog.cycle-dialog .react-cycle-calendar-day,
+	dialog.cycle-dialog .react-cycle-calendar-blank {
+		height: 44px;
+		min-height: 44px;
+	}
+
+	dialog.cycle-dialog .cycle-foot {
+		padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
+	}
+
+	dialog.cycle-dialog .cycle-actions .cycle-btn {
+		font-size: 15px;
+	}
+
+	dialog.cycle-dialog .cycle-actions .cycle-btn-primary {
+		flex: 1;
+		min-width: 0;
+		padding: 0 12px;
+	}
+
+	dialog.cycle-dialog .cycle-actions .cycle-btn-ghost {
+		padding: 0 14px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	dialog.cycle-dialog .cycle-option-reveal {
+		animation: none;
+	}
+
+	dialog.cycle-dialog .cycle-option,
+	dialog.cycle-dialog .cycle-option-radio,
+	dialog.cycle-dialog .cycle-option-radio::after,
+	dialog.cycle-dialog .cycle-chip span {
+		transition: none;
+	}
+
+	dialog.cycle-dialog .cycle-spinner {
+		border-right-color: #ffffff;
+		animation: none;
+	}
+}

@@ -13,7 +13,6 @@ const vite = await createServer({
 after(() => vite.close());
 
 const presets = await vite.ssrLoadModule("/src/client/components/financial-cycle/cyclePresets.ts");
-const presetsView = await vite.ssrLoadModule("/src/client/components/financial-cycle/CyclePresets.tsx");
 const firstResult = await vite.ssrLoadModule("/src/client/components/onboarding/firstResult.ts");
 const explainer = await vite.ssrLoadModule("/src/client/components/onboarding/FirstResultExplainer.tsx");
 
@@ -56,32 +55,7 @@ test("payDayCycle rejects a pay day outside 1..31", () => {
 	}
 });
 
-const render = (props) =>
-	renderToStaticMarkup(createElement(presetsView.CyclePresets, { today: day(2026, 11, 20), onApply() {}, ...props }));
-
-test("CyclePresets renders an accessible radiogroup with three options", () => {
-	const html = render({});
-	assert.match(html, /role="radiogroup"/);
-	assert.ok(html.includes('aria-label="¿Cuándo empieza tu mes?"'));
-	assert.equal((html.match(/role="radio"/g) ?? []).length, 3);
-	assert.equal((html.match(/<button[^>]*role="radio"[^>]*type="button"|<button[^>]*type="button"[^>]*role="radio"/g) ?? []).length, 3);
-	for (const text of ["Mes calendario", "Del 1 al último día", "Desde mi día de pago", "Otro rango", "Elige inicio y fin en el calendario"]) {
-		assert.ok(html.includes(text), text);
-	}
-	assert.equal((html.match(/aria-checked="false"/g) ?? []).length, 3);
-});
-
-test("CyclePresets shows the pay day select only while that option is selected", () => {
-	assert.doesNotMatch(render({}), /<select/);
-	assert.doesNotMatch(render({ initialPreset: "calendar" }), /<select/);
-	const html = render({ initialPreset: "payDay" });
-	assert.match(html, /<select/);
-	assert.ok(html.includes("Día de pago"));
-	assert.equal((html.match(/<option/g) ?? []).length, 31);
-	assert.match(html, /<option value="25" selected="">25<\/option>|<option selected="" value="25">25<\/option>/);
-	assert.equal((html.match(/aria-checked="true"/g) ?? []).length, 1);
-	assert.match(render({ initialPreset: "payDay", initialPayDay: 5 }), /<option value="5" selected="">5<\/option>|<option selected="" value="5">5<\/option>/);
-});
+// The option cards (radiogroup, reveals, quick pay days) are covered in test/cycle-setup-options.test.js.
 
 test("first result storage helpers read and write the seen flag", () => {
 	assert.equal(firstResult.FIRST_RESULT_SEEN_KEY, "gc:first-result-seen");
