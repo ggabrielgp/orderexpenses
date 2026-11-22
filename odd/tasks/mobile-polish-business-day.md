@@ -13,10 +13,10 @@ the movements view on mobile, and a "último día hábil" pay day choice. User a
 - S4 — "me gustaria que elmodal para selecionar periodo, donde dice desde mi dia de pago, sería bueno incluir una opcion de ultimo dia habil del mes."
 
 ## Tasks
-- T1 (S4) — `lastBusinessDayCycle` + "Último día hábil" chip; weekends move to the previous Friday (no holiday calendar). Route: inline, test-first.
-- T2 (S2) — success period notice dismisses after a few seconds with a smooth exit. Route: inline, test-first.
-- T3 (S1) — expense dialog restyled on the cycle sheet shell. Route: inline, visual check.
-- T4 (S3) — movements mobile: bulk bar single column, sort chips one scrollable row, card meta aligned. Route: inline, visual check.
+- [x] T1 (S4) — `lastBusinessDayCycle` + "Último día hábil" chip; weekends move to the previous Friday (no holiday calendar). Route: inline, test-first (RED→GREEN). Commit 7e92670.
+- [x] T2 (S2) — success period notice fades out after 4 s (pausable on hover/focus, immediate under reduced motion). Route: inline, test-first. Commit 88b85c7.
+- [x] T3 (S1) — expense dialog on the cycle sheet shell; verified with mobile and desktop screenshots. Commit b817f5d.
+- [x] T4 (S3) — movements mobile: bulk bar stacked, sort chips one scrollable row, card meta aligned; also fixed the floating selection bar rendering below the page (shell transform). Verified with screenshots. Commit f92ec88.
 
 ## Log
 - L1 — User request (verbatim): "el modal de agregar gasto en mobile se ve mal y al parecer no respeta el diseño del producto.
@@ -24,3 +24,5 @@ El mensaje de Periodo guardado y resumen acutalizado, despues de unos segundo se
 En movimientos hay cosas que no se adaptan a mobile, te adjunto captura: [Image#1].
 y me gustaria que elmodal para selecionar periodo, donde dice desde mi dia de pago, sería bueno incluir una opcion de ultimo dia habil del mes.
 Hazlo todo no me preguntes, que yo voy a salir ahora, cuando esté listo subelo a main, para pasar a prod."
+- L2 — User: "continua".
+- L3 — Visual checks ran against the Vite dev server with mocked `/api` responses (Playwright, 412×800 and 1280×860).
