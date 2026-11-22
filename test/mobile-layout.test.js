@@ -33,3 +33,13 @@ test("Nuevo gasto fields drop the native iOS look and never widen the sheet", as
 	assert.match(css, /:is\(#manual-expense-kind, #manual-expense-category\) \{[^}]*background-image: url\("data:image\/svg\+xml/s);
 	assert.match(css, /\.cycle-body \{[^}]*overflow-x: hidden/s);
 });
+
+test("narrow screens put the gauge key (Color, Raya: hoy) right under the ring", async () => {
+	const css = await read("src/client/components/analytics/dashboard-pace.css");
+	const block = mediaRule(css, 760, ".react-pace-gauge-key");
+	// The body's children join the card grid so the key can sit between the ring and the state pill.
+	assert.match(block, /\.react-pace-gauge:not\(\.react-pace-gauge--none\):not\(\.react-pace-gauge--compact\) \.react-pace-gauge-body \{[^}]*display: contents/s);
+	assert.match(block, /\.react-pace-gauge-body > \* \{[^}]*order: 2/s);
+	assert.match(block, /\.react-pace-gauge-body > \.react-pace-gauge-key \{[^}]*order: 1/s);
+	assert.match(block, /:is\(\.react-pace-gauge-facts, \.react-pace-gauge-notes\) \{[^}]*justify-self: stretch/s);
+});

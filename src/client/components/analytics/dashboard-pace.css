@@ -332,6 +332,25 @@
 	.react-pace-gauge-key {
 		justify-content: center;
 	}
+
+	/* The key explains the ring, so on a phone it sits right under it instead of below the facts:
+	   the body's children join the card grid and the key is ordered between the ring and the pill. */
+	.react-pace-gauge:not(.react-pace-gauge--none):not(.react-pace-gauge--compact) .react-pace-gauge-body {
+		display: contents;
+	}
+
+	.react-pace-gauge:not(.react-pace-gauge--none):not(.react-pace-gauge--compact) .react-pace-gauge-body > * {
+		order: 2;
+	}
+
+	.react-pace-gauge:not(.react-pace-gauge--none):not(.react-pace-gauge--compact) .react-pace-gauge-body > .react-pace-gauge-key {
+		order: 1;
+		margin-top: -8px;
+	}
+
+	.react-pace-gauge:not(.react-pace-gauge--none):not(.react-pace-gauge--compact) :is(.react-pace-gauge-facts, .react-pace-gauge-notes) {
+		justify-self: stretch;
+	}
 }
 
 /* Compact variant (onboarding step 3 dialog): ring beside the state and sentence on desktop, stacked on
