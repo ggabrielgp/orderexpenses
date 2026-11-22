@@ -405,6 +405,7 @@ export function CreateManualExpenseDialog({
 	onSaved,
 }: CreateManualExpenseDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	const titleRef = useRef<HTMLHeadingElement | null>(null);
 	const saveLock = useRef(false);
 	const [creation, setCreation] = useState<ManualExpenseCreationState>(() =>
 		createManualExpenseCreationState(createManualExpenseDraft(period)),
@@ -416,8 +417,13 @@ export function CreateManualExpenseDialog({
 	const maxDateTime = `${reviewPeriod.visibleEndDate}T23:59`;
 	const periodKey = getManualExpensePeriodKey(period);
 
+	// showModal() focuses the first field, which on a phone raises the keyboard over the sheet
+	// before anything can be read. Opening moves focus to the title instead: screen readers still
+	// start at the dialog's name and the keyboard only appears when a field is tapped.
 	useEffect(() => {
+		const wasOpen = dialogRef.current?.open === true;
 		syncNativeModalDialog(dialogRef.current, isOpen);
+		if (isOpen && !wasOpen) titleRef.current?.focus({ preventScroll: true });
 	}, [isOpen]);
 
 	// Reopening starts a brand new expense: no stale error, outcome or lock may leak into it.
@@ -547,7 +553,7 @@ export function CreateManualExpenseDialog({
 			<form className="react-create-expense-form cycle-form" onSubmit={handleSubmit} aria-busy={isSaving}>
 				<div className="cycle-body">
 				<div className="cycle-grab" aria-hidden="true" />
-				<h2 id="react-create-expense-title" className="cycle-title">Nuevo gasto</h2>
+				<h2 id="react-create-expense-title" className="cycle-title" ref={titleRef} tabIndex={-1}>Nuevo gasto</h2>
 				<p className="cycle-why">Registra un gasto que no llegó por correo.</p>
 				<div className="react-create-expense-fields">
 					<label

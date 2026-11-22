@@ -49,3 +49,21 @@ test("the spending breakdown total stacks its caption above the amount instead o
 	assert.match(css, /\.react-spending-breakdown-total \{[^}]*display: grid;[^}]*gap: 2px;/s);
 	assert.doesNotMatch(css, /\.react-spending-breakdown-total \{[^}]*align-items: baseline/s);
 });
+
+test("Nuevo gasto opens focused on its title, so iOS does not raise the keyboard over the sheet", async () => {
+	const source = await read("src/client/components/movements/CreateManualExpenseDialog.tsx");
+	assert.match(source, /<h2 id="react-create-expense-title" className="cycle-title" ref=\{titleRef\} tabIndex=\{-1\}>Nuevo gasto<\/h2>/);
+	// Only on the closed -> open transition, after showModal() moved focus to the first input.
+	assert.match(source, /const wasOpen = dialogRef\.current\?\.open === true;\s*syncNativeModalDialog\(dialogRef\.current, isOpen\);\s*if \(isOpen && !wasOpen\) titleRef\.current\?\.focus\(\{ preventScroll: true \}\);/);
+	assert.doesNotMatch(source, /autoFocus/);
+});
+
+test("Nuevo gasto amount matches the product money field and the date value is vertically centred", async () => {
+	const css = await read("src/client/components/movements/expense-sheet.css");
+	assert.match(css, /\.react-create-expense-amount input#manual-expense-amount \{[^}]*min-height: 52px;[^}]*font-size: 20px;/s);
+	assert.doesNotMatch(css, /input#manual-expense-amount \{[^}]*font-size: 26px/s);
+	// A content box exactly one line tall: iOS paints the date value at the top of any taller box.
+	assert.match(css, /#manual-expense-occurred-at \{[^}]*height: 48px;[^}]*padding: 12px 14px;[^}]*line-height: 22px;/s);
+	assert.match(css, /#manual-expense-occurred-at::-webkit-date-and-time-value \{[^}]*min-height: 22px;[^}]*line-height: 22px;/s);
+	assert.match(css, /h2\.cycle-title:focus \{[^}]*outline: none/s);
+});

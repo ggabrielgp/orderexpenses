@@ -65,12 +65,19 @@ dialog.cycle-dialog.react-create-expense-dialog .cycle-body {
 
 /* iOS gives datetime-local an intrinsic width and a centred value, which pushed the sheet sideways;
    it now fills the column and reads left-aligned like the text fields. */
-dialog.cycle-dialog.react-create-expense-dialog #manual-expense-occurred-at {
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields #manual-expense-occurred-at {
+	height: 48px;
+	padding: 12px 14px;
+	line-height: 22px;
 	text-align: left;
 }
 
+/* iOS paints the date value at the top of a taller box; a content box exactly one line tall
+   (12 + 22 + 12 plus the border = 48px) keeps it vertically centred. */
 dialog.cycle-dialog.react-create-expense-dialog #manual-expense-occurred-at::-webkit-date-and-time-value {
+	min-height: 22px;
 	margin: 0;
+	line-height: 22px;
 	text-align: left;
 }
 
@@ -95,18 +102,14 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields inp
 	opacity: 1;
 }
 
-/* The amount leads: large, tabular, with its currency on both sides like the income field. */
+/* The amount uses the product money field (the period income): a touch taller and bolder than the
+   other fields, tabular, with its currency on both sides at the same 16px as the income field. */
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-amount input#manual-expense-amount {
-	min-height: 60px;
-	padding: 0 60px 0 34px;
-	font-size: 26px;
+	min-height: 52px;
+	padding: 0 56px 0 32px;
+	font-size: 20px;
 	font-variant-numeric: tabular-nums;
-	font-weight: 800;
-	letter-spacing: -0.02em;
-}
-
-dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-amount .cycle-money-unit {
-	font-size: 18px;
+	font-weight: 700;
 }
 
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields small,
@@ -116,6 +119,11 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-catalog {
 	font-size: 14px;
 	font-weight: 400;
 	line-height: 1.4;
+}
+
+/* The title takes focus on open only to keep the keyboard down; it is not a control, so no ring. */
+dialog.cycle-dialog.react-create-expense-dialog h2.cycle-title:focus {
+	outline: none;
 }
 
 dialog.cycle-dialog.react-create-expense-dialog :is(.react-create-expense-error, .react-create-expense-pending) {
