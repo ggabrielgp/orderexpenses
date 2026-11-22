@@ -50,7 +50,7 @@ Worktree `../gastoscontrolados-identidad`, branch `feat/identidad-b` from `main`
 | T19 | S1, S19 | worker W14: remaining dialogs exit motion | c97f0ef ✓ |
 | T20 | S1, S2 | worker W17: systemic hover + cobalt in authenticated screens | 4c18da7 ✓ |
 | T21 | S20 | worker W18: artboard 08 cycle setup | design (primary checkout) ✓ |
-| T22 | S1, S8, S20 | worker: implement cycle setup redesign | — |
+| T22 | S1, S8, S20 | worker W19: implement cycle setup redesign | 397fe1b ✓ |
 | T9 | S1–S10 | inline verify: full build + suite, inventory check, differential review | this commit ✓ |
 
 ## Log
@@ -86,3 +86,4 @@ Worktree `../gastoscontrolados-identidad`, branch `feat/identidad-b` from `main`
 - **L26** (design): `design/identidad-b-pulido/08-configurar-ciclo.html` (desktop modal + mobile sheet). Open questions resolved by the parent without changing validation: future calendar days stay disabled as today (presets still fill the inputs, which accept them); the app keeps its existing error copy.
 - **L27** (user, verbatim): "me gusta! aplica" → implement artboard 08 (T22) once T20 finishes (overlapping surfaces).
 - **L28** (evidence, T20 4c18da7): global hover now `:where(button, .button):hover`; cobalt removed from setup/edit-cycle calendar, presets, dialogs, account menu. Audit: real build served by a mock API (no login, no data/), forced-hover sweep at 1440/390 — setup dialog <4.5 hits 4→0 (24→0 with the pay-day range), cobalt 5→0; every authenticated dialog min ≥5.95:1. hover-cascade 1/5→5/5; full suite 544/544 (worker). Not rendered: CompleteCycleDialog (unmounted in src), first-result explainer, error/undo notices (code-verified).
+- **L29** (evidence, T22 397fe1b): setup and edit-period dialogs rebuilt around "¿Cuándo empieza tu mes?" with progressive options; ids and PUT bodies unchanged (live mock PUTs compared per option); cycle-setup-options 0→15/15; old CyclePresets tests replaced; full suite 557/557 (worker); hover/cobalt sweep 0 hits, min 5.95:1; parent spot-checked the 1440 calendar and 390 pay-day screenshots against artboard 08. Deviations: no collapse animation on the previous card, saving label unchanged, neutral dialog shadow.
