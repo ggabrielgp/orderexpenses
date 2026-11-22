@@ -1,0 +1,984 @@
+/*
+ * Movements polish · identity B (odd/tasks/identidad-b.md, S18, T18;
+ * design/identidad-b-pulido/06-movimientos-desktop.html and 07-movimientos-mobile.html).
+ * Imported by identity-b.css, so it loads after every legacy layer. Everything is scoped to
+ * `.react-movements-page .react-movements-view`, which the landing tour and the summary never carry:
+ *   - no cobalt: actions, tabs, chips, links and sort headers are ink; the orange metric is gone;
+ *   - type scale 28 title / 18 section / 15-16 body / 12 minimum (`--type-*`);
+ *   - category chips take the donut colour of their category through `--category-color`;
+ *   - the legacy global `button:hover` ink fill beats single-class ghost rules, so every button in this
+ *     view states its own hover (background, colour and shadow) with a more specific selector.
+ */
+
+body:has(.react-movements-page) {
+	background: var(--color-canvas);
+}
+
+.react-movements-page {
+	color: var(--color-ink);
+}
+
+.react-movements-page .react-dashboard-header h1 {
+	font-size: var(--type-title);
+	line-height: 1.15;
+	font-weight: 800;
+	letter-spacing: -0.025em;
+}
+
+.react-movements-page .react-dashboard-greeting,
+.react-movements-page .react-dashboard-period-context {
+	color: var(--color-ink-muted);
+	font-size: var(--type-body);
+}
+
+.react-movements-page .react-dashboard-period-context {
+	color: var(--color-ink-secondary);
+}
+
+.react-movements-page .react-movements-view {
+	gap: var(--space-5);
+}
+
+/* ── Section header and the 4 metrics: the total leads ── */
+.react-movements-page .react-movements-view .react-movements-header h2 {
+	font-size: var(--type-section);
+	line-height: 1.3;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+}
+
+.react-movements-page .react-movements-view .react-movements-header .react-card-icon {
+	background: var(--color-surface-subtle);
+	color: var(--color-ink);
+}
+
+.react-movements-page .react-movements-view .react-movements-metrics {
+	grid-template-columns: 1.5fr 1fr 1fr 1fr;
+	gap: 0;
+	border-radius: var(--radius-featured);
+	background: var(--color-surface);
+	box-shadow: var(--shadow-panel);
+	padding: var(--space-5) 0;
+}
+
+.react-movements-page .react-movements-view .react-movements-metric {
+	gap: 2px;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	padding: 0 28px;
+}
+
+.react-movements-page .react-movements-view .react-movements-metric + .react-movements-metric {
+	border-left: 1px solid var(--color-line);
+}
+
+.react-movements-page .react-movements-view .react-movements-metric > span {
+	color: var(--color-ink-muted);
+	font-size: var(--type-body);
+	font-weight: 600;
+}
+
+.react-movements-page .react-movements-view .react-movements-metric > strong {
+	color: var(--color-ink);
+	font-size: var(--type-section);
+	line-height: 1.3;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+}
+
+.react-movements-page .react-movements-view .react-movements-metric > small {
+	color: var(--color-ink-muted);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.react-movements-page .react-movements-view .react-movements-metric-lead {
+	padding-left: 32px;
+}
+
+.react-movements-page .react-movements-view .react-movements-metric-lead > span {
+	color: var(--color-ink-secondary);
+	font-weight: 700;
+}
+
+.react-movements-page .react-movements-view .react-movements-metric-lead > strong {
+	font-size: var(--type-title);
+	line-height: 1.15;
+	letter-spacing: -0.025em;
+}
+
+.react-movements-page .react-movements-view .react-movements-metric-pending > strong,
+.react-movements-page .react-movements-view .react-movements-metric-classified > strong {
+	color: var(--color-ink);
+}
+
+/* ── "Sin categoría" as an action, or a calm note when nothing is left ── */
+.react-movements-page .react-movements-view .react-movements-prompt {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 4px 16px;
+	border: 2px solid var(--color-ink);
+	border-radius: var(--radius-card);
+	background: var(--color-surface);
+	padding: 16px 16px 16px 20px;
+}
+
+.react-movements-page .react-movements-view .react-movements-prompt-title {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 800;
+	line-height: 1.35;
+}
+
+.react-movements-page .react-movements-view .react-movements-prompt-amount {
+	color: var(--color-ink-secondary);
+	font-weight: 600;
+}
+
+.react-movements-page .react-movements-view .react-movements-prompt-note {
+	grid-column: 1;
+	margin: 0;
+	color: var(--color-ink-secondary);
+	font-size: var(--type-body);
+}
+
+.react-movements-page .react-movements-view .react-movements-prompt-action {
+	grid-column: 2;
+	grid-row: 1 / 3;
+}
+
+.react-movements-page .react-movements-view .react-movements-all-classified {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0;
+	border-radius: var(--radius-card);
+	background: var(--color-surface);
+	box-shadow: var(--shadow-card);
+	padding: 14px 20px;
+	color: var(--color-ink-secondary);
+	font-size: 16px;
+	font-weight: 700;
+}
+
+.react-movements-page .react-movements-view .react-movements-all-classified-mark {
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: var(--color-ink);
+	color: #ffffff;
+	font-size: 14px;
+	line-height: 1;
+}
+
+.react-movements-page .react-movements-view .react-movements-pending-note {
+	margin: 0;
+	border-left: 3px solid var(--color-ink-muted);
+	color: var(--color-ink-secondary);
+	font-size: var(--type-body);
+}
+
+/* ── Primary and ghost buttons of the view: ink, with their own hover ── */
+.react-movements-page .react-movements-view :is(.react-movements-prompt-action, .react-movements-state-action, .react-movements-bulk-assign) {
+	min-height: 44px;
+	border: 1px solid var(--color-ink);
+	border-radius: var(--radius-control);
+	background: var(--color-ink);
+	color: #ffffff;
+	font-size: var(--type-body);
+	font-weight: 700;
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view :is(.react-movements-prompt-action, .react-movements-state-action, .react-movements-bulk-assign):hover:not(:disabled) {
+	border-color: #26324d;
+	background: #26324d;
+	color: #ffffff;
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view :is(.react-movements-state-secondary, .react-movements-filter-clear, .react-movements-filter-toggle, .react-movements-bulk-clear) {
+	min-height: 44px;
+	border: 1px solid var(--control-border);
+	border-radius: var(--radius-control);
+	background: var(--color-surface);
+	color: var(--color-ink);
+	font-size: var(--type-body);
+	font-weight: 700;
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view :is(.react-movements-state-secondary, .react-movements-filter-clear, .react-movements-filter-toggle, .react-movements-bulk-clear):hover:not(:disabled) {
+	border-color: var(--control-border);
+	background: var(--color-surface-subtle);
+	color: var(--color-ink);
+	box-shadow: none;
+}
+
+/* ── Filters ── */
+.react-movements-page .react-movements-view .react-movements-secondary-filters,
+.react-movements-page .react-movements-view .react-movements-active-filters {
+	border-radius: var(--radius-card);
+	background: var(--color-surface);
+	box-shadow: var(--shadow-card);
+}
+
+.react-movements-page .react-movements-view .react-movements-secondary-filters {
+	padding: var(--space-5);
+}
+
+.react-movements-page .react-movements-view .react-movements-toolbar {
+	grid-template-columns: minmax(0, 1fr) 300px;
+	align-items: start;
+	gap: var(--space-4) var(--space-5);
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	padding: 0;
+}
+
+.react-movements-page .react-movements-view .react-movements-search,
+.react-movements-page .react-movements-view .react-movements-filter-field {
+	color: var(--color-ink-secondary);
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.react-movements-page .react-movements-view .react-movements-search input,
+.react-movements-page .react-movements-view .react-movements-filter-field select,
+.react-movements-page .react-movements-view .react-movements-bulk-field select {
+	min-height: 48px;
+	border: 1px solid var(--control-border);
+	border-radius: var(--radius-control);
+	background: var(--color-surface);
+	color: var(--color-ink);
+	font-size: 16px;
+	font-weight: 400;
+}
+
+.react-movements-page .react-movements-view .react-movements-search input::placeholder {
+	color: var(--color-ink-muted);
+	opacity: 1;
+}
+
+.react-movements-page .react-movements-view .react-movements-search input:focus-visible,
+.react-movements-page .react-movements-view select:focus-visible {
+	outline: 3px solid var(--color-ink);
+	outline-offset: 2px;
+}
+
+.react-movements-page .react-movements-view .react-movements-filters {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.react-movements-page .react-movements-view .react-movements-filter-count {
+	color: var(--color-ink-secondary);
+	font-size: 14px;
+}
+
+.react-movements-page .react-movements-view .react-movements-kind-tabs {
+	gap: 8px;
+	border-bottom: 0;
+	padding-bottom: 0;
+	margin-top: var(--space-4);
+}
+
+.react-movements-page .react-movements-view .react-movements-kind-tab {
+	min-height: 44px;
+	border: 1px solid var(--control-border);
+	border-radius: 999px;
+	background: var(--color-surface);
+	padding: 0 16px;
+	color: var(--color-ink-secondary);
+	font-size: var(--type-body);
+	font-weight: 600;
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view .react-movements-kind-tab:hover {
+	border-color: var(--control-border);
+	background: var(--color-surface-subtle);
+	color: var(--color-ink);
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view .react-movements-kind-tab[aria-pressed="true"],
+.react-movements-page .react-movements-view .react-movements-kind-tab[aria-pressed="true"]:hover {
+	border-color: var(--color-ink);
+	background: var(--color-ink);
+	color: #ffffff;
+	font-weight: 700;
+}
+
+.react-movements-page .react-movements-view .react-movements-kind-tab:focus-visible {
+	outline: 3px solid var(--color-ink);
+	outline-offset: 3px;
+}
+
+/* Active filters: removable chips plus one way to clear them all. */
+.react-movements-page .react-movements-view .react-movements-active-filters {
+	align-items: center;
+	gap: 8px 10px;
+	padding: 12px 20px;
+}
+
+.react-movements-page .react-movements-view .react-movements-active-filters span {
+	padding: 0;
+	background: transparent;
+}
+
+.react-movements-page .react-movements-view .react-movements-active-label {
+	color: var(--color-ink-muted);
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.react-movements-page .react-movements-view .react-movements-filter-chip {
+	max-width: 100%;
+	min-height: 44px;
+	gap: 8px;
+	border: 1px solid var(--color-ink);
+	border-radius: 999px;
+	background: var(--color-surface);
+	padding: 0 12px 0 14px;
+	color: var(--color-ink);
+	font-size: 14px;
+	font-weight: 700;
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view .react-movements-filter-chip > span:first-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.react-movements-page .react-movements-view .react-movements-filter-chip-x {
+	font-size: 18px;
+	line-height: 1;
+}
+
+.react-movements-page .react-movements-view .react-movements-filter-chip:hover {
+	background: var(--color-surface-subtle);
+	color: var(--color-ink);
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view .react-movements-clear-all {
+	min-height: 44px;
+	border: 0;
+	border-radius: var(--radius-control);
+	background: transparent;
+	padding: 0 12px;
+	color: var(--color-ink);
+	font-size: var(--type-body);
+	font-weight: 700;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view .react-movements-clear-all:hover {
+	background: var(--color-surface-subtle);
+	color: var(--color-ink);
+	box-shadow: none;
+}
+
+/* ── Bulk actions: quiet until something is selected, then an ink bar ── */
+.react-movements-page .react-movements-view .react-movements-bulk {
+	border: 0;
+	border-radius: var(--radius-card);
+	background: var(--color-surface);
+	box-shadow: var(--shadow-card);
+	padding: 12px 16px;
+	grid-template-columns: minmax(0, 1fr) minmax(12rem, 18rem) auto;
+}
+
+.react-movements-page .react-movements-view .react-movements-bulk-count {
+	color: var(--color-ink-secondary);
+	font-size: var(--type-body);
+}
+
+.react-movements-page .react-movements-view .react-movements-bulk-field {
+	color: var(--color-ink-secondary);
+	font-size: 14px;
+}
+
+.react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] {
+	position: sticky;
+	top: calc(var(--layout-header-height) + 8px);
+	z-index: 20;
+	background: var(--color-ink);
+	color: #ffffff;
+	box-shadow: var(--shadow-xl);
+}
+
+.react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] .react-movements-bulk-count {
+	color: #ffffff;
+	font-size: 16px;
+	font-weight: 800;
+}
+
+.react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] .react-movements-bulk-field {
+	color: #e8e7e2;
+}
+
+.react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] .react-movements-bulk-assign {
+	border-color: #ffffff;
+	background: #ffffff;
+	color: var(--color-ink);
+}
+
+.react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] .react-movements-bulk-assign:hover:not(:disabled) {
+	border-color: #e8e7e2;
+	background: #e8e7e2;
+	color: var(--color-ink);
+}
+
+.react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] .react-movements-bulk-clear {
+	border-color: rgb(255 255 255 / 60%);
+	background: transparent;
+	color: #ffffff;
+}
+
+.react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] .react-movements-bulk-clear:hover:not(:disabled) {
+	border-color: #ffffff;
+	background: rgb(255 255 255 / 14%);
+	color: #ffffff;
+}
+
+.react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] :focus-visible {
+	outline: 3px solid #ffffff;
+	outline-offset: 2px;
+}
+
+/* ── Detail: the table card ── */
+.react-movements-page .react-movements-view .react-movements-table-card {
+	border: 0;
+	border-radius: var(--radius-card);
+	background: var(--color-surface);
+	box-shadow: var(--shadow-card);
+	padding: var(--space-5) var(--space-5) var(--space-3);
+}
+
+.react-movements-page .react-movements-view .react-movements-table-heading {
+	min-height: 44px;
+	padding: 0;
+	margin-bottom: var(--space-3);
+}
+
+.react-movements-page .react-movements-view .react-movements-table-heading h3 {
+	font-size: var(--type-section);
+	line-height: 1.3;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+}
+
+.react-movements-page .react-movements-view .react-movements-table-count {
+	color: var(--color-ink-muted);
+	font-size: var(--type-body);
+	font-weight: 600;
+}
+
+.react-movements-page .react-movements-view .react-movements-table-wrapper {
+	max-height: none;
+	overflow: visible;
+}
+
+.react-movements-page .react-movements-view .react-movements-table {
+	min-width: 0;
+	table-layout: auto;
+	font-size: var(--type-body);
+}
+
+.react-movements-page .react-movements-view .react-movements-table th {
+	position: static;
+	height: 48px;
+	border-bottom: 1px solid var(--color-line-strong);
+	background: transparent;
+	padding: 0 8px;
+	color: var(--color-ink-secondary);
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.react-movements-page .react-movements-view .react-movements-table td {
+	height: 68px;
+	border-bottom: 1px solid var(--color-line);
+	padding: 0 8px;
+	vertical-align: middle;
+}
+
+.react-movements-page .react-movements-view .react-movements-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.react-movements-page .react-movements-view .react-movements-table tbody tr {
+	transition: background var(--duration-fast);
+}
+
+.react-movements-page .react-movements-view .react-movements-table tbody tr:hover {
+	background: var(--color-canvas);
+}
+
+.react-movements-page .react-movements-view .react-movements-table td:first-child:not(.react-movements-select-column),
+.react-movements-page .react-movements-view .react-movements-table td.react-movements-select-column + td {
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.react-movements-page .react-movements-view .react-movements-select-column {
+	width: 52px;
+}
+
+/* Amount: right-aligned and stronger, header included. */
+.react-movements-page .react-movements-view .react-movements-table th:has(> [aria-label="Ordenar por Monto"]),
+.react-movements-page .react-movements-view .react-movements-table td.react-movement-amount,
+.react-movements-page .react-movements-view .react-movements-table th:last-child {
+	text-align: right;
+}
+
+.react-movements-page .react-movements-view .react-movements-table th:has(> [aria-label="Ordenar por Monto"]) .react-movement-sort-button {
+	margin-right: -8px;
+	margin-left: 0;
+}
+
+.react-movements-page .react-movements-view .react-movement-amount {
+	color: var(--color-ink);
+	font-size: 16px;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.react-movements-page .react-movements-view .react-movements-table td.react-movement-date-cell {
+	padding-left: 24px;
+}
+
+.react-movements-page .react-movements-view .react-movements-table th:has(> [aria-label="Ordenar por Fecha"]) {
+	padding-left: 24px;
+}
+
+.react-movements-page .react-movements-view .react-movement-date {
+	color: var(--color-ink-secondary);
+	font-size: var(--type-body);
+	white-space: nowrap;
+}
+
+/* Sort headers: ink, with the direction readable and aria-sort on the <th>. */
+.react-movements-page .react-movements-view .react-movement-sort-button {
+	min-height: 44px;
+	margin-left: -8px;
+	border-radius: var(--radius-control);
+	padding: 0 8px;
+	color: var(--color-ink-secondary);
+	font-size: 14px;
+	font-weight: 700;
+	box-shadow: none;
+	text-decoration: none;
+}
+
+.react-movements-page .react-movements-view .react-movement-sort-button:hover,
+.react-movements-page .react-movements-view .react-movement-sort-button:focus-visible {
+	background: var(--color-surface-subtle);
+	box-shadow: none;
+	color: var(--color-ink);
+	text-decoration: none;
+}
+
+.react-movements-page .react-movements-view .react-movements-table th[aria-sort="ascending"] .react-movement-sort-button,
+.react-movements-page .react-movements-view .react-movements-table th[aria-sort="descending"] .react-movement-sort-button {
+	color: var(--color-ink);
+	font-weight: 800;
+}
+
+/* ── Chips: the dot is the exact donut colour of the category ── */
+.react-movements-page .react-movements-view .react-movement-category {
+	--category-color: var(--cat-4);
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	max-width: 100%;
+	min-height: 28px;
+	border-radius: 999px;
+	background: var(--color-surface-subtle);
+	background: color-mix(in srgb, var(--category-color) 14%, #ffffff);
+	padding: 2px 12px 2px 10px;
+	color: var(--color-ink);
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.react-movements-page .react-movements-view .react-movement-category-dot {
+	flex: none;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--category-color);
+}
+
+.react-movements-page .react-movements-view .react-movement-category-unassigned {
+	border: 1.5px dashed var(--color-ink);
+	background: var(--color-surface);
+	padding: 0 11px 0 9px;
+}
+
+.react-movements-page .react-movements-view .react-movement-category-unassigned .react-movement-category-dot {
+	border: 2px solid var(--color-ink);
+	background: var(--color-surface);
+}
+
+.react-movements-page .react-movements-view .react-movement-kind-badge {
+	display: inline-flex;
+	align-items: center;
+	min-height: 24px;
+	margin-left: 10px;
+	border: 1px solid var(--color-line-strong);
+	border-radius: 8px;
+	background: var(--color-surface);
+	padding: 0 9px;
+	color: var(--color-ink-secondary);
+	font-size: var(--type-min);
+	font-weight: 700;
+}
+
+.react-movements-page .react-movements-view .react-movement-similar {
+	margin-left: 10px;
+	border: 0;
+	background: transparent;
+	color: var(--color-ink);
+	font-size: 14px;
+	font-weight: 700;
+	text-decoration: underline;
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view .react-movement-similar:hover {
+	background: var(--color-surface-subtle);
+	color: var(--color-ink);
+	box-shadow: none;
+}
+
+/* ── Row actions: ghost buttons with an explicit hover ── */
+.react-movements-page .react-movements-view .react-movements-actions {
+	text-align: right;
+}
+
+.react-movements-page .react-movements-view .react-movement-action {
+	min-height: 44px;
+	border: 0;
+	border-radius: var(--radius-control);
+	background: transparent;
+	padding: 0 12px;
+	color: var(--color-ink);
+	font-size: var(--type-body);
+	font-weight: 700;
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view .react-movement-action + .react-movement-action {
+	margin-left: 4px;
+}
+
+.react-movements-page .react-movements-view .react-movement-action:hover {
+	border-color: transparent;
+	background: var(--color-surface-pressed);
+	color: var(--color-ink);
+	box-shadow: none;
+}
+
+.react-movements-page .react-movements-view .react-movements-read-only {
+	color: var(--color-ink-muted);
+	font-size: 14px;
+}
+
+/* ── No results and empty period ── */
+.react-movements-page .react-movements-view .react-movements-state {
+	display: grid;
+	justify-items: center;
+	gap: 8px;
+	max-width: 520px;
+	margin: 0 auto;
+	padding: 40px 16px 44px;
+	text-align: center;
+}
+
+.react-movements-page .react-movements-view .react-movements-state :is(h3, h4) {
+	margin: 0;
+	color: var(--color-ink);
+	font-size: var(--type-section);
+	font-weight: 800;
+	line-height: 1.3;
+}
+
+.react-movements-page .react-movements-view .react-movements-state p {
+	margin: 0;
+	color: var(--color-ink-secondary);
+	font-size: 16px;
+}
+
+.react-movements-page .react-movements-view .react-movements-state .react-movements-state-action {
+	margin-top: 12px;
+}
+
+.react-movements-page .react-movements-view .react-movements-state-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 12px;
+	margin-top: 12px;
+}
+
+.react-movements-page .react-movements-view .react-movements-state-actions .react-movements-state-action {
+	margin-top: 0;
+}
+
+.react-movements-page .react-movements-view .react-movements-empty-period {
+	border-radius: var(--radius-card);
+	background: var(--color-surface);
+	box-shadow: var(--shadow-card);
+	max-width: none;
+}
+
+.react-movements-page .react-movements-view .react-movements-no-results {
+	color: var(--color-ink-secondary);
+}
+
+.react-movements-page .react-movements-view .react-movements-no-results-cell {
+	height: auto;
+	padding: 0;
+}
+
+/* ── Narrow screens: artboard 07 ── */
+@media (max-width: 760px) {
+	.react-movements-page .react-movements-view {
+		gap: var(--space-4);
+	}
+
+	.react-movements-page .react-movements-view .react-movements-metrics {
+		grid-template-columns: minmax(0, 1fr);
+		padding: 20px 16px 8px;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-metric,
+	.react-movements-page .react-movements-view .react-movements-metric-lead {
+		padding: 0;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-metric-lead {
+		padding-bottom: 4px;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-header {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		text-align: left;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-metric + .react-movements-metric {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto auto;
+		align-items: baseline;
+		column-gap: 8px;
+		margin-top: 12px;
+		border-top: 1px solid var(--color-line);
+		border-left: 0;
+		padding: 12px 0;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-metric + .react-movements-metric > strong,
+	.react-movements-page .react-movements-view .react-movements-metric + .react-movements-metric > small {
+		text-align: right;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-metric + .react-movements-metric:not(:has(> small)) > strong {
+		grid-column: 2 / 4;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-prompt {
+		grid-template-columns: minmax(0, 1fr);
+		padding: 16px;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-prompt-note,
+	.react-movements-page .react-movements-view .react-movements-prompt-action {
+		grid-column: 1;
+		grid-row: auto;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-prompt-action {
+		width: 100%;
+		margin-top: 8px;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-secondary-filters {
+		padding: var(--space-4);
+	}
+
+	.react-movements-page .react-movements-view .react-movements-filter-toggle {
+		width: 100%;
+		justify-content: flex-start;
+		min-height: 48px;
+		font-size: 16px;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-toolbar {
+		grid-template-columns: minmax(0, 1fr);
+		margin-top: var(--space-3);
+	}
+
+	.react-movements-page .react-movements-view .react-movements-kind-tabs {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-kind-tab {
+		justify-content: center;
+		padding: 0 8px;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-active-filters {
+		padding: 12px 16px;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-table-card {
+		background: transparent;
+		box-shadow: none;
+		padding: var(--space-4) 0 var(--space-1);
+	}
+
+	.react-movements-page .react-movements-view .react-movements-table-heading {
+		padding: 0 4px;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movements {
+		gap: var(--space-3);
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-sort button {
+		min-height: 44px;
+		border: 1px solid var(--control-border);
+		border-radius: 999px;
+		background: var(--color-surface);
+		padding: 0 14px;
+		color: var(--color-ink-secondary);
+		font-size: 14px;
+		font-weight: 600;
+		box-shadow: none;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-sort button:hover {
+		border-color: var(--control-border);
+		background: var(--color-surface-subtle);
+		color: var(--color-ink);
+		box-shadow: none;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-sort button[aria-pressed="true"],
+	.react-movements-page .react-movements-view .react-mobile-movement-sort button[aria-pressed="true"]:hover {
+		border-color: var(--color-ink);
+		background: var(--color-ink);
+		color: #ffffff;
+		font-weight: 700;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-card {
+		border: 0;
+		border-radius: var(--radius-card);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-card);
+		padding: 12px 12px 4px;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-card[data-selected="true"] {
+		background: var(--color-surface-subtle);
+		box-shadow: inset 0 0 0 2px var(--color-ink);
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-primary {
+		flex-wrap: nowrap;
+		align-items: center;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-description {
+		font-size: 16px;
+		font-weight: 700;
+		line-height: 1.3;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-card .react-movement-amount {
+		flex: none;
+		font-size: var(--type-section);
+		text-align: right;
+		white-space: nowrap;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-meta {
+		gap: 6px 10px;
+		color: var(--color-ink-secondary);
+		font-size: var(--type-body);
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-meta .react-movement-kind-badge {
+		margin: 0;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-details > summary {
+		min-height: 44px;
+		color: var(--color-ink);
+		font-size: var(--type-body);
+		font-weight: 700;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-actions {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 8px;
+		padding-bottom: 12px;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-actions .react-movement-action {
+		justify-content: center;
+		margin: 0;
+		border: 1px solid var(--control-border);
+		background: var(--color-surface);
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-actions .react-movement-action:hover {
+		border-color: var(--control-border);
+		background: var(--color-surface-pressed);
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-actions .react-movements-read-only,
+	.react-movements-page .react-movements-view .react-mobile-movement-actions .react-movement-similar {
+		grid-column: 1 / -1;
+		margin: 0;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-state {
+		padding: 28px 12px 32px;
+	}
+
+	/* The bulk bar floats above the bottom bar while something is selected. */
+	.react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] {
+		position: fixed;
+		right: 12px;
+		bottom: calc(88px + env(safe-area-inset-bottom));
+		left: 12px;
+		top: auto;
+		z-index: 45;
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.react-movements-page:has(.react-movements-bulk[data-selected="true"]) {
+		padding-bottom: calc(300px + env(safe-area-inset-bottom));
+	}
+}

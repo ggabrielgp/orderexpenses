@@ -8,6 +8,9 @@
 /* S11: the summary polish (no cobalt, type scale, quiet panels) loads as part of this last layer. */
 @import "./summary-polish.css";
 
+/* S18: the movements view polish (no cobalt, chips in donut colours, legible table) loads with it. */
+@import "./movements-polish.css";
+
 .react-shell,
 .react-app-header,
 .react-mobile-tabbar {

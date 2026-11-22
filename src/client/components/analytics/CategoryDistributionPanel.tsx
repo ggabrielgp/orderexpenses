@@ -14,7 +14,7 @@ import {
 import {
 	formatMovementCount,
 	getCategoryDistributionInsight,
-	getCategoryRowColor,
+	getCategoryRankingColors,
 	getDistributionAriaLabel,
 } from "./categoryDistribution";
 
@@ -294,14 +294,16 @@ export function CategoryDistributionView({
 	const [chartUnavailable, setChartUnavailable] = useState(false);
 
 	const legend = useMemo<CategoryLegendEntry[]>(
-		() =>
-			ranking.rows.map((row, index) => ({
+		() => {
+			const colors = getCategoryRankingColors(ranking.rows, catalog);
+			return ranking.rows.map((row, index) => ({
 				category: row.category,
 				total: row.total,
 				share: row.share,
 				count: row.count,
-				color: getCategoryRowColor(row.category, catalog, index),
-			})),
+				color: colors[index],
+			}));
+		},
 		[ranking.rows, catalog],
 	);
 

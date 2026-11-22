@@ -4,6 +4,8 @@ import type { RecognizedExpenseMovement, EditableRecognizedExpenseMovement } fro
 import { getSimilarCounterpartyAffordance } from "./movementSelection";
 import { getMovementSortIndicator } from "./movementSorting";
 import { getSpendingChartKindLabel } from "../analytics/spendingChart";
+import { MovementCategoryChip, MovementDate } from "./MovementsStates";
+import { getMovementActionName } from "./movementDisplay";
 
 /** One control tree: desktop CSS always exposes it, while mobile has a local disclosure. */
 export function MovementFilterDisclosure({ children }: { children: ReactNode }) {
@@ -26,6 +28,10 @@ export type MobileMovementListProps = Pick<MovementsTableViewProps,
   rows: RecognizedExpenseMovement[];
   editableById: ReadonlyMap<string | null, EditableRecognizedExpenseMovement>;
   emptyMessage: string;
+  /** The no-results state (active filters and a way to clear them); `emptyMessage` stays the fallback. */
+  noResults?: ReactNode;
+  /** Colour of the donut slice a category sits in, so chips and donut agree. */
+  categoryColor?: (category: string) => string;
 };
 
 const formatClp = (amount: number) => {
@@ -38,7 +44,7 @@ const formatClp = (amount: number) => {
 /** A responsive projection of the same rows and capabilities as the desktop table, not a data owner. */
 export function MobileMovementList({ rows, editableById, emptyMessage, sort, onActivate,
   onView, onEdit, onRemove, selection, onToggleSelection, onToggleAllSelection,
-  onSelectSimilar, readOnlyReason, highlightedMovementId }: MobileMovementListProps) {
+  onSelectSimilar, readOnlyReason, highlightedMovementId, noResults, categoryColor }: MobileMovementListProps) {
   const selectionEnabled = selection !== undefined && onToggleSelection !== undefined;
   const selectedIds = new Set(selection?.selectedIds ?? []);
   return (
@@ -62,7 +68,7 @@ export function MobileMovementList({ rows, editableById, emptyMessage, sort, onA
           Seleccionar todos
         </label>
       )}
-      {rows.length === 0 && <p className="react-movements-no-results">{emptyMessage}</p>}
+      {rows.length === 0 && (noResults ?? <p className="react-movements-no-results">{emptyMessage}</p>)}
       {rows.map((movement, index) => {
         const editable = movement.id === null ? null : editableById.get(movement.id) ?? null;
         const similar = selectionEnabled && selection !== undefined
@@ -85,17 +91,17 @@ export function MobileMovementList({ rows, editableById, emptyMessage, sort, onA
             </div>
             <div className="react-mobile-movement-meta">
               {movement.description && movement.description !== movement.counterparty && <span>{movement.counterparty}</span>}
-              <span className="react-movement-date">{movement.date}</span>
-              <span className={`react-movement-category${movement.category === "Sin categoría" ? " react-movement-category-unassigned" : ""}`}>{movement.category}</span>
+              <MovementDate date={movement.date} />
+              <MovementCategoryChip category={movement.category} color={categoryColor?.(movement.category)} />
               {movement.kind && <span className="react-movement-kind-badge">{getSpendingChartKindLabel(movement.kind)}</span>}
             </div>
             <details className="react-mobile-movement-details">
               <summary>Detalle y acciones</summary>
               <div className="react-mobile-movement-actions">
-                <button type="button" className="secondary react-movement-action" onClick={() => onView?.(movement)}>Ver</button>
+                <button type="button" className="secondary react-movement-action" aria-label={getMovementActionName("Ver", movement.counterparty, movement.date)} onClick={() => onView?.(movement)}>Ver</button>
                 {editable ? <>
-                  <button type="button" className="secondary react-movement-action" onClick={() => onEdit(editable)}>Editar</button>
-                  <button type="button" className="secondary react-movement-action" onClick={() => onRemove(editable)}>Eliminar</button>
+                  <button type="button" className="secondary react-movement-action" aria-label={getMovementActionName("Editar", movement.counterparty, movement.date)} onClick={() => onEdit(editable)}>Editar</button>
+                  <button type="button" className="secondary react-movement-action" aria-label={getMovementActionName("Eliminar", movement.counterparty, movement.date)} onClick={() => onRemove(editable)}>Eliminar</button>
                 </> : <span className="react-movements-read-only">{readOnlyReason ?? "Solo lectura: sin identificación o fecha válida"}</span>}
                 {similar !== null && similar.count > 1 && onSelectSimilar !== undefined && (
                   <button type="button" className="react-movement-similar" onClick={() => onSelectSimilar(similar.ids)}>{similar.label}</button>

@@ -51,6 +51,14 @@ import {
 import { getGoogleLoginUrl } from "../api/googleLogin";
 import { AccountMenu } from "../components/account/AccountMenuComponent";
 import { MobileMovementList, MovementFilterDisclosure } from "../components/movements/MobileMovementList";
+import {
+  MovementCategoryChip,
+  MovementDate,
+  MovementsEmptyPeriod,
+  MovementsNoResults,
+  MovementsUncategorizedPrompt,
+} from "../components/movements/MovementsStates";
+import { getActiveMovementFilters, getMovementActionName } from "../components/movements/movementDisplay";
 import { FeedbackNotice } from "../components/feedback/FeedbackNotice";
 import { useAnimatedView, useEditHighlight } from "../components/feedback/motion";
 import { DemoScenarioControl } from "../components/demo/DemoScenarioControl";
@@ -77,7 +85,7 @@ import {
   CategoryDetailView,
   CategoryDistributionPanel,
 } from "../components/analytics/CategoryDistributionPanel";
-import { formatMovementCount } from "../components/analytics/categoryDistribution";
+import { createCategoryColorResolver, formatMovementCount } from "../components/analytics/categoryDistribution";
 import {
   getDashboardLead,
   type DashboardLead,
@@ -2499,6 +2507,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
           submitBulkCategory={submitBulkCategory}
           categoryCatalog={categoryCatalog}
           highlightedMovementId={highlightedMovementId}
+          onCreateExpense={openCreateExpense}
+          onRefresh={() => { void reloadFinancialDashboard(); }}
         />
       )}
       {/* Only a configured summary can create an expense: the trigger lives here, and the
@@ -2940,6 +2950,13 @@ export interface MovementsTableViewProps {
   readOnlyReason?: string;
   /** The movement just edited; its row and card carry `data-highlighted` while the page flashes it. */
   highlightedMovementId?: string | null;
+  /** Stored category colours, so a user-picked colour wins over the donut palette in the chips. */
+  categoryCatalog?: readonly Category[];
+  /** Applies the existing uncategorized filter; the prompt offers its action only when this is given. */
+  onClassify?: () => void;
+  /** First actions of an empty period; the read-only demo passes neither. */
+  onCreateExpense?: () => void;
+  onRefresh?: () => void;
 }
 
 export function MovementsTableView({
@@ -2971,6 +2988,10 @@ export function MovementsTableView({
   bulkNotice,
   readOnlyReason,
   highlightedMovementId,
+  categoryCatalog,
+  onClassify,
+  onCreateExpense,
+  onRefresh,
 }: MovementsTableViewProps) {
   // The rows the table renders: the filter's own rows put in the order the sort decided. Sorting is
   // applied to the filtered rows, never to the loaded ones, and the count stays the filter's own — it
@@ -2992,6 +3013,20 @@ export function MovementsTableView({
     { value: "transfer", label: "Transferencias" },
     { value: "payment", label: "Pagos" },
   ];
+  // Chips read the colour of the donut slice their category sits in (one shared resolver, S18).
+  const categoryColor = createCategoryColorResolver(getCategoryRanking(periodRows, 0), categoryCatalog);
+  const activeFilters = getActiveMovementFilters({
+    search,
+    kindLabel: kind === "" ? null : kindTabs.find((tab) => tab.value === kind)?.label ?? kind,
+    category: filteredView.activeCategory,
+  });
+  const clearAllFilters = () => {
+    onSearchChange?.("");
+    onKindChange?.("");
+    onClear();
+  };
+  const noResultsMessage = "No hay movimientos que coincidan con los filtros actuales.";
+  const isEmptyPeriod = periodRows.length === 0;
 
   return (
     <div className="react-movements-view">
@@ -3003,12 +3038,12 @@ export function MovementsTableView({
         </span>
       </header>
       <section className="react-movements-metrics" aria-label="Indicadores del periodo">
-        <article className="react-movements-metric">
-          <span>Gastos reconocidos</span><strong>{periodRows.length}</strong>
-        </article>
-        <article className="react-movements-metric">
+        <article className="react-movements-metric react-movements-metric-lead">
           <span>Total gastado</span><strong>{formatClp(total(periodRows))}</strong>
           <small>Periodo completo, sin filtros</small>
+        </article>
+        <article className="react-movements-metric">
+          <span>Gastos reconocidos</span><strong>{periodRows.length}</strong>
         </article>
         <article className="react-movements-metric react-movements-metric-pending">
           <span>Sin categoría</span><strong>{uncategorized.length}</strong>
@@ -3019,11 +3054,21 @@ export function MovementsTableView({
           <small>{formatClp(total(classified))}</small>
         </article>
       </section>
+      {!isEmptyPeriod && (
+        <MovementsUncategorizedPrompt
+          count={uncategorized.length}
+          amountLabel={formatClp(total(uncategorized))}
+          onClassify={onClassify}
+        />
+      )}
       {pendingAmountCount > 0 && (
         <p className="react-movements-pending-note" role="status">
           {pendingAmountCount} gastos reconocidos sin monto conocido no figuran en estos indicadores ni en la tabla.
         </p>
       )}
+      {isEmptyPeriod ? (
+        <MovementsEmptyPeriod onCreateExpense={onCreateExpense} onRefresh={onRefresh} />
+      ) : (<>
       <MovementFilterDisclosure>
       <div className="react-movements-toolbar" role="group" aria-label="Buscar y filtrar movimientos">
         {onSearchChange && (
@@ -3051,12 +3096,23 @@ export function MovementsTableView({
         </div>
       )}
       </MovementFilterDisclosure>
-      {(search !== "" || kind !== "" || filteredView.activeCategory !== "") && (
-        <p className="react-movements-active-filters" role="status">
-          {search !== "" && <span>Búsqueda: {search}</span>}
-          {kind !== "" && <span>Tipo: {kindTabs.find((tab) => tab.value === kind)?.label ?? kind}</span>}
-          {filteredView.activeCategory !== "" && <span>Categoría: {filteredView.activeCategory}</span>}
-        </p>
+      {activeFilters.length > 0 && (
+        <div className="react-movements-active-filters" role="group" aria-label="Filtros activos">
+          <span className="react-movements-active-label">Filtros activos:</span>
+          {activeFilters.map((filter) => (
+            <button key={filter.key} type="button" className="react-movements-filter-chip"
+              aria-label={`Quitar filtro ${filter.label}`}
+              onClick={() => {
+                if (filter.key === "search") onSearchChange?.("");
+                else if (filter.key === "kind") onKindChange?.("");
+                else onClear();
+              }}>
+              <span>{filter.label}</span>
+              <span className="react-movements-filter-chip-x" aria-hidden="true">×</span>
+            </button>
+          ))}
+          <button type="button" className="react-movements-clear-all" onClick={clearAllFilters}>Limpiar filtros</button>
+        </div>
       )}
       {selectionEnabled && selection !== undefined && (
         <div className="react-movements-bulk" data-selected={selection.selectedCount > 0} role="group" aria-label="Acciones sobre la selección">
@@ -3109,7 +3165,7 @@ export function MovementsTableView({
       )}
       <section className="react-movements-table-card" aria-label="Detalle de movimientos">
         <header className="react-movements-table-heading">
-          <h3>Detalle de movimientos</h3>
+          <h3 tabIndex={-1}>Detalle de movimientos</h3>
           {filteredView.count.message === null && (
             <span className="react-movements-table-count">{visibleRows.length} de {periodRows.length} movimientos</span>
           )}
@@ -3120,9 +3176,9 @@ export function MovementsTableView({
           selection={selection} onToggleSelection={onToggleSelection}
           onToggleAllSelection={onToggleAllSelection} onSelectSimilar={onSelectSimilar}
           onView={onView} onEdit={onEdit} onRemove={onRemove}
-          emptyMessage={periodRows.length === 0
-            ? "No hay gastos reconocidos disponibles para este periodo."
-            : "No hay movimientos que coincidan con los filtros actuales."}
+          emptyMessage={noResultsMessage}
+          noResults={<MovementsNoResults filters={activeFilters} onClearFilters={clearAllFilters} fallbackMessage={noResultsMessage} />}
+          categoryColor={categoryColor}
         />
         {/* The table keeps its own scroll container, so the filter bar cannot scroll away with it. */}
         <div className="react-movements-table-wrapper">
@@ -3135,10 +3191,8 @@ export function MovementsTableView({
           />
           <tbody>
             {visibleRows.length === 0 && (
-              <tr><td colSpan={selectionEnabled ? 6 : 5} className="react-movements-no-results">
-                {periodRows.length === 0
-                  ? "No hay gastos reconocidos disponibles para este periodo."
-                  : "No hay movimientos que coincidan con los filtros actuales."}
+              <tr><td colSpan={selectionEnabled ? 6 : 5} className="react-movements-no-results-cell">
+                <MovementsNoResults filters={activeFilters} onClearFilters={clearAllFilters} fallbackMessage={noResultsMessage} />
               </td></tr>
             )}
             {visibleRows.map((movement, index) => {
@@ -3190,12 +3244,13 @@ export function MovementsTableView({
                     )}
                   </td>
                   <td className="react-movement-amount">{formatClp(movement.amount)}</td>
-                  <td className="react-movement-date">{movement.date}</td>
-                  <td><span className={`react-movement-category${movement.category === "Sin categoría" ? " react-movement-category-unassigned" : ""}`}>{movement.category}</span></td>
+                  <td className="react-movement-date-cell"><MovementDate date={movement.date} /></td>
+                  <td><MovementCategoryChip category={movement.category} color={categoryColor(movement.category)} /></td>
                   <td className="react-movements-actions">
                     <button
                       type="button"
                       className="secondary react-movement-action"
+                      aria-label={getMovementActionName("Ver", movement.counterparty, movement.date)}
                       onClick={() => onView?.(movement)}
                     >
                       Ver
@@ -3205,6 +3260,7 @@ export function MovementsTableView({
                         <button
                           type="button"
                           className="secondary react-movement-action"
+                          aria-label={getMovementActionName("Editar", movement.counterparty, movement.date)}
                           onClick={() => onEdit(editable)}
                         >
                           Editar
@@ -3212,6 +3268,7 @@ export function MovementsTableView({
                         <button
                           type="button"
                           className="secondary react-movement-action"
+                          aria-label={getMovementActionName("Eliminar", movement.counterparty, movement.date)}
                           onClick={() => onRemove(editable)}
                         >
                           Eliminar
@@ -3230,6 +3287,7 @@ export function MovementsTableView({
         </table>
         </div>
       </section>
+      </>)}
     </div>
   );
 }
@@ -3267,6 +3325,9 @@ export interface MovementsTableProps {
   readOnlyReason?: string;
   /** The movement just edited, highlighted in the table and list for a moment. */
   highlightedMovementId?: string | null;
+  /** First actions of an empty period; the read-only demo passes neither. */
+  onCreateExpense?: () => void;
+  onRefresh?: () => void;
 }
 
 export function MovementsTable({
@@ -3281,6 +3342,8 @@ export function MovementsTable({
   categoryCatalog = [],
   readOnlyReason,
   highlightedMovementId,
+  onCreateExpense,
+  onRefresh,
 }: MovementsTableProps) {
   // Initialised for the period the rows belong to; the unified view also renders for empty periods.
   // the rows belong to. The requested category is only read here, which is what makes it a mount-time
@@ -3372,6 +3435,17 @@ export function MovementsTable({
     onRemove(movement);
   };
 
+  // "Clasificar" applies the existing uncategorized filter on its own: it replaces the search, the kind and
+  // the category, so the rows it promises are exactly the ones shown, and moves focus to the list.
+  const classifyUncategorized = () => {
+    setSearch("");
+    setKind("");
+    setSelection(selectMovementFilterCategory("Sin categoría", period));
+    setTimeout(() => {
+      document.querySelector<HTMLElement>(".react-movements-table-heading h3")?.focus();
+    }, 0);
+  };
+
   const assignCategory = async () => {
     if (selectionView.selectedCount === 0) return;
     if (!submitBulkCategory) return;
@@ -3425,6 +3499,10 @@ export function MovementsTable({
         onView={openDetail}
         readOnlyReason={readOnlyReason}
         highlightedMovementId={highlightedMovementId}
+        categoryCatalog={categoryCatalog}
+        onClassify={classifyUncategorized}
+        onCreateExpense={onCreateExpense}
+        onRefresh={onRefresh}
         selection={readOnlyReason ? undefined : selectionView}
         onToggleSelection={(id) =>
           setRowSelection((current) =>

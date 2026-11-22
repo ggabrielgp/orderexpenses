@@ -3,6 +3,7 @@ import {
 	getCategoryKey,
 	MERGED_CATEGORY,
 	UNCATEGORIZED_CATEGORY,
+	type CategoryRanking,
 	type CategoryRankingRow,
 } from "./categoryRanking";
 
@@ -74,13 +75,58 @@ export function getCategoryRowColor(
 	if (key === getCategoryKey(MERGED_CATEGORY)) return MERGED_CATEGORY_COLOR;
 	if (key === getCategoryKey(UNCATEGORIZED_CATEGORY)) return UNCATEGORIZED_COLOR;
 
-	const stored = (catalog ?? []).find(
-		(entry) => getCategoryKey(entry?.name) === key && isUsableColor(entry?.color),
-	);
-	if (stored && isUsableColor(stored.color)) return stored.color.trim();
+	const stored = getStoredCategoryColor(category, catalog);
+	if (stored !== null) return stored;
 
 	const slot = rank !== undefined && rank >= 0 ? rank : hashKey(key);
 	return FALLBACK_PALETTE[slot % FALLBACK_PALETTE.length];
+}
+
+/** The colour the user picked for a category in the category settings, or `null` when there is none. */
+export function getStoredCategoryColor(
+	category: string,
+	catalog: readonly Category[] | undefined,
+): string | null {
+	const key = getCategoryKey(category);
+	if (!key) return null;
+	const stored = (catalog ?? []).find(
+		(entry) => getCategoryKey(entry?.name) === key && isUsableColor(entry?.color),
+	);
+	return stored && isUsableColor(stored.color) ? stored.color.trim() : null;
+}
+
+/**
+ * The colour of every display row of the ranking, in the donut's order: this is the one place the
+ * donut legend and the movements chips read their colours from, so the two never disagree.
+ */
+export function getCategoryRankingColors(
+	rows: readonly CategoryRankingRow[],
+	catalog: readonly Category[] | undefined,
+): string[] {
+	return rows.map((row, index) => getCategoryRowColor(row.category, catalog, index));
+}
+
+/**
+ * The colour a movement's category chip uses: the slice of the donut that category sits in. A category
+ * the donut folds into `Otras categorías` takes that slice's colour, a colour the user picked still
+ * wins, and a category the ranking does not know falls back to its stable palette swatch.
+ */
+export function createCategoryColorResolver(
+	ranking: Pick<CategoryRanking, "rows">,
+	catalog: readonly Category[] | undefined,
+): (category: string) => string {
+	const colors = getCategoryRankingColors(ranking.rows, catalog);
+	const byKey = new Map<string, string>();
+	ranking.rows.forEach((row, index) => {
+		if (row.mergesTail) {
+			for (const child of row.children) {
+				byKey.set(getCategoryKey(child.category), getStoredCategoryColor(child.category, catalog) ?? colors[index]);
+			}
+		} else {
+			byKey.set(getCategoryKey(row.category), colors[index]);
+		}
+	});
+	return (category) => byKey.get(getCategoryKey(category)) ?? getCategoryRowColor(category, catalog);
 }
 
 /** A raw share rounded once. A zero total has no share, never a fabricated one. */
