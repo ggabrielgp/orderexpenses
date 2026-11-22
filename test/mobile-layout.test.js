@@ -43,3 +43,9 @@ test("narrow screens put the gauge key (Color, Raya: hoy) right under the ring",
 	assert.match(block, /\.react-pace-gauge-body > \.react-pace-gauge-key \{[^}]*order: 1/s);
 	assert.match(block, /:is\(\.react-pace-gauge-facts, \.react-pace-gauge-notes\) \{[^}]*justify-self: stretch/s);
 });
+
+test("the spending breakdown total stacks its caption above the amount instead of one line", async () => {
+	const css = await read("src/client/styles.css");
+	assert.match(css, /\.react-spending-breakdown-total \{[^}]*display: grid;[^}]*gap: 2px;/s);
+	assert.doesNotMatch(css, /\.react-spending-breakdown-total \{[^}]*align-items: baseline/s);
+});

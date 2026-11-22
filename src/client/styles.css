@@ -1260,11 +1260,11 @@ body:has(.landing-page) { overflow-x: clip; }
 	font-size: 1rem;
 }
 
+/* A labelled figure: the caption on its own line above the amount, never glued to it in one line. */
 .react-spending-breakdown-total {
-	display: flex;
-	align-items: baseline;
-	gap: var(--space-1);
-	margin: 0;
+	display: grid;
+	gap: 2px;
+	margin: var(--space-2) 0 0;
 }
 
 .react-spending-breakdown-total strong {

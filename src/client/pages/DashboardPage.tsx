@@ -1741,8 +1741,8 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
           <h3 id="react-spending-breakdown-title">Distribución de gastos</h3>
           {breakdown.emptyMessage === null ? (
             <p className="react-spending-breakdown-total">
+              <span>Total registrado</span>
               <strong>{formatClp(breakdown.total)}</strong>
-              <span>total registrado</span>
             </p>
           ) : null}
         </div>

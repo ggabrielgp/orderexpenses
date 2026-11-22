@@ -7819,7 +7819,8 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.match(breakdownMarkup, /class="react-spending-breakdown-header-icon" aria-hidden="true"/);
 	assert.match(breakdownMarkup, /fa-chart-pie/);
 	assert.match(breakdownMarkup, /\$10\.000/);
-	assert.match(breakdownMarkup, /total registrado/);
+	// The total reads as a labelled figure: the caption on its own line above the amount.
+	assert.match(breakdownMarkup, /<p class="react-spending-breakdown-total"><span>Total registrado<\/span><strong>\$10\.000<\/strong><\/p>/);
 	// The segmented bar carries the distribution and the total as its accessible name.
 	assert.match(breakdownMarkup, /class="react-spending-breakdown-bar"/);
 	assert.match(breakdownMarkup, /role="img"/);
