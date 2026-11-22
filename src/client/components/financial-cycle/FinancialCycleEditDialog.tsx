@@ -6,6 +6,7 @@ import { CyclePeriodSummary } from "./CyclePeriodSummary";
 import { CyclePresets } from "./CyclePresets";
 import { CycleCalendar } from "./FinancialCycleCalendar";
 import { inferCycleOption, resolveCycleOption, type CycleOptionChoice } from "./cycleOptions";
+import { confirmSignInPeriod } from "./signInPeriodPrompt";
 import {
 	createCalendarRange,
 	getCurrentYearCalendarBounds,
@@ -52,6 +53,14 @@ type CycleEditStatus = {
 
 const PENDING_MESSAGE = "Guardando los cambios del período...";
 
+/** Sign-in variant (S27): the same dialog, asking to confirm the stored period instead of changing it. */
+const SIGN_IN_TITLE = "¿Seguimos con este período?";
+const SIGN_IN_WHY = "Confirma tu período y tu ingreso, o cámbialos antes de seguir.";
+const SIGN_IN_SKIP_LABEL = "No volver a preguntar hasta que termine este período";
+
+/** What the user chose when confirming the sign-in dialog: the checkbox and the period end it applies to. */
+export type SignInPeriodChoice = { skipUntilPeriodEnd: boolean; endDate: string };
+
 export interface FinancialCycleClosureNoteProps {
 	/** The configured cycle the consequence is derived from. */
 	cycle: FinancialCycleResponse | null;
@@ -88,6 +97,13 @@ export interface FinancialCycleEditDialogProps {
 	submitCycle: CycleEditSubmitter;
 	/** Called after a successful save so the summary can report the outcome and close the dialog. */
 	onSaved: (reloadFailed: boolean) => void;
+	/**
+	 * S27: the sign-in variant. "Continuar" saves exactly what is shown (nothing is sent when it equals the
+	 * stored period), "Cerrar" keeps the stored period, and a checkbox offers to skip the prompt until the
+	 * period ends. `onSignInConfirmed` runs after a save or an unchanged confirmation, never on dismissal.
+	 */
+	signIn?: boolean;
+	onSignInConfirmed?: (choice: SignInPeriodChoice) => void;
 }
 
 export function FinancialCycleEditDialog({
@@ -96,6 +112,8 @@ export function FinancialCycleEditDialog({
 	onClose,
 	submitCycle,
 	onSaved,
+	signIn = false,
+	onSignInConfirmed,
 }: FinancialCycleEditDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
 	// Closing keeps the last cycle rendered through the CSS exit, then releases it. The effects and the
@@ -109,6 +127,8 @@ export function FinancialCycleEditDialog({
 	// fields first and the prefilled values are what the markup shows.
 	const [draft, setDraft] = useState<CycleEditDraft>(() => createCycleEditDraft(cycle));
 	const [status, setStatus] = useState<CycleEditStatus | null>(null);
+	/** Sign-in only: "No volver a preguntar hasta que termine este período". */
+	const [skipUntilEnd, setSkipUntilEnd] = useState(false);
 	// The option that fills the draft's dates. It only decides how the start/end state is filled;
 	// validation and the save read the draft, as before.
 	const presetToday = useMemo(() => todayInSantiago(new Date()), []);
@@ -157,6 +177,7 @@ export function FinancialCycleEditDialog({
 		setOption(inferred.option);
 		setPayDay(inferred.payDay);
 		setStatus(null);
+		setSkipUntilEnd(false);
 		setCalendarError(null);
 		setAwaitingRangeEnd(false);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -231,17 +252,28 @@ export function FinancialCycleEditDialog({
 		}
 
 		setStatus({ message: PENDING_MESSAGE, tone: "pending" });
-		const outcome: CycleEditSubmitOutcome = await submitCycle(draft).catch(
+		const confirmed = signIn
+			? confirmSignInPeriod({ cycle, draft, submitCycle })
+			: submitCycle(draft);
+		const outcome = await confirmed.catch(
 			(error): CycleEditSubmitOutcome => ({
 				status: "failed",
 				message: getCycleEditFailureMessage(error),
 			}),
 		);
+		if (outcome.status === "unchanged") {
+			// Nothing to save: the stored period stands, so just remember the choice and close.
+			onSignInConfirmed?.({ skipUntilPeriodEnd: skipUntilEnd, endDate: draft.endDate });
+			setStatus(null);
+			onClose();
+			return;
+		}
 		if (!shouldClearCycleEditPhase(outcome)) return;
 		if (outcome.status === "failed") {
 			setStatus({ message: outcome.message, tone: "error" });
 			return;
 		}
+		if (signIn) onSignInConfirmed?.({ skipUntilPeriodEnd: skipUntilEnd, endDate: draft.endDate });
 		// The summary reports the saved period and the reload outcome, and closes this dialog.
 		onSaved(outcome.reloadFailed);
 	};
@@ -280,9 +312,9 @@ export function FinancialCycleEditDialog({
 					<div className="cycle-grab" aria-hidden="true" />
 					<header>
 						<h2 id="react-financial-cycle-edit-title" className="cycle-title">
-							Cambiar período
+							{signIn ? SIGN_IN_TITLE : "Cambiar período"}
 						</h2>
-						<p className="cycle-why">¿Cuándo empieza tu período?</p>
+						<p className="cycle-why">{signIn ? SIGN_IN_WHY : "¿Cuándo empieza tu período?"}</p>
 					</header>
 					<FinancialCycleClosureNote cycle={shownCycle} draft={draft} />
 					{/* One question, three options; each reveals only what it needs. The calendar and the
@@ -389,6 +421,18 @@ export function FinancialCycleEditDialog({
 							{footerStatus.message}
 						</p>
 					)}
+					{signIn && (
+						<label className="cycle-skip" htmlFor="financial-cycle-skip-prompt">
+							<input
+								id="financial-cycle-skip-prompt"
+								type="checkbox"
+								checked={skipUntilEnd}
+								onChange={(event) => setSkipUntilEnd(event.target.checked)}
+								disabled={isSaving}
+							/>
+							<span>{SIGN_IN_SKIP_LABEL}</span>
+						</label>
+					)}
 					<div className="cycle-actions">
 						<button
 							type="button"
@@ -396,11 +440,11 @@ export function FinancialCycleEditDialog({
 							onClick={onClose}
 							disabled={isSaving}
 						>
-							Cancelar
+							{signIn ? "Cerrar" : "Cancelar"}
 						</button>
 						<button type="submit" className="cycle-btn cycle-btn-primary" disabled={isSaving}>
 							{isSaving ? <span className="cycle-spinner" aria-hidden="true" /> : null}
-							{isSaving ? "Guardando..." : "Guardar cambios"}
+							{isSaving ? "Guardando..." : signIn ? "Continuar" : "Guardar cambios"}
 						</button>
 					</div>
 				</div>

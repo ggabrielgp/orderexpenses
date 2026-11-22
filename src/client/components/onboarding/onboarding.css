@@ -172,6 +172,27 @@
 	box-shadow: none;
 }
 
+/* Step-1 consent (S26): clearly off until the acknowledgement above it is checked, never a dark hover. */
+.onboarding-connect .onboarding-connect-cta .button:disabled,
+.onboarding-connect .onboarding-connect-cta .button:disabled:hover {
+	background: var(--color-surface-pressed, #e8e7e2);
+	box-shadow: none;
+	color: var(--color-ink-muted, #59647a);
+	cursor: not-allowed;
+	opacity: 1;
+}
+
+/* The checkbox and its hint sit above the control, so the G anchors to the control's bottom edge. */
+.onboarding-connect-connect:has(.gmail-inline-consent) .onboarding-connect-g {
+	top: auto;
+	bottom: 14px;
+}
+
+/* With the checkbox stacked above the control, "Ver la demo" lines up with the control, not the stack. */
+.onboarding-connect-cta:has(.gmail-inline-consent) {
+	align-items: flex-end;
+}
+
 .onboarding-connect .onboarding-connect-cta .button:focus-visible {
 	outline: 3px solid var(--color-ink, #131b2e);
 	outline-offset: 4px;
@@ -366,6 +387,10 @@
 		align-items: stretch;
 		gap: 4px;
 		margin: 24px 0 20px;
+	}
+
+	.onboarding-connect-cta:has(.gmail-inline-consent) {
+		align-items: stretch;
 	}
 
 	.onboarding-connect-demo {

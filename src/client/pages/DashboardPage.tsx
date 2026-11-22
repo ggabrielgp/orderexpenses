@@ -161,6 +161,7 @@ import {
   type RemovalState,
 } from "../components/movements/removalState";
 import { GmailConsentDialog } from "../components/gmail/GmailConsentDialog";
+import { GmailInlineConsent } from "../components/gmail/GmailInlineConsent";
 import {
   createGmailConsentState,
   reduceGmailConsent,
@@ -170,7 +171,14 @@ import { createGmailSyncSubmitter, type GmailSyncResultReusePreparation } from "
 import { AccountSettingsDialog } from "../components/settings/AccountSettingsDialog";
 import { createCategoryMutationSubmitter } from "../components/settings/categorySettings";
 import { createCounterpartyRuleSubmitter } from "../components/settings/counterpartyRules";
-import { FinancialCycleEditDialog } from "../components/financial-cycle/FinancialCycleEditDialog";
+import { FinancialCycleEditDialog, type SignInPeriodChoice } from "../components/financial-cycle/FinancialCycleEditDialog";
+import {
+  clearSignInMarker,
+  decideSignInPrompt,
+  hasSignInMarker,
+  rememberPeriodPromptSkip,
+  todayIsoSantiago,
+} from "../components/financial-cycle/signInPeriodPrompt";
 import { CycleCalendar } from "../components/financial-cycle/FinancialCycleCalendar";
 import {
   createCalendarRange,
@@ -644,6 +652,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
           connectUrl={session.gmail.connectUrl}
           accountConnected={session.gmail.connected}
           className="button"
+          inlineConsent
         />
       </OnboardingConnect>
     );
@@ -791,6 +800,12 @@ interface GmailConnectControlProps {
   /** Whether a Gmail account is already connected; drives the refusal guard. */
   accountConnected: boolean;
   className?: string;
+  /**
+   * Step 1 only (S26): the consent points are already on screen, so the acknowledgement is a checkbox
+   * above the control instead of a dialog. Everywhere else (reconnecting from inside the app) the
+   * dialog explains them, and an already connected account keeps its refusal flow.
+   */
+  inlineConsent?: boolean;
 }
 
 /**
@@ -805,8 +820,13 @@ export function GmailConnectControl({
   connectUrl,
   accountConnected,
   className,
+  inlineConsent = false,
 }: GmailConnectControlProps) {
   const [consent, setConsent] = useState<GmailConsentState>(createGmailConsentState);
+  // The inline consent is an always-open consent: the same state machine, opened on first render.
+  const [inlineState, setInlineState] = useState<GmailConsentState>(() =>
+    reduceGmailConsent(createGmailConsentState(), { type: "open", accountConnected: false }),
+  );
 
   const openConsent = useCallback(() => {
     setConsent((current) => reduceGmailConsent(current, { type: "open", accountConnected }));
@@ -815,6 +835,21 @@ export function GmailConnectControl({
   const closeConsent = useCallback(() => {
     setConsent((current) => reduceGmailConsent(current, { type: "cancel" }));
   }, []);
+
+  if (inlineConsent && !accountConnected) {
+    return (
+      <GmailInlineConsent
+        state={inlineState}
+        connectUrl={connectUrl}
+        className={className}
+        onAcknowledge={(acknowledged) =>
+          setInlineState((current) =>
+            reduceGmailConsent(current, { type: "acknowledge", acknowledged }),
+          )
+        }
+      />
+    );
+  }
 
   return (
     <>
@@ -1937,6 +1972,9 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   const closeFirstResult = useCallback(() => {
     setFirstResultPhase((phase) => dismissFirstResult(phase, browserStorage()));
   }, []);
+  // S27: the OAuth return (`/app?gmail=connected`) is a fresh sign-in. It is read once, at mount, and it
+  // stays pending until the summary has an outcome and the marker is removed from the URL.
+  const signInPending = useRef(typeof window !== "undefined" && hasSignInMarker(window.location.search));
   const activeLoad = useRef<AbortController | null>(null);
   // Invalidate a prepared sync even when an intervening refresh finishes with identical values.
   const dashboardLoadEpoch = useRef(0);
@@ -2084,11 +2122,43 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     [email, publishState, reloadFinancialDashboard],
   );
 
+  /** "edit" is the period button's dialog; "signIn" is the same dialog asking to confirm the stored period (S27). */
+  const [cycleEditMode, setCycleEditMode] = useState<"edit" | "signIn">("edit");
+
   const openCycleEdit = useCallback(() => {
     // A previous outcome must not describe the new attempt.
     setCycleEditNotice(null);
+    setCycleEditMode("edit");
     setIsCycleEditOpen(true);
   }, []);
+
+  // S27: once the summary resolves after an OAuth return, a configured period opens the dialog prefilled
+  // (unless the user asked not to be asked until the period ends) and the marker leaves the URL either way.
+  useEffect(() => {
+    if (!signInPending.current || typeof window === "undefined") return;
+    const decision = decideSignInPrompt({
+      search: window.location.search,
+      status: state.status,
+      email,
+      storage: browserStorage(),
+      today: todayIsoSantiago(new Date()),
+    });
+    if (!decision.handled) return;
+    signInPending.current = false;
+    clearSignInMarker(window);
+    if (decision.open) {
+      setCycleEditNotice(null);
+      setCycleEditMode("signIn");
+      setIsCycleEditOpen(true);
+    }
+  }, [state.status, email]);
+
+  const handleSignInConfirmed = useCallback(
+    (choice: SignInPeriodChoice) => {
+      if (choice.skipUntilPeriodEnd) rememberPeriodPromptSkip(browserStorage(), email, choice.endDate);
+    },
+    [email],
+  );
 
   const handleCycleEdited = useCallback((reloadFailed: boolean) => {
     if (!mounted.current) return;
@@ -2161,7 +2231,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     // The first mount is cache-first, so a browser reload (F5) reuses the tab's stored response
     // without a request. Every later run is a user-requested retry, which bypasses the cache and
     // reads current data instead.
-    const load = retryToken > 0
+    // A sign-in also reads current data: the dialog must show what the server stored, not a tab cache.
+    const load = retryToken > 0 || signInPending.current
       ? refreshFinancialDashboardData(email, controller.signal)
       : loadFinancialDashboardWithCache(email, controller.signal);
     load
@@ -2616,6 +2687,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
         onClose={() => setIsCycleEditOpen(false)}
         submitCycle={submitCycleEdit}
         onSaved={handleCycleEdited}
+        signIn={cycleEditMode === "signIn"}
+        onSignInConfirmed={handleSignInConfirmed}
       />
     </section>
     {firstResultStep(dashboardPace)}

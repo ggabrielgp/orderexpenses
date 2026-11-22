@@ -1,0 +1,68 @@
+/* Step-1 consent (S26): the acknowledgement above the connect control. Ink only, no cobalt. */
+
+.gmail-inline-consent {
+	display: grid;
+	gap: 8px;
+	min-width: 0;
+}
+
+.gmail-inline-consent .gmail-inline-consent-ack {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 44px;
+	margin: 0;
+	padding: 10px 14px;
+	border: 1px solid var(--color-line-strong, #d2d0ca);
+	border-radius: var(--radius-control, 12px);
+	background: var(--color-surface, #ffffff);
+	color: var(--color-ink, #131b2e);
+	cursor: pointer;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.gmail-inline-consent .gmail-inline-consent-ack:hover,
+.gmail-inline-consent .gmail-inline-consent-ack:has(input:checked) {
+	border-color: var(--color-ink, #131b2e);
+}
+
+.gmail-inline-consent .gmail-inline-consent-ack input[type="checkbox"] {
+	flex: none;
+	box-sizing: border-box;
+	width: 20px;
+	min-width: 20px;
+	height: 20px;
+	min-height: 0;
+	margin: 1px 0 0;
+	padding: 0;
+	accent-color: var(--color-ink, #131b2e);
+	cursor: pointer;
+}
+
+.gmail-inline-consent .gmail-inline-consent-ack input[type="checkbox"]:focus-visible {
+	outline: 3px solid var(--color-ink, #131b2e);
+	outline-offset: 2px;
+}
+
+.gmail-inline-consent .gmail-inline-consent-ack span {
+	flex: 1 1 0;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.gmail-inline-consent p.gmail-inline-consent-hint {
+	margin: 0;
+	color: var(--color-ink-muted, #59647a);
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+/* Checked: the hint keeps its row so the control does not jump, but it is no longer shown. */
+.gmail-inline-consent p.gmail-inline-consent-hint[hidden] {
+	display: block;
+	visibility: hidden;
+}

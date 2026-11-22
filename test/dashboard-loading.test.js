@@ -54,7 +54,8 @@ test("connected badge describes authorization, not successful synchronization, a
 	const signedOut = renderToStaticMarkup(createElement(page.DashboardPage, {
 		session: { authenticated: false, profile: null, gmail: { connected: false, connectUrl: "/auth/google" } },
 	}));
-	assert.match(signedOut, /<button class="button" type="button">Conectar Gmail<\/button>/);
+	// S26: step 1 renders the control disabled until the acknowledgement above it is checked.
+	assert.match(signedOut, /<button class="button" type="button" disabled="" aria-describedby="gmail-inline-consent-hint">Conectar Gmail<\/button>/);
 	assert.doesNotMatch(signedOut, /react-dashboard-loading|react-gmail-connected-badge/);
 });
 

@@ -3160,7 +3160,7 @@ test("the React financial summary exposes one period edit trigger and reloads th
 	// heading and closure action must not leave a duplicate control or stale wiring behind.
 	assert.match(
 		page,
-		/import \{ FinancialCycleEditDialog \} from "\.\.\/components\/financial-cycle\/FinancialCycleEditDialog";/,
+		/import \{ FinancialCycleEditDialog(?:, type SignInPeriodChoice)? \} from "\.\.\/components\/financial-cycle\/FinancialCycleEditDialog";/,
 	);
 	assert.match(page, /from "\.\.\/components\/financial-cycle\/cycleSettings";/);
 	assert.match(page, /createCycleEditSubmitter,/);

@@ -23,7 +23,8 @@ test("signed-out screen is onboarding step 1 with the trust points, demo link an
 	assert.ok(html.includes("Paso 1 de 3 · Conectar"));
 	for (const title of ["Qué leemos", "Qué nunca hacemos", "Cómo salir"]) assert.ok(html.includes(title), title);
 	assert.match(html, /href="\/app\/demo"[^>]*>Ver la demo<\/a>|<a[^>]*href="\/app\/demo"/);
-	assert.match(html, /<button class="button" type="button">Conectar Gmail<\/button>/);
+	// S26: the real connect control is disabled until the acknowledgement above it is checked.
+	assert.match(html, /<button class="button" type="button" disabled="" aria-describedby="gmail-inline-consent-hint">Conectar Gmail<\/button>/);
 	assert.equal((html.match(/<main/g) ?? []).length, 1);
 });
 
