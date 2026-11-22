@@ -295,7 +295,7 @@ export function getManualExpenseErrorMessage(error: unknown, period: FinancialPe
 		return `La fecha debe estar dentro del período seleccionado (${formatPeriodLabel(period)}). Un gasto fuera del período no aparecería en el resumen, así que no se guarda.`;
 	}
 	if (error instanceof TypeError) {
-		return "Revisa los datos: la fecha debe ser válida, el monto debe ser un número positivo en pesos y la categoría debe existir.";
+		return "Revisa los datos: necesitamos una fecha válida, un monto mayor que cero y una categoría existente.";
 	}
 	return MANUAL_EXPENSE_FAILURE_MESSAGE;
 }

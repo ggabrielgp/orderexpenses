@@ -118,3 +118,21 @@ test("app and landing chrome render BrandMark instead of the wallet glyph", asyn
 	assert.match(header, /href="\/"/);
 	assert.match(header, /aria-label="Gastos Controlados, inicio"/);
 });
+
+// Neutral, friendly Spanish: no Rioplatense vocabulary and no blaming tone in user-facing copy.
+test("user-facing copy is neutral Spanish", async () => {
+	const files = [
+		"src/client/components/analytics/CategoryDistributionPanel.tsx",
+		"src/client/components/landing/LandingTourSection.tsx",
+		"src/client/components/gmail/gmailConnection.ts",
+		"src/client/components/movements/EditMovementDialog.tsx",
+		"src/client/components/movements/CreateManualExpenseDialog.tsx",
+		"src/client/components/financial-cycle/cycleCompletion.ts",
+	];
+	for (const path of files) {
+		const source = await read(path);
+		assert.doesNotMatch(source, /\bplata\b/, `${path} says "plata"`);
+		assert.doesNotMatch(source, /el servidor rechaza|no hay ninguna acción de tu parte|número positivo en pesos/, `${path} keeps cold copy`);
+	}
+	assert.match(await read("src/client/components/analytics/CategoryDistributionPanel.tsx"), /<h3 id=\{titleId\}>¿A dónde se fue tu dinero\?<\/h3>/);
+});

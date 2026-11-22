@@ -34,7 +34,7 @@ const TOUR_SCREENS: readonly TourScreen[] = [
 		description: `Pantalla de ejemplo del Resumen, en el gráfico de gasto por día de la semana del período, con sus pestañas y el total. ${READ_ONLY}`,
 	},
 	{
-		workflow: "categories", view: "summary", scenario: "tight", focus: "categories", label: "Dónde se fue tu plata",
+		workflow: "categories", view: "summary", scenario: "tight", focus: "categories", label: "¿A dónde se fue tu dinero?",
 		description: `Pantalla de ejemplo del Resumen, en la distribución del gasto por categoría: un gráfico de anillo y la lista de categorías con su monto y su porcentaje. ${READ_ONLY}`,
 	},
 	{

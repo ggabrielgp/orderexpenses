@@ -125,7 +125,7 @@ const COMPLETION_STALE =
 /** Copy for the outcomes that carry no value from the server, plus the one that produced no verdict. */
 const FIXED_COMPLETION_NOTICES: Record<"disconnected" | "error" | "failed", CycleCompletionNotice> = {
 	disconnected: {
-		message: "El cierre no se registró y el período sigue abierto: tu cuenta de Gmail no está conectada y cerrar el período necesita leer el correo. Usa el botón «Conectar Gmail» del panel de conexión y vuelve a intentarlo.",
+		message: "El cierre no se registró y el período sigue abierto: para cerrarlo necesitamos leer tu correo y Gmail no está conectado. Conéctalo con «Conectar Gmail» en el panel de conexión y vuelve a intentarlo.",
 		tone: "warning",
 	},
 	error: { tone: "error", message: "El cierre no se pudo completar y no es posible confirmar si quedó registrado. Vuelve a cargar el resumen para ver el estado real; reintentar el cierre es seguro, porque cerrar un período ya cerrado conserva el registro original." },

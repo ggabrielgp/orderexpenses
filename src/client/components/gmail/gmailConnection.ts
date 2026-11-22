@@ -150,10 +150,10 @@ export function reduceGmailConnection(
  * they cannot take, nor exposes an internal path or file name.
  */
 export const GMAIL_CREDENTIALS_MISSING_MESSAGE =
-	"La conexión con Gmail no está disponible porque aún falta completar la configuración de la aplicación. Esto debe resolverlo quien administra el servicio; no hay ninguna acción de tu parte que lo habilite.";
+	"Gmail aún no está disponible porque falta terminar la configuración de la aplicación. No depende de ti: quien administra el servicio lo tiene que resolver.";
 /** The server can authorize, but no account is connected for this session. */
 export const GMAIL_NOT_CONNECTED_MESSAGE =
-	"Gmail no está conectado. Usa Conectar Gmail para autorizar la lectura de tus correos.";
+	"Aún no has conectado Gmail. Pulsa «Conectar Gmail» para que podamos leer tus avisos de compra.";
 const GMAIL_CONNECTED_MESSAGE =
 	"Puedes revisar los movimientos que la app detecta en los correos de Banco de Chile del período configurado.";
 const GMAIL_CONNECTED_WITHOUT_EMAIL_MESSAGE =

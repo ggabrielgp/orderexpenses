@@ -19,7 +19,7 @@ import {
 } from "./categoryDistribution";
 
 /**
- * The legacy `Dónde se fue tu plata` card as a reusable authenticated view: the ECharts donut, the
+ * The legacy `¿A dónde se fue tu dinero?` card as a reusable authenticated view: the ECharts donut, the
  * coloured legend rows that select a category, and the existing category detail.
  *
  * Legacy rendered this through `renderCategoryDistribution` (`public/app.js:2733-2872`) with an
@@ -417,7 +417,7 @@ export function CategoryDistributionView({
 	const heading = (
 		<>
 			<div className="react-category-distribution-heading">
-				<h3 id={titleId}>Dónde se fue tu plata</h3>
+				<h3 id={titleId}>¿A dónde se fue tu dinero?</h3>
 				{/* Decorative: the adjacent title names the card, so the glyph is hidden. */}
 				<span className="react-card-icon" aria-hidden="true">
 					<FontAwesomeIcon icon={faLayerGroup} />

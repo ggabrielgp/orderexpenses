@@ -67,7 +67,7 @@ export type MovementEditEvent =
 	| { type: "succeeded"; reloadFailed: boolean };
 
 const MOVEMENT_EDIT_INVALID_MESSAGE =
-	"Revisa los datos: el monto debe ser un número positivo en pesos, el tipo debe ser válido y la categoría debe existir.";
+	"Revisa los datos: necesitamos un monto mayor que cero, un tipo válido y una categoría existente.";
 /**
  * The out-of-period `RangeError` is the authorized product rule shared with creation, so its copy
  * names the accepted range through the single shared period label instead of blaming the save.
@@ -80,7 +80,7 @@ const MOVEMENT_EDIT_FAILURE_MESSAGE =
 const MOVEMENT_EDIT_NOT_FOUND_MESSAGE =
 	"No se encontró el movimiento, así que no se pudo guardar el cambio. Puede que ya se haya eliminado u ocultado en otro lugar, o que una edición anterior haya cambiado su fecha. Actualiza la página para ver el estado real.";
 const MOVEMENT_EDIT_DATE_LOCK_MESSAGE =
-	"La fecha de un movimiento importado desde Gmail no se puede modificar; el servidor rechaza el cambio. Los demás campos sí se pueden editar.";
+	"La fecha de un movimiento importado desde Gmail no se puede cambiar, pero puedes editar todo lo demás.";
 
 export function createMovementEditState(draft: MovementEditDraft): MovementEditState {
 	return { phase: "idle", draft, errorMessage: null, reloadFailed: false };

@@ -1144,7 +1144,7 @@ export function CategoryRankingView({
 }
 
 /**
- * The legacy `Dónde se fue tu plata` mount point: it hands the decided ranking, the stored colours
+ * The legacy `¿A dónde se fue tu dinero?` mount point: it hands the decided ranking, the stored colours
  * and the jump to the distribution container, which owns the selection. The jump stays the
  * summary's, because only the summary can switch to the movements view and carry the requested
  * category into it.

@@ -8083,7 +8083,7 @@ test("the React category distribution renders the ECharts donut legend, reuses t
 		);
 
 	const list = renderDistribution(null);
-	assert.match(list, /<h3 id="react-category-distribution-title">Dónde se fue tu plata<\/h3>/);
+	assert.match(list, /<h3 id="react-category-distribution-title">¿A dónde se fue tu dinero\?<\/h3>/);
 	assert.match(list, /Distribución por categoría principal\./);
 	assert.match(list, /class="react-category-distribution-insight" role="status"/);
 	// The donut container carries the chart facts as an accessible name because the canvas is not.
@@ -8162,7 +8162,7 @@ test("the React category distribution renders the ECharts donut legend, reuses t
 	assert.match(demoMarkup, /Solo lectura/);
 	// The demo now mounts the same read-only distribution as the authenticated summary.
 	assert.match(demoMarkup, /react-category-distribution/);
-	assert.match(demoMarkup, /Dónde se fue tu plata/);
+	assert.match(demoMarkup, /¿A dónde se fue tu dinero\?/);
 
 	// Scoped styles under the shipped `react-` prefix.
 	assert.match(styles, /\.react-category-distribution \{/);

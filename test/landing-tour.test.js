@@ -34,7 +34,7 @@ test("tour offers five named screens of the real demo and preserves the public d
 	const html = render();
 	assert.match(html, /class="[^"]*tour[^"]*landing-tour/);
 	assert.match(html, /id="recorrido"/);
-	for (const heading of ["Recorrido por la app", "Un período. Cada gasto en su lugar.", "Medidor del mes: En ritmo", "Medidor del mes: Vas rápido", "Gasto por día de la semana", "Dónde se fue tu plata", "Movimientos del período"]) assert.ok(html.includes(heading), heading);
+	for (const heading of ["Recorrido por la app", "Un período. Cada gasto en su lugar.", "Medidor del mes: En ritmo", "Medidor del mes: Vas rápido", "Gasto por día de la semana", "¿A dónde se fue tu dinero?", "Movimientos del período"]) assert.ok(html.includes(heading), heading);
 	assert.equal((html.match(/data-workflow=/g) ?? []).length, 5);
 	assert.doesNotMatch(html, /Datos de ejemplo · vista de solo lectura|Desliza para recorrer|landing-tour-help|landing-tour-disclaimer/);
 	assert.match(html, /href="\/app\/demo"/);
@@ -48,7 +48,7 @@ test("tour offers five named screens of the real demo and preserves the public d
 test("tour omits visible captions while retaining an accessible name and a text alternative per phone", () => {
 	const html = render();
 	assert.doesNotMatch(html, /landing-tour-caption|landing-tour-step|<h3[^>]*>(?:Agregar un gasto|Categorizar un gasto|Resumen de tu periodo)/);
-	for (const name of ["Medidor del mes: En ritmo", "Medidor del mes: Vas rápido", "Gasto por día de la semana", "Dónde se fue tu plata", "Movimientos del período"]) {
+	for (const name of ["Medidor del mes: En ritmo", "Medidor del mes: Vas rápido", "Gasto por día de la semana", "¿A dónde se fue tu dinero?", "Movimientos del período"]) {
 		assert.ok(html.includes(`<article data-workflow=`) && html.includes(`aria-label="${name}"`), name);
 	}
 	for (const workflow of ["gauge-calm", "gauge-over", "spending", "categories", "movements"]) {

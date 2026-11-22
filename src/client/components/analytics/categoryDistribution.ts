@@ -8,7 +8,7 @@ import {
 } from "./categoryRanking";
 
 /**
- * Category-distribution decisions for the legacy `Dónde se fue tu plata` card: the colour a donut
+ * Category-distribution decisions for the legacy `¿A dónde se fue tu dinero?` card: the colour a donut
  * slice and its legend row use, and the insight sentence that reads the distribution.
  *
  * Legacy rendered the card through `renderCategoryDistribution` (`public/app.js:2733-2872`), with
@@ -135,7 +135,7 @@ function getShare(amount: number, total: number): number {
 }
 
 /**
- * The `Dónde se fue tu plata` insight, mirroring legacy's `renderCategoryDistributionInsight`
+ * The `¿A dónde se fue tu dinero?` insight, mirroring legacy's `renderCategoryDistributionInsight`
  * (`public/app.js:3113-3131`) with its arithmetic corrected.
  *
  * Legacy summed the two already-rounded percentages, so the combined share it printed could exceed
