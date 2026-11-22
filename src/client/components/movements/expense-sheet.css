@@ -1,0 +1,97 @@
+/*
+ * S1 (odd/tasks/mobile-polish-business-day.md, T3): "Nuevo gasto" uses the product sheet of the
+ * period dialog (cycle-setup.css): grab handle, title, white bordered fields, a money field with
+ * "$" and "CLP", and the sticky footer with Cancelar and a wide primary. Only the field grid and
+ * the field look live here (the ids outrank the shared dialog field rule in dialog-polish.css); the shell, body scroll, footer and buttons come from `dialog.cycle-dialog`.
+ */
+
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-form {
+	gap: 0;
+}
+
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 18px 16px;
+	margin-top: 20px;
+}
+
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields label {
+	display: grid;
+	align-content: start;
+	gap: 8px;
+	min-width: 0;
+	color: var(--color-ink, #131b2e);
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.35;
+}
+
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-amount, #manual-expense-occurred-at, #manual-expense-kind, #manual-expense-category, #manual-expense-counterparty, #manual-expense-description) {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 48px;
+	margin: 0;
+	padding: 0 14px;
+	border: 1px solid var(--cycle-ctl);
+	border-radius: var(--radius-control, 12px);
+	background-color: #ffffff;
+	color: var(--color-ink, #131b2e);
+	font-size: 16px;
+	font-weight: 600;
+}
+
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-amount, #manual-expense-occurred-at, #manual-expense-kind, #manual-expense-category, #manual-expense-counterparty, #manual-expense-description):hover:not(:disabled) {
+	border-color: var(--color-ink-secondary, #3f4b63);
+}
+
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-amount, #manual-expense-occurred-at, #manual-expense-kind, #manual-expense-category, #manual-expense-counterparty, #manual-expense-description):focus-visible {
+	border-color: var(--color-ink, #131b2e);
+	outline: 3px solid var(--color-ink, #131b2e);
+	outline-offset: 2px;
+}
+
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields input::placeholder {
+	color: var(--color-ink-muted, #59647a);
+	font-weight: 500;
+	opacity: 1;
+}
+
+/* The amount leads: large, tabular, with its currency on both sides like the income field. */
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-amount input#manual-expense-amount {
+	min-height: 60px;
+	padding: 0 60px 0 34px;
+	font-size: 26px;
+	font-variant-numeric: tabular-nums;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-amount .cycle-money-unit {
+	font-size: 18px;
+}
+
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields small,
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-catalog {
+	margin: 0;
+	color: var(--color-ink-muted, #59647a);
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.4;
+}
+
+dialog.cycle-dialog.react-create-expense-dialog :is(.react-create-expense-error, .react-create-expense-pending) {
+	margin-top: 16px;
+}
+
+@media (max-width: 760px) {
+	dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 16px;
+		margin-top: 16px;
+	}
+
+	dialog.cycle-dialog.react-create-expense-dialog h2.cycle-title {
+		font-size: 26px;
+	}
+}

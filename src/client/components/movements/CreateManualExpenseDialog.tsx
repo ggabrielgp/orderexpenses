@@ -8,6 +8,8 @@ import {
 } from "react";
 import { getCategories } from "../../api/client";
 import { registerNativeBackdropDismiss } from "../dialog/nativeBackdropDismiss";
+import "../financial-cycle/cycle-setup.css";
+import "./expense-sheet.css";
 import type {
 	Category,
 	CreateManualExpenseRequest,
@@ -536,20 +538,25 @@ export function CreateManualExpenseDialog({
 	return (
 		<dialog
 			ref={dialogRef}
-			className="react-create-expense-dialog"
+			className="react-create-expense-dialog cycle-dialog"
 			aria-labelledby="react-create-expense-title"
 			aria-describedby="manual-expense-period-help"
 			onCancel={handleDialogCancel}
 			onClose={onClose}
 		>
-			<form className="react-create-expense-form" onSubmit={handleSubmit} aria-busy={isSaving}>
-				<h2 id="react-create-expense-title">Nuevo gasto</h2>
+			<form className="react-create-expense-form cycle-form" onSubmit={handleSubmit} aria-busy={isSaving}>
+				<div className="cycle-body">
+				<div className="cycle-grab" aria-hidden="true" />
+				<h2 id="react-create-expense-title" className="cycle-title">Nuevo gasto</h2>
+				<p className="cycle-why">Registra un gasto que no llegó por correo.</p>
 				<div className="react-create-expense-fields">
 					<label
 						className="react-create-expense-full react-create-expense-amount"
 						htmlFor="manual-expense-amount"
 					>
 						<span>Monto CLP</span>
+						<span className="cycle-money">
+						<span className="cycle-money-unit cycle-money-prefix" aria-hidden="true">$</span>
 						<input
 							id="manual-expense-amount"
 							name="amount"
@@ -562,6 +569,8 @@ export function CreateManualExpenseDialog({
 							disabled={isSaving}
 							required
 						/>
+						<span className="cycle-money-unit cycle-money-suffix" aria-hidden="true">CLP</span>
+						</span>
 					</label>
 					<label className="react-create-expense-full" htmlFor="manual-expense-occurred-at">
 						<span>Fecha y hora</span>
@@ -634,7 +643,7 @@ export function CreateManualExpenseDialog({
 							</button>
 						</>
 					) : (
-						<p className="react-create-expense-catalog" role="status" aria-live="polite">
+						<p className={isCatalogReady ? "react-create-expense-catalog cycle-sr" : "react-create-expense-catalog"} role="status" aria-live="polite">
 							{isCatalogReady ? "Categorías disponibles." : "Cargando categorías..."}
 						</p>
 					)}
@@ -673,13 +682,16 @@ export function CreateManualExpenseDialog({
 						Guardando gasto...
 					</p>
 				)}
-				<div className="react-shell-actions">
-					<button type="button" className="secondary" onClick={onClose} disabled={isSaving}>
+				</div>
+				<div className="cycle-foot">
+				<div className="react-shell-actions cycle-actions">
+					<button type="button" className="secondary cycle-btn cycle-btn-ghost" onClick={onClose} disabled={isSaving}>
 						Cancelar
 					</button>
-					<button type="submit" disabled={!isSubmitOpen}>
+					<button type="submit" className="cycle-btn cycle-btn-primary" disabled={!isSubmitOpen}>
 						{isSaving ? "Guardando..." : "Guardar gasto"}
 					</button>
+				</div>
 				</div>
 			</form>
 		</dialog>
