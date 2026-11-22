@@ -54,6 +54,25 @@ test("payDayCycle rejects a pay day outside 1..31", () => {
 	}
 });
 
+test("lastBusinessDayOf steps back from a weekend month end to the previous Friday", () => {
+	assert.equal(presets.lastBusinessDayOf(2026, 10), 30); // Oct 31 2026 is a Saturday.
+	assert.equal(presets.lastBusinessDayOf(2026, 5), 29); // May 31 2026 is a Sunday.
+	assert.equal(presets.lastBusinessDayOf(2026, 11), 30); // Nov 30 2026 is a Monday.
+	assert.equal(presets.lastBusinessDayOf(2026, 2), 27); // Feb 28 2026 is a Saturday.
+	assert.equal(presets.lastBusinessDayOf(2028, 2), 29); // Leap Feb 29 2028 is a Tuesday.
+});
+
+test("lastBusinessDayCycle runs from the latest last business day on or before today to the day before the next one", () => {
+	// Before November's last business day (Mon 30): started Fri Oct 30, ends Sun Nov 29.
+	assert.deepEqual(presets.lastBusinessDayCycle(day(2026, 11, 20)), { startDate: "2026-10-30", endDate: "2026-11-29" });
+	// On it: starts Nov 30 and ends the day before December's (Thu Dec 31).
+	assert.deepEqual(presets.lastBusinessDayCycle(day(2026, 11, 30)), { startDate: "2026-11-30", endDate: "2026-12-30" });
+	// Weekend days after a Friday last business day belong to the cycle that started that Friday.
+	assert.deepEqual(presets.lastBusinessDayCycle(day(2026, 10, 31)), { startDate: "2026-10-30", endDate: "2026-11-29" });
+	// Across the year boundary: Dec 31 2026 (Thu) to the day before Fri Jan 29 2027.
+	assert.deepEqual(presets.lastBusinessDayCycle(day(2027, 1, 10)), { startDate: "2026-12-31", endDate: "2027-01-28" });
+});
+
 // The option cards (radiogroup, reveals, quick pay days) are covered in test/cycle-setup-options.test.js.
 
 test("first result storage helpers read and write the seen flag", () => {

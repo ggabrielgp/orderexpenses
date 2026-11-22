@@ -34,6 +34,17 @@ test("the pay day quick choices are 1, 5, 15, 25 and the last day (31 clamps to 
 	assert.equal(options.DEFAULT_PAY_DAY, 25);
 	assert.equal(options.payDayLabel(31), "Último día");
 	assert.equal(options.payDayLabel(5), "5");
+	assert.equal(options.payDayLabel(options.LAST_BUSINESS_DAY), "Último día hábil");
+});
+
+test("Último día hábil resolves to the last-business-day cycle and an existing such range preselects it", () => {
+	const typed = { startDate: "", endDate: "" };
+	assert.deepEqual(options.resolveCycleOption("payDay", NOV_20, options.LAST_BUSINESS_DAY, typed), presets.lastBusinessDayCycle(NOV_20));
+	// Dec 2026: started Mon Nov 30, ends Wed Dec 30; no fixed pay day produces it, the last business day does.
+	const dec = day(2026, 12, 10);
+	assert.deepEqual(options.inferCycleOption({ startDate: "2026-11-30", endDate: "2026-12-30" }, dec), { option: "payDay", payDay: options.LAST_BUSINESS_DAY });
+	// A fixed pay day that produces the range keeps winning, as before.
+	assert.deepEqual(options.inferCycleOption({ startDate: "2026-11-25", endDate: "2026-12-24" }, dec), { option: "payDay", payDay: 25 });
 });
 
 test("choosing an option resolves the range: calendar month, pay day cycle, or the range already typed", () => {
@@ -112,7 +123,8 @@ test("Desde mi día de pago reveals the pay day question, the quick choices, Otr
 	const html = renderOptions({ option: "payDay", payDay: 25, range: { startDate: "2026-10-25", endDate: "2026-11-24" }, customPane: createElement("div", { id: "custom-pane" }) });
 	assert.ok(html.includes("¿Qué día te pagan?"));
 	for (const label of ["1", "5", "15", "25", "Último día"]) assert.match(html, new RegExp(`<span>${label}</span>`), label);
-	assert.equal((html.match(/<input type="radio" name="[^"]*-pay-day"(?: checked="")? value="\d+"/g) ?? []).length, 5);
+	assert.match(html, /<span>Último día hábil<\/span>/);
+	assert.equal((html.match(/<input type="radio" name="[^"]*-pay-day"(?: checked="")? value="\d+"/g) ?? []).length, 6);
 	assert.match(html, /-pay-day" checked="" value="25"/);
 	assert.match(html, /<select[^>]*id="financial-cycle-pay-day"/);
 	assert.ok(html.includes(">Otro día</option>"));
@@ -127,6 +139,12 @@ test("Desde mi día de pago reveals the pay day question, the quick choices, Otr
 	// Short-month rule is explained only for the days that can clamp.
 	assert.doesNotMatch(html, /meses más cortos/);
 	assert.ok(renderOptions({ option: "payDay", payDay: 31, range: { startDate: "2026-10-31", endDate: "2026-11-29" } }).includes("Último día de cada mes; en meses más cortos, su último día."));
+	// Último día hábil: its chip is checked, "Otro día" stays a placeholder and the weekend rule is explained.
+	const business = renderOptions({ option: "payDay", payDay: options.LAST_BUSINESS_DAY, range: { startDate: "2026-10-30", endDate: "2026-11-29" } });
+	assert.match(business, /-pay-day" checked="" value="0"/);
+	assert.match(business, /<option value="" selected="">Otro día<\/option>/);
+	assert.ok(business.includes("Último día de lunes a viernes de cada mes; si el mes termina en fin de semana, usamos el viernes anterior."));
+	assert.match(business, /Tu período: <b>30 oct al 29 nov<\/b>/);
 });
 
 test("Otro rango reveals the calendar and date inputs it is given, and nothing else", () => {

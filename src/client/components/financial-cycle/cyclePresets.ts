@@ -46,6 +46,36 @@ function dayBefore(year: number, month: number, day: number): string {
 	return toIso(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
 }
 
+/** The last Monday-to-Friday day of a month; holidays are not considered. */
+export function lastBusinessDayOf(year: number, month: number): number {
+	let day = daysInMonth(year, month);
+	for (;;) {
+		const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+		if (weekday !== 0 && weekday !== 6) return day;
+		day -= 1;
+	}
+}
+
+/**
+ * From the most recent last business day of a month on or before today to the day before the next
+ * month's last business day. A month that ends on a weekend pays on the previous Friday.
+ */
+export function lastBusinessDayCycle(today: CalendarDay): CyclePresetRange {
+	const thisMonth = lastBusinessDayOf(today.year, today.month);
+	const start =
+		today.day >= thisMonth
+			? { year: today.year, month: today.month, day: thisMonth }
+			: (() => {
+					const previous = shiftMonth(today.year, today.month, -1);
+					return { ...previous, day: lastBusinessDayOf(previous.year, previous.month) };
+				})();
+	const next = shiftMonth(start.year, start.month, 1);
+	return {
+		startDate: toIso(start.year, start.month, start.day),
+		endDate: dayBefore(next.year, next.month, lastBusinessDayOf(next.year, next.month)),
+	};
+}
+
 /** The first through the last day of today's month. */
 export function calendarMonthCycle(today: CalendarDay): CyclePresetRange {
 	return {

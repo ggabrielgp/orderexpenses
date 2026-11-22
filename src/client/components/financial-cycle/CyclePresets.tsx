@@ -2,6 +2,7 @@ import { useId, type ReactNode } from "react";
 import "./cycle-setup.css";
 import { CalendarGlyph } from "./CycleIcons";
 import {
+	LAST_BUSINESS_DAY,
 	PAY_DAYS,
 	PAY_DAY_QUICK_CHOICES,
 	describePayDayReasoning,
@@ -42,7 +43,8 @@ export function CyclePresets({
 	const groupName = useId();
 	const result = formatCycleResult(range);
 	const reasoning = describePayDayReasoning(range);
-	const isQuickChoice = PAY_DAY_QUICK_CHOICES.includes(payDay);
+	const chipChoices = [...PAY_DAY_QUICK_CHOICES, LAST_BUSINESS_DAY];
+	const isQuickChoice = chipChoices.includes(payDay);
 
 	const card = (choice: CycleOptionChoice, label: string, detail: string, reveal: ReactNode) => {
 		const isOn = option === choice;
@@ -95,7 +97,7 @@ export function CyclePresets({
 					<fieldset className="cycle-payday">
 						<legend>¿Qué día te pagan?</legend>
 						<div className="cycle-chips">
-							{PAY_DAY_QUICK_CHOICES.map((value) => (
+							{chipChoices.map((value) => (
 								<label className="cycle-chip" key={value}>
 									<input
 										type="radio"
@@ -136,7 +138,11 @@ export function CyclePresets({
 							{reasoning ? <span className="cycle-result-days"> ({reasoning.days})</span> : null}
 						</span>
 					</p>
-					{payDay === 31 ? (
+					{payDay === LAST_BUSINESS_DAY ? (
+						<p className="cycle-note">
+							Último día de lunes a viernes de cada mes; si el mes termina en fin de semana, usamos el viernes anterior.
+						</p>
+					) : payDay === 31 ? (
 						<p className="cycle-note">Último día de cada mes; en meses más cortos, su último día.</p>
 					) : payDay >= 29 ? (
 						<p className="cycle-note">En los meses más cortos usamos su último día.</p>

@@ -5,7 +5,13 @@
  * start/end state, so validation, the saved payload and the API calls are the ones they always had.
  */
 import { parseDateOnly } from "./cycleCalendar";
-import { calendarMonthCycle, payDayCycle, type CalendarDay, type CyclePresetRange } from "./cyclePresets";
+import {
+	calendarMonthCycle,
+	lastBusinessDayCycle,
+	payDayCycle,
+	type CalendarDay,
+	type CyclePresetRange,
+} from "./cyclePresets";
 
 export type CycleOptionChoice = "calendar" | "payDay" | "custom";
 
@@ -16,7 +22,16 @@ export const PAY_DAY_QUICK_CHOICES: readonly number[] = [1, 5, 15, 25, 31];
 
 export const PAY_DAYS: readonly number[] = Array.from({ length: 31 }, (_, index) => index + 1);
 
-export const payDayLabel = (payDay: number): string => (payDay === 31 ? "Último día" : String(payDay));
+/** The pay day value for "Último día hábil": the month's last Monday-to-Friday day (S4). */
+export const LAST_BUSINESS_DAY = 0;
+
+export const payDayLabel = (payDay: number): string =>
+	payDay === LAST_BUSINESS_DAY ? "Último día hábil" : payDay === 31 ? "Último día" : String(payDay);
+
+/** The pay day cycle for a fixed day or for the last business day. */
+function cycleForPayDay(today: CalendarDay, payDay: number): CyclePresetRange {
+	return payDay === LAST_BUSINESS_DAY ? lastBusinessDayCycle(today) : payDayCycle(today, payDay);
+}
 
 /** The range an option puts in the start/end state; "Otro rango" keeps whatever is already there. */
 export function resolveCycleOption(
@@ -26,7 +41,7 @@ export function resolveCycleOption(
 	current: CyclePresetRange,
 ): CyclePresetRange {
 	if (option === "calendar") return calendarMonthCycle(today);
-	if (option === "payDay") return payDayCycle(today, payDay);
+	if (option === "payDay") return cycleForPayDay(today, payDay);
 	return current;
 }
 
@@ -50,6 +65,10 @@ export function inferCycleOption(
 	const candidate = payDayCycle(today, start.day);
 	if (range.startDate === candidate.startDate && range.endDate === candidate.endDate) {
 		return { option: "payDay", payDay: start.day };
+	}
+	const business = lastBusinessDayCycle(today);
+	if (range.startDate === business.startDate && range.endDate === business.endDate) {
+		return { option: "payDay", payDay: LAST_BUSINESS_DAY };
 	}
 	return { option: "custom", payDay: DEFAULT_PAY_DAY };
 }
