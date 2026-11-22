@@ -39,12 +39,13 @@ test("first cycle setup offers the options with the unchanged calendar and date 
 	assert.match(form, /id="financial-cycle-end-date"/);
 });
 
-test("the gauge explainer appears only after the first cycle save and is remembered when dismissed", () => {
+test("onboarding step 3 starts only after the first cycle save and closes through the seen flag", () => {
+	// The inline "Así se lee tu medidor" card is gone: step 3 is the dialog of the first-result-step tests.
 	assert.match(source, /<FinancialCycleSetupForm onSaved=\{handleFirstCycleSaved\} \/>/);
-	assert.match(source, /setShowFirstResult\(!hasSeenFirstResult\(browserStorage\(\)\)\);\s*retry\(\);/);
-	assert.match(source, /markFirstResultSeen\(browserStorage\(\)\);\s*setShowFirstResult\(false\);/);
-	assert.match(source, /\{showFirstResult && dashboardPace \? <FirstResultExplainer onDismiss=\{dismissFirstResult\} \/> : null\}/);
-	// The demo body never receives the explainer.
+	assert.match(source, /setFirstResultPhase\(startFirstResult\(hasSeenFirstResult\(browserStorage\(\)\)\)\);\s*retry\(\);/);
+	assert.match(source, /dismissFirstResult\(phase, browserStorage\(\)\)/);
+	assert.doesNotMatch(source, /<FirstResultExplainer/);
+	// The demo body never receives the step.
 	const demo = source.slice(source.indexOf("function DemoDashboardPage"), source.indexOf("function DemoDashboardPage") + 20000);
-	assert.doesNotMatch(demo.slice(0, demo.indexOf("\nfunction ", 10)), /FirstResultExplainer/);
+	assert.doesNotMatch(demo.slice(0, demo.indexOf("\nfunction ", 10)), /FirstResultDialog/);
 });

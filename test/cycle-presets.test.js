@@ -14,7 +14,6 @@ after(() => vite.close());
 
 const presets = await vite.ssrLoadModule("/src/client/components/financial-cycle/cyclePresets.ts");
 const firstResult = await vite.ssrLoadModule("/src/client/components/onboarding/firstResult.ts");
-const explainer = await vite.ssrLoadModule("/src/client/components/onboarding/FirstResultExplainer.tsx");
 
 const day = (year, month, dayOfMonth) => ({ year, month, day: dayOfMonth });
 
@@ -78,12 +77,3 @@ test("first result storage helpers tolerate unavailable storage", () => {
 	assert.doesNotThrow(() => firstResult.markFirstResultSeen(undefined));
 });
 
-test("FirstResultExplainer renders the gauge explanation with a dismiss button", () => {
-	const html = renderToStaticMarkup(createElement(explainer.FirstResultExplainer, { onDismiss() {} }));
-	assert.ok(html.includes("Así se lee tu medidor"));
-	assert.ok(html.includes(
-		"El color es lo que gastaste de tu ingreso; la raya, cuánto del ciclo pasó. Si el color no alcanza la raya, vas en ritmo.",
-	));
-	assert.match(html, /<button[^>]*type="button"[^>]*>Entendido<\/button>/);
-	assert.match(html, /<svg[^>]*aria-hidden="true"/);
-});

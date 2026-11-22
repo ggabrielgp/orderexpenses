@@ -67,8 +67,14 @@ import { DashboardLoadingState } from "../components/analytics/DashboardLoadingS
 import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
 import { MobileTabBar } from "../components/shell/MobileTabBar";
 import { OnboardingConnect } from "../components/onboarding/OnboardingConnect";
-import { FirstResultExplainer } from "../components/onboarding/FirstResultExplainer";
-import { hasSeenFirstResult, markFirstResultSeen } from "../components/onboarding/firstResult";
+import { FirstResultDialog } from "../components/onboarding/FirstResultDialog";
+import { hasSeenFirstResult } from "../components/onboarding/firstResult";
+import {
+  dismissFirstResult,
+  observeFirstResult,
+  startFirstResult,
+  type FirstResultPhase,
+} from "../components/onboarding/firstResultFlow";
 import { CyclePeriodSummary } from "../components/financial-cycle/CyclePeriodSummary";
 import { CyclePresets } from "../components/financial-cycle/CyclePresets";
 import {
@@ -1903,15 +1909,19 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   const [categoryCatalog, setCategoryCatalog] = useState<Category[]>([]);
   const [retryToken, setRetryToken] = useState(0);
   const retry = useCallback(() => setRetryToken((token) => token + 1), []);
-  // Onboarding step 3: after the first cycle setup, explain the gauge once until it is dismissed.
-  const [showFirstResult, setShowFirstResult] = useState(false);
+  // Onboarding step 3 (S21): the first cycle save continues into "Paso 3 de 3 · Tu medidor", a dialog
+  // that opens at once, loads until the reload yields the ready state and then shows the real gauge.
+  const [firstResultPhase, setFirstResultPhase] = useState<FirstResultPhase>("idle");
   const handleFirstCycleSaved = useCallback(() => {
-    setShowFirstResult(!hasSeenFirstResult(browserStorage()));
+    setFirstResultPhase(startFirstResult(hasSeenFirstResult(browserStorage())));
     retry();
   }, [retry]);
-  const dismissFirstResult = useCallback(() => {
-    markFirstResultSeen(browserStorage());
-    setShowFirstResult(false);
+  useEffect(() => {
+    setFirstResultPhase((phase) => observeFirstResult(phase, state.status));
+  }, [state.status]);
+  /** "Ver mi resumen", Escape and the backdrop: closing the shown step counts as seen. */
+  const closeFirstResult = useCallback(() => {
+    setFirstResultPhase((phase) => dismissFirstResult(phase, browserStorage()));
   }, []);
   const activeLoad = useRef<AbortController | null>(null);
   // Invalidate a prepared sync even when an intervening refresh finishes with identical values.
@@ -2175,20 +2185,43 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     return () => controller.abort();
   }, [retryToken]);
 
+  // Step 3 sits at the same position in every state, so the one dialog instance survives the move from
+  // the saved setup, through loading, to the ready summary instead of re-opening.
+  const firstResultStep = (pace: DashboardPace | null) => (
+    <FirstResultDialog
+      phase={firstResultPhase}
+      pace={pace}
+      formatClp={formatClp}
+      onDone={closeFirstResult}
+      onAddIncome={() => {
+        closeFirstResult();
+        openCycleEdit();
+      }}
+    />
+  );
   if (state.status === "loading") {
-    return <DashboardLoadingState view={view} />;
+    return <><DashboardLoadingState view={view} />{firstResultStep(null)}</>;
   }
   if (state.status === "failed") {
     return (
-      <section className="react-financial-state" role="alert">
-        <p>No se pudo cargar el resumen financiero.</p>
-        <p className="react-financial-state-safe">Tus categorías, reglas y gastos manuales siguen guardados.</p>
-        <button className="secondary" type="button" onClick={retry}>Reintentar resumen financiero</button>
-      </section>
+      <>
+        <section className="react-financial-state" role="alert">
+          <p>No se pudo cargar el resumen financiero.</p>
+          <p className="react-financial-state-safe">Tus categorías, reglas y gastos manuales siguen guardados.</p>
+          <button className="secondary" type="button" onClick={retry}>Reintentar resumen financiero</button>
+        </section>
+        {firstResultStep(null)}
+      </>
     );
   }
   if (state.status === "unconfigured") {
-    return <FinancialCycleSetupForm onSaved={handleFirstCycleSaved} />;
+    // While step 3 waits for the reload the setup form is not remounted behind it.
+    return (
+      <>
+        {firstResultPhase === "idle" ? <FinancialCycleSetupForm onSaved={handleFirstCycleSaved} /> : null}
+        {firstResultStep(null)}
+      </>
+    );
   }
 
   const { selectedPeriod, incomeAmount } = state.data.cycle;
@@ -2418,6 +2451,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   };
 
   return (
+    <>
     <section className="react-financial-summary" aria-label="Resumen financiero del periodo">
       {state.data.warning && (
         <div className="react-financial-summary-heading">
@@ -2468,7 +2502,6 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
 					    the read-only demo read the same composition. Here it carries the authenticated
 					    capabilities: the jump switches to the movements view with the requested category, and
 					    the chart detail opens the read-only movement dialog. */}
-          {showFirstResult && dashboardPace ? <FirstResultExplainer onDismiss={dismissFirstResult} /> : null}
           <DashboardAnalyticsBody
             pace={dashboardPace}
             onAddIncome={openCycleEdit}
@@ -2570,6 +2603,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
         onSaved={handleCycleEdited}
       />
     </section>
+    {firstResultStep(dashboardPace)}
+    </>
   );
 }
 

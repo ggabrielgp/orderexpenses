@@ -334,6 +334,80 @@
 	}
 }
 
+/* Compact variant (onboarding step 3 dialog): ring beside the state and sentence on desktop, stacked on
+   narrow screens, with no card chrome because the dialog already is the surface. */
+.react-pace-gauge.react-pace-gauge--compact {
+	grid-template-columns: 216px minmax(0, 1fr);
+	justify-items: stretch;
+	gap: 24px;
+	padding: 0;
+	background: transparent;
+	box-shadow: none;
+}
+
+.react-pace-gauge--compact .react-pace-gauge-ring {
+	width: 216px;
+}
+
+/* The tick crosses the inside of the ring: keep the figures narrower than the space it leaves. */
+.react-pace-gauge--compact .react-pace-gauge-amount {
+	font-size: 27px;
+}
+
+.react-pace-gauge--compact .react-pace-gauge-amount--long {
+	font-size: 23px;
+}
+
+.react-pace-gauge--compact .react-pace-gauge-per-day {
+	font-size: 13px;
+}
+
+.react-pace-gauge--compact .react-pace-gauge-center {
+	gap: 4px;
+	padding: 0 22px;
+}
+
+.react-pace-gauge--compact .react-pace-gauge-body {
+	gap: 12px;
+}
+
+.react-pace-gauge--compact .react-pace-gauge-sentence {
+	font-size: 16px;
+}
+
+.react-pace-gauge.react-pace-gauge--none.react-pace-gauge--compact {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 760px) {
+	.react-pace-gauge.react-pace-gauge--compact {
+		grid-template-columns: minmax(0, 1fr);
+		justify-items: center;
+		gap: 16px;
+		padding: 0;
+	}
+
+	.react-pace-gauge--compact .react-pace-gauge-ring {
+		width: 216px;
+	}
+
+	.react-pace-gauge--compact .react-pace-gauge-amount {
+		font-size: 27px;
+	}
+
+	.react-pace-gauge--compact .react-pace-gauge-amount--long {
+		font-size: 23px;
+	}
+
+	.react-pace-gauge--compact .react-pace-gauge-center {
+		padding: 0 22px;
+	}
+
+	.react-pace-gauge.react-pace-gauge--none.react-pace-gauge--compact {
+		justify-items: stretch;
+	}
+}
+
 /* Nothing animates under reduced motion: the final values are rendered and transitions are off. */
 @media (prefers-reduced-motion: reduce) {
 	.react-pace-gauge-arc,

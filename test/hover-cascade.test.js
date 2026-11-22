@@ -54,8 +54,8 @@ test("primary ink buttons keep an explicit darker-ink hover now that the global 
 	const primary = hover.filter((rule) => /background:\s*(var\(--accent-hover[,)]|#26324d)/i.test(rule.body));
 	const selectors = primary.map((rule) => rule.selector).join(" , ");
 	// The other ink buttons (movements prompt/bulk actions, gauge action, onboarding CTA) already carry
-	// their own hover next to their base rule; these two had none.
-	for (const name of [".react-mobile-tabbar-add", ".first-result-explainer-dismiss"]) {
+	// their own hover next to their base rule; this one had none (step 3's button is a cycle-btn-primary).
+	for (const name of [".react-mobile-tabbar-add"]) {
 		assert.ok(selectors.includes(name), `${name} has an explicit ink hover`);
 	}
 	for (const rule of primary) assert.match(rule.body, /color:\s*#ffffff/, `${rule.selector} keeps white text`);

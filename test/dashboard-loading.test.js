@@ -38,7 +38,8 @@ test("initial dashboard load reserves the real analytics layout without fabricat
 	const component = await read("src/client/components/analytics/DashboardLoadingState.tsx");
 	assert.doesNotMatch(component, /fetch\(|setInterval|setTimeout|useEffect|progressbar/);
 	const source = await read("src/client/pages/DashboardPage.tsx");
-	assert.match(source, /if \(state.status === "loading"\)\s*\{\s*return <DashboardLoadingState view=\{view\} \/>;/);
+	// S21: the loading state renders the same skeleton, beside onboarding step 3 (which is idle unless a first save just happened).
+	assert.match(source, /if \(state.status === "loading"\)\s*\{\s*return <><DashboardLoadingState view=\{view\} \/>\{firstResultStep\(null\)\}<\/>;/);
 	assert.match(source, /Reintentar resumen financiero/);
 	assert.match(source, /state.status === "unconfigured"/);
 });

@@ -24,6 +24,11 @@ export interface DashboardPaceGaugeProps {
 	notes?: readonly string[];
 	/** When it changes after the first render the sweep and count-up replay (the demo scenarios, S17). */
 	replayKey?: string;
+	/**
+	 * A smaller gauge for a dialog step (onboarding step 3): the ring, the state and the sentence, without the
+	 * figures grid, the legend or the notes the summary hero carries.
+	 */
+	compact?: boolean;
 }
 
 const RING_RADIUS = 118;
@@ -40,18 +45,18 @@ const defaultFormatClp = (amount: number) => new Intl.NumberFormat("es-CL", {
 const percent = (share: number) => Math.round(share * 100);
 const roundToThousand = (amount: number) => Math.round(amount / 1000) * 1000;
 
-export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIncome, notes = [], replayKey }: DashboardPaceGaugeProps) {
+export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIncome, notes = [], replayKey, compact = false }: DashboardPaceGaugeProps) {
 	const labelId = useId();
 	// 1 = final values (what the server and reduced motion render); the entrance drives it 0 -> 1 once.
 	const [progress, setProgress] = useState(1);
 	useLayoutEffect(() => runGaugeEntrance(window, setProgress), [replayKey]);
 	const sweeping = progress < 1;
-	const noteLine = notes.length > 0 ? <p className="react-pace-gauge-notes">{notes.join(" · ")}</p> : null;
+	const noteLine = !compact && notes.length > 0 ? <p className="react-pace-gauge-notes">{notes.join(" · ")}</p> : null;
 
 	if (pace.kind === "no-income") {
 		const spentText = formatClp(Math.round(pace.totalSpending * progress));
 		return (
-			<section className="react-pace-gauge react-pace-gauge--none" aria-labelledby={labelId}>
+			<section className={`react-pace-gauge react-pace-gauge--none${compact ? " react-pace-gauge--compact" : ""}`} aria-labelledby={labelId}>
 				<div className="react-pace-gauge-body">
 					<small id={labelId} className="react-pace-gauge-label">Gastado en el ciclo</small>
 					<strong className={`react-pace-gauge-amount${spentText.length > LONG_AMOUNT_LENGTH ? " react-pace-gauge-amount--long" : ""}`}>{spentText}</strong>
@@ -81,7 +86,7 @@ export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIn
 
 	return (
 		<section
-			className={`react-pace-gauge react-pace-gauge--${pace.state}${sweeping ? " react-pace-gauge--sweeping" : ""}`}
+			className={`react-pace-gauge react-pace-gauge--${pace.state}${compact ? " react-pace-gauge--compact" : ""}${sweeping ? " react-pace-gauge--sweeping" : ""}`}
 			aria-labelledby={labelId}
 		>
 			<div className="react-pace-gauge-ring">
@@ -113,12 +118,12 @@ export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIn
 				<p className="react-pace-gauge-sentence">
 					Llevas <b>{spentPercent}%</b> del ingreso y pasó el <b>{elapsedPercent}%</b> del ciclo. A este ritmo {projection}
 				</p>
-				<dl className="react-pace-gauge-facts">
+				{compact ? null : <dl className="react-pace-gauge-facts">
 					<div><dt>Ingreso del ciclo</dt><dd>{formatClp(pace.incomeAmount)}</dd></div>
 					<div><dt>Gastado</dt><dd>{formatClp(pace.totalSpending)}</dd></div>
 					<div><dt>Días que quedan</dt><dd>{pace.daysLeft}<small>{cycleDay}</small></dd></div>
-				</dl>
-				<p className="react-pace-gauge-key">
+				</dl>}
+				{compact ? null : <p className="react-pace-gauge-key">
 					<span>
 						<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle className="react-pace-gauge-key-dot" cx="7" cy="7" r="6" /></svg>
 						Color: lo gastado del ingreso
@@ -127,7 +132,7 @@ export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIn
 						<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect className="react-pace-gauge-tick-key" x="2" y="0" width="10" height="14" rx="3" /><rect className="react-pace-gauge-tick-key-core" x="6" y="1" width="2" height="12" /></svg>
 						Raya: hoy
 					</span>
-				</p>
+				</p>}
 				{noteLine}
 			</div>
 		</section>
