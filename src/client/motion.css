@@ -110,6 +110,19 @@ dialog[class*="react-"][open]::backdrop {
 	to { opacity: 1; transform: translateY(0); }
 }
 
+/* S2: a self-dismissing notice fades, lifts and collapses its row so the content below slides up. */
+.react-feedback-notice.react-feedback-notice-leaving {
+	overflow: hidden;
+	pointer-events: none;
+	animation: motion-notice-out 420ms var(--ease-out-expo) both;
+}
+
+@keyframes motion-notice-out {
+	from { opacity: 1; transform: translateY(0); max-height: 8rem; }
+	60% { opacity: 0; transform: translateY(-8px); }
+	to { opacity: 0; transform: translateY(-8px); max-height: 0; margin-block: 0; padding-block: 0; border-width: 0; }
+}
+
 /* The movement that was just edited glows ink and fades out over ~1.2s, in the table and the list. */
 [data-highlighted="true"],
 tr[data-highlighted="true"] > td {

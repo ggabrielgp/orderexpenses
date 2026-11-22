@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { UNDO_NOTICE_MS, createUndoCountdown } from "./undoCountdown";
+import { createNoticeAutoDismiss } from "./noticeAutoDismiss";
 
 interface FeedbackNoticeProps {
 	className: string;
@@ -13,17 +14,40 @@ interface FeedbackNoticeProps {
 	 * Notices without an action are never timed.
 	 */
 	onDismiss?: () => void;
+	/**
+	 * Without an action: dismiss after this many milliseconds with a smooth exit (S2). Hovering or
+	 * focusing the notice pauses it too.
+	 */
+	autoDismissMs?: number;
 }
 
 /** A check belongs to an actual settled success, never a warning, error or pending request. */
-export function FeedbackNotice({ className, tone, message, action, onDismiss }: FeedbackNoticeProps) {
+export function FeedbackNotice({ className, tone, message, action, onDismiss, autoDismissMs }: FeedbackNoticeProps) {
 	const timed = Boolean(action && onDismiss);
+	const auto = !timed && Boolean(onDismiss) && autoDismissMs !== undefined && autoDismissMs > 0;
+	const [leaving, setLeaving] = useState(false);
 	const [pointer, setPointer] = useState(false);
 	const [focus, setFocus] = useState(false);
 	const busy = Boolean(action?.disabled);
 	const dismissRef = useRef(onDismiss);
 	dismissRef.current = onDismiss;
-	const countdown = useRef<ReturnType<typeof createUndoCountdown> | null>(null);
+	const countdown = useRef<Pick<ReturnType<typeof createUndoCountdown>, "hold" | "release"> | null>(null);
+
+	useEffect(() => {
+		if (!auto || autoDismissMs === undefined) return undefined;
+		setLeaving(false);
+		const next = createNoticeAutoDismiss({
+			durationMs: autoDismissMs,
+			onLeave: () => setLeaving(true),
+			onDismiss: () => dismissRef.current?.(),
+		});
+		countdown.current = next;
+		next.start();
+		return () => {
+			next.dispose();
+			countdown.current = null;
+		};
+	}, [auto, autoDismissMs, message]);
 
 	useEffect(() => {
 		if (!timed) return undefined;
@@ -44,9 +68,17 @@ export function FeedbackNotice({ className, tone, message, action, onDismiss }: 
 		for (const [reason, held] of [["pointer", pointer], ["focus", focus], ["busy", busy]] as const) {
 			if (held) current.hold(reason); else current.release(reason);
 		}
-	}, [pointer, focus, busy, timed, message]);
+	}, [pointer, focus, busy, timed, auto, message]);
 
 	const held = pointer || focus || busy;
+	const autoProps = auto
+		? {
+			onMouseEnter: () => setPointer(true),
+			onMouseLeave: () => setPointer(false),
+			onFocus: () => setFocus(true),
+			onBlur: () => setFocus(false),
+		}
+		: {};
 	const timedProps = timed
 		? {
 			onMouseEnter: () => setPointer(true),
@@ -59,7 +91,12 @@ export function FeedbackNotice({ className, tone, message, action, onDismiss }: 
 		: {};
 
 	return (
-		<p className={`${className} react-feedback-notice${timed ? " react-feedback-notice-timed" : ""}`} role="status" {...timedProps}>
+		<p
+			className={`${className} react-feedback-notice${timed ? " react-feedback-notice-timed" : ""}${auto ? " react-feedback-notice-auto" : ""}${auto && leaving ? " react-feedback-notice-leaving" : ""}`}
+			role="status"
+			{...autoProps}
+			{...timedProps}
+		>
 			{tone === "success" && (
 				<svg className="react-success-check" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
 					<path d="m5 12 4 4 10-10" pathLength="1" />

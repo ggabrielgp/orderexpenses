@@ -2579,6 +2579,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
           className={`react-financial-mutation-notice react-financial-mutation-notice-${cycleEditNotice.tone}`}
           tone={cycleEditNotice.tone}
           message={cycleEditNotice.message}
+          autoDismissMs={cycleEditNotice.autoDismissMs}
+          onDismiss={() => setCycleEditNotice(null)}
         />
       )}
       {view === "summary" ? (

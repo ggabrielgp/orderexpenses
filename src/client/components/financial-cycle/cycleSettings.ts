@@ -283,7 +283,12 @@ export function shouldClearCycleEditPhase(
 export type CycleEditNotice = {
 	message: string;
 	tone: "success" | "warning";
+	/** A settled success leaves by itself after this many milliseconds (S2); warnings stay. */
+	autoDismissMs?: number;
 };
+
+/** How long "Período guardado y resumen actualizado." stays before it fades out. */
+export const CYCLE_SAVED_NOTICE_MS = 4000;
 
 /**
  * Copy for a saved period. The write and the refresh are two statements, matching the shipped
@@ -298,7 +303,7 @@ export function getCycleEditNotice(outcome: { status: "saved"; reloadFailed: boo
 			tone: "warning",
 		};
 	}
-	return { message: "Período guardado y resumen actualizado.", tone: "success" };
+	return { message: "Período guardado y resumen actualizado.", tone: "success", autoDismissMs: CYCLE_SAVED_NOTICE_MS };
 }
 
 /**
