@@ -14,7 +14,7 @@ export function CyclePeriodSummary({ startDate, endDate, awaitingEnd = false }: 
 	const period = describeCyclePeriod({ startDate, endDate, awaitingEnd });
 	return (
 		<div className="cycle-summary">
-			<span className="cycle-summary-label">Periodo elegido</span>
+			<span className="cycle-summary-label">Período elegido</span>
 			<span className="cycle-summary-chip" data-tone={period.tone} role="status" aria-live="polite">
 				{period.tone === "invalid" ? <AlertGlyph /> : <CalendarGlyph />}
 				<span>{period.text}</span>

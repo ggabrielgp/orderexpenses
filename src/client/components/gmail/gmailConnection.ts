@@ -155,7 +155,7 @@ export const GMAIL_CREDENTIALS_MISSING_MESSAGE =
 export const GMAIL_NOT_CONNECTED_MESSAGE =
 	"Gmail no está conectado. Usa Conectar Gmail para autorizar la lectura de tus correos.";
 const GMAIL_CONNECTED_MESSAGE =
-	"Puedes revisar los movimientos que la app detecta en los correos de Banco de Chile del periodo configurado.";
+	"Puedes revisar los movimientos que la app detecta en los correos de Banco de Chile del período configurado.";
 const GMAIL_CONNECTED_WITHOUT_EMAIL_MESSAGE =
 	"La app puede leer los correos de Banco de Chile, pero la cuenta conectada no informó un correo activo.";
 const GMAIL_STATUS_LOADING_MESSAGE = "Revisando el estado de la conexión con Gmail...";

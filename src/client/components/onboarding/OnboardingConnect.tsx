@@ -9,7 +9,7 @@ export interface OnboardingConnectProps {
 	children?: ReactNode;
 }
 
-const STEPS = ["Conectar", "Tu ciclo", "Tu medidor"] as const;
+const STEPS = ["Conectar", "Tu período", "Tu medidor"] as const;
 
 /** One icon per trust point, in the order of the consent copy (leemos, nunca hacemos, salir). */
 const POINT_ICONS: ReactNode[] = [
@@ -66,7 +66,7 @@ export function OnboardingConnect({ children }: OnboardingConnectProps) {
 					<p className="onboarding-connect-step">Paso 1 de 3 · Conectar</p>
 					<h1 id="onboarding-connect-title">Conectemos tu Gmail, con reglas claras</h1>
 					<p className="onboarding-connect-subtitle">
-						Leemos los avisos de compra de Banco de Chile para armar tu mes. Nada más.
+						Leemos los avisos de compra de Banco de Chile para armar tu período. Nada más.
 					</p>
 					<div className="onboarding-connect-cta">
 						<div className="onboarding-connect-connect">
@@ -144,9 +144,9 @@ function ExampleGauge() {
 			</div>
 			<div>
 				<span className="onboarding-connect-chip">Ejemplo</span>
-				<p className="onboarding-connect-example-title">Así se verá tu mes</p>
+				<p className="onboarding-connect-example-title">Así se verá tu período</p>
 				<p className="onboarding-connect-example-text">
-					El color es lo que gastaste; la raya, cuánto del ciclo pasó. Si el color no alcanza la raya, vas en ritmo.
+					El color es lo que gastaste; la raya, cuánto del período pasó. Si el color no alcanza la raya, vas en ritmo.
 				</p>
 				<span className="onboarding-connect-pill">
 					<span>✓</span>En ritmo

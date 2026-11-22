@@ -188,8 +188,8 @@ function mergeTail(rows: CategoryRankingRow[], total: number): CategoryRankingRo
 function buildDisclosure(unknownAmountCount: number): string | null {
 	if (unknownAmountCount <= 0) return null;
 	return unknownAmountCount === 1
-		? "1 salida reconocida del periodo no tiene monto conocido y no se incluye en esta distribución."
-		: `${unknownAmountCount} salidas reconocidas del periodo no tienen monto conocido y no se incluyen en esta distribución.`;
+		? "1 salida reconocida del período no tiene monto conocido y no se incluye en esta distribución."
+		: `${unknownAmountCount} salidas reconocidas del período no tienen monto conocido y no se incluyen en esta distribución.`;
 }
 
 /**

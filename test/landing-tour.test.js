@@ -74,7 +74,7 @@ test("expense phone renders shared movement view with real fixture amounts and c
 	const html = screen(render(), "expenses");
 	assert.match(html, /react-movements-view/);
 	assert.match(html, /react-mobile-movement-card/);
-	for (const value of ["Actividad del periodo", "Detalle de movimientos", "Lider", "$45.990", "Supermercado", "Uber", "$12.990", "Transporte", "Rappi", "$32.500", "Comida"]) assert.ok(html.includes(value), value);
+	for (const value of ["Actividad del período", "Detalle de movimientos", "Lider", "$45.990", "Supermercado", "Uber", "$12.990", "Transporte", "Rappi", "$32.500", "Comida"]) assert.ok(html.includes(value), value);
 });
 
 test("create and categorize phones mirror real form labels without writable controls or colliding IDs", () => {

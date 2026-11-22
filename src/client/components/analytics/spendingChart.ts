@@ -27,7 +27,7 @@ const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /** The full-period tab id and label; the legacy default was `chartTab: "month"` (`public/app.js:145`). */
 export const FULL_PERIOD_TAB_ID = "period";
-export const FULL_PERIOD_LABEL = "Periodo completo";
+export const FULL_PERIOD_LABEL = "Período completo";
 
 /** Legacy labelled each week with a running counter (`buildMonthlyDailySpending`, `public/app.js:2169`). */
 const WEEK_LABEL_PREFIX = "Semana";
@@ -64,7 +64,7 @@ export interface SpendingChartDay {
 	/** Short date detail inside the period; empty for a padded day. */
 	detail: string;
 	/**
-	 * Legacy tooltip detail for the weekday aggregate (`Total del periodo por lunes`); absent for a
+	 * Legacy tooltip detail for the weekday aggregate (`Total del período por lunes`); absent for a
 	 * week day, whose own `detail` already names the date it covers.
 	 */
 	titleDetail?: string;
@@ -214,7 +214,7 @@ function buildDisclosures(unknownAmountCount: number, unknownDateCount: number):
 	const disclosures: string[] = [];
 	if (unknownAmountCount > 0) {
 		disclosures.push(
-			`${unknownAmountCount} ${getExitNoun(unknownAmountCount)} del periodo ${
+			`${unknownAmountCount} ${getExitNoun(unknownAmountCount)} del período ${
 				unknownAmountCount === 1 ? "no tiene" : "no tienen"
 			} monto conocido y no se ${
 				unknownAmountCount === 1 ? "incluye" : "incluyen"
@@ -223,7 +223,7 @@ function buildDisclosures(unknownAmountCount: number, unknownDateCount: number):
 	}
 	if (unknownDateCount > 0) {
 		disclosures.push(
-			`${unknownDateCount} ${getExitNoun(unknownDateCount)} del periodo con monto conocido ${
+			`${unknownDateCount} ${getExitNoun(unknownDateCount)} del período con monto conocido ${
 				unknownDateCount === 1 ? "no tiene" : "no tienen"
 			} una fecha válida y no se ${
 				unknownDateCount === 1 ? "puede" : "pueden"
@@ -235,9 +235,9 @@ function buildDisclosures(unknownAmountCount: number, unknownDateCount: number):
 
 function getEmptyMessage(countedCount: number): string {
 	if (countedCount === 0) {
-		return "Aún no hay gastos reconocidos con monto y fecha dentro del periodo para graficar.";
+		return "Aún no hay gastos reconocidos con monto y fecha dentro del período para graficar.";
 	}
-	return "Los gastos reconocidos del periodo no suman un monto positivo: no hay barras que mostrar.";
+	return "Los gastos reconocidos del período no suman un monto positivo: no hay barras que mostrar.";
 }
 
 function buildSeries(
@@ -303,7 +303,7 @@ export function getSpendingChart(
 				timestamp,
 				label: shortWeekdayFormatter.format(new Date(timestamp)),
 				detail: "",
-				titleDetail: `Total del periodo por ${longWeekdayFormatter.format(new Date(timestamp))}`,
+				titleDetail: `Total del período por ${longWeekdayFormatter.format(new Date(timestamp))}`,
 				isInPeriod: true,
 				total: 0,
 			});
@@ -566,7 +566,7 @@ export function getSpendingChartTotalsRows(
 	}));
 	rows.push({
 		id: FULL_PERIOD_TAB_ID,
-		label: "Periodo",
+		label: "Período",
 		total: rows.reduce((sum, row) => sum + row.total, 0),
 		isActive: selectedId === FULL_PERIOD_TAB_ID,
 	});

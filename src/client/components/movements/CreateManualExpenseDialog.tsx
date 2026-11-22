@@ -290,7 +290,7 @@ export function getManualExpenseKindOptions() {
  */
 export function getManualExpenseErrorMessage(error: unknown, period: FinancialPeriod): string {
 	if (error instanceof RangeError) {
-		return `La fecha debe estar dentro del periodo seleccionado (${formatPeriodLabel(period)}). Un gasto fuera del periodo no aparecería en el resumen, así que no se guarda.`;
+		return `La fecha debe estar dentro del período seleccionado (${formatPeriodLabel(period)}). Un gasto fuera del período no aparecería en el resumen, así que no se guarda.`;
 	}
 	if (error instanceof TypeError) {
 		return "Revisa los datos: la fecha debe ser válida, el monto debe ser un número positivo en pesos y la categoría debe existir.";
@@ -578,8 +578,8 @@ export function CreateManualExpenseDialog({
 							required
 						/>
 						<small id="manual-expense-period-help">
-							Periodo seleccionado: {formatPeriodLabel(period)}. Las fechas fuera de
-							este periodo no se guardan.
+							Período seleccionado: {formatPeriodLabel(period)}. Las fechas fuera de
+							este período no se guardan.
 						</small>
 					</label>
 					<label htmlFor="manual-expense-kind">

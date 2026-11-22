@@ -41,7 +41,7 @@ test("named steps list the three steps with step 1 as the only current step", ()
 	assert.equal(items.length, 3);
 	const text = items.map((item) => item[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
 	assert.match(text[0], /^1\s*Conectar/);
-	assert.match(text[1], /^2\s*Tu ciclo/);
+	assert.match(text[1], /^2\s*Tu período/);
 	assert.match(text[2], /^3\s*Tu medidor/);
 	assert.match(items[0][1], /aria-current="step"/);
 	assert.doesNotMatch(items[1][1] + items[2][1], /aria-current/);
@@ -76,7 +76,7 @@ test("the logo, the demo link and the consent copy are rendered and the control 
 	const copy = consent.getGmailConsentCopy();
 	for (const point of copy.points) assert.ok(html.includes(point.body), point.title);
 	assert.ok(html.includes(copy.storageNote));
-	assert.ok(html.includes("Leemos los avisos de compra de Banco de Chile para armar tu mes. Nada más."));
+	assert.ok(html.includes("Leemos los avisos de compra de Banco de Chile para armar tu período. Nada más."));
 	assert.ok(html.indexOf(CONTROL) < html.indexOf("Ver la demo"));
 	assert.doesNotMatch(html, /localmente|presupuesto mensual/);
 });

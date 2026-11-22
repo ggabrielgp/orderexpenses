@@ -39,7 +39,7 @@ test("dashboard chart opts into mobile labels while default consumers retain ful
 
 test("period context is conditional and uses the shared inclusive formatter", () => {
  assert.equal(render(page.DashboardPeriodContext, { period: null }), "");
- assert.match(render(page.DashboardPeriodContext, { period }), /Periodo: 01\/02\/2026 a 28\/02\/2026/);
+ assert.match(render(page.DashboardPeriodContext, { period }), /Período: 01\/02\/2026 a 28\/02\/2026/);
 });
 
 test("demo omits unavailable selection but retains browsing and honest explanations", async () => {
@@ -49,7 +49,7 @@ test("demo omits unavailable selection but retains browsing and honest explanati
  for (const view of ["summary", "movements"]) {
   const html = render(page.DemoDashboardView, { data, view, onViewChange: noop, onRequestedCategoryChange: noop });
   assert.match(html, /Datos de ejemplo · Solo lectura/);
-  assert.ok(html.includes(`Periodo: ${page.formatPeriodLabel(data.period)}`));
+  assert.ok(html.includes(`Período: ${page.formatPeriodLabel(data.period)}`));
   if (view === "movements") {
    assert.match(html, /Edición deshabilitada en la demo/);
    assert.doesNotMatch(html, /sin identificación|react-movements-bulk|type="checkbox"|>Editar<|>Eliminar</);

@@ -93,7 +93,7 @@ const renderOptions = (props) =>
 test("the options are one labelled radiogroup with three native radios and exactly one checked", () => {
 	const html = renderOptions({});
 	assert.match(html, /role="radiogroup"/);
-	assert.ok(html.includes('aria-label="¿Cuándo empieza tu mes?"'));
+	assert.ok(html.includes('aria-label="¿Cuándo empieza tu período?"'));
 	assert.equal((html.match(/<input type="radio" name="[^"]*"(?: checked="")? value="(?:calendar|payDay|custom)"/g) ?? []).length, 3);
 	for (const text of ["Mes calendario", "Del 1 al último día", "Desde mi día de pago", "Otro rango"]) assert.ok(html.includes(text), text);
 	assert.equal((html.match(/ checked="" value="(?:calendar|payDay|custom)"/g) ?? []).length, 1);
@@ -101,8 +101,8 @@ test("the options are one labelled radiogroup with three native radios and exact
 
 test("Mes calendario reveals only the computed result line", () => {
 	const html = renderOptions({ option: "calendar", customPane: createElement("div", { id: "custom-pane" }) });
-	assert.ok(html.includes("Tu mes:"));
-	assert.match(html, /Tu mes: <b>1 al 30 de noviembre<\/b>/);
+	assert.ok(html.includes("Tu período:"));
+	assert.match(html, /Tu período: <b>1 al 30 de noviembre<\/b>/);
 	assert.doesNotMatch(html, /<select/);
 	assert.doesNotMatch(html, /¿Qué día te pagan\?/);
 	assert.doesNotMatch(html, /custom-pane/);
@@ -117,7 +117,7 @@ test("Desde mi día de pago reveals the pay day question, the quick choices, Otr
 	assert.match(html, /<select[^>]*id="financial-cycle-pay-day"/);
 	assert.ok(html.includes(">Otro día</option>"));
 	assert.equal((html.match(/<option value="\d+">Día \d+<\/option>/g) ?? []).length, 31);
-	assert.match(html, /Tu mes: <b>25 oct al 24 nov<\/b>/);
+	assert.match(html, /Tu período: <b>25 oct al 24 nov<\/b>/);
 	assert.doesNotMatch(html, /custom-pane/);
 	// 25 is a quick choice, so "Otro día" stays the unselected placeholder; a custom day selects it.
 	assert.match(html, /<option value="" selected="">Otro día<\/option>/);
@@ -126,13 +126,13 @@ test("Desde mi día de pago reveals the pay day question, the quick choices, Otr
 	assert.doesNotMatch(other, /-pay-day" checked=""/);
 	// Short-month rule is explained only for the days that can clamp.
 	assert.doesNotMatch(html, /meses más cortos/);
-	assert.ok(renderOptions({ option: "payDay", payDay: 31, range: { startDate: "2026-10-31", endDate: "2026-11-29" } }).includes("En los meses más cortos usamos su último día."));
+	assert.ok(renderOptions({ option: "payDay", payDay: 31, range: { startDate: "2026-10-31", endDate: "2026-11-29" } }).includes("Último día de cada mes; en meses más cortos, su último día."));
 });
 
 test("Otro rango reveals the calendar and date inputs it is given, and nothing else", () => {
 	const html = renderOptions({ option: "custom", customPane: createElement("div", { id: "custom-pane" }, "calendario") });
 	assert.ok(html.includes('id="custom-pane"'));
-	assert.doesNotMatch(html, /Tu mes:/);
+	assert.doesNotMatch(html, /Tu período:/);
 	assert.doesNotMatch(html, /<select/);
 	assert.doesNotMatch(html, /¿Qué día te pagan\?/);
 });
@@ -147,7 +147,7 @@ test("a saving form disables every option control", () => {
 test("the footer summary announces the chosen period and flags an invalid or pending one", () => {
 	const render = (props) => renderToStaticMarkup(createElement(summaryView.CyclePeriodSummary, props));
 	const ok = render({ startDate: "2026-11-01", endDate: "2026-11-30" });
-	assert.ok(ok.includes("Periodo elegido"));
+	assert.ok(ok.includes("Período elegido"));
 	assert.match(ok, /role="status"/);
 	assert.ok(ok.includes("1–30 nov · 30 días"));
 	assert.match(ok, /data-tone="ok"/);
@@ -194,9 +194,9 @@ const renderEdit = (cycle) =>
 test("the edit-period dialog has the same structure: options, income and a summary footer, keeping its own title and actions", () => {
 	const month = renderEdit(toCycle(presets.calendarMonthCycle(todaySantiago)));
 	assert.ok(month.includes("Cambiar período"));
-	assert.ok(month.includes("¿Cuándo empieza tu mes?"));
+	assert.ok(month.includes("¿Cuándo empieza tu período?"));
 	assert.match(month, /role="radiogroup"/);
-	assert.match(month, /Tu mes: <b>/);
+	assert.match(month, /Tu período: <b>/);
 	// A calendar month needs nothing to fill: no date inputs and no calendar are rendered.
 	assert.equal((month.match(/type="date"/g) ?? []).length, 0);
 	assert.doesNotMatch(month, /react-cycle-calendar"/);
@@ -204,7 +204,7 @@ test("the edit-period dialog has the same structure: options, income and a summa
 	assert.ok(month.includes("¿Cuánto ganas al mes?"));
 	assert.ok(month.includes("(opcional)"));
 	assert.ok(month.includes("Lo usamos para tu medidor. Puedes agregarlo después."));
-	assert.ok(month.includes("Periodo elegido"));
+	assert.ok(month.includes("Período elegido"));
 	assert.match(month, /Guardar cambios<\/button>/);
 	assert.match(month, /Cancelar<\/button>/);
 
@@ -227,8 +227,8 @@ test("the setup form keeps its handlers: the same ids, the same validation, dism
 	for (const id of ["financial-cycle-start-date", "financial-cycle-end-date", "financial-cycle-income", "financial-cycle-income-help"]) {
 		assert.equal((form.match(new RegExp(`id="${id}"`, "g")) ?? []).length, 1, id);
 	}
-	assert.ok(form.includes("¿Cuándo empieza tu mes?"));
-	assert.ok(form.includes("Paso 2 de 3 · Tu ciclo"));
+	assert.ok(form.includes("¿Cuándo empieza tu período?"));
+	assert.ok(form.includes("Paso 2 de 3 · Tu período"));
 	assert.ok(form.includes("¿Cuánto ganas al mes?"));
 	assert.ok(form.includes("Lo usamos para tu medidor. Puedes agregarlo después."));
 	assert.ok(form.includes("Guardar y ver mi medidor"));

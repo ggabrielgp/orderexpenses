@@ -71,7 +71,7 @@ export function LandingDashboardPreview({ data, previewError = null }: { data: D
 		</header>
 		{/* The figure supplies the accessible summary; the real chart controls are visual only. */}
 		<div className="landing-dashboard-preview-canvas" inert>
-			<DashboardPaceGauge pace={pace} formatClp={formatAmount} />
+			<DashboardPaceGauge pace={pace} formatClp={formatAmount} periodEndExclusive={data.period.endDateExclusive} />
 			<SpendingChartView titleId={`${instanceId}-spending-title`} detailId={`${instanceId}-spending-detail`}
 				chart={chart} selectedTab={FULL_PERIOD_TAB_ID}
 				selectedDayKey={null} onSelectTab={noSelection} onSelectDay={noSelection}

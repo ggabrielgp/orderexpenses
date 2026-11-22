@@ -102,11 +102,11 @@ export interface DashboardStory {
 function buildStorySummary(knownCount: number, pendingAmountCount: number): string {
 	if (knownCount === 0) {
 		return pendingAmountCount > 0
-			? "Los gastos reconocidos del periodo todavía no tienen monto conocido: aún no hay una historia que contar."
-			: "Todavía no hay gastos reconocidos para contarte el periodo.";
+			? "Los gastos reconocidos del período todavía no tienen monto conocido: aún no hay una historia que contar."
+			: "Todavía no hay gastos reconocidos para contarte el período.";
 	}
 	// A concise preamble only: the period total and the four tile topics are already visible.
-	return "Puntos clave del periodo.";
+	return "Puntos clave del período.";
 }
 
 /**
@@ -264,7 +264,7 @@ export function getTopInsights(input: DashboardTopInsightsInput): DashboardTopIn
 			frequency === null || frequency === undefined || normalizeCount(frequency.count) === 0
 				? {
 						key: "frequency", label: TOP_FREQUENCY_LABEL, value: MISSING_VALUE,
-						amount: null, note: "Sin destinatarios identificados con monto conocido en el periodo.", hint: "",
+						amount: null, note: "Sin destinatarios identificados con monto conocido en el período.", hint: "",
 					}
 				: {
 						key: "frequency", label: TOP_FREQUENCY_LABEL, value: frequency.label,
@@ -276,7 +276,7 @@ export function getTopInsights(input: DashboardTopInsightsInput): DashboardTopIn
 			uncategorizedCount === 0
 				? {
 						key: "uncategorized", label: UNCATEGORIZED_LABEL, value: MISSING_VALUE,
-						amount: null, note: "Sin gastos sin categoría con monto conocido en el periodo.", hint: "",
+						amount: null, note: "Sin gastos sin categoría con monto conocido en el período.", hint: "",
 					}
 				: {
 						key: "uncategorized", label: UNCATEGORIZED_LABEL,
@@ -293,7 +293,7 @@ export function getTopInsights(input: DashboardTopInsightsInput): DashboardTopIn
 						label: TOP_LARGEST_LABEL,
 						value: MISSING_VALUE,
 						amount: null,
-						note: "Sin gastos con monto conocido en el periodo.",
+						note: "Sin gastos con monto conocido en el período.",
 						hint: "",
 					}
 				: {
@@ -311,7 +311,7 @@ export function getTopInsights(input: DashboardTopInsightsInput): DashboardTopIn
 						label: LATEST_MOVEMENT_LABEL,
 						value: MISSING_VALUE,
 						amount: null,
-						note: "Sin movimientos en el periodo.",
+						note: "Sin movimientos en el período.",
 						hint: "",
 					}
 				: {

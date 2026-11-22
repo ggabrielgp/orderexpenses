@@ -229,7 +229,7 @@ test("an empty period has one clear first action; the demo stays read-only", () 
 	const calls = [];
 	const props = { ...empty, onCreateExpense: () => calls.push("create"), onRefresh: () => calls.push("refresh") };
 	const html = render(props);
-	assert.match(html, /Aún no hay movimientos en este periodo/);
+	assert.match(html, /Aún no hay movimientos en este período/);
 	assert.match(html, /Cuando lleguen avisos de compra a tu Gmail o agregues un gasto a mano, aparecerán aquí con su categoría\./);
 	const state = nodes(page.MovementsTableView(props)).find((node) => node.type?.name === "MovementsEmptyPeriod");
 	assert.ok(state, "the empty period is its own component");
@@ -241,7 +241,7 @@ test("an empty period has one clear first action; the demo stays read-only", () 
 	assert.doesNotMatch(html, /Buscar y filtrar movimientos|<table|Todo clasificado/);
 
 	const demo = render({ ...empty, readOnlyReason: "Edición deshabilitada en la demo" });
-	assert.match(demo, /Aún no hay movimientos en este periodo/);
+	assert.match(demo, /Aún no hay movimientos en este período/);
 	assert.doesNotMatch(demo, /Agregar gasto/);
 });
 

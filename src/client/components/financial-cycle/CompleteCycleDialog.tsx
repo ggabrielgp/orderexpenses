@@ -88,10 +88,10 @@ export function CompleteCycleDialog({
 				{/* The read the user consents to, and the condition the closure depends on: no synchronization,
 				    no closure. */}
 				<p id="react-financial-cycle-completion-consent" className="react-financial-cycle-closure-note">
-					Cerrar el periodo {formatPeriodLabel(period)} lee tu correo de Gmail: el servidor
-					sincroniza los mensajes del periodo y solo registra el cierre si esa sincronización se
-					completa. Si la sincronización no se completa, no se registra ningún cierre y el periodo
-					sigue abierto. Si el periodo ya tuviera un cierre registrado, se conserva el registro
+					Cerrar el período {formatPeriodLabel(period)} lee tu correo de Gmail: el servidor
+					sincroniza los mensajes del período y solo registra el cierre si esa sincronización se
+					completa. Si la sincronización no se completa, no se registra ningún cierre y el período
+					sigue abierto. Si el período ya tuviera un cierre registrado, se conserva el registro
 					original.
 				</p>
 				{status !== null && (

@@ -145,14 +145,14 @@ test("a calm cycle renders the gauge with exact copy", () => {
 	assert.equal(result.perDay, 48_870);
 	const html = render(gauge.DashboardPaceGauge, { pace: result });
 	assert.match(html, /^<section class="react-pace-gauge react-pace-gauge--calm"[^>]*aria-labelledby="[^"]+"/);
-	assert.match(html, /role="img" aria-label="Gastaste 63% de tu ingreso; pasó el 67% del ciclo"/);
+	assert.match(html, /role="img" aria-label="Gastaste 63% de tu ingreso; pasó el 67% del período"/);
 	assert.match(html, />Te quedan</);
 	assert.match(html, />\$537\.570</);
 	assert.match(html, />\$48\.870 por día</);
 	assert.match(html, />En ritmo</);
 	assert.match(html, /aria-hidden="true">✓</);
 	// Projection: 912430 / (20/30) = 1368645 -> balance 81355 -> "unos $81.000".
-	assert.match(text(html), /Llevas 63% del ingreso y pasó el 67% del ciclo\. A este ritmo cierras con unos \$81\.000 de sobra\./);
+	assert.match(text(html), /Llevas 63% del ingreso y pasó el 67% del período\. A este ritmo cierras con unos \$81\.000 de sobra\./);
 	assert.doesNotMatch(html, /Si sigues así/);
 	assert.match(html, /transform="rotate\(240 150 150\)"/);
 	const arc = /<circle class="react-pace-gauge-arc"[^>]*stroke-dasharray="([\d.]+) ([\d.]+)"/.exec(html);
@@ -181,9 +181,9 @@ test("an overspent cycle shows the overshoot and a negative projection", () => {
 	assert.match(html, />Vas rápido</);
 	assert.doesNotMatch(html, /Pasado|Al límite|En peligro/);
 	assert.match(html, /aria-hidden="true">↑</);
-	assert.match(html, /Gastaste 125% de tu ingreso; pasó el 67% del ciclo/);
+	assert.match(html, /Gastaste 125% de tu ingreso; pasó el 67% del período/);
 	// Projection: 1250000 / (20/30) = 1875000 -> balance -875000.
-	assert.match(text(html), /Llevas 125% del ingreso y pasó el 67% del ciclo\. A este ritmo terminas unos \$875\.000 bajo cero\./);
+	assert.match(text(html), /Llevas 125% del ingreso y pasó el 67% del período\. A este ritmo terminas unos \$875\.000 bajo cero\./);
 	assert.doesNotMatch(html, /En control/);
 	// The arc never exceeds the full ring.
 	const arc = /<circle class="react-pace-gauge-arc"[^>]*stroke-dasharray="([\d.]+) ([\d.]+)"/.exec(html);
@@ -192,22 +192,22 @@ test("an overspent cycle shows the overshoot and a negative projection", () => {
 
 test("a closed cycle says so instead of a per-day amount", () => {
 	const html = render(gauge.DashboardPaceGauge, { pace: run({ today: day(12, 3), totalSpending: 400_000 }) });
-	assert.match(html, />Ciclo cerrado</);
+	assert.match(html, />Período cerrado</);
 	assert.doesNotMatch(html, / por día</);
-	assert.match(html, /pasó el 100% del ciclo/);
+	assert.match(html, /pasó el 100% del período/);
 });
 
 test("without income the gauge offers to add it and claims no state", () => {
 	const result = run({ today: day(11, 20), incomeAmount: null, totalSpending: 912_430 });
 	const html = render(gauge.DashboardPaceGauge, { pace: result, onAddIncome: noop });
 	assert.match(html, /\$912\.430/);
-	assert.match(html, /Agrega tu ingreso del ciclo para saber si vas en ritmo\./);
+	assert.match(html, /Agrega tu ingreso del período para saber si vas en ritmo\./);
 	assert.match(html, /<button[^>]*type="button"[^>]*>Agregar ingreso<\/button>/);
 	assert.doesNotMatch(html, /En ritmo|Ajustado|Vas rápido|Pasado|En control|Te quedan|<svg/);
 	// Without a handler (demo) there is no dead button, but the copy stays.
 	const demo = render(gauge.DashboardPaceGauge, { pace: result });
 	assert.doesNotMatch(demo, /<button/);
-	assert.match(demo, /Agrega tu ingreso del ciclo/);
+	assert.match(demo, /Agrega tu ingreso del período/);
 });
 
 test("amounts use the injected formatter when provided", () => {
@@ -236,7 +236,7 @@ test("gauge styles are responsive, accessible and motion-safe", async () => {
 
 const countOf = (haystack, needle) => haystack.split(needle).length - 1;
 
-test("the hero states income, spent, remaining and percent once, with the cycle day and the expense note", () => {
+test("the hero states income, spent, remaining and percent once, with the days left and the expense note", () => {
 	const result = run({ today: day(11, 20), incomeAmount: 1_450_000, totalSpending: 912_430 });
 	const html = render(gauge.DashboardPaceGauge, { pace: result, notes: ["35 gastos con monto", "2 sin monto claro"] });
 	const plain = text(html);
@@ -244,9 +244,10 @@ test("the hero states income, spent, remaining and percent once, with the cycle 
 	assert.equal(countOf(plain, "$912.430"), 1, "spent once");
 	assert.equal(countOf(plain, "$537.570"), 1, "remaining once");
 	assert.equal(countOf(plain, "63%"), 1, "percent of income once, in the sentence");
-	assert.equal(countOf(plain, "día 20 de 30") + countOf(plain, "Día 20 de 30"), 1, "cycle day once");
+	assert.equal(countOf(plain, "Quedan 11 días"), 1, "days left once");
+	assert.doesNotMatch(plain, /Día 20 de 30/, "the bare cycle day is replaced by the days left");
 	assert.match(html, /<dt>Gastado<\/dt><dd>[^]*?\$912\.430/);
-	assert.match(html, /<dt>Días que quedan<\/dt><dd>[^]*?11[^]*?Día 20 de 30/);
+	assert.match(html, /<dt>Período<\/dt><dd>Quedan 11 días/);
 	assert.match(html, /Raya: hoy/);
 	assert.match(plain, /35 gastos con monto/);
 	assert.match(plain, /2 sin monto claro/);

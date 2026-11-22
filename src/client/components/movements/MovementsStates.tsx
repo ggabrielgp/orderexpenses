@@ -80,8 +80,8 @@ export function MovementsEmptyPeriod({
 	onCreateExpense, onRefresh,
 }: { onCreateExpense?: () => void; onRefresh?: () => void }) {
 	return (
-		<section className="react-movements-empty-period react-movements-state" aria-label="Periodo sin movimientos">
-			<h3>Aún no hay movimientos en este periodo</h3>
+		<section className="react-movements-empty-period react-movements-state" aria-label="Período sin movimientos">
+			<h3>Aún no hay movimientos en este período</h3>
 			<p>Cuando lleguen avisos de compra a tu Gmail o agregues un gasto a mano, aparecerán aquí con su categoría.</p>
 			{(onCreateExpense || onRefresh) && (
 				<div className="react-movements-state-actions">

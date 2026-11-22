@@ -726,7 +726,7 @@ test("the React financial summary selects the latest valid recognized expense wi
 			frequency: null, uncategorized: { count: 0, total: 0 }, largest: null,
 			latest: { counterparty: page.getRecognizedExpenseIdentity(latest), date: "2028-03-01" },
 		}),
-		story: { summary: "Puntos clave del periodo.", facts: [] },
+		story: { summary: "Puntos clave del período.", facts: [] },
 	}));
 	assert.match(markup, /Último movimiento<\/span>/);
 	assert.match(markup, /react-insight-callout-value">First merchant<\/strong>/);
@@ -875,7 +875,7 @@ test("the React movements view derives safe, finite recognized expense rows", as
 	assert.match(source, /Monto/);
 	assert.match(source, /Fecha/);
 	assert.match(source, /Categoría/);
-	assert.match(source, /No se encontraron gastos reconocidos para este periodo\./);
+	assert.match(source, /No se encontraron gastos reconocidos para este período\./);
 	assert.doesNotMatch(source, /legacy-app/);
 	assert.match(source, /\}, \[retryToken\]\);/);
 });
@@ -2718,7 +2718,7 @@ test("the React financial-cycle edit module derives the draft, validates it and 
 	// that was completed before.
 	assert.equal(
 		moved.consequenceMessage,
-		"Al guardar, el rango cambia: el cierre registrado no se traslada al nuevo periodo. El nuevo rango mantiene el registro de cierre que ya tuviera, si existe.",
+		"Al guardar, el rango cambia: el cierre registrado no se traslada al nuevo período. El nuevo rango mantiene el registro de cierre que ya tuviera, si existe.",
 	);
 	assert.doesNotMatch(moved.consequenceMessage, /sin registro de cierre/);
 
@@ -3052,7 +3052,7 @@ test("the React financial-cycle edit dialog renders the prefilled fields and sta
 			draft: configuredDraft,
 		}),
 	);
-	assert.match(unchangedNote, /Este periodo tiene un cierre registrado/);
+	assert.match(unchangedNote, /Este período tiene un cierre registrado/);
 	assert.match(unchangedNote, new RegExp(expectedDate));
 	assert.match(unchangedNote, /se conserva/);
 	assert.doesNotMatch(unchangedNote, /no se traslada/);
@@ -3076,7 +3076,7 @@ test("the React financial-cycle edit dialog renders the prefilled fields and sta
 			draft: { ...configuredDraft, startDate: "" },
 		}),
 	);
-	assert.match(incompleteNote, /Este periodo tiene un cierre registrado/);
+	assert.match(incompleteNote, /Este período tiene un cierre registrado/);
 	assert.doesNotMatch(incompleteNote, /no se traslada/);
 	assert.doesNotMatch(incompleteNote, /se conserva/);
 
@@ -3170,8 +3170,8 @@ test("the React financial summary exposes one period edit trigger and reloads th
 		/<button\s+className="react-dashboard-period"\s+type="button"\s+onClick=\{financialDashboard\.onEditPeriod\}/,
 	);
 	assert.match(page, /onEditPeriod: openCycleEdit/);
-	assert.match(page, /aria-label=\{`Editar periodo: \$\{formatPeriodLabel\(financialDashboard\.period\)\}`\}/);
-	assert.match(page, /<section className="react-financial-summary" aria-label="Resumen financiero del periodo">/);
+	assert.match(page, /aria-label=\{`Editar período: \$\{formatPeriodLabel\(financialDashboard\.period\)\}`\}/);
+	assert.match(page, /<section className="react-financial-summary" aria-label="Resumen financiero del período">/);
 	assert.doesNotMatch(page, /react-financial-summary-title|aria-labelledby="react-financial-summary-title"/);
 	assert.doesNotMatch(page, /FinancialPeriodHeading|CompleteCycleDialog|onCompletePeriod|openCycleCompletion/);
 	assert.doesNotMatch(page, /Cerrar período|react-financial-cycle-closure|Cierre registrado/);
@@ -3193,7 +3193,7 @@ test("the React financial summary exposes one period edit trigger and reloads th
 		page,
 		/<button\s+className="secondary react-dashboard-refresh"\s+type="button"\s+onClick=\{refreshFromHeader\}\s+disabled=\{isRefreshing\}\s+aria-busy=\{isRefreshing\}/,
 	);
-	assert.match(page, /aria-label=\{isRefreshing \? "Actualizando gastos del periodo" : "Actualizar gastos del periodo"\}/);
+	assert.match(page, /aria-label=\{isRefreshing \? "Actualizando gastos del período" : "Actualizar gastos del período"\}/);
 	assert.match(
 		page,
 		/className="secondary react-dashboard-refresh"[\s\S]{0,700}?<FontAwesomeIcon icon=\{faArrowsRotate\} aria-hidden="true" \/>[\s\S]{0,50}?<span className="react-dashboard-refresh-label">Actualizar<\/span>/,
@@ -3596,7 +3596,7 @@ test("the React financial-cycle completion module states each outcome truthfully
 	// pinned zone instead of the runner's own. The counts the server reports stay in the response:
 	// this copy renders neither the scan nor a transaction count.
 	assert.equal(notices.closed.tone, "success");
-	assert.match(notices.closed.message, /Periodo cerrado/);
+	assert.match(notices.closed.message, /Período cerrado/);
 	assert.match(notices.closed.message, /Cierre registrado el 14 de febrero de 2026/);
 	assert.match(notices.closed.message, /resumen financiero se actualizó/);
 
@@ -3604,7 +3604,7 @@ test("the React financial-cycle completion module states each outcome truthfully
 	// says the change did not happen now instead of announcing a second closure.
 	assert.match(notices.reclosed.message, /ya tenía un cierre registrado el 1 de marzo de 2026/);
 	assert.match(notices.reclosed.message, /se conserva ese registro/);
-	assert.doesNotMatch(notices.reclosed.message, /^Periodo cerrado/);
+	assert.doesNotMatch(notices.reclosed.message, /^Período cerrado/);
 
 	// A completed closure whose reload failed is stale data with a warning tone, never a failed write.
 	const stale = completion.getCycleCompletionNotice({ ...closed, reloadFailed: true }, "UTC");
@@ -3617,7 +3617,7 @@ test("the React financial-cycle completion module states each outcome truthfully
 	// and a disconnected account both return before the write.
 	for (const key of ["partial", "disconnected"]) {
 		assert.match(notices[key].message, /El cierre no se registró/);
-		assert.match(notices[key].message, /el periodo sigue abierto/);
+		assert.match(notices[key].message, /el período sigue abierto/);
 	}
 	assert.equal(notices.partial.tone, "warning");
 	assert.match(notices.partial.message, /2 consultas a Gmail no se pudieron completar/);
@@ -3638,7 +3638,7 @@ test("the React financial-cycle completion module states each outcome truthfully
 	assert.match(notices.error.message, /Vuelve a cargar el resumen para ver el estado real/);
 	assert.match(notices.error.message, /reintentar el cierre es seguro/);
 	assert.doesNotMatch(notices.error.message, /El cierre no se registró/);
-	assert.doesNotMatch(notices.error.message, /el periodo sigue abierto/);
+	assert.doesNotMatch(notices.error.message, /el período sigue abierto/);
 
 	// A refused request, or a response this client could not read, cannot claim either way: a 200 whose
 	// body was unusable may still have left a closure behind.
@@ -3667,7 +3667,7 @@ test("the React financial-cycle completion module states each outcome truthfully
 	assert.equal(completion.isCycleAlreadyClosed("ayer", closedAt), false);
 
 	// The in-flight copy names no percentage and no estimate: the handler reports no progress at all.
-	assert.match(completion.CYCLE_COMPLETION_PENDING_MESSAGE, /Cerrando el periodo/);
+	assert.match(completion.CYCLE_COMPLETION_PENDING_MESSAGE, /Cerrando el período/);
 	assert.match(completion.CYCLE_COMPLETION_PENDING_MESSAGE, /no es posible mostrar un avance/);
 	assert.doesNotMatch(completion.CYCLE_COMPLETION_PENDING_MESSAGE, /%/);
 	// A request that never settles would otherwise leave the dialog impossible to close, because `Esc`
@@ -4233,7 +4233,7 @@ test("the React movement filter count states the filtered rows out of the period
 	assert.equal(filtered.shown, 3);
 	assert.equal(filtered.total, 4);
 	// The active status describes the table's subset, not the period-wide financial metrics (whose
-	// separate "Periodo completo, sin filtros" label is checked in the rendered card test below).
+	// separate "Período completo, sin filtros" label is checked in the rendered card test below).
 	assert.match(filtered.message, /^Filtro activo: Comida\. 3 de 4 movimientos\.$/);
 	assert.doesNotMatch(filtered.message, /resumen financiero|total gastado/i);
 	assert.notEqual(filtered.message, unfiltered.message);
@@ -4303,7 +4303,7 @@ test("the React movements filter control renders the labelled group, the active 
 	assert.match(active, /<option[^>]*value="Comida" selected="">Comida · 3<\/option>/);
 	assert.match(active, /Limpiar filtro<\/button>/);
 	assert.match(active, /<p class="react-movements-filter-count" role="status">Filtro activo: Comida\. 3 de 4 movimientos\.<\/p>/);
-	assert.doesNotMatch(active, /Estás viendo solo una categoría\.|Se muestran 3 de 4 gastos reconocidos del periodo|El filtro solo afecta a esta tabla/);
+	assert.doesNotMatch(active, /Estás viendo solo una categoría\.|Se muestran 3 de 4 gastos reconocidos del período|El filtro solo afecta a esta tabla/);
 
 	// The table itself owns the selection, derives the view from the loaded rows on every render, and
 	// states the count only while the statement exists. The loaded period and rows are what make a
@@ -4409,8 +4409,8 @@ test("the React movements view and the demo share the Stitch card header with a 
 	// Positive marker first: the authenticated card opens with the shared header band, before the filter
 	// control band it used to open with, and the glyph is decorative.
 	assert.match(table, /<div class="react-movements-view"><header class="react-movements-header">/);
-	assert.match(table, /<section class="react-movements-metrics" aria-label="Indicadores del periodo">[\s\S]*?<span>Total gastado<\/span><strong>\$25\.000<\/strong><small>Periodo completo, sin filtros<\/small>/);
-	assert.match(table, /<h2>Actividad del periodo<\/h2>/);
+	assert.match(table, /<section class="react-movements-metrics" aria-label="Indicadores del período">[\s\S]*?<span>Total gastado<\/span><strong>\$25\.000<\/strong><small>Período completo, sin filtros<\/small>/);
+	assert.match(table, /<h2>Actividad del período<\/h2>/);
 	assert.match(table, /<span class="react-card-icon" aria-hidden="true">/);
 	assert.ok(
 		table.indexOf("react-movements-header") < table.indexOf("react-movements-filters"),
@@ -5057,7 +5057,7 @@ test("the React period analytics averages only the movements with a usable amoun
 	assert.equal(view.average.emptyValue, null);
 	assert.match(
 		view.average.detail,
-		/Promedio de 3 gastos reconocidos del periodo con monto conocido\./,
+		/Promedio de 3 gastos reconocidos del período con monto conocido\./,
 	);
 
 	// The largest expense names its counterparty with the surface's own fallback and carries both its
@@ -5074,8 +5074,8 @@ test("the React period analytics averages only the movements with a usable amoun
 	// differ so a folded number fails one of them.
 	assert.equal(view.review.count, 2);
 	assert.deepEqual(view.review.details, [
-		"2 movimientos del periodo necesitan confirmaci\u00f3n.",
-		"3 salidas reconocidas del periodo sin monto conocido.",
+		"2 movimientos del período necesitan confirmaci\u00f3n.",
+		"3 salidas reconocidas del período sin monto conocido.",
 	]);
 	assert.notEqual(view.review.count, 3);
 
@@ -5119,13 +5119,13 @@ test("the React period analytics averages only the movements with a usable amoun
 	assert.equal(noAmount.average.emptyValue, "\u2014");
 	assert.match(
 		noAmount.average.detail,
-		/Ninguno de los 2 gastos reconocidos del periodo tiene un monto conocido/,
+		/Ninguno de los 2 gastos reconocidos del período tiene un monto conocido/,
 	);
 	assert.match(noAmount.average.detail, /no hay promedio ni mayor gasto que mostrar/);
 	assert.equal(noAmount.largest, null);
 	assert.deepEqual(noAmount.review.details, [
 		"Nada urgente por corregir.",
-		"2 salidas reconocidas del periodo sin monto conocido.",
+		"2 salidas reconocidas del período sin monto conocido.",
 	]);
 	// One recognized expense and no usable amount is its own sentence, not a plural one built around it.
 	const singleAmountless = analytics.getPeriodAnalytics([
@@ -5133,7 +5133,7 @@ test("the React period analytics averages only the movements with a usable amoun
 	]);
 	assert.match(
 		singleAmountless.average.detail,
-		/El \u00fanico gasto reconocido del periodo no tiene un monto conocido/,
+		/El \u00fanico gasto reconocido del período no tiene un monto conocido/,
 	);
 	assert.equal(singleAmountless.average.amount, null);
 
@@ -5142,7 +5142,7 @@ test("the React period analytics averages only the movements with a usable amoun
 	assert.equal(empty.average.amount, null);
 	assert.equal(empty.average.divisor, 0);
 	assert.equal(empty.average.emptyValue, "\u2014");
-	assert.match(empty.average.detail, /No hay gastos reconocidos en el periodo/);
+	assert.match(empty.average.detail, /No hay gastos reconocidos en el período/);
 	assert.equal(empty.largest, null);
 	assert.equal(empty.review.count, 0);
 	assert.deepEqual(empty.review.details, ["Nada urgente por corregir."]);
@@ -5210,7 +5210,7 @@ test("the React period analytics retains the three financial decisions and rende
 	const model = analytics.getPeriodAnalytics(periodTransactions);
 	assert.equal(model.average.amount, 14167); // CLP rounds once after dividing by known amounts.
 	assert.equal(model.average.divisor, 3);
-	assert.equal(model.average.detail, "Promedio de 3 gastos reconocidos del periodo con monto conocido.");
+	assert.equal(model.average.detail, "Promedio de 3 gastos reconocidos del período con monto conocido.");
 	assert.deepEqual(model.largest, { label: "Mayor gasto", counterparty: "Arriendo", amount: 25000, date: "2026-02-03" });
 	assert.match(markup, /Mayor impacto/);
 	assert.match(markup, /react-insight-callout-value">Arriendo<\/strong>/);
@@ -5221,8 +5221,8 @@ test("the React period analytics retains the three financial decisions and rende
 	// The retained public decisions keep review and unknown amounts separate: 2 versus 3.
 	// Legacy's `pendingReviewCount || unknownExpenseCount` could not preserve both facts.
 	assert.deepEqual(model.review.details, [
-		"2 movimientos del periodo necesitan confirmación.",
-		"3 salidas reconocidas del periodo sin monto conocido.",
+		"2 movimientos del período necesitan confirmación.",
+		"3 salidas reconocidas del período sin monto conocido.",
 	]);
 	assert.notEqual(analytics.getPeriodAnalytics(periodTransactions).review.count, 3);
 
@@ -5245,13 +5245,13 @@ test("the React period analytics retains the three financial decisions and rende
 	assert.doesNotMatch(noAmountMarkup, /\$0/);
 	assert.match(
 		noAmount.average.detail,
-		/Ninguno de los 2 gastos reconocidos del periodo tiene un monto conocido: no hay promedio ni mayor gasto que mostrar\./,
+		/Ninguno de los 2 gastos reconocidos del período tiene un monto conocido: no hay promedio ni mayor gasto que mostrar\./,
 	);
 	assert.equal(noAmount.largest, null);
-	assert.match(noAmountMarkup, /Sin gastos con monto conocido en el periodo/);
+	assert.match(noAmountMarkup, /Sin gastos con monto conocido en el período/);
 	assert.deepEqual(noAmount.review.details, [
-		"1 movimiento del periodo necesita confirmación.",
-		"2 salidas reconocidas del periodo sin monto conocido.",
+		"1 movimiento del período necesita confirmación.",
+		"2 salidas reconocidas del período sin monto conocido.",
 	]);
 	assert.match(noAmountMarkup, /<p>1 gasto necesita una revisión rápida\.<\/p>/);
 
@@ -5261,12 +5261,12 @@ test("the React period analytics retains the three financial decisions and rende
 	const empty = analytics.getPeriodAnalytics([]);
 	assert.equal(empty.average.emptyValue, "—");
 	assert.equal(empty.average.amount, null);
-	assert.match(empty.average.detail, /No hay gastos reconocidos en el periodo/);
+	assert.match(empty.average.detail, /No hay gastos reconocidos en el período/);
 	assert.doesNotMatch(emptyMarkup, /\$0/);
 	assert.equal(empty.largest, null);
 	assert.equal(empty.review.count, 0);
 	assert.deepEqual(empty.review.details, ["Nada urgente por corregir."]);
-	assert.match(emptyMarkup, /Todavía no hay gastos reconocidos para contarte el periodo/);
+	assert.match(emptyMarkup, /Todavía no hay gastos reconocidos para contarte el período/);
 	// Sensitivity control: the patterns certified absent above match the same component when the state
 	// they describe is actually rendered, so each absence observes a real absence.
 	assert.match(markup, /Mayor impacto/);
@@ -5282,10 +5282,10 @@ test("the React period analytics retains the three financial decisions and rende
 	const onlyUnknownMarkup = renderPanel([
 		{ direction: "outflow", kind: "purchase", amount: null, occurredAt: "2026-02-04", status: "detected" },
 	]);
-	assert.match(onlyUnknownMarkup, /Los gastos reconocidos del periodo todavía no tienen monto conocido/);
+	assert.match(onlyUnknownMarkup, /Los gastos reconocidos del período todavía no tienen monto conocido/);
 	assert.deepEqual(analytics.getPeriodAnalytics([
 		{ direction: "outflow", kind: "purchase", amount: null, status: "detected" },
-	]).review.details, ["Nada urgente por corregir.", "1 salida reconocida del periodo sin monto conocido."]);
+	]).review.details, ["Nada urgente por corregir.", "1 salida reconocida del período sin monto conocido."]);
 
 	// The rendered copy never borrows the calendar month this product stopped navigating by.
 	assert.doesNotMatch(markup, /este mes/i);
@@ -5409,7 +5409,7 @@ test("the React category ranking groups recognized outflows by raw totals, merge
 	assert.equal(view.unknownAmountCount, 3);
 	assert.equal(
 		view.disclosure,
-		"3 salidas reconocidas del periodo no tienen monto conocido y no se incluyen en esta distribución.",
+		"3 salidas reconocidas del período no tienen monto conocido y no se incluyen en esta distribución.",
 	);
 
 	// Top three by raw total, then the tail merged after the third. The merged row carries the raw
@@ -5457,7 +5457,7 @@ test("the React category ranking groups recognized outflows by raw totals, merge
 	// A single excluded outflow is stated as one, not pluralised around a digit.
 	assert.match(
 		ranking.getCategoryRanking(movements, 1).disclosure,
-		/^1 salida reconocida del periodo no tiene monto conocido y no se incluye en esta distribución\.$/,
+		/^1 salida reconocida del período no tiene monto conocido y no se incluye en esta distribución\.$/,
 	);
 
 	// The merged share is the raw tail ratio rounded once, not the sum of the already-rounded shares
@@ -5548,7 +5548,7 @@ test("the React category ranking view renders the ranked rows, the counterparty 
 	assert.match(list, /<h3 id="react-category-ranking-title">Gasto reconocido por categoría<\/h3>/);
 	assert.match(
 		list,
-		/<p class="react-category-ranking-disclosure" role="status">3 salidas reconocidas del periodo no tienen monto conocido y no se incluyen en esta distribución\.<\/p>/,
+		/<p class="react-category-ranking-disclosure" role="status">3 salidas reconocidas del período no tienen monto conocido y no se incluyen en esta distribución\.<\/p>/,
 	);
 	assert.match(list, /<strong>Arriendo<\/strong><small>\$400\.000 \u00b7 88% \u00b7 1 movimiento<\/small>/);
 	assert.match(list, /<strong>Comida<\/strong><small>\$33\.500 \u00b7 7% \u00b7 3 movimientos<\/small>/);
@@ -5799,7 +5799,7 @@ test("the React spending chart buckets the configured period into Monday-to-Sund
 	);
 	assert.deepEqual(
 		view.tabs.map((tab) => tab.label),
-		["Semana 1", "Semana 2", "Semana 3", "Semana 4", "Semana 5", "Periodo completo"],
+		["Semana 1", "Semana 2", "Semana 3", "Semana 4", "Semana 5", "Período completo"],
 	);
 
 	// Raw finite recognized outflow totals only, with both exclusions disclosed as separate facts.
@@ -5810,17 +5810,17 @@ test("the React spending chart buckets the configured period into Monday-to-Sund
 	assert.equal(view.unknownAmountCount, 2);
 	assert.equal(view.unknownDateCount, 1);
 	assert.deepEqual(view.disclosures, [
-		"2 salidas reconocidas del periodo no tienen monto conocido y no se incluyen en este gr\u00e1fico.",
-		"1 salida reconocida del periodo con monto conocido no tiene una fecha v\u00e1lida y no se puede ubicar en el gr\u00e1fico.",
+		"2 salidas reconocidas del período no tienen monto conocido y no se incluyen en este gr\u00e1fico.",
+		"1 salida reconocida del período con monto conocido no tiene una fecha v\u00e1lida y no se puede ubicar en el gr\u00e1fico.",
 	]);
 
 	// Heights retain the actual day/max ratio, with only the accepted 1% tiny-positive floor.
 	const fullSeries = chart.getSpendingChartSeries(view, "period");
 	assert.equal(fullSeries.detail, "domingo 1 de febrero - sábado 28 de febrero");
-	assert.equal(fullSeries.ariaLabel, "Periodo completo, total gastado por cada d\u00eda de la semana");
+	assert.equal(fullSeries.ariaLabel, "Período completo, total gastado por cada d\u00eda de la semana");
 	assert.deepEqual(fullSeries.days.map((day) => day.heightPercent), [50, 2.5, 0, 0, 0, 100, 100]);
 	// The weekday aggregate carries the period-wide weekday detail the native tooltip restores.
-	assert.equal(fullSeries.days[0].titleDetail, "Total del periodo por lunes");
+	assert.equal(fullSeries.days[0].titleDetail, "Total del período por lunes");
 	const week2 = chart.getSpendingChartSeries(view, "week-1");
 	assert.equal(week2.label, "Semana 2");
 	assert.equal(week2.ariaLabel, "Semana 2, gasto diario de lunes a domingo");
@@ -5851,7 +5851,7 @@ test("the React spending chart buckets the configured period into Monday-to-Sund
 	// A single unknown outflow is stated as one, not pluralised around a digit.
 	assert.match(
 		chart.getSpendingChart([], period, 1).disclosures[0],
-		/^1 salida reconocida del periodo no tiene monto conocido y no se incluye en este gr\u00e1fico\.$/,
+		/^1 salida reconocida del período no tiene monto conocido y no se incluye en este gr\u00e1fico\.$/,
 	);
 
 	// Neutral Spanish throughout.
@@ -5918,7 +5918,7 @@ test("the spending chart shows zero days as $0 and selects without automatic pag
 	assert.match(headerRule, /top: 0;/);
 	assert.match(headerRule, /z-index: 1;/);
 	assert.match(headerRule, /background: var\(--surface-subtle\);/);
-	assert.match(positive, /title="lun: fuera del periodo"/);
+	assert.match(positive, /title="lun: fuera del período"/);
 	assert.doesNotMatch(positive, /aria-label="Ver detalle de lun 26 ene: \$0"/);
 
 	const chartView = source.slice(
@@ -6033,18 +6033,18 @@ test("the React spending chart view renders selectable proportional bars, the re
 	const full = renderView();
 	assert.match(full, /<h3 id="react-spending-chart-title">Gasto por d\u00eda de la semana<\/h3>/);
 	// Tabs are the only controls; the full period is pressed by default and each week is selectable.
-	assert.match(full, /aria-label="Periodo del gr\u00e1fico de gastos"/);
-	assert.match(full, /<button type="button" class="react-spending-chart-tab" aria-pressed="true">Periodo completo<\/button>/);
+	assert.match(full, /aria-label="Período del gr\u00e1fico de gastos"/);
+	assert.match(full, /<button type="button" class="react-spending-chart-tab" aria-pressed="true">Período completo<\/button>/);
 	assert.match(full, /<button type="button" class="react-spending-chart-tab" aria-pressed="false">Semana 1<\/button>/);
 	// Both excluded facts are disclosed as separate statements.
-	assert.match(full, /2 salidas reconocidas del periodo no tienen monto conocido/);
-	assert.match(full, /1 salida reconocida del periodo con monto conocido no tiene una fecha v\u00e1lida/);
+	assert.match(full, /2 salidas reconocidas del período no tienen monto conocido/);
+	assert.match(full, /1 salida reconocida del período con monto conocido no tiene una fecha v\u00e1lida/);
 	// The heading names the selected series total and range.
 	assert.match(full, /react-spending-chart-heading"><span><strong>domingo 1 de febrero<\/strong> - <strong>sábado 28 de febrero<\/strong>/);
-	assert.match(full, /<span>Periodo:<\/span><strong>\$10\.100<\/strong>/);
+	assert.match(full, /<span>Período:<\/span><strong>\$10\.100<\/strong>/);
 	// Bars are selectable controls again, like legacy: each one is a button with aria-pressed and
 	// aria-controls for the read-only day detail.
-	assert.match(full, /role="region" aria-label="Periodo completo, total gastado por cada d\u00eda de la semana"/);
+	assert.match(full, /role="region" aria-label="Período completo, total gastado por cada d\u00eda de la semana"/);
 	// The body reads bars, then the month summary, then the selected-day detail, so the DOM order
 	// matches the visual layout: graph and totals on the top row, detail spanning the full width below.
 	const barsIndex = full.indexOf('class="react-spending-chart-bars"');
@@ -6066,8 +6066,8 @@ test("the React spending chart view renders selectable proportional bars, the re
 	assert.match(full, /<span class="react-spending-chart-fill" style="height:100%;background-color:hsl\(220 16% 41%\)"><\/span>/);
 	assert.match(full, /<span class="react-spending-chart-fill" style="height:2\.5%;background-color:hsl\(220 16% 71\.225%\)"><\/span>/);
 	// Every bar track keeps the native `title` tooltip, including the period-wide weekday wording.
-	assert.match(full, /title="lun · Total del periodo por lunes: \$2\.000"/);
-	assert.match(full, /title="mar · Total del periodo por martes: \$100"/);
+	assert.match(full, /title="lun · Total del período por lunes: \$2\.000"/);
+	assert.match(full, /title="mar · Total del período por martes: \$100"/);
 	// The full-period series aggregates by weekday, so its day details are blank.
 	assert.match(full, /<strong class="react-spending-chart-day">lun<\/strong><small class="react-spending-chart-detail"><\/small>/);
 
@@ -6076,7 +6076,7 @@ test("the React spending chart view renders selectable proportional bars, the re
 	const week = renderView("week-0");
 	assert.match(week, /aria-pressed="true">Semana 1<\/button>/);
 	assert.match(week, /<small class="react-spending-chart-detail">1 feb<\/small>/);
-	assert.match(week, /<span class="react-spending-chart-value" aria-hidden="true"><\/span><span class="react-spending-chart-track react-spending-chart-track-empty" title="lun: fuera del periodo">/);
+	assert.match(week, /<span class="react-spending-chart-value" aria-hidden="true"><\/span><span class="react-spending-chart-track react-spending-chart-track-empty" title="lun: fuera del período">/);
 	assert.equal((week.match(/react-spending-chart-track-empty/g) ?? []).length, 6);
 	// Every padded day outside the period is disabled and cannot be selected.
 	assert.equal((week.match(/<button[^>]*disabled=""/g) ?? []).length, 6);
@@ -6105,13 +6105,13 @@ test("the React spending chart view renders selectable proportional bars, the re
 
 	// The totals grid states every week plus the full period and marks the selected row. The visible
 	// heading and accessible name both scope the totals to the configured period.
-	assert.match(full, /aria-label="Resumen de gastos del periodo"><h4>Resumen del periodo<\/h4>/);
+	assert.match(full, /aria-label="Resumen de gastos del período"><h4>Resumen del período<\/h4>/);
 	assert.equal((full.match(/class="react-spending-chart-summary-row/g) ?? []).length, 6);
 	assert.match(
 		full,
-		/<div class="react-spending-chart-summary-row react-spending-chart-summary-row-active" aria-current="true" aria-label="Periodo seleccionado: \$10\.100">/,
+		/<div class="react-spending-chart-summary-row react-spending-chart-summary-row-active" aria-current="true" aria-label="Período seleccionado: \$10\.100">/,
 	);
-	assert.match(full, /<span>Periodo:<\/span><strong>\$10\.100<\/strong>/);
+	assert.match(full, /<span>Período:<\/span><strong>\$10\.100<\/strong>/);
 	assert.match(full, /<span>Semana 1:<\/span><strong>\$1\.000<\/strong>/);
 
 	// The default chart keeps every detail row inert: without `onOpenMovement` there is no dialog
@@ -6155,7 +6155,7 @@ test("the React spending chart view renders selectable proportional bars, the re
 	const panel = renderer.renderToStaticMarkup(
 		React.createElement(pageModule.SpendingChartPanel, { chart }),
 	);
-	assert.match(panel, /aria-pressed="true">Periodo completo<\/button>/);
+	assert.match(panel, /aria-pressed="true">Período completo<\/button>/);
 
 	// The same read-only chart is reused by the demo tree.
 	const demoMarkup = renderer.renderToStaticMarkup(
@@ -6400,7 +6400,7 @@ test("the React spending chart detail and totals read the loaded transactions wi
 	);
 	assert.equal(totals[0].total, 0);
 	assert.equal(totals[1].total, 2600);
-	assert.equal(totals[5].label, "Periodo");
+	assert.equal(totals[5].label, "Período");
 	assert.equal(totals[5].total, 2600);
 	assert.deepEqual(totals.map((row) => row.isActive), [false, false, false, false, false, true]);
 	assert.equal(analytics.getSpendingChartTotalsRows(chart, "week-1")[1].isActive, true);
@@ -7046,7 +7046,7 @@ test("the React app header renders the brand, the bound view navigation and the 
 	assert.doesNotMatch(source, /useState/);
 
 	// Month navigation is deliberately absent from the period-scoped React dashboard.
-	assert.doesNotMatch(summary, /Seleccionar periodo|month-picker|monthSelect/i);
+	assert.doesNotMatch(summary, /Seleccionar período|month-picker|monthSelect/i);
 
 	// Scoped chrome styles reuse the retained design tokens instead of the legacy classes.
 	assert.match(styles, /\.react-app-header \{/);
@@ -7172,7 +7172,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 	assert.equal(unconfigured.balance.derivationIncomeLabel, null);
 	assert.equal(
 		unconfigured.balance.detail,
-		"No hay un ingreso configurado para el periodo, as\u00ed que no se puede calcular cu\u00e1nto te queda.",
+		"No hay un ingreso configurado para el período, as\u00ed que no se puede calcular cu\u00e1nto te queda.",
 	);
 	// The spending side is unaffected by the missing income.
 	assert.equal(unconfigured.spending.amount, 25000);
@@ -7213,13 +7213,13 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 	assert.equal(demoAbsent.balance.emptyValue, "\u2014");
 	assert.equal(demoAbsent.balance.incomeAmount, null);
 	assert.equal(demoAbsent.balance.derivationIncomeLabel, null);
-	assert.match(demoAbsent.balance.detail, /no registran ingresos en el periodo/);
+	assert.match(demoAbsent.balance.detail, /no registran ingresos en el período/);
 	assert.doesNotMatch(demoAbsent.balance.detail, /Ingreso configurado/);
 
 	// The default source keeps the authenticated configured-cycle claim, so omitting it never turns a
 	// cycle income into demo copy.
 	const defaultedSource = lead.getDashboardLead({
-		periodLabel: "Periodo",
+		periodLabel: "Período",
 		totalSpending: 25000,
 		expenseCount: 1,
 		pendingAmountCount: 0,
@@ -7232,7 +7232,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 
 	// A negative balance is a real subtraction result and stays negative.
 	const overspent = lead.getDashboardLead({
-		periodLabel: "Periodo",
+		periodLabel: "Período",
 		totalSpending: 1200000,
 		expenseCount: 4,
 		pendingAmountCount: 0,
@@ -7242,7 +7242,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 
 	// One expense and one pending movement are singular; the caveat singularizes with them.
 	const singular = lead.getDashboardLead({
-		periodLabel: "Periodo",
+		periodLabel: "Período",
 		totalSpending: 1000,
 		expenseCount: 1,
 		pendingAmountCount: 1,
@@ -7253,7 +7253,7 @@ test("the React dashboard lead derives the spending detail and a truthful balanc
 
 	// Defensive normalization: a non-finite total is not a number to show, and non-counts never print.
 	const guarded = lead.getDashboardLead({
-		periodLabel: "Periodo",
+		periodLabel: "Período",
 		totalSpending: Number.NaN,
 		expenseCount: -2,
 		pendingAmountCount: Number.POSITIVE_INFINITY,
@@ -7443,7 +7443,7 @@ test("the React dashboard insights module derives a truthful story, top insights
 		topCounterparty: { label: "Mercado", total: 15000 },
 	});
 	assert.equal(story.title, "Lectura rápida");
-	assert.equal(story.summary, "Puntos clave del periodo.");
+	assert.equal(story.summary, "Puntos clave del período.");
 	assert.deepEqual(story.facts, ["2 gastos necesitan una revisión rápida."]);
 	// No fact or summary copy repeats what `Destacados` already states, including the largest expense
 	// the intelligence card now shows as `Mayor impacto`.
@@ -7731,11 +7731,11 @@ test("the React authenticated summary renders the shared analytics body in the p
 	);
 	assert.match(storyMarkup, /<div class="react-top-insights-note"/);
 	assert.match(storyMarkup, /Lectura rápida/);
-	assert.match(storyMarkup, /Puntos clave del periodo\./);
+	assert.match(storyMarkup, /Puntos clave del período\./);
 	assert.match(storyMarkup, /1 gasto necesita una revisión rápida\./);
 	// One paragraph per story fact, without restating category/recipient/largest-expense totals.
 	assert.equal((storyMarkup.match(/<p>1 gasto necesita una revisión rápida\.<\/p>/g) ?? []).length, 1);
-	assert.match(storyMarkup, /<div class="react-top-insights-note-copy"><p>Puntos clave del periodo\.<\/p><p>1 gasto necesita una revisión rápida\.<\/p>/);
+	assert.match(storyMarkup, /<div class="react-top-insights-note-copy"><p>Puntos clave del período\.<\/p><p>1 gasto necesita una revisión rápida\.<\/p>/);
 	assert.doesNotMatch(storyMarkup, /Comida|Mercado|Tienda|\$12\.000/);
 
 	// An empty period announces its summary as a status and invents no review fact.
@@ -7768,8 +7768,8 @@ test("the React authenticated summary renders the shared analytics body in the p
 	);
 	assert.match(insightsMarkup, /<section class="react-top-insights"/);
 	assert.match(insightsMarkup, /Lectura rápida · Inteligencia de gastos/);
-	assert.match(insightsMarkup, /Resumen del periodo/);
-	assert.match(insightsMarkup, /Tus datos más relevantes del periodo\./);
+	assert.match(insightsMarkup, /Resumen del período/);
+	assert.match(insightsMarkup, /Tus datos más relevantes del período\./);
 	assert.match(insightsMarkup, /Sin clasificar/);
 	assert.match(insightsMarkup, /Mayor frecuencia/);
 	assert.match(insightsMarkup, /react-insight-callout-value">Mercado<\/strong>/);
@@ -7784,7 +7784,7 @@ test("the React authenticated summary renders the shared analytics body in the p
 	// Frequency states a count, not the obsolete aggregate-recipient amount hint.
 	assert.match(insightsMarkup, /react-top-insights-header/);
 	assert.match(insightsMarkup, /<h3 id="react-top-insights-title">Lectura rápida · Inteligencia de gastos<\/h3>/);
-	assert.match(insightsMarkup, /<span class="react-top-insights-badge">Resumen del periodo<\/span>/);
+	assert.match(insightsMarkup, /<span class="react-top-insights-badge">Resumen del período<\/span>/);
 	assert.match(insightsMarkup, /<ul class="react-top-insights-grid">/);
 	assert.doesNotMatch(insightsMarkup, /react-financial-grid|react-financial-card|react-top-insights-list/);
 	assert.equal((insightsMarkup.match(/<li class="react-insight-callout react-insight-callout-/g) ?? []).length, 4);
@@ -7989,7 +7989,7 @@ test("the React category distribution resolves stored colours with a determinist
 		1000,
 		formatAmount,
 	);
-	assert.equal(dominant, "Arriendo concentra el 45% del gasto del periodo.");
+	assert.equal(dominant, "Arriendo concentra el 45% del gasto del período.");
 
 	// The unnamed bucket is found even when the tail merge absorbed it, and the copy is neutral Spanish.
 	const merged = ranking.getCategoryRanking(
@@ -8096,7 +8096,7 @@ test("the React category distribution renders the ECharts donut legend, reuses t
 	assert.match(list, /<strong>Otras categorías<\/strong>/);
 	assert.doesNotMatch(list, /react-category-detail/);
 	// The excluded outflows stay disclosed next to the total.
-	assert.match(list, /3 salidas reconocidas del periodo no tienen monto conocido/);
+	assert.match(list, /3 salidas reconocidas del período no tienen monto conocido/);
 
 	// Selecting a row reuses the extracted detail view in place of the legend.
 	const detail = renderDistribution("Comida");
@@ -8809,7 +8809,7 @@ test("the React cycle calendar renders the year-to-date grid, the range summary 
 		onSelectDate: () => {},
 		today: "2026-02-15",
 	});
-	assert.match(markup, /aria-label="Calendario del periodo"/);
+	assert.match(markup, /aria-label="Calendario del período"/);
 	assert.match(markup, /class="react-cycle-calendar-weekday" aria-hidden="true">L</);
 	assert.match(markup, /class="react-cycle-calendar-day react-cycle-calendar-day-selected" data-date="2026-02-15"[^>]*aria-pressed="true"[^>]*aria-current="date"/);
 	assert.doesNotMatch(dayButton(markup, "2026-02-15"), /disabled=""/);
@@ -8992,8 +8992,8 @@ test("the React demo dashboard composes the read-only analytics without API, Gma
 	// income/budget cards into it) and analytics panels render, over dummy data and with no demo-only
 	// layout modifier.
 	assert.match(markup, /class="react-pace-gauge/);
-	assert.match(markup, /<dt>Ingreso del ciclo<\/dt>/);
-	assert.doesNotMatch(markup, /react-dashboard-lead|react-lead-answer|react-budget-panel|Presupuesto|Ingresos del periodo|react-dashboard-lead-single|demo-kpi-grid/);
+	assert.match(markup, /<dt>Ingreso del período<\/dt>/);
+	assert.doesNotMatch(markup, /react-dashboard-lead|react-lead-answer|react-budget-panel|Presupuesto|Ingresos del período|react-dashboard-lead-single|demo-kpi-grid/);
 	assert.match(markup, /react-category-distribution/);
 	assert.match(markup, /react-spending-chart/);
 	assert.match(markup, /react-top-insights-note/);

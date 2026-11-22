@@ -269,7 +269,7 @@ export function CounterpartyRulesContent({
 		<>
 			<p className="react-counterparty-intro">
 				Cada regla reemplaza la categoría de los movimientos cuya contraparte coincida. Se
-				aplican al cargar los movimientos, así que el periodo se actualiza al guardar.
+				aplican al cargar los movimientos, así que el período se actualiza al guardar.
 			</p>
 			<section
 				className="react-counterparty-section"

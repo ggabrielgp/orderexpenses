@@ -4,6 +4,7 @@ import { CalendarGlyph } from "./CycleIcons";
 import {
 	PAY_DAYS,
 	PAY_DAY_QUICK_CHOICES,
+	describePayDayReasoning,
 	formatCycleResult,
 	payDayLabel,
 	type CycleOptionChoice,
@@ -24,7 +25,7 @@ export interface CyclePresetsProps {
 }
 
 /**
- * "¿Cuándo empieza tu mes?" (S20): three option cards in one radiogroup. Each card reveals only what
+ * "¿Cuándo empieza tu período?" (S20): three option cards in one radiogroup. Each card reveals only what
  * it needs — the calendar month a result line, the pay day one question plus the resulting range, and
  * "Otro rango" whatever the form passes as `customPane`. The component is controlled: the form keeps
  * the option and the start/end state, so its validation and saved payload do not change.
@@ -40,6 +41,7 @@ export function CyclePresets({
 }: CyclePresetsProps) {
 	const groupName = useId();
 	const result = formatCycleResult(range);
+	const reasoning = describePayDayReasoning(range);
 	const isQuickChoice = PAY_DAY_QUICK_CHOICES.includes(payDay);
 
 	const card = (choice: CycleOptionChoice, label: string, detail: string, reveal: ReactNode) => {
@@ -73,7 +75,7 @@ export function CyclePresets({
 	};
 
 	return (
-		<div className="cycle-options" role="radiogroup" aria-label="¿Cuándo empieza tu mes?">
+		<div className="cycle-options" role="radiogroup" aria-label="¿Cuándo empieza tu período?">
 			{card(
 				"calendar",
 				"Mes calendario",
@@ -81,7 +83,7 @@ export function CyclePresets({
 				<p className="cycle-result">
 					<CalendarGlyph />
 					<span>
-						Tu mes: <b>{result}</b>
+						Tu período: <b>{result}</b>
 					</span>
 				</p>,
 			)}
@@ -126,13 +128,19 @@ export function CyclePresets({
 							</span>
 						</div>
 					</fieldset>
+					{reasoning ? <p className="cycle-reasoning">{reasoning.paidLine}</p> : null}
 					<p className="cycle-result">
 						<CalendarGlyph />
 						<span>
-							Tu mes: <b>{result}</b>
+							Tu período: <b>{result}</b>
+							{reasoning ? <span className="cycle-result-days"> ({reasoning.days})</span> : null}
 						</span>
 					</p>
-					{payDay >= 29 ? <p className="cycle-note">En los meses más cortos usamos su último día.</p> : null}
+					{payDay === 31 ? (
+						<p className="cycle-note">Último día de cada mes; en meses más cortos, su último día.</p>
+					) : payDay >= 29 ? (
+						<p className="cycle-note">En los meses más cortos usamos su último día.</p>
+					) : null}
 				</>,
 			)}
 			{card("custom", "Otro rango", "Elige inicio y fin", customPane)}

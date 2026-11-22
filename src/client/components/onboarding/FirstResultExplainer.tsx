@@ -16,8 +16,8 @@ export function FirstResultExplainer({ withIncome = true }: { withIncome?: boole
 			<span>
 				<strong>Así se lee tu medidor</strong>{" "}
 				{withIncome
-					? "El color es lo que gastaste de tu ingreso; la raya, cuánto del ciclo pasó. Si el color no alcanza la raya, vas en ritmo."
-					: "Con tu ingreso, el color será lo que gastaste de él; la raya, cuánto del ciclo pasó. Si el color no alcanza la raya, vas en ritmo."}
+					? "El color es lo que gastaste de tu ingreso; la raya, cuánto del período pasó. Si el color no alcanza la raya, vas en ritmo."
+					: "Con tu ingreso, el color será lo que gastaste de él; la raya, cuánto del período pasó. Si el color no alcanza la raya, vas en ritmo."}
 			</span>
 		</p>
 	);

@@ -50,7 +50,7 @@ test("each scenario yields its own state for the demo data, by the S3 rules", ()
 		const html = view({ scenario });
 		assert.equal(pillOf(html), WORDS[scenario], scenario);
 		// The sentence and the figures come from the same pace: the pill word is never alone.
-		assert.match(html, /Llevas <b>\d+%<\/b> del ingreso y pasó el <b>\d+%<\/b> del ciclo/);
+		assert.match(html, /Llevas <b>\d+%<\/b> del ingreso y pasó el <b>\d+%<\/b> del período/);
 		assert.match(html, new RegExp(`react-pace-gauge--${scenario}`));
 	}
 });
@@ -109,7 +109,8 @@ test("the simulated day is computed from the data and stays inside the cycle", (
 
 test("a day passed explicitly still wins, and no income still shows no state", () => {
 	const html = view({ today: { year: 2026, month: 5, day: 10 }, scenario: "over" });
-	assert.match(html, /Día 10 de 31/);
+	assert.match(html, /Quedan 22 días/);
+	assert.match(html, /el período cierra el 31 may/);
 	const none = renderToStaticMarkup(createElement(page.DemoDashboardView, {
 		data: { ...data, currentPeriodInflow: 0, movements: data.movements.filter((movement) => movement.direction !== "inflow") },
 		view: "summary", onViewChange: noop, onRequestedCategoryChange: noop,

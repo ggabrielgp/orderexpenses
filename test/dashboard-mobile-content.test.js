@@ -103,7 +103,7 @@ test("movement cards use the sorted filtered rows and original public callback o
  }));
  // S18 (T18): a period with no recognized expenses shows one empty state (artboards 06/07) instead of the
  // duplicated table/list cell, and has nothing to filter or sort.
- assert.equal((blankPeriodHtml.match(/Aún no hay movimientos en este periodo/g) ?? []).length, 1);
+ assert.equal((blankPeriodHtml.match(/Aún no hay movimientos en este período/g) ?? []).length, 1);
  assert.doesNotMatch(blankPeriodHtml, /No hay gastos reconocidos disponibles|<table|react-mobile-movements/);
  const filter = nodes(tree).find((node) => node.type?.name === "MovementFilterBar");
  const filterNodes = nodes(filter.type(filter.props));

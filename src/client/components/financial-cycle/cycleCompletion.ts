@@ -18,7 +18,7 @@ import { getCycleClosureDate } from "./cycleSettings";
  * only honest escape this surface has: there is no cancellation (aborting would not stop the server's sequential Gmail work
  * nor prevent a written closure), so it says when the dialog becomes closable and that a reload abandons the wait. */
 export const CYCLE_COMPLETION_PENDING_MESSAGE =
-	"Cerrando el periodo y revisando el correo de Gmail... La revisión puede tardar y no es posible mostrar un avance parcial. Puedes cerrar esta ventana cuando la revisión termine, y recargar la página abandona la espera.";
+	"Cerrando el período y revisando el correo de Gmail... La revisión puede tardar y no es posible mostrar un avance parcial. Puedes cerrar esta ventana cuando la revisión termine, y recargar la página abandona la espera.";
 
 export type CycleCompletionNotice = { message: string; tone: "success" | "warning" | "error" };
 
@@ -125,10 +125,10 @@ const COMPLETION_STALE =
 /** Copy for the outcomes that carry no value from the server, plus the one that produced no verdict. */
 const FIXED_COMPLETION_NOTICES: Record<"disconnected" | "error" | "failed", CycleCompletionNotice> = {
 	disconnected: {
-		message: "El cierre no se registró y el periodo sigue abierto: tu cuenta de Gmail no está conectada y cerrar el periodo necesita leer el correo. Usa el botón «Conectar Gmail» del panel de conexión y vuelve a intentarlo.",
+		message: "El cierre no se registró y el período sigue abierto: tu cuenta de Gmail no está conectada y cerrar el período necesita leer el correo. Usa el botón «Conectar Gmail» del panel de conexión y vuelve a intentarlo.",
 		tone: "warning",
 	},
-	error: { tone: "error", message: "El cierre no se pudo completar y no es posible confirmar si quedó registrado. Vuelve a cargar el resumen para ver el estado real; reintentar el cierre es seguro, porque cerrar un periodo ya cerrado conserva el registro original." },
+	error: { tone: "error", message: "El cierre no se pudo completar y no es posible confirmar si quedó registrado. Vuelve a cargar el resumen para ver el estado real; reintentar el cierre es seguro, porque cerrar un período ya cerrado conserva el registro original." },
 	failed: { tone: "error", message: "No es posible confirmar si el cierre quedó registrado. Vuelve a cargar el resumen para ver el estado real." },
 };
 
@@ -154,8 +154,8 @@ export function getCycleCompletionNotice(
 	if (outcome.status === "closed") {
 		const date = getCycleClosureDate(outcome.completedAt, timeZone);
 		const opening = outcome.alreadyClosed
-			? `Este periodo ya tenía un cierre registrado${date === null ? "" : ` el ${date}`} y se conserva ese registro.`
-			: `Periodo cerrado. ${date === null ? "Cierre registrado." : `Cierre registrado el ${date}.`}`;
+			? `Este período ya tenía un cierre registrado${date === null ? "" : ` el ${date}`} y se conserva ese registro.`
+			: `Período cerrado. ${date === null ? "Cierre registrado." : `Cierre registrado el ${date}.`}`;
 		return {
 			message: `${opening} ${outcome.reloadFailed ? COMPLETION_STALE : COMPLETION_REFRESHED}`,
 			tone: outcome.reloadFailed ? "warning" : "success",
@@ -164,7 +164,7 @@ export function getCycleCompletionNotice(
 	if (outcome.status === "partial") {
 		const failures = outcome.failedCount === 1 ? "1 consulta a Gmail no se pudo completar" : `${outcome.failedCount} consultas a Gmail no se pudieron completar`;
 		return {
-			message: `El cierre no se registró y el periodo sigue abierto: ${failures}. Puedes reintentar el cierre.`,
+			message: `El cierre no se registró y el período sigue abierto: ${failures}. Puedes reintentar el cierre.`,
 			tone: "warning",
 		};
 	}

@@ -107,7 +107,7 @@ export const GMAIL_SYNC_FAILURE_MESSAGE =
  * period is unknown rather than absent, and an unconfigured claim would be wrong in both cases.
  */
 export const GMAIL_SYNC_UNAVAILABLE_MESSAGE =
-	"Sincronizar con Gmail requiere tu periodo financiero configurado: la sincronización siempre usa ese periodo.";
+	"Sincronizar con Gmail requiere tu período financiero configurado: la sincronización siempre usa ese período.";
 
 function readCount(value: unknown): number | null {
 	return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
@@ -299,7 +299,7 @@ export function getGmailSyncErrorMessage(): string {
 }
 
 function describeScannedMessages(scanned: number | null): string {
-	if (scanned === null) return "se revisaron los mensajes de Gmail del periodo configurado";
+	if (scanned === null) return "se revisaron los mensajes de Gmail del período configurado";
 	return scanned === 1 ? "se revisó 1 mensaje de Gmail" : `se revisaron ${scanned} mensajes de Gmail`;
 }
 

@@ -226,7 +226,7 @@ function buildConfiguredBalance(
 			amount: null,
 			emptyValue: BALANCE_EMPTY_VALUE,
 			detail:
-				"No hay un ingreso configurado para el periodo, así que no se puede calcular cuánto te queda.",
+				"No hay un ingreso configurado para el período, así que no se puede calcular cuánto te queda.",
 			derivationIncomeLabel: null,
 		};
 	}
@@ -259,7 +259,7 @@ function buildDemoBalance(
 			amount: null,
 			emptyValue: BALANCE_EMPTY_VALUE,
 			detail:
-				"Los datos de la demo no registran ingresos en el periodo, así que no se puede calcular un balance.",
+				"Los datos de la demo no registran ingresos en el período, así que no se puede calcular un balance.",
 			derivationIncomeLabel: null,
 		};
 	}

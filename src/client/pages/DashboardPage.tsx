@@ -535,7 +535,7 @@ export function createFinancialCycleSetupPayload(
 }
 
 export function DashboardPeriodContext({ period }: { period: FinancialPeriod | null }) {
-  return period ? <p className="react-dashboard-period-context">Periodo: {formatPeriodLabel(period)}</p> : null;
+  return period ? <p className="react-dashboard-period-context">Período: {formatPeriodLabel(period)}</p> : null;
 }
 
 export function DashboardPage({ session }: DashboardPageProps) {
@@ -713,7 +713,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
                   className="react-dashboard-period"
                   type="button"
                   onClick={financialDashboard.onEditPeriod}
-                  aria-label={`Editar periodo: ${formatPeriodLabel(financialDashboard.period)}`}
+                  aria-label={`Editar período: ${formatPeriodLabel(financialDashboard.period)}`}
                   title={formatPeriodLabel(financialDashboard.period)}
                 >
                   <span className="react-dashboard-period-icon" aria-hidden="true">
@@ -731,7 +731,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
                   onClick={refreshFromHeader}
                   disabled={isRefreshing}
                   aria-busy={isRefreshing}
-                  aria-label={isRefreshing ? "Actualizando gastos del periodo" : "Actualizar gastos del periodo"}
+                  aria-label={isRefreshing ? "Actualizando gastos del período" : "Actualizar gastos del período"}
                 >
                   <FontAwesomeIcon icon={faArrowsRotate} aria-hidden="true" />
                   <span className="react-dashboard-refresh-label">Actualizar</span>
@@ -982,6 +982,7 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
 					    stays read-only and the account/mutation surfaces never mount. */}
           {view === "summary" ? <DashboardAnalyticsBody
             pace={demoPace}
+            paceEndExclusive={data.period.endDateExclusive}
             paceReplayKey={scenario}
             lead={dashboardLead}
             story={dashboardStory}
@@ -1063,7 +1064,7 @@ export function CategoryRankingView({
       )}
       {ranking.rows.length === 0 ? (
         <p className="react-category-ranking-empty" role="status">
-          Aún no hay gastos con monto conocido para distribuir por categoría en este periodo.
+          Aún no hay gastos con monto conocido para distribuir por categoría en este período.
         </p>
       ) : selectedRow === null ? (
         <ul className="react-category-ranking-list">
@@ -1127,7 +1128,7 @@ export function CategoryRankingPanel({ ranking, catalog, onJumpToCategory, movem
  * A padded day outside the period is stated as outside instead of claiming a zero.
  */
 function getSpendingChartBarLabel(series: SpendingChartSeries, day: SpendingChartBar): string {
-  if (!day.isInPeriod) return `${day.label}, fuera del periodo`;
+  if (!day.isInPeriod) return `${day.label}, fuera del período`;
   const prefix =
     series.mode === "period"
       ? `Ver detalle de ${day.titleDetail ?? day.label}`
@@ -1141,7 +1142,7 @@ function getSpendingChartBarLabel(series: SpendingChartSeries, day: SpendingChar
  * detail) and its total, and the explicit "outside the period" wording for a padded day.
  */
 function getSpendingChartBarTitle(day: SpendingChartBar): string {
-  if (!day.isInPeriod) return `${day.label}: fuera del periodo`;
+  if (!day.isInPeriod) return `${day.label}: fuera del período`;
   const detail = day.titleDetail ?? day.detail;
   return `${day.label} · ${detail}: ${day.total > 0 ? formatClp(day.total) : "$0"}`;
 }
@@ -1236,7 +1237,7 @@ export function SpendingChartView({
             }}
             className="react-spending-chart-tabs"
             role="group"
-            aria-label="Periodo del gráfico de gastos"
+            aria-label="Período del gráfico de gastos"
           >
             <span ref={motion?.tabsSelection?.indicatorRef} className="react-spending-chart-selection-indicator" aria-hidden="true" />
             {chart.tabs.map((tab) => (
@@ -1326,9 +1327,9 @@ export function SpendingChartView({
                 if (motion?.summarySelection) motion.summarySelection.containerRef.current = element;
               }}
               className="react-spending-chart-summary"
-              aria-label="Resumen de gastos del periodo"
+              aria-label="Resumen de gastos del período"
             >
-              <h4>Resumen del periodo</h4>
+              <h4>Resumen del período</h4>
               <span ref={motion?.summarySelection?.indicatorRef} className="react-spending-chart-selection-indicator" aria-hidden="true" />
               {totalsRows.map((row) => (
                 <div
@@ -1528,11 +1529,11 @@ function DashboardCounterpartyRankingView({ ranking }: { ranking: DashboardCount
           </div>
         </div>
         <div className="react-counterparty-ranking-header-actions">
-          <span className="react-counterparty-ranking-badge">Ranking del periodo</span>
+          <span className="react-counterparty-ranking-badge">Ranking del período</span>
         </div>
       </header>
       {ranking.rows.length === 0 ? (
-        <p className="react-counterparty-ranking-empty">No hay destinatarios identificados con monto conocido en este periodo.</p>
+        <p className="react-counterparty-ranking-empty">No hay destinatarios identificados con monto conocido en este período.</p>
       ) : (
         <ul className="react-counterparty-ranking-list">
           {ranking.rows.slice(0, 4).map((row, index) => {
@@ -1562,7 +1563,7 @@ function DashboardCounterpartyRankingView({ ranking }: { ranking: DashboardCount
         </ul>
       )}
       <p className="react-counterparty-ranking-denominator">
-        Base: {Number.isFinite(ranking.allRecognizedQuantifiedSpending) ? formatClp(ranking.allRecognizedQuantifiedSpending) : "monto no disponible"} de todos los gastos reconocidos con monto conocido del periodo, incluidos los no identificados.
+        Base: {Number.isFinite(ranking.allRecognizedQuantifiedSpending) ? formatClp(ranking.allRecognizedQuantifiedSpending) : "monto no disponible"} de todos los gastos reconocidos con monto conocido del período, incluidos los no identificados.
         {ranking.unnamedCount > 0 && ` ${ranking.unnamedCount} ${ranking.unnamedCount === 1 ? "movimiento sin destinatario identificado" : "movimientos sin destinatario identificado"} incluidos en la base.`}
         {(!Number.isFinite(ranking.allRecognizedQuantifiedSpending) || ranking.allRecognizedQuantifiedSpending <= 0) && " No se calcula un porcentaje sin una base positiva y finita."}
       </p>
@@ -1606,9 +1607,9 @@ export function TopInsightsView({ insights, story, onJumpToUncategorized }: TopI
           </span>
           <h3 id="react-top-insights-title">Lectura rápida · Inteligencia de gastos</h3>
         </div>
-        <p className="react-top-insights-subtitle">Tus datos más relevantes del periodo.</p>
+        <p className="react-top-insights-subtitle">Tus datos más relevantes del período.</p>
         {/* A compact, supported badge: it names what the card summarizes without claiming AI. */}
-        <span className="react-top-insights-badge">Resumen del periodo</span>
+        <span className="react-top-insights-badge">Resumen del período</span>
       </header>
       <ul className="react-top-insights-grid">
         {tiles.map((insight) => (
@@ -1747,6 +1748,8 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
 interface DashboardAnalyticsBodyProps {
   /** The month gauge (identity B); absent when the caller has no cycle to measure. */
   pace?: DashboardPace;
+  /** Exclusive end of the period the pace measures; the gauge says on which day it closes. */
+  paceEndExclusive?: string;
   /** Replays the gauge sweep when it changes (the demo scenario); omitted, the gauge sweeps only once. */
   paceReplayKey?: string;
   /** Opens the cycle editor so the user can add the income the gauge needs. */
@@ -1803,6 +1806,7 @@ interface DashboardAnalyticsBodyProps {
  */
 function DashboardAnalyticsBody({
   pace,
+  paceEndExclusive,
   paceReplayKey,
   onAddIncome,
   lead,
@@ -1831,7 +1835,7 @@ function DashboardAnalyticsBody({
       {/* The month gauge is the hero: it answers "am I on track?" first and holds income, spent, remaining
           and the share of income once, so the former KPI band and the budget card are merged into it.
           Every panel below keeps its place. */}
-      {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} notes={heroNotes} replayKey={paceReplayKey} />}
+      {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} notes={heroNotes} periodEndExclusive={paceEndExclusive} replayKey={paceReplayKey} />}
       {/* Two-column region: the larger chart/history column and the category/insight column. */}
       <div className="react-analytics-columns">
         <div className="react-analytics-main">
@@ -2449,7 +2453,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
 
   return (
     <>
-    <section className="react-financial-summary" aria-label="Resumen financiero del periodo">
+    <section className="react-financial-summary" aria-label="Resumen financiero del período">
       {state.data.warning && (
         <div className="react-financial-summary-heading">
           <p className="react-financial-warning" role="status">Advertencia: {state.data.warning}</p>
@@ -2501,6 +2505,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
 					    the chart detail opens the read-only movement dialog. */}
           <DashboardAnalyticsBody
             pace={dashboardPace}
+            paceEndExclusive={selectedPeriod!.endDateExclusive}
             onAddIncome={openCycleEdit}
             lead={dashboardLead}
             story={dashboardStory}
@@ -2522,7 +2527,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
           />
           {summary.count === 0 && (
             <div className="react-financial-empty-block">
-              <p className="react-financial-empty" role="status">No se encontraron gastos reconocidos para este periodo.</p>
+              <p className="react-financial-empty" role="status">No se encontraron gastos reconocidos para este período.</p>
               <div className="react-financial-empty-actions">
                 <button className="button" type="button" onClick={openCreateExpense}>Agregar gasto</button>
                 <button className="secondary" type="button" onClick={() => { void reloadFinancialDashboard(); }}>Actualizar</button>
@@ -2632,7 +2637,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
   const presetToday = useMemo(() => todayInSantiago(new Date()), []);
   const [startDate, setStartDate] = useState(configuredPeriod.startDate);
   const [endDate, setEndDate] = useState<string>(ReviewPeriod.create(configuredPeriod).visibleEndDate);
-  // "¿Cuándo empieza tu mes?": the calendar month is the default, so the form is valid without extra
+  // "¿Cuándo empieza tu período?": the calendar month is the default, so the form is valid without extra
   // input and starts on the same range it always did. The option only decides how the start/end
   // state is filled; validation and the saved payload read that state, as before.
   const [option, setOption] = useState<CycleOptionChoice>("calendar");
@@ -2699,7 +2704,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
     const dateValidation = validateCalendarRange(startDate, endDate);
     if (!dateValidation.ok) {
       setCalendarError(dateValidation.message);
-      setError("Revisa las fechas del periodo antes de guardar.");
+      setError("Revisa las fechas del período antes de guardar.");
       return;
     }
     setCalendarError(null);
@@ -2721,7 +2726,7 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
       onSaved();
     } catch {
       saveLock.current = false;
-      setError("No se pudo guardar tu periodo financiero. Inténtalo de nuevo.");
+      setError("No se pudo guardar tu período financiero. Inténtalo de nuevo.");
       setIsSaving(false);
     }
   };
@@ -2763,12 +2768,12 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
           <header>
             <ol className="cycle-steps" aria-label="Pasos para empezar">
               <li className="is-done"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 1, Conectar, hecho</span></li>
-              <li aria-current="step"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 2, Tu ciclo, paso actual</span></li>
+              <li aria-current="step"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 2, Tu período, paso actual</span></li>
               <li><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 3, Tu medidor</span></li>
             </ol>
-            <p className="cycle-kicker">Paso 2 de 3 · Tu ciclo</p>
-            <h2 id="react-financial-setup-title" className="cycle-title">¿Cuándo empieza tu mes?</h2>
-            <p className="cycle-why">Así sabemos cuánto del mes pasó y cuánto te queda.</p>
+            <p className="cycle-kicker">Paso 2 de 3 · Tu período</p>
+            <h2 id="react-financial-setup-title" className="cycle-title">¿Cuándo empieza tu período?</h2>
+            <p className="cycle-why">Así sabemos cuánto del período pasó y cuánto te queda.</p>
           </header>
           {/* One question, three options; each reveals only what it needs. The date inputs and the
               calendar live in "Otro rango", and every option fills the same start/end state below. */}
@@ -2862,10 +2867,10 @@ function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
             </button>
             <button type="submit" className="cycle-btn cycle-btn-primary" disabled={isSaving}>
               {isSaving ? <span className="cycle-spinner" aria-hidden="true" /> : null}
-              {isSaving ? "Guardando periodo financiero..." : "Guardar y ver mi medidor"}
+              {isSaving ? "Guardando período financiero..." : "Guardar y ver mi medidor"}
             </button>
           </div>
-          <p className="cycle-sr" aria-live="polite">{isSaving ? "Guardando periodo financiero..." : ""}</p>
+          <p className="cycle-sr" aria-live="polite">{isSaving ? "Guardando período financiero..." : ""}</p>
         </div>
       </form>
     </dialog>
@@ -3140,15 +3145,15 @@ export function MovementsTableView({
     <div className="react-movements-view">
       {/* Keep the section title and its decorative, screen-reader-hidden glyph. */}
       <header className="react-movements-header">
-        <h2>Actividad del periodo</h2>
+        <h2>Actividad del período</h2>
         <span className="react-card-icon" aria-hidden="true">
           <FontAwesomeIcon icon={faReceipt} />
         </span>
       </header>
-      <section className="react-movements-metrics" aria-label="Indicadores del periodo">
+      <section className="react-movements-metrics" aria-label="Indicadores del período">
         <article className="react-movements-metric react-movements-metric-lead">
           <span>Total gastado</span><strong>{formatClp(total(periodRows))}</strong>
-          <small>Periodo completo, sin filtros</small>
+          <small>Período completo, sin filtros</small>
         </article>
         <article className="react-movements-metric">
           <span>Gastos reconocidos</span><strong>{periodRows.length}</strong>

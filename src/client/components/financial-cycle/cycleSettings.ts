@@ -165,7 +165,7 @@ export function getCycleClosureMark(
 ): string | null {
 	if (typeof completedAt !== "string" || !completedAt.trim()) return null;
 	const date = getCycleClosureDate(completedAt, timeZone);
-	return `Cierre registrado${date === null ? "" : ` el ${date}`}. Es un registro informativo: el periodo sigue siendo editable.`;
+	return `Cierre registrado${date === null ? "" : ` el ${date}`}. Es un registro informativo: el período sigue siendo editable.`;
 }
 
 export type CycleClosureNotice = {
@@ -203,7 +203,7 @@ export function getCycleClosureNotice(
 	}
 
 	const date = getCycleClosureDate(completedAt, timeZone);
-	const closedMessage = `Este periodo tiene un cierre registrado${date === null ? "" : ` el ${date}`}.`;
+	const closedMessage = `Este período tiene un cierre registrado${date === null ? "" : ` el ${date}`}.`;
 
 	const validation = validateCycleEditDraft(draft);
 	if (!validation.ok) {
@@ -217,7 +217,7 @@ export function getCycleClosureNotice(
 	return {
 		closedMessage,
 		consequenceMessage: rangeChanged
-			? "Al guardar, el rango cambia: el cierre registrado no se traslada al nuevo periodo. El nuevo rango mantiene el registro de cierre que ya tuviera, si existe."
+			? "Al guardar, el rango cambia: el cierre registrado no se traslada al nuevo período. El nuevo rango mantiene el registro de cierre que ya tuviera, si existe."
 			: "Al guardar, el rango no cambia y el registro de cierre se conserva.",
 		rangeChanged,
 	};
@@ -255,7 +255,7 @@ export interface CycleEditSubmitterDeps {
 	) => ((savedCycle: FinancialCycleResponse) => boolean) | null;
 }
 
-const CYCLE_EDIT_FAILURE_MESSAGE = "No se pudo guardar el periodo. Inténtalo de nuevo.";
+const CYCLE_EDIT_FAILURE_MESSAGE = "No se pudo guardar el período. Inténtalo de nuevo.";
 
 /**
  * A rejection the API layer produced carries the failing path and status, which is the only detail
@@ -294,11 +294,11 @@ export function getCycleEditNotice(outcome: { status: "saved"; reloadFailed: boo
 	if (outcome.reloadFailed) {
 		return {
 			message:
-				"El periodo se guardó, pero el resumen no se pudo actualizar y puede estar desactualizado. Actualiza la página para ver el estado real.",
+				"El período se guardó, pero el resumen no se pudo actualizar y puede estar desactualizado. Actualiza la página para ver el estado real.",
 			tone: "warning",
 		};
 	}
-	return { message: "Periodo guardado y resumen actualizado.", tone: "success" };
+	return { message: "Período guardado y resumen actualizado.", tone: "success" };
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * The "¿Cuándo empieza tu mes?" decisions shared by the first-cycle setup and the edit-period dialog
+ * The "¿Cuándo empieza tu período?" decisions shared by the first-cycle setup and the edit-period dialog
  * (S20). Everything here is pure: which range an option produces, which option an existing range
  * belongs to, and how a range reads aloud. The range itself still lives in the two forms' own
  * start/end state, so validation, the saved payload and the API calls are the ones they always had.
@@ -81,6 +81,38 @@ export function formatCycleResult(range: CyclePresetRange): string {
 	}
 	const crossesYear = start.year !== end.year;
 	return `${start.day} ${MONTHS_SHORT[start.month - 1]}${crossesYear ? ` ${start.year}` : ""} al ${end.day} ${MONTHS_SHORT[end.month - 1]}${crossesYear ? ` ${end.year}` : ""}`;
+}
+
+/** "31 oct": the short day used by the pay day reasoning. */
+function formatShortDay(parts: { day: number; month: number }): string {
+	return `${parts.day} ${MONTHS_SHORT[parts.month - 1]}`;
+}
+
+export interface PayDayReasoning {
+	/** "Cobras el 31 oct · próximo pago 30 nov" */
+	paidLine: string;
+	/** "30 días" counted over the same inclusive range the form saves. */
+	days: string;
+}
+
+/**
+ * Why the pay day option ends where it does (S24). Everything is read from the computed range: the
+ * start is the pay day the period begins on, and the next pay day is the day after its inclusive end,
+ * so the lines cannot disagree with `payDayCycle`. Null while the range is empty or invalid.
+ */
+export function describePayDayReasoning(range: CyclePresetRange): PayDayReasoning | null {
+	const start = parseDateOnly(range.startDate);
+	const end = parseDateOnly(range.endDate);
+	if (start === null || end === null) return null;
+	const startTime = Date.UTC(start.year, start.month - 1, start.day);
+	const endTime = Date.UTC(end.year, end.month - 1, end.day);
+	if (endTime < startTime) return null;
+	const next = new Date(endTime + DAY_MILLISECONDS);
+	const days = Math.round((endTime - startTime) / DAY_MILLISECONDS) + 1;
+	return {
+		paidLine: `Cobras el ${formatShortDay(start)} · próximo pago ${formatShortDay({ day: next.getUTCDate(), month: next.getUTCMonth() + 1 })}`,
+		days: `${days} ${days === 1 ? "día" : "días"}`,
+	};
 }
 
 export type CyclePeriodDescription = { tone: "ok" | "pending" | "invalid"; text: string };

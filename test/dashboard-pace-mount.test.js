@@ -55,9 +55,9 @@ test("demo summary leads with the month gauge and keeps every existing panel", (
 	assert.ok(gaugeAt < html.indexOf("react-spending-breakdown"), "gauge precedes every other panel");
 	for (const root of SUMMARY_INVENTORY) assert.ok(html.includes(root), `${root} still renders`);
 	assert.equal(html.split('<section class="react-pace-gauge').length - 1, 1, "single gauge mount");
-	assert.match(html, /Te quedan|Te pasaste por|Agrega tu ingreso del ciclo/);
+	assert.match(html, /Te quedan|Te pasaste por|Agrega tu ingreso del período/);
 	// The demo has income, so the gauge shows the facts behind it.
-	for (const fact of ["Ingreso del ciclo", "Gastado", "Días que quedan"]) assert.ok(html.includes(`<dt>${fact}</dt>`), fact);
+	for (const fact of ["Ingreso del período", "Gastado", "Período"]) assert.ok(html.includes(`<dt>${fact}</dt>`), fact);
 	assert.doesNotMatch(html, /En control/);
 });
 
@@ -72,7 +72,7 @@ test("demo summary merges the KPI band into the hero: no repeated figure and no 
 	for (const gone of ["react-dashboard-lead", "react-lead-primary", "react-lead-answer", "react-budget-panel", "react-analytics-summary"]) {
 		assert.ok(!html.includes(gone), `${gone} is gone`);
 	}
-	assert.doesNotMatch(html, /Presupuesto|No configurado|Total gastado|Saldo disponible|del ingreso disponible|Ingresos del periodo/);
+	assert.doesNotMatch(html, /Presupuesto|No configurado|Total gastado|Saldo disponible|del ingreso disponible|Ingresos del período/);
 	// One state vocabulary: the old labels never render in the summary.
 	assert.doesNotMatch(html, /Al límite|En peligro|Pasado/);
 	assert.match(html, />(?:En ritmo|Ajustado|Vas rápido)</);
@@ -111,7 +111,7 @@ test("authenticated summary feeds the gauge from the configured cycle and offers
 	assert.match(source, /getDashboardPace\(\{[\s\S]*?startDate: selectedPeriod!\.startDate[\s\S]*?incomeAmount,[\s\S]*?\}\)/);
 	assert.match(source, /onAddIncome=\{openCycleEdit\}/);
 	// Empty summary: the existing copy plus two real actions.
-	assert.match(source, /No se encontraron gastos reconocidos para este periodo\./);
+	assert.match(source, /No se encontraron gastos reconocidos para este período\./);
 	assert.match(source, /react-financial-empty-actions[\s\S]*?onClick=\{openCreateExpense\}[\s\S]*?Agregar gasto[\s\S]*?Actualizar/);
 	// Failed summary: says what is safe and keeps the retry.
 	assert.match(source, /No se pudo cargar el resumen financiero\./);

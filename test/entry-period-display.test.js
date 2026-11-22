@@ -39,7 +39,7 @@ test("S23b: the authenticated header never renders the period context line; the 
 	const end = page.indexOf("export function DemoDashboardView", start) === -1 ? page.length : page.indexOf("export function DemoDashboardView", start);
 	const authenticated = page.slice(start, end);
 	assert.doesNotMatch(authenticated, /<DashboardPeriodContext/);
-	assert.match(authenticated, /aria-label=\{`Editar periodo: \$\{formatPeriodLabel\(financialDashboard\.period\)\}`\}/);
+	assert.match(authenticated, /aria-label=\{`Editar período: \$\{formatPeriodLabel\(financialDashboard\.period\)\}`\}/);
 	assert.match(authenticated, /className="react-dashboard-period"/);
 });
 
@@ -51,7 +51,7 @@ test("S23b: the read-only demo (no period button) keeps the period visible", asy
 	const data = createDemoDashboardData(fixture, new Date(2026, 4, 10, 12));
 	for (const view of ["summary", "movements"]) {
 		const html = renderToStaticMarkup(createElement(page.DemoDashboardView, { data, view, onViewChange() {}, onRequestedCategoryChange() {} }));
-		assert.ok(html.includes(`Periodo: ${page.formatPeriodLabel(data.period)}`), view);
+		assert.ok(html.includes(`Período: ${page.formatPeriodLabel(data.period)}`), view);
 		assert.doesNotMatch(html, /react-dashboard-period"/);
 	}
 });

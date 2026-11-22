@@ -84,7 +84,7 @@ test("the loading state keeps the stepper on step 3 and offers no action", () =>
 	assert.match(html, /role="status"/);
 	assert.ok(!html.includes("Ver mi resumen"));
 	assert.match(html, /<li aria-current="step">(?:(?!<\/li>).)*Paso 3, Tu medidor, paso actual/);
-	assert.match(html, /<li class="is-done">(?:(?!<\/li>).)*Paso 2, Tu ciclo, hecho/);
+	assert.match(html, /<li class="is-done">(?:(?!<\/li>).)*Paso 2, Tu período, hecho/);
 });
 
 test("the ready state shows the real gauge, the one-line reading and Ver mi resumen", () => {
@@ -95,7 +95,7 @@ test("the ready state shows the real gauge, the one-line reading and Ver mi resu
 	assert.ok(html.includes("En ritmo"));
 	assert.ok(html.includes("Así se lee tu medidor"));
 	assert.ok(html.includes(
-		"El color es lo que gastaste de tu ingreso; la raya, cuánto del ciclo pasó. Si el color no alcanza la raya, vas en ritmo.",
+		"El color es lo que gastaste de tu ingreso; la raya, cuánto del período pasó. Si el color no alcanza la raya, vas en ritmo.",
 	));
 	assert.match(html, /<button[^>]*class="[^"]*cycle-btn-primary[^"]*"[^>]*>Ver mi resumen<\/button>/);
 	assert.ok(!html.includes("Agregar ingreso"));
@@ -119,7 +119,7 @@ test("an idle step renders nothing", () => {
 test("the reading hint is one compact row with no button of its own", () => {
 	const html = renderToStaticMarkup(createElement(explainer.FirstResultExplainer));
 	assert.ok(html.includes("Así se lee tu medidor"));
-	assert.ok(html.includes("El color es lo que gastaste de tu ingreso; la raya, cuánto del ciclo pasó. Si el color no alcanza la raya, vas en ritmo."));
+	assert.ok(html.includes("El color es lo que gastaste de tu ingreso; la raya, cuánto del período pasó. Si el color no alcanza la raya, vas en ritmo."));
 	assert.ok(!html.includes("<button"));
 	assert.match(html, /<svg[^>]*aria-hidden="true"/);
 });

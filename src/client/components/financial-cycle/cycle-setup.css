@@ -302,6 +302,18 @@ dialog.cycle-dialog p.cycle-result b {
 	font-weight: 800;
 }
 
+dialog.cycle-dialog p.cycle-reasoning {
+	margin: 0;
+	color: var(--color-ink-secondary, #3f4b63);
+	font-size: 15px;
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
+dialog.cycle-dialog p.cycle-result .cycle-result-days {
+	white-space: nowrap;
+}
+
 dialog.cycle-dialog p.cycle-note {
 	margin: 0;
 	color: var(--color-ink-muted, #59647a);

@@ -34,7 +34,7 @@ import type { FinancialCycleResponse } from "../../api/types";
  * copy, and the completion consequence that a range change would otherwise lose silently. This file
  * owns only React state.
  *
- * The structure is the first-cycle setup's (S20): "¿Cuándo empieza tu mes?" with three options that
+ * The structure is the first-cycle setup's (S20): "¿Cuándo empieza tu período?" with three options that
  * reveal only what they need, the optional income as its own field, and a sticky footer with the
  * chosen period. It opens on the option that produces the configured range (a historical range opens
  * on "Otro rango" with the calendar and both date inputs), and its save, validation and messages are
@@ -50,7 +50,7 @@ type CycleEditStatus = {
 	tone: "pending" | "error";
 };
 
-const PENDING_MESSAGE = "Guardando los cambios del periodo...";
+const PENDING_MESSAGE = "Guardando los cambios del período...";
 
 export interface FinancialCycleClosureNoteProps {
 	/** The configured cycle the consequence is derived from. */
@@ -282,7 +282,7 @@ export function FinancialCycleEditDialog({
 						<h2 id="react-financial-cycle-edit-title" className="cycle-title">
 							Cambiar período
 						</h2>
-						<p className="cycle-why">¿Cuándo empieza tu mes?</p>
+						<p className="cycle-why">¿Cuándo empieza tu período?</p>
 					</header>
 					<FinancialCycleClosureNote cycle={shownCycle} draft={draft} />
 					{/* One question, three options; each reveals only what it needs. The calendar and the

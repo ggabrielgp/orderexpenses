@@ -86,12 +86,12 @@ export function FirstResultDialog({ phase, pace, formatClp, onDone, onAddIncome 
 					<header>
 						<ol className="cycle-steps" aria-label="Pasos para empezar">
 							<li className="is-done"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 1, Conectar, hecho</span></li>
-							<li className="is-done"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 2, Tu ciclo, hecho</span></li>
+							<li className="is-done"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 2, Tu período, hecho</span></li>
 							<li aria-current="step"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 3, Tu medidor, paso actual</span></li>
 						</ol>
 						<p className="cycle-kicker">Paso 3 de 3 · Tu medidor</p>
 						<h2 id="react-first-result-title" className="cycle-title">
-							{ready ? "Tu medidor está listo" : "Tu ciclo está guardado"}
+							{ready ? "Tu medidor está listo" : "Tu período está guardado"}
 						</h2>
 					</header>
 					{ready && current.pace ? (

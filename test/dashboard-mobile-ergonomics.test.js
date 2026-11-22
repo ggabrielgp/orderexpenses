@@ -166,7 +166,7 @@ test("mobile header puts the full period on its own row above the actions while 
 	assert.match(page, /onClick=\{financialDashboard\.onEditPeriod\}/);
 	assert.match(page, /onClick=\{refreshFromHeader\}\s*disabled=\{isRefreshing\}\s*aria-busy=\{isRefreshing\}/);
 	assert.match(page, /onClick=\{financialDashboard\.onCreateExpense\}/);
-	assert.match(page, /aria-label=\{isRefreshing \? "Actualizando gastos del periodo" : "Actualizar gastos del periodo"\}/);
+	assert.match(page, /aria-label=\{isRefreshing \? "Actualizando gastos del período" : "Actualizar gastos del período"\}/);
 });
 
 test("chart swipe cue and readable legend remain mobile-only and preserve horizontal scroll", async () => {

@@ -73,7 +73,7 @@ const MOVEMENT_EDIT_INVALID_MESSAGE =
  * names the accepted range through the single shared period label instead of blaming the save.
  */
 function getMovementEditPeriodMessage(period: FinancialPeriod) {
-	return `La fecha debe estar dentro del periodo seleccionado (${formatPeriodLabel(period)}). Un movimiento fuera del periodo no aparecería en el resumen, así que no se guarda.`;
+	return `La fecha debe estar dentro del período seleccionado (${formatPeriodLabel(period)}). Un movimiento fuera del período no aparecería en el resumen, así que no se guarda.`;
 }
 const MOVEMENT_EDIT_FAILURE_MESSAGE =
 	"No se pudo guardar el cambio. Los datos ingresados se mantienen para que puedas reintentar.";

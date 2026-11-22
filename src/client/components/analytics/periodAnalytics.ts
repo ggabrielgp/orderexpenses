@@ -142,10 +142,10 @@ function buildAverage(
 			emptyValue: MISSING_VALUE,
 			detail:
 				recognizedCount === 0
-					? "No hay gastos reconocidos en el periodo: no hay promedio ni mayor gasto que mostrar."
+					? "No hay gastos reconocidos en el período: no hay promedio ni mayor gasto que mostrar."
 					: recognizedCount === 1
-						? "El único gasto reconocido del periodo no tiene un monto conocido: no hay promedio ni mayor gasto que mostrar."
-						: `Ninguno de los ${recognizedCount} gastos reconocidos del periodo tiene un monto conocido: no hay promedio ni mayor gasto que mostrar.`,
+						? "El único gasto reconocido del período no tiene un monto conocido: no hay promedio ni mayor gasto que mostrar."
+						: `Ninguno de los ${recognizedCount} gastos reconocidos del período tiene un monto conocido: no hay promedio ni mayor gasto que mostrar.`,
 		};
 	}
 	return {
@@ -154,7 +154,7 @@ function buildAverage(
 		amount: Math.round(total / divisor),
 		divisor,
 		emptyValue: null,
-		detail: `Promedio de ${divisor} ${getExpenseNoun(divisor)} del periodo con monto conocido.`,
+		detail: `Promedio de ${divisor} ${getExpenseNoun(divisor)} del período con monto conocido.`,
 	};
 }
 
@@ -171,12 +171,12 @@ function buildAverage(
 function buildReview(count: number, unknownAmountCount: number): PeriodReviewMetric {
 	const details = [
 		count > 0
-			? `${count} ${count === 1 ? "movimiento del periodo necesita" : "movimientos del periodo necesitan"} confirmación.`
+			? `${count} ${count === 1 ? "movimiento del período necesita" : "movimientos del período necesitan"} confirmación.`
 			: "Nada urgente por corregir.",
 	];
 	if (unknownAmountCount > 0) {
 		details.push(
-			`${unknownAmountCount} ${getExitNoun(unknownAmountCount)} del periodo sin monto conocido.`,
+			`${unknownAmountCount} ${getExitNoun(unknownAmountCount)} del período sin monto conocido.`,
 		);
 	}
 	return { label: PERIOD_REVIEW_LABEL, count, details };

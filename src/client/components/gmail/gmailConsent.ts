@@ -79,7 +79,7 @@ const GMAIL_CONSENT_COPY: GmailConsentCopy = {
 		},
 	],
 	storageNote:
-		"Lo que tú decides aplicar —categorías, reglas, correcciones, gastos manuales y tu ciclo— se guarda en nuestro servidor asociado a tu cuenta.",
+		"Lo que tú decides aplicar —categorías, reglas, correcciones, gastos manuales y tu período— se guarda en nuestro servidor asociado a tu cuenta.",
 	acknowledgementLabel: "Entiendo qué lee la app y qué se guarda.",
 	acceptLabel: "Aceptar y conectar Gmail",
 	cancelLabel: "Cancelar",

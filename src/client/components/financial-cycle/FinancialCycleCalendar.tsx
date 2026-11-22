@@ -75,7 +75,7 @@ export function CycleCalendar({
 	return (
 		<section
 			className="react-cycle-calendar"
-			aria-label="Calendario del periodo"
+			aria-label="Calendario del período"
 			aria-invalid={error !== null}
 		>
 			<div className="react-cycle-calendar-nav">

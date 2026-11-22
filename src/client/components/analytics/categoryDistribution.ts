@@ -175,7 +175,7 @@ export function getCategoryDistributionInsight(
 	if (top !== undefined) {
 		const topShare = getShare(top.total, total);
 		if (topShare >= 40) {
-			return `${top.category} concentra el ${topShare}% del gasto del periodo.`;
+			return `${top.category} concentra el ${topShare}% del gasto del período.`;
 		}
 	}
 

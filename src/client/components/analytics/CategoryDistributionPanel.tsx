@@ -434,7 +434,7 @@ export function CategoryDistributionView({
 			<section className="react-category-distribution" aria-labelledby={titleId}>
 				{heading}
 				<p className="react-category-distribution-empty" role="status">
-					Aún no hay gastos con monto conocido para distribuir por categoría en este periodo.
+					Aún no hay gastos con monto conocido para distribuir por categoría en este período.
 				</p>
 				{ranking.disclosure !== null && (
 					<p className="react-category-distribution-disclosure" role="status">{ranking.disclosure}</p>
