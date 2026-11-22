@@ -63,8 +63,8 @@ Worktree `../gastoscontrolados-identidad`, branch `feat/identidad-b` from `main`
 | T25 | S1, S23 | worker W22: entry link + period display | cafc805 ✓ |
 | T26 | S1, S3, S20, S24 | worker W23: period vocabulary + reasoning | f7743dd ✓ |
 | T27 | S1, S9, S16, S25 | worker W24: landing copy + faithful phones | 2e318ff ✓ |
-| T28 | S1, S9, S22, S26 | worker: consent inline on step 1 | — |
-| T29 | S1, S27 | worker: confirm period on sign-in | — |
+| T28 | S1, S9, S22, S26 | worker W25: consent inline on step 1 | 42dde21 ✓ |
+| T29 | S1, S27 | worker W25: confirm period on sign-in | 42dde21 ✓ |
 | T9 | S1–S10 | inline verify: full build + suite, inventory check, differential review | this commit ✓ |
 
 ## Log
@@ -119,3 +119,4 @@ Worktree `../gastoscontrolados-identidad`, branch `feat/identidad-b` from `main`
 - **L42** (user, verbatim): "o quizas, que haya un check sería mejor, de no mostrar hasta que termine el periodo o algo asi.." → added to S27 (browser-stored, per account and period end).
 
 - **L43** (evidence, T27 2e318ff): landing copy aligned ("período", gauge states, steps, honest scope; removed "Próximamente incorporaremos más bancos" and the budget claim). Phones embed the real demo via `/app/demo?preview=…&scenario=…` (390px, scaled, tabindex -1, aria-hidden, inert, text alternative); hero eager, 5 tour phones load near the viewport; slider uses CSS order (0 iframe reloads); autoplay only on screen and not under reduced motion. Tour slides for dialogs the read-only demo cannot show were removed. demo-preview 0→7/7, landing-phones + landing-copy 0→12/12; full suite 610/610 (worker); parent spot-checked the hero vs /app/demo at 390.
+- **L44** (evidence, T28+T29 42dde21): step 1 shows the acknowledgement checkbox above a disabled "Conectar Gmail" (hint, aria-describedby); checked → same OAuth redirect; in-app entry keeps the dialog. `/app?gmail=connected` + configured → "¿Seguimos con este período?" prefilled (dates + income), marker removed (reload does not re-prompt), unchanged → no PUT, emptied income → incomeAmount null and shown empty next time, "No volver a preguntar hasta que termine este período" stored as gc:skip-period-prompt:<email> = period end. consent-inline 0→6/6, period-signin-prompt 0→18/18; full suite 634/634 (worker); parent spot-checked the sign-in dialog (1440) and step 1 (390).
