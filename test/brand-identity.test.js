@@ -36,7 +36,24 @@ test("web manifest describes the installable app", async () => {
 	assert.equal(manifest.lang, "es-CL");
 	assert.deepEqual(manifest.icons, [
 		{ src: "/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+		{ src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+		{ src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
 	]);
+});
+
+// iOS ignores SVG and manifest icons for "Agregar a inicio": without an opaque PNG it screenshots the page.
+test("home screen icons are opaque PNGs at their declared size", async () => {
+	const html = await read("index.html");
+	assert.match(html, /<link rel="apple-touch-icon" sizes="180x180" href="\/apple-touch-icon\.png"/);
+	assert.match(html, /<meta name="apple-mobile-web-app-title" content="Gastos"/);
+	for (const [file, size] of [["apple-touch-icon.png", 180], ["icon-192.png", 192], ["icon-512.png", 512]]) {
+		const png = await readFile(new URL(`../public/${file}`, import.meta.url));
+		assert.equal(png.subarray(1, 4).toString("latin1"), "PNG", file);
+		assert.equal(png.readUInt32BE(16), size, `${file} width`);
+		assert.equal(png.readUInt32BE(20), size, `${file} height`);
+		// Colour type 2 = truecolour without alpha, so iOS never fills transparency with black.
+		assert.equal(png[25], 2, `${file} must be opaque RGB`);
+	}
 });
 
 test("favicon is the month gauge mark as an svg", async () => {

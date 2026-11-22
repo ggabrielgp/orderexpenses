@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 100 100">
+  <!-- Opaque full-bleed tile: iOS and Android round the corners themselves. -->
+  <rect width="100" height="100" fill="#ffffff"/>
+  <g transform="translate(15 15) scale(1.25)">
+    <circle cx="28" cy="28" r="22" fill="none" stroke="#e3e1dc" stroke-width="7"/>
+    <circle cx="28" cy="28" r="22" fill="none" stroke="#0b7a6b" stroke-width="7" stroke-linecap="round" stroke-dasharray="86 138.2" transform="rotate(-90 28 28)"/>
+    <path d="M28 2v9" stroke="#131b2e" stroke-width="3" stroke-linecap="round" transform="rotate(240 28 28)"/>
+    <!-- The home-screen icon swaps the centre dot for a peso sign. -->
+    <text x="28" y="28" text-anchor="middle" dominant-baseline="central" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="800" fill="#131b2e">$</text>
+  </g>
+</svg>
