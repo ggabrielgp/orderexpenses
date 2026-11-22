@@ -1296,8 +1296,17 @@ body:has(.landing-page) { overflow-x: clip; }
 	overflow: hidden;
 }
 
+/* The bar and its legend; desktop stacks them, narrow screens set them side by side. */
+.react-spending-breakdown-chart {
+	display: grid;
+	gap: var(--space-3);
+	min-width: 0;
+}
+
+/* `--share` is the decided percentage; it sizes the width here and the height on narrow screens. */
 .react-spending-breakdown-segment {
 	display: block;
+	width: var(--share);
 	height: 100%;
 }
 
@@ -1380,10 +1389,44 @@ body:has(.landing-page) { overflow-x: clip; }
 	font-variant-numeric: tabular-nums;
 }
 
-/* Narrow screens stack the compact legend instead of squeezing three narrow columns. */
+/* Narrow screens turn the bar vertical beside the legend, and each kind becomes one row
+   (icon and label, amount, share) instead of a three-line block per kind. */
 @media (max-width: 640px) {
+	.react-spending-breakdown-chart {
+		grid-template-columns: 14px minmax(0, 1fr);
+		gap: var(--space-3);
+		align-items: stretch;
+	}
+
+	.react-spending-breakdown-bar {
+		flex-direction: column;
+		width: 14px;
+		height: auto;
+		min-height: 100%;
+	}
+
+	.react-spending-breakdown-segment {
+		width: 100%;
+		height: var(--share);
+	}
+
 	.react-spending-breakdown-legend {
 		grid-template-columns: 1fr;
+		gap: var(--space-2);
+	}
+
+	.react-spending-breakdown-legend-item {
+		grid-template-columns: minmax(0, 1fr) auto 2.75rem;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.react-spending-breakdown-legend-heading {
+		font-size: .875rem;
+	}
+
+	.react-spending-breakdown-percent {
+		text-align: right;
 	}
 }
 

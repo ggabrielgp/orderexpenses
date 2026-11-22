@@ -7825,9 +7825,9 @@ test("the React authenticated summary renders the shared analytics body in the p
 	assert.match(breakdownMarkup, /role="img"/);
 	assert.match(breakdownMarkup, /aria-label="Distribución de gastos por tipo\. Total registrado \$10\.000\."/);
 	assert.equal((breakdownMarkup.match(/react-spending-breakdown-segment-(purchase|transfer|payment)/g) ?? []).length, 3);
-	assert.match(breakdownMarkup, /style="width:50%"/);
-	assert.match(breakdownMarkup, /style="width:30%"/);
-	assert.match(breakdownMarkup, /style="width:20%"/);
+	assert.match(breakdownMarkup, /style="--share:50%"/);
+	assert.match(breakdownMarkup, /style="--share:30%"/);
+	assert.match(breakdownMarkup, /style="--share:20%"/);
 	// The base class plus its kind modifier both contain the base token, so count the standalone
 	// class only: exactly one legend item per recognized kind.
 	assert.equal((breakdownMarkup.match(/(?<![\w-])react-spending-breakdown-legend-item(?![\w-])/g) ?? []).length, 3);

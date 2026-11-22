@@ -28,8 +28,13 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields lab
 }
 
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-amount, #manual-expense-occurred-at, #manual-expense-kind, #manual-expense-category, #manual-expense-counterparty, #manual-expense-description) {
+	-webkit-appearance: none;
+	appearance: none;
+	display: block;
 	box-sizing: border-box;
 	width: 100%;
+	min-width: 0;
+	max-width: 100%;
 	min-height: 48px;
 	margin: 0;
 	padding: 0 14px;
@@ -39,6 +44,8 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is
 	color: var(--color-ink, #131b2e);
 	font-size: 16px;
 	font-weight: 600;
+	line-height: 1.25;
+	box-shadow: none;
 }
 
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-amount, #manual-expense-occurred-at, #manual-expense-kind, #manual-expense-category, #manual-expense-counterparty, #manual-expense-description):hover:not(:disabled) {
@@ -49,6 +56,37 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is
 	border-color: var(--color-ink, #131b2e);
 	outline: 3px solid var(--color-ink, #131b2e);
 	outline-offset: 2px;
+}
+
+/* Never a sideways scroll: a field that still grows past the sheet is clipped, not scrolled. */
+dialog.cycle-dialog.react-create-expense-dialog .cycle-body {
+	overflow-x: hidden;
+}
+
+/* iOS gives datetime-local an intrinsic width and a centred value, which pushed the sheet sideways;
+   it now fills the column and reads left-aligned like the text fields. */
+dialog.cycle-dialog.react-create-expense-dialog #manual-expense-occurred-at {
+	text-align: left;
+}
+
+dialog.cycle-dialog.react-create-expense-dialog #manual-expense-occurred-at::-webkit-date-and-time-value {
+	margin: 0;
+	text-align: left;
+}
+
+dialog.cycle-dialog.react-create-expense-dialog #manual-expense-occurred-at::-webkit-datetime-edit {
+	padding: 0;
+}
+
+/* Without the native control the selects draw the same chevron as the period dialog. */
+dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-kind, #manual-expense-category) {
+	padding-right: 40px;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23131b2e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+	background-position: right 16px center;
+	background-repeat: no-repeat;
+	background-size: 12px 8px;
+	cursor: pointer;
+	text-overflow: ellipsis;
 }
 
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields input::placeholder {

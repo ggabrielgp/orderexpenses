@@ -1,0 +1,35 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+
+/** Body of the first `@media (max-width: <px>)` block that contains `selector`. */
+function mediaRule(css, maxWidth, selector) {
+	const blocks = css.split(`@media (max-width: ${maxWidth}px)`).slice(1);
+	const block = blocks.find((candidate) => candidate.includes(selector));
+	assert.ok(block, `no ${maxWidth}px media block styles ${selector}`);
+	return block;
+}
+
+test("narrow screens turn the spending breakdown into a vertical bar beside one-line legend rows", async () => {
+	const css = await read("src/client/styles.css");
+	// Segments size from the --share custom property so the same markup fills width or height.
+	assert.match(css, /\.react-spending-breakdown-segment \{[^}]*width: var\(--share\)/s);
+	const block = mediaRule(css, 640, ".react-spending-breakdown-bar");
+	assert.match(block, /\.react-spending-breakdown-chart \{[^}]*grid-template-columns: 14px minmax\(0, 1fr\)/s);
+	assert.match(block, /\.react-spending-breakdown-bar \{[^}]*flex-direction: column/s);
+	assert.match(block, /\.react-spending-breakdown-segment \{[^}]*height: var\(--share\)/s);
+	assert.match(block, /\.react-spending-breakdown-legend-item \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto/s);
+});
+
+test("Nuevo gasto fields drop the native iOS look and never widen the sheet", async () => {
+	const css = await read("src/client/components/movements/expense-sheet.css");
+	assert.match(css, /react-create-expense-fields :is\([^)]*\) \{[^}]*-webkit-appearance: none;[^}]*appearance: none;/s);
+	assert.match(css, /react-create-expense-fields :is\([^)]*\) \{[^}]*min-width: 0;[^}]*max-width: 100%;/s);
+	// iOS gives datetime-local an intrinsic width and centred value; both caused the horizontal scroll.
+	assert.match(css, /#manual-expense-occurred-at::-webkit-date-and-time-value \{[^}]*text-align: left/s);
+	// Selects keep a drawn chevron once the native control is gone.
+	assert.match(css, /:is\(#manual-expense-kind, #manual-expense-category\) \{[^}]*background-image: url\("data:image\/svg\+xml/s);
+	assert.match(css, /\.cycle-body \{[^}]*overflow-x: hidden/s);
+});

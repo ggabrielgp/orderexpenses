@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { useSpendingChartMotion } from "../hooks/useSpendingChartMotion";
 import { SpendingDayDetailDialog } from "../components/analytics/SpendingDayDetailDialog";
 import { DashboardPaceGauge } from "../components/analytics/DashboardPaceGauge";
@@ -1754,6 +1754,7 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
         <p className="react-spending-breakdown-empty" role="status">{breakdown.emptyMessage}</p>
       ) : (
         <>
+          <div className="react-spending-breakdown-chart">
           <div
             className="react-spending-breakdown-bar"
             role="img"
@@ -1763,7 +1764,7 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
               <span
                 key={bar.key}
                 className={`react-spending-breakdown-segment react-spending-breakdown-segment-${bar.key}`}
-                style={{ width: `${bar.percent}%` }}
+                style={{ "--share": `${bar.percent}%` } as CSSProperties}
               />
             ))}
           </div>
@@ -1787,6 +1788,7 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
               </li>
             ))}
           </ul>
+          </div>
         </>
       )}
     </section>
