@@ -7,8 +7,8 @@ export interface BrandMarkProps {
 }
 
 /**
- * Month gauge logo (identity direction B): a ring with a calm arc, the "today" tick and a center
- * dot. Decorative by default (`aria-hidden`) so a surrounding link keeps its own label; pass
+ * Month gauge logo (identity direction B): a ring with a calm arc, the "today" tick and a peso
+ * sign at the center. Decorative by default (`aria-hidden`) so a surrounding link keeps its own label; pass
  * `title` to expose it as a standalone image. Colors read the design tokens with the hex values
  * as fallback so the mark also works outside the token scope.
  */
@@ -38,7 +38,7 @@ export function BrandMark({ size = 28, title, className }: BrandMarkProps) {
 				transform="rotate(-90 28 28)"
 			/>
 			<path d="M28 2v9" stroke={ink} strokeWidth="3" strokeLinecap="round" transform="rotate(240 28 28)" />
-			<circle cx="28" cy="28" r="5" fill={ink} />
+			<path d="M33 21.6C32.1 19.7 30.3 18.6 28 18.6c-2.9 0-4.9 1.6-4.9 3.9 0 2.6 2.3 3.6 4.9 4.3 2.9.8 5.1 1.9 5.1 4.6 0 2.5-2.2 4.2-5.1 4.2-2.4 0-4.3-1.2-5.2-3.2M28 15.5v25" fill="none" stroke={ink} strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
 		</svg>
 	);
 }

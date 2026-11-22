@@ -65,6 +65,17 @@ test("favicon is the month gauge mark as an svg", async () => {
 	assert.match(svg, /<\/svg>\s*$/);
 });
 
+// The mark's centre is a peso sign drawn as a path (never font-dependent text), identical in every copy.
+const PESO_SIGN = "M33 21.6C32.1 19.7 30.3 18.6 28 18.6c-2.9 0-4.9 1.6-4.9 3.9 0 2.6 2.3 3.6 4.9 4.3 2.9.8 5.1 1.9 5.1 4.6 0 2.5-2.2 4.2-5.1 4.2-2.4 0-4.3-1.2-5.2-3.2M28 15.5v25";
+test("every copy of the brand mark centres the peso sign instead of a dot", async () => {
+	for (const path of ["public/favicon.svg", "src/client/components/brand/BrandMark.tsx", "scripts/brand/app-icon.svg"]) {
+		const source = await read(path);
+		assert.ok(source.includes(`d="${PESO_SIGN}"`), `${path} must draw the peso sign`);
+		assert.doesNotMatch(source, /r="5"/, `${path} must not keep the centre dot`);
+		assert.doesNotMatch(source, /<text/, `${path} must not depend on a font`);
+	}
+});
+
 test("design tokens add the Semáforo sereno palette and keep the base ones", async () => {
 	const css = await read("src/client/design-tokens.css");
 	const tokens = {
