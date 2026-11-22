@@ -3,7 +3,7 @@ import { RevealOnScroll } from "./RevealOnScroll";
 const compatibility = {
 	eyebrow: "Compatibilidad bancaria",
 	title: "Disponible actualmente para Banco de Chile.",
-	lead: "Próximamente incorporaremos más bancos.",
+	lead: "Por ahora, Banco de Chile es el único banco compatible.",
 	description: "La compatibilidad se agrega banco por banco porque cada institución utiliza plantillas diferentes en sus correos de comprobantes de transacciones.",
 } as const;
 

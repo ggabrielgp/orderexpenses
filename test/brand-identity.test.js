@@ -80,7 +80,6 @@ test("app and landing chrome render BrandMark instead of the wallet glyph", asyn
 		"src/client/components/shell/AppHeader.tsx",
 		"src/client/components/landing/LandingHeader.tsx",
 		"src/client/components/landing/LandingFooter.tsx",
-		"src/client/components/landing/LandingPhoneFrame.tsx",
 	]) {
 		const source = await read(path);
 		assert.ok(!source.includes("account_balance_wallet"), `${path} still uses the wallet glyph`);

@@ -25,17 +25,20 @@ async function modules(t) {
 	]);
 }
 
-test("hero and five tour phones share chrome and both dashboards have unique accessible chart IDs", async (t) => {
+test("hero and five tour phones share the same frame chrome and every embedded screen is lazy except the hero's", async (t) => {
 	const [demo, hero, tour] = await modules(t);
 	const data = demo.createDemoDashboardData(fixture, new Date(2026, 4, 20));
 	const html = renderToStaticMarkup(React.createElement(React.Fragment, null,
 		React.createElement(hero.LandingHero, { data }), React.createElement(tour.LandingTourSection, { data })));
-	for (const frame of ["landing-phone-island", "landing-stage-topbar", "landing-phone-home"]) {
+	for (const frame of ["landing-phone-island", "landing-phone-home"]) {
 		assert.equal((html.match(new RegExp(`class="${frame}"`, "g")) ?? []).length, 6, frame);
 	}
-	assert.equal((html.match(/class="landing-phone-content"/g) ?? []).length, 6);
-	assert.equal((html.match(/class="react-spending-chart-bar"/g) ?? []).length, 14);
-	assert.equal((html.match(/class="react-category-donut-chart"/g) ?? []).length, 2);
+	assert.doesNotMatch(html, /landing-stage-topbar|landing-phone-content/);
+	// The screens are the real demo in iframes (S25): one eager, five lazy, none holds a duplicate chart id.
+	assert.equal((html.match(/<iframe\b/g) ?? []).length, 6);
+	assert.equal((html.match(/<iframe\b[^>]*loading="eager"/g) ?? []).length, 1);
+	assert.equal((html.match(/<iframe\b[^>]*loading="lazy"/g) ?? []).length, 5);
+	assert.doesNotMatch(html, /react-spending-chart-bar|react-category-donut-chart/);
 	const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 	assert.equal(ids.length, new Set(ids).size, "Multiple chart instances must not share DOM IDs");
 	for (const match of html.matchAll(/aria-(?:labelledby|controls)="([^"]+)"/g)) {

@@ -31,14 +31,16 @@ test("hero explains the manual period sync and offers an account-free demo", () 
 	const html = render("LandingHero", { data });
 	assert.match(html, /<h1[^>]*><span>Tus comprobantes, convertidos/);
 	assert.ok(html.includes("en un resumen claro."));
-	assert.ok(html.includes("Elige un periodo y sincroniza"));
+	assert.ok(html.includes("Elige tu período y sincroniza"));
+	assert.match(html, /Tu período, más claro/);
+	assert.match(html, /medidor del mes/);
 	assert.match(html, /href="\/app\/demo"[^>]*>Probar demo<\/a>/);
 	assert.match(html, /Sin conectar tu cuenta/);
 	assert.doesNotMatch(html, /sin mover un dedo|automáticamente/);
 	assert.match(html, /href="\/app"[^>]*>Comenzar ahora/);
 	assert.doesNotMatch(html, /\/auth\/google/);
 	assert.match(html, /Vista ilustrativa · datos de ejemplo/);
-	assert.match(html, /landing-dashboard-preview/);
+	assert.match(html, /<iframe[^>]*src="\/app\/demo\?preview=summary&amp;scenario=tight"/);
 	assert.match(html, /landing-phone/);
 });
 
@@ -47,31 +49,33 @@ test("product and exactly three process steps promise available editing only", (
 	const steps = render("LandingHowItWorksSection");
 	assert.doesNotMatch(product + steps, /presupuesto|cinco pasos/);
 	assert.match(product, /id="producto"/);
-	assert.match(product, /Sincronización por periodo/);
+	assert.match(product, /Sincronización por período/);
+	assert.match(product, /Medidor del mes y detalle/);
 	assert.match(steps, /id="como-funciona"/);
 	assert.match(steps, /en tres pasos/);
 	assert.equal((steps.match(/<li>/g) ?? []).length, 3);
-	for (const label of ["Conecta Gmail", "Elige y sincroniza el periodo", "Revisa tus gastos"]) assert.ok(steps.includes(`<h3>${label}</h3>`));
+	for (const label of ["Conectar", "Tu período", "Tu medidor"]) assert.ok(steps.includes(`<h3>${label}</h3>`));
 });
 
 test("security distinguishes broad consent, filtered consultation, persistence and revocation", () => {
 	const html = render("LandingSecuritySection");
 	assert.match(html, /id="seguridad"/);
-	for (const copy of ["solo lectura de Gmail", "no se limita a los correos del banco", "perfil y correo electrónico", "Se consultan mensajes compatibles de Banco de Chile para el periodo seleccionado.", "tokens de acceso", "correcciones", "movimientos manuales", "categorías", "reglas", "periodos", "ingresos informados", "se procesan en memoria", "No hay un plazo de eliminación automática definido.", "Desconectar Gmail", "elimina los tokens y el perfil", "no revoca el permiso en Google", "no elimina tus datos manuales"]) assert.ok(html.includes(copy), copy);
+	for (const copy of ["solo lectura de Gmail", "no se limita a los correos del banco", "perfil y correo electrónico", "La app filtra y procesa solo los avisos de Banco de Chile del período que eliges.", "tokens de acceso", "correcciones", "movimientos manuales", "categorías", "reglas", "períodos", "ingresos informados", "asociados a tu cuenta", "se procesan en memoria", "No hay un plazo de eliminación automática definido.", "Desconectar Gmail", "elimina los tokens y el perfil", "no revoca el permiso en Google", "no elimina tus datos manuales"]) assert.ok(html.includes(copy), copy);
 	assert.match(html, /href="https:\/\/myaccount.google.com\/connections"/);
 	assert.match(html, /<details[^>]*>\s*<summary>/);
 	assert.doesNotMatch(html, /presupuesto|Acceso autorizado y acotado/);
 });
 
-test("gallery has one visible illustration notice and preserves all five inert workflows", () => {
-	const html = render("LandingTourSection", { data });
+test("gallery has one visible notice and preserves all five inert, non-focusable demo screens", () => {
+	const html = render("LandingTourSection");
 	assert.equal((html.match(/class="landing-tour-notice"/g) ?? []).length, 1);
-	assert.match(html, /Ilustraciones de la app: los campos y botones no se pueden usar ni guardan cambios\./);
+	assert.match(html, /Estas son pantallas reales de la demo, con datos de ejemplo: aquí no se pueden usar\./);
 	assert.equal((html.match(/data-workflow=/g) ?? []).length, 5);
-	assert.equal((html.match(/class="landing-tour-canvas" inert="" aria-hidden="true"/g) ?? []).length, 5);
+	assert.equal((html.match(/class="landing-phone-live-viewport" inert=""/g) ?? []).length, 5);
+	assert.equal((html.match(/<iframe\b[^>]*tabindex="-1"[^>]*aria-hidden="true"/g) ?? []).length, 5);
 	assert.match(html, /id="recorrido"/);
 	assert.match(html, /href="\/app\/demo"/);
-	assert.match(render("LandingTourSection", { data: null }), /Cargando vista de ejemplo/);
+	assert.doesNotMatch(html, /Cargando vista de ejemplo/);
 });
 
 test("header preserves authenticated destinations, identity and all native section anchors", () => {

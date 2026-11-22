@@ -21,7 +21,8 @@ test("home contains the phone and screen tour while preserving navigation and de
 	assert.match(html, /class="landing-phone"/);
 	assert.ok(html.includes('class="tour landing-tour'), "Mount the screen tour on the home");
 	assert.match(html, /id="recorrido"/);
-	assert.match(html, /Cargando datos de ejemplo/);
+	assert.match(html, /<iframe[^>]*src="\/app\/demo\?preview=summary/);
+	assert.match(html, /Cargando ejemplo…/);
 	assert.match(html, /href="\/app\/demo"/);
 	for (const id of ["producto", "como-funciona", "compatibilidad", "seguridad"]) {
 		assert.ok(html.includes(`href="#${id}"`));
@@ -30,7 +31,7 @@ test("home contains the phone and screen tour while preserving navigation and de
 	assert.equal(ids.length, new Set(ids).size, "Landing controls must have unique IDs");
 }));
 
-test("failed example loading is announced instead of leaving both previews loading forever", async () => {
+test("failed example loading is announced on the hero cards while the phones still embed the demo", async () => {
 	const loaded = await loadConfigFromFile({ command: "serve", mode: "test" },
 		fileURLToPath(new URL("../vite.config.ts", import.meta.url)));
 	const vite = await createServer({ ...loaded?.config, configFile: false, envFile: false, appType: "custom",
@@ -42,11 +43,15 @@ test("failed example loading is announced instead of leaving both previews loadi
 			vite.ssrLoadModule("/src/client/components/landing/LandingHero.tsx"),
 			vite.ssrLoadModule("/src/client/components/landing/LandingTourSection.tsx"),
 		]);
-		for (const Component of [hero.LandingHero, tour.LandingTourSection]) {
-			const html = renderToStaticMarkup(React.createElement(Component, { data: null, previewError: error }));
-			assert.ok(html.includes(error), "Surface the failed public fixture request");
-			assert.doesNotMatch(html, /Cargando/);
-			assert.match(html, /href="\/app\/demo"/);
-		}
+		const heroHtml = renderToStaticMarkup(React.createElement(hero.LandingHero, { data: null, previewError: error }));
+		assert.match(heroHtml, /Ejemplo no disponible/, "Surface the failed public fixture request on the cards");
+		assert.doesNotMatch(heroHtml, /Cargando/);
+		assert.match(heroHtml, /<iframe/);
+		assert.match(heroHtml, /href="\/app\/demo"/);
+		// The tour does not depend on the fixture at all: it always renders its five screens.
+		const tourHtml = renderToStaticMarkup(React.createElement(tour.LandingTourSection, {}));
+		assert.equal((tourHtml.match(/<iframe\b/g) ?? []).length, 5);
+		assert.doesNotMatch(tourHtml, /Cargando/);
+		assert.match(tourHtml, /href="\/app\/demo"/);
 	} finally { await vite.close(); }
 });

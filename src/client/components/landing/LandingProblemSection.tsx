@@ -16,13 +16,13 @@ const problemCards = [
 	{
 		icon: "wifi_off",
 		title: "Sin una vista común",
-		description: "No existe un resumen mensual dentro de la bandeja de entrada.",
+		description: "No hay un resumen de tu período dentro de la bandeja de entrada.",
 		tone: "is-view",
 	},
 	{
 		icon: "description",
 		title: "Difícil de corregir",
-		description: "El comprobante no refleja tus categorías ni tu presupuesto.",
+		description: "El comprobante no refleja tus categorías ni cuánto te queda de tu ingreso.",
 		tone: "is-correction",
 	},
 ] as const;
@@ -35,7 +35,7 @@ export function LandingProblemSection() {
 					<div className="landing-section-heading">
 						<p className="landing-eyebrow">El problema</p>
 						<h2 id="problem-title">Tus gastos están ahí. Entenderlos no debería ser difícil.</h2>
-						<p>Los correos bancarios contienen información útil, pero revisarlos y ordenar el mes manualmente consume tiempo.</p>
+						<p>Los correos bancarios contienen información útil, pero revisarlos y ordenar tu período manualmente consume tiempo.</p>
 					</div>
 				</RevealOnScroll>
 				<RevealOnScroll>

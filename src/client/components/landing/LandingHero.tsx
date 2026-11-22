@@ -1,7 +1,12 @@
 import { RevealOnScroll } from "./RevealOnScroll";
 import type { DemoDashboardData } from "../../demo-data";
-import { LandingDashboardPreview } from "./LandingDashboardPreview";
 import { LandingPhoneFrame } from "./LandingPhoneFrame";
+import { LandingPhoneScreen } from "./LandingPhoneScreen";
+import "./landing-brand.css";
+import "./landing-hero-stage.css";
+
+/** What the hero phone shows, for people who cannot see it: the real demo summary on "Ajustado". */
+const HERO_SCREEN_DESCRIPTION = "Pantalla de ejemplo del Resumen en el teléfono, con el medidor del mes en estado Ajustado: cuánto te queda, cuánto del ingreso llevas gastado frente a cuánto del período ya pasó y una frase con cómo cerrarías. Debajo, el gasto por día de la semana y la distribución por categoría. Datos de ejemplo, solo lectura.";
 
 export function LandingHero({ data = null, previewError = null }: { data?: DemoDashboardData | null; previewError?: string | null }) {
 	const available = data && data.currentPeriodInflow > 0
@@ -12,23 +17,25 @@ export function LandingHero({ data = null, previewError = null }: { data?: DemoD
 		<section className="landing-hero" aria-labelledby="hero-title">
 			<div className="landing-shell landing-hero-grid">
 				<RevealOnScroll className="landing-hero-copy">
-					<p className="landing-hero-badge"><span className="material-symbols-outlined" aria-hidden="true">bolt</span>Tu periodo, más claro</p>
+					<p className="landing-hero-badge"><span className="material-symbols-outlined" aria-hidden="true">bolt</span>Tu período, más claro</p>
 					<h1 id="hero-title"><span>Tus comprobantes, convertidos</span><span>en un resumen claro.</span></h1>
-					<p className="landing-hero-description">Organiza los comprobantes de Banco de Chile que llegan a tu Gmail. Elige un periodo y sincroniza para revisar tus gastos, organizados por categoría y con datos que puedes corregir.</p>
+					<p className="landing-hero-description">Organiza los comprobantes de Banco de Chile que llegan a tu Gmail. Elige tu período y sincroniza para ver tu medidor del mes: cuánto te queda y si vas En ritmo, Ajustado o Vas rápido, con tus gastos por categoría y datos que puedes corregir.</p>
 					<div className="landing-hero-actions">
 						<a className="landing-primary-button" href="/app">Comenzar ahora<span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>
 						<div className="landing-demo-action"><a className="landing-secondary-button" href="/app/demo">Probar demo</a><span>Sin conectar tu cuenta</span></div>
 					</div>
 					<dl className="landing-hero-facts">
 						<div><dt>Fuente actual</dt><dd>Banco de Chile</dd></div>
-						<div><dt>Vista</dt><dd>Resumen mensual</dd></div>
+						<div><dt>Vista</dt><dd>Medidor del mes</dd></div>
 						<div><dt>Control</dt><dd>Siempre editable</dd></div>
 					</dl>
 				</RevealOnScroll>
 				<RevealOnScroll className="landing-stage-reveal">
-					<figure className="landing-stage" aria-label="Vista ilustrativa del dashboard mensual de Gastos Controlados">
+					<figure className="landing-stage" aria-label="Vista ilustrativa del resumen de Gastos Controlados en el teléfono">
 						<LandingPhoneFrame>
-							<LandingDashboardPreview data={data} previewError={previewError} />
+							<LandingPhoneScreen view="summary" scenario="tight" eager
+								title="Resumen de la demo de Gastos Controlados, estado Ajustado"
+								description={HERO_SCREEN_DESCRIPTION} />
 						</LandingPhoneFrame>
 						<div className="landing-info-card landing-connected">
 							<span className="landing-info-icon material-symbols-outlined" aria-hidden="true">mail</span>
@@ -36,7 +43,7 @@ export function LandingHero({ data = null, previewError = null }: { data?: DemoD
 						</div>
 						<div className="landing-info-card landing-budget">
 							<span className="landing-info-icon material-symbols-outlined" aria-hidden="true">account_balance_wallet</span>
-							<div className="landing-info-copy"><h3>Saldo disponible</h3><p><span>{data ? available ?? "Sin ingreso informado" : previewError ? "Ejemplo no disponible" : "Cargando ejemplo…"}</span><span>Datos de ejemplo</span></p></div>
+							<div className="landing-info-copy"><h3>Te quedan</h3><p><span>{data ? available ?? "Sin ingreso informado" : previewError ? "Ejemplo no disponible" : "Cargando ejemplo…"}</span><span>Datos de ejemplo</span></p></div>
 						</div>
 						<div className="landing-info-card landing-sync-note">
 							<span className="landing-info-icon material-symbols-outlined" aria-hidden="true">sync</span>

@@ -12,8 +12,8 @@ const productCards: readonly ProductCard[] = [
 	{
 		icon: "mail",
 		badge: "BANCO DE CHILE",
-		title: "Sincronización por periodo",
-		description: "Consulta en el Gmail autorizado los correos de transacciones compatibles para el periodo que elijas.",
+		title: "Sincronización por período",
+		description: "Consulta en el Gmail autorizado los correos de transacciones compatibles para el período que elijas.",
 	},
 	{
 		icon: "auto_awesome",
@@ -22,10 +22,10 @@ const productCards: readonly ProductCard[] = [
 		accent: true,
 	},
 	{
-		icon: "receipt_long",
-		badge: "PERIODO SELECCIONADO",
-		title: "Resumen y detalle mensual",
-		description: "Revisa gastos, ingresos, categorías y movimientos; corrige datos y categorías o agrega gastos manuales cuando lo necesites.",
+		icon: "speed",
+		badge: "PERÍODO ELEGIDO",
+		title: "Medidor del mes y detalle",
+		description: "Compara cuánto de tu ingreso llevas gastado con cuánto del período ya pasó: En ritmo, Ajustado o Vas rápido. Revisa categorías y movimientos; corrige datos o agrega gastos manuales.",
 	},
 ];
 
@@ -36,8 +36,8 @@ export function LandingProductSection() {
 				<RevealOnScroll>
 					<div className="landing-section-heading">
 						<p className="landing-eyebrow">El producto</p>
-						<h2 id="product-title">De tus correos a un mes bajo control.</h2>
-						<p>Gastos Controlados transforma datos compatibles de Banco de Chile en una vista que puedes revisar y ajustar.</p>
+						<h2 id="product-title">De tus correos a un período bajo control.</h2>
+						<p>Gastos Controlados transforma datos compatibles de Banco de Chile en un medidor que te dice si vas En ritmo, Ajustado o Vas rápido, y en movimientos que puedes revisar y ajustar.</p>
 					</div>
 				</RevealOnScroll>
 				<RevealOnScroll>

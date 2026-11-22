@@ -1,11 +1,24 @@
-import { Children, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { Children, cloneElement, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactElement, type ReactNode } from "react";
 
 import { flushSync } from "react-dom";
 
 const AUTOPLAY_DELAY = 2000;
 const TRANSITION_DURATION = 1200;
 
-/** Recycle keyed screens around the center without cloning forms or their accessible IDs. */
+/**
+ * The slides in visual order, left to right. The DOM order never changes (see `LandingTourSlider`), so the
+ * visual order is the CSS `order` each slide carries.
+ */
+const getSlides = (track: HTMLElement) =>
+	[...track.querySelectorAll<HTMLElement>(".tour-item")].sort((a, b) => Number(a.style.order) - Number(b.style.order));
+
+/**
+ * Recycle the screens around the center without cloning them or their accessible IDs.
+ *
+ * Recycling only rewrites each slide's CSS `order`; it never moves a DOM node. The slides are live pages
+ * (iframes, S25) and the browser reloads an iframe whenever its element is moved, so reordering the DOM
+ * on every step would reload one phone every couple of seconds.
+ */
 export function LandingTourSlider({ labels, children }: { labels: readonly string[]; children: ReactNode }) {
 	const trackRef = useRef<HTMLDivElement>(null);
 	const trackId = useId();
@@ -19,8 +32,10 @@ export function LandingTourSlider({ labels, children }: { labels: readonly strin
 	const count = labels.length;
 	const middle = Math.floor(count / 2);
 	const mod = useCallback((index: number) => ((index % count) + count) % count, [count]);
-	const screens = Children.toArray(children);
-	const ordered = screens.map((_, position) => screens[mod(activeIndex + position - middle)]);
+	const screens = Children.toArray(children) as ReactElement<{ style?: CSSProperties }>[];
+	const ordered = screens.map((screen, index) => cloneElement(screen, {
+		style: { ...screen.props.style, order: mod(index - activeIndex + middle) },
+	}));
 
 	const cancelAnimation = useCallback(() => {
 		if (animationRef.current !== null) cancelAnimationFrame(animationRef.current);
@@ -31,7 +46,7 @@ export function LandingTourSlider({ labels, children }: { labels: readonly strin
 		const track = trackRef.current;
 		if (!track || animationRef.current !== null || dragRef.current !== null) return;
 		const center = track.scrollLeft + track.clientWidth / 2;
-		const slides = [...track.querySelectorAll<HTMLElement>(".tour-item")];
+		const slides = getSlides(track);
 		let nearest = middle;
 		let distance = Infinity;
 		for (const [index, slide] of slides.entries()) {
@@ -42,7 +57,7 @@ export function LandingTourSlider({ labels, children }: { labels: readonly strin
 	}, [middle, mod]);
 	const recycleAt = (left: number) => {
 		const track = trackRef.current;
-		const slides = track?.querySelectorAll<HTMLElement>(".tour-item");
+		const slides = track ? getSlides(track) : undefined;
 		if (!track || !slides?.[middle + 1]) return;
 		const centerLeft = slides[middle].offsetLeft - (track.clientWidth - slides[middle].offsetWidth) / 2;
 		const stride = slides[middle + 1].offsetLeft - slides[middle].offsetLeft;
@@ -71,7 +86,7 @@ export function LandingTourSlider({ labels, children }: { labels: readonly strin
 		if (!track) return;
 		const recenter = () => {
 			cancelAnimation();
-			const slide = track.querySelectorAll<HTMLElement>(".tour-item")[middle];
+			const slide = getSlides(track)[middle];
 			if (slide) track.scrollTo({ left: slide.offsetLeft - (track.clientWidth - slide.offsetWidth) / 2 + pendingOffsetRef.current, behavior: "instant" });
 			pendingOffsetRef.current = 0;
 		};
@@ -83,7 +98,7 @@ export function LandingTourSlider({ labels, children }: { labels: readonly strin
 		const observer = new ResizeObserver(() => {
 			if (dragRef.current) return;
 			cancelAnimation();
-			const slide = track.querySelectorAll<HTMLElement>(".tour-item")[middle];
+			const slide = getSlides(track)[middle];
 			if (slide) track.scrollTo({ left: slide.offsetLeft - (track.clientWidth - slide.offsetWidth) / 2, behavior: "instant" });
 		});
 		observer.observe(track);
@@ -93,7 +108,7 @@ export function LandingTourSlider({ labels, children }: { labels: readonly strin
 	const goTo = useCallback((index: number, automatic = false) => {
 		const track = trackRef.current;
 		const delta = mod(index - activeRef.current + middle) - middle;
-		const slide = track?.querySelectorAll<HTMLElement>(".tour-item")[middle + delta];
+		const slide = track ? getSlides(track)[middle + delta] : undefined;
 		if (!track || !slide) return;
 		cancelAnimation();
 		const left = slide.offsetLeft - (track.clientWidth - slide.offsetWidth) / 2;
@@ -125,13 +140,25 @@ export function LandingTourSlider({ labels, children }: { labels: readonly strin
 			if (settleRef.current !== null) clearTimeout(settleRef.current);
 		};
 	}, [cancelAnimation, settle]);
+	// Each phone is a live page (S25): the slider only plays while it is on screen and the tab is visible,
+	// and never when the user asks for reduced motion (the arrows, dots and swipe still work).
+	const [onScreen, setOnScreen] = useState(false);
 	useEffect(() => {
+		const track = trackRef.current;
+		if (!track) return;
+		if (!("IntersectionObserver" in window)) { setOnScreen(true); return; }
+		const observer = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting), { threshold: 0.2 });
+		observer.observe(track);
+		return () => observer.disconnect();
+	}, []);
+	useEffect(() => {
+		if (!onScreen) return;
 		// Fixed cadence: hover and keyboard focus do not pause playback. Let active gestures finish.
 		const timer = setInterval(() => {
-			if (dragRef.current === null) goTo(activeRef.current + 1, true);
+			if (dragRef.current === null && !document.hidden && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) goTo(activeRef.current + 1, true);
 		}, AUTOPLAY_DELAY);
 		return () => clearInterval(timer);
-	}, [goTo]);
+	}, [goTo, onScreen]);
 
 	const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
 		if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;

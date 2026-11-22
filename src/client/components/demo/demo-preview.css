@@ -1,0 +1,14 @@
+/* Demo preview mode (S25): the real demo shown inside a landing phone. The page never shows a scrollbar
+   (it would narrow the 390px layout), and nothing in it is meant to be selected or used. */
+html.demo-preview {
+	scrollbar-width: none;
+}
+
+html.demo-preview::-webkit-scrollbar {
+	display: none;
+}
+
+html.demo-preview body {
+	-webkit-user-select: none;
+	user-select: none;
+}

@@ -16,7 +16,7 @@ export function LandingPage() {
 	const [previewData, setPreviewData] = useState<DemoDashboardData | null>(null);
 	const [previewError, setPreviewError] = useState<string | null>(null);
 
-	// One public fixture feeds both illustrations; no account data or mutation containers.
+	// The hero's floating cards read the public example fixture; the phones embed the real demo themselves.
 	useEffect(() => {
 		const controller = new AbortController();
 		loadDemoDashboardData(controller.signal).then((data) => {
@@ -36,7 +36,7 @@ export function LandingPage() {
 				<LandingHero data={previewData} previewError={previewError} />
 				<LandingProblemSection />
 				<LandingProductSection />
-				<LandingTourSection data={previewData} previewError={previewError} />
+				<LandingTourSection />
 				<LandingCompatibilitySection />
 				<LandingHowItWorksSection />
 				<LandingSecuritySection />

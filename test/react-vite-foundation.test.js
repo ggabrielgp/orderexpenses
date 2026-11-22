@@ -205,7 +205,7 @@ test("the React root composes the bounded landing header and hero with its sessi
 	assert.match(app, /<LandingPage\s*\/>/);
 	assert.match(page, /<LandingHeader\s+session=\{session\}\s*\/>/);
 	assert.match(page, /<LandingHero\s+data=\{previewData\}\s+previewError=\{previewError\}\s*\/>/);
-	assert.match(page, /<LandingTourSection\s+data=\{previewData\}\s+previewError=\{previewError\}\s*\/>/);
+	assert.match(page, /<LandingTourSection\s*\/>/);
 	assert.equal((page.match(/loadDemoDashboardData\(controller\.signal\)/g) ?? []).length, 1);
 	assert.match(page, /if \(!controller\.signal\.aborted\) setPreviewData\(data\)/);
 	assert.match(page, /if \(!controller\.signal\.aborted\)\s*\{\s*setPreviewError\("No pudimos cargar los datos de ejemplo\. Puedes abrir la demo\."\)/);
@@ -243,8 +243,8 @@ test("the React landing composes accessible problem and product sections with re
 	assert.match(problem, /Difícil de corregir/);
 	assert.match(product, /<section[^>]*\bid="producto"[^>]*aria-labelledby="product-title"/);
 	assert.match(product, /<RevealOnScroll/);
-	assert.match(product, /Sincronización por periodo/);
-	assert.match(product, /Resumen y detalle mensual/);
+	assert.match(product, /Sincronización por período/);
+	assert.match(product, /Medidor del mes y detalle/);
 });
 
 test("the React landing composes compatible banking and how-it-works sections with accessible reveals", async () => {
@@ -270,9 +270,9 @@ test("the React landing composes compatible banking and how-it-works sections wi
 	assert.match(howItWorks, /<RevealOnScroll/);
 	assert.match(howItWorks, /const steps/);
 	assert.match(howItWorks, /steps\.map/);
-	assert.match(howItWorks, /Conecta Gmail/);
-	assert.match(howItWorks, /Elige y sincroniza el periodo/);
-	assert.match(howItWorks, /Revisa tus gastos/);
+	assert.match(howItWorks, /Conectar/);
+	assert.match(howItWorks, /Tu período/);
+	assert.match(howItWorks, /Tu medidor/);
 });
 
 test("the React landing composes the accessible security section and footer after how-it-works", async () => {
@@ -299,7 +299,7 @@ test("the React landing composes the accessible security section and footer afte
 	assert.match(security, /<section[^>]*\bid="seguridad"[^>]*aria-labelledby="security-title"/);
 	assert.match(security, /<RevealOnScroll/);
 	assert.match(security, /Tus datos, con las reglas claras\./);
-	assert.match(security, /Se consultan mensajes compatibles de Banco de Chile para el periodo seleccionado\./);
+	assert.match(security, /La app filtra y procesa solo los avisos de Banco de Chile del período que eliges\./);
 	assert.match(security, /No hay un plazo de eliminación automática definido\./);
 	assert.match(security, /no revoca el permiso en Google/);
 	assert.match(security, /https:\/\/myaccount.google.com\/connections/);

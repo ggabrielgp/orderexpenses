@@ -94,53 +94,6 @@
 	background: linear-gradient(120deg, #f1f0ec 0%, #f6f5f2 100%);
 }
 
-/* Product rules reused by the tour screens that hard-code a blue (movements view, kind tabs). */
-.landing-page .react-movements-header .react-card-icon {
-	background: #f1f0ec;
-	color: #131b2e;
-}
-
-.landing-page .react-movements-metric-classified > strong {
-	color: #131b2e;
-}
-
-.landing-page .react-movements-kind-tab:hover {
-	background: #f1f0ec;
-	color: #131b2e;
-}
-
-.landing-page .react-movements-kind-tab[aria-pressed="true"] {
-	background: #131b2e;
-	color: #ffffff;
-}
-
-.landing-page .react-movements-view .react-movements-bulk-count {
-	color: #131b2e;
-}
-
-.landing-page .react-movements-view .react-movements-bulk-assign {
-	background: #131b2e;
-	color: #ffffff;
-}
-
-.landing-page .react-movements-view .react-movement-category,
-.landing-page .react-movements-view .react-movement-similar {
-	background: #f1f0ec;
-	color: #131b2e;
-}
-
-.landing-page .react-movements-view .react-movement-category-unassigned,
-.landing-page .react-movements-view .react-movement-kind-badge {
-	background: #f1f0ec;
-	color: #3f4b63;
-}
-
-/* Chart value labels in the tour: secondary ink instead of the legacy blue. */
-.landing-page .react-spending-chart-value-positive,
-.landing-page .react-spending-chart-bar-selected .react-spending-chart-value-positive {
-	color: #3f4b63;
-}
-
 /* Near-white lavender section fills become the warm canvas / surface. */
 .landing-page .landing-product-section {
 	background: #fbfaf8;

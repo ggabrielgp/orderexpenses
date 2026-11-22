@@ -1,0 +1,53 @@
+/*
+ * Landing phones (S25): the screen is the real demo at 390px inside the shared phone frame. The viewport
+ * fills the frame's screen, so its size is reserved before the iframe loads; the iframe keeps the app's
+ * own 390px layout and is scaled down to fit (the factor and the matching height are set by
+ * LandingPhoneScreen from the measured size; the values here are the 328px phone's).
+ */
+.landing-phone .landing-stage-body {
+	position: relative;
+	display: block;
+	padding: 0;
+	gap: 0;
+	font-size: inherit;
+}
+
+.landing-phone-live {
+	position: absolute;
+	inset: 0;
+}
+
+.landing-phone-live-viewport {
+	--live-scale: .8;
+	--live-height: 748px;
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	background: var(--marketing-canvas, #f6f5f2);
+}
+
+.landing-phone-live-viewport iframe {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: block;
+	width: 390px;
+	height: var(--live-height);
+	max-width: none;
+	border: 0;
+	background: var(--marketing-canvas, #f6f5f2);
+	transform: scale(var(--live-scale));
+	transform-origin: 0 0;
+	pointer-events: none;
+}
+
+/* The text alternative is for assistive technology only. */
+.landing-phone-live-alt {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

@@ -62,6 +62,8 @@ import { getActiveMovementFilters, getMovementActionName } from "../components/m
 import { FeedbackNotice } from "../components/feedback/FeedbackNotice";
 import { useAnimatedView, useEditHighlight } from "../components/feedback/motion";
 import { DemoScenarioControl } from "../components/demo/DemoScenarioControl";
+import { parseDemoPreview } from "../components/demo/demoPreview";
+import { useDemoPreview } from "../components/demo/useDemoPreview";
 import { DEFAULT_DEMO_SCENARIO, getDemoScenarioToday, type DemoScenario } from "../components/demo/demoScenarios";
 import { DashboardLoadingState } from "../components/analytics/DashboardLoadingState";
 import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
@@ -851,12 +853,21 @@ const DEMO_PROFILE: SessionProfile = {
   email: "demo@demo.com",
 };
 
-export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
-  const [view, setView] = useAnimatedView<DashboardView>("summary");
+export function DemoDashboardPage({ data, search }: {
+  data: DemoDashboardData;
+  /** The URL query; defaults to the page's own. Only the demo reads it, to enter preview mode (S25). */
+  search?: string;
+}) {
+  const query = search ?? (typeof window === "undefined" ? "" : window.location.search);
+  // S25: `?preview=summary|movements` is the landing phones' read-only embed; absent, the demo is unchanged.
+  const preview = useMemo(() => parseDemoPreview(query), [query]);
+  useDemoPreview(preview);
+  const [view, setView] = useAnimatedView<DashboardView>(preview?.view ?? "summary");
   const [requestedCategory, setRequestedCategory] = useState<string | null>(null);
   // S17: the demo opens on "Ajustado"; the choice only changes which day of the cycle is simulated.
-  const [scenario, setScenario] = useState<DemoScenario>(DEFAULT_DEMO_SCENARIO);
+  const [scenario, setScenario] = useState<DemoScenario>(preview?.scenario ?? DEFAULT_DEMO_SCENARIO);
   return <DemoDashboardView
+    previewMode={preview !== null}
     data={data}
     view={view}
     onViewChange={setView}
@@ -868,8 +879,10 @@ export function DemoDashboardPage({ data }: { data: DemoDashboardData }) {
 }
 
 /** Read-only production composition, with local navigation and no mutation capabilities. */
-export function DemoDashboardView({ data, view, onViewChange, requestedCategory, onRequestedCategoryChange, today, scenario = DEFAULT_DEMO_SCENARIO, onScenarioChange }: {
+export function DemoDashboardView({ data, view, onViewChange, requestedCategory, onRequestedCategoryChange, today, scenario = DEFAULT_DEMO_SCENARIO, onScenarioChange, previewMode = false }: {
   data: DemoDashboardData;
+  /** Embedded as a landing phone (S25): no scenario control and no footer call to action. */
+  previewMode?: boolean;
   view: DashboardView;
   onViewChange: (view: DashboardView) => void;
   requestedCategory?: string;
@@ -961,7 +974,7 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
         </AccountMenu>
       </AppHeader>
       <main className={`shell react-shell${view === "movements" ? " react-movements-page" : ""}`}>
-        <section className="panel product-panel react-dashboard-shell demo-dashboard" aria-labelledby="demo-dashboard-title">
+        <section className="panel product-panel react-dashboard-shell demo-dashboard" aria-labelledby="demo-dashboard-title" data-demo-preview={previewMode ? view : undefined}>
           <header className="react-dashboard-header">
             <div className="react-dashboard-heading">
               <p className="react-dashboard-greeting">Hola, {DEMO_PROFILE.name}</p>
@@ -973,7 +986,7 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
             </div>
             <div className="demo-dashboard-aside">
               <span className="demo-read-only-badge">Datos de ejemplo · Solo lectura</span>
-              {view === "summary" && <DemoScenarioControl scenario={scenario} onChange={(next) => onScenarioChange?.(next)} />}
+              {view === "summary" && !previewMode && <DemoScenarioControl scenario={scenario} onChange={(next) => onScenarioChange?.(next)} />}
             </div>
           </header>
 
@@ -1010,10 +1023,10 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
             />
           )}
 
-          <footer className="demo-dashboard-footer">
+          {!previewMode && <footer className="demo-dashboard-footer">
             <p>Esta demo no guarda cambios ni se conecta a tu cuenta.</p>
             <a className="button" href={getGoogleLoginUrl()}>Inicia sesión para editar</a>
-          </footer>
+          </footer>}
         </section>
       </main>
       <MobileTabBar view={view} onViewChange={onViewChange} />

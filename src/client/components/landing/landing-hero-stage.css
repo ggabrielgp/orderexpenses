@@ -1,0 +1,41 @@
+/*
+ * Hero stage (S25). The phone shows the real app, so the floating info cards must never cover it: under
+ * 1024px they sit in rows below the phone, and from 1024px they only touch its edges (the legacy
+ * positions overlapped the real gauge and tab bar). Scoped to `.landing-stage`; styles.css still owns the
+ * card look.
+ */
+@media (width < 1024px) {
+	.landing-page .landing-stage {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		padding: 0;
+	}
+
+	.landing-page .landing-stage .landing-phone {
+		margin: 0 auto;
+		rotate: 0deg;
+	}
+
+	.landing-page .landing-stage .landing-info-card {
+		position: static;
+		width: auto;
+		max-width: 100%;
+		min-height: 60px;
+		margin: 0;
+		padding: 10px;
+		animation: none;
+	}
+
+	.landing-page .landing-stage .landing-connected { grid-column: 1; grid-row: 2; justify-self: stretch; }
+	.landing-page .landing-stage .landing-sync-note { grid-column: 2; grid-row: 2; justify-self: stretch; }
+	.landing-page .landing-stage .landing-budget { grid-column: 1 / -1; grid-row: 3; justify-self: center; width: 196px; }
+	.landing-page .landing-stage .landing-stage-caption { grid-row: 4; margin-top: 0; }
+}
+
+@media (width >= 1024px) {
+	.landing-page .landing-stage .landing-connected,
+	.landing-page .landing-stage .landing-sync-note { right: calc(84px + 328px - 18px); }
+	.landing-page .landing-stage .landing-connected { top: 4px; }
+	.landing-page .landing-stage .landing-sync-note { top: 650px; }
+	.landing-page .landing-stage .landing-budget { right: -20px; width: 160px; }
+}
