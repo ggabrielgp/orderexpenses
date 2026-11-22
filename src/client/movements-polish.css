@@ -990,3 +990,77 @@ body:has(.react-movements-page) {
 		align-items: stretch;
 	}
 }
+
+/* S3 (odd/tasks/mobile-polish-business-day.md, T4): the movements view fits a phone. */
+
+/* The shell's entrance (fadeInUp, fill "both") kept a transform after it ended, which made the shell
+   the containing block of `position: fixed` children: the floating selection bar landed below the
+   page instead of above the bottom bar. Backwards fill keeps the entrance and drops the leftover. */
+.react-movements-page.shell {
+	animation-fill-mode: backwards;
+}
+
+@media (max-width: 760px) {
+	/* The selection bar stacks: count, the category select at full width, then two equal buttons. The
+	   desktop three-column grid above outranked the legacy single-column rule and squeezed them. */
+	.react-movements-page .react-movements-view .react-movements-bulk {
+		grid-template-columns: minmax(0, 1fr);
+		align-items: stretch;
+		gap: 12px;
+		padding: 16px;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-bulk-field {
+		display: grid;
+		gap: 6px;
+		min-width: 0;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-bulk-field select {
+		width: 100%;
+		min-height: 48px;
+		font-size: 16px;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-bulk-actions {
+		display: grid;
+		grid-column: 1;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-bulk-actions button {
+		justify-content: center;
+		width: 100%;
+		min-width: 0;
+		min-height: 48px;
+		margin: 0;
+		padding: 0 12px;
+		white-space: normal;
+		text-align: center;
+	}
+
+	/* Sort chips: one row that scrolls sideways instead of wrapping into a ragged second line. */
+	.react-movements-page .react-movements-view .react-mobile-movement-sort {
+		flex-wrap: nowrap;
+		margin: 0 -16px;
+		padding: 2px 16px 6px;
+		overflow-x: auto;
+		overscroll-behavior-x: contain;
+		scrollbar-width: none;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-sort::-webkit-scrollbar {
+		display: none;
+	}
+
+	.react-movements-page .react-movements-view .react-mobile-movement-sort button {
+		flex: none;
+		white-space: nowrap;
+	}
+
+	/* With a checkbox, the date, chips and details line up under the movement name, not the box. */
+	.react-movements-page .react-movements-view .react-mobile-movement-card:has(.react-mobile-movement-selection) :is(.react-mobile-movement-meta, .react-mobile-movement-details) {
+		padding-left: 52px;
+	}
+}
