@@ -54,7 +54,7 @@ Worktree `../gastoscontrolados-identidad`, branch `feat/identidad-b` from `main`
 | T21 | S20 | worker W18: artboard 08 cycle setup | design (primary checkout) ✓ |
 | T22 | S1, S8, S20 | worker W19: implement cycle setup redesign | 397fe1b ✓ |
 | T23 | S1, S8, S21 | worker W20: real onboarding step 3 | 171bf26 ✓ |
-| T24 | S1, S9, S22 | worker: consent dialog restyle | — |
+| T24 | S1, S9, S22 | worker W21: consent dialog restyle | 0d59fd6 ✓ |
 | T9 | S1–S10 | inline verify: full build + suite, inventory check, differential review | this commit ✓ |
 
 ## Log
@@ -96,3 +96,4 @@ Worktree `../gastoscontrolados-identidad`, branch `feat/identidad-b` from `main`
 - **L32** (user, verbatim): "puse conectar Gmail, pero el en modal los estilos y diseño estan desordenados y se ve mal, y no concuerda con los estilos y diseño del producto" + screenshot → S22, T24 (after T23; overlapping CSS surfaces).
 
 - **L33** (evidence, T23 171bf26): step 3 dialog opens right after the first save ("Preparando tu medidor…" → real compact gauge), "Ver mi resumen"/Escape/backdrop mark seen, reload failure closes without marking, no-income branch offers "Agregar ingreso"; the explanation is a one-row hint (L31). first-result-step 0→10/10; full suite 566/566 (worker); parent spot-checked 1440 with income and 390 without income.
+- **L34** (evidence, T24 0d59fd6): consent dialog rebuilt (kicker, title + close row, flat points list, storage note, 20px ink checkbox with wrapping label in the sticky footer, hint "Marca la casilla para continuar" tied to the disabled primary). Before: dialog scrollWidth 660 vs 606, 574×48 checkbox, cobalt accept; after: scrollWidth = clientWidth at 1920/1440/390, 0 cobalt, hover min 4.81 (disabled) / 12.76 (enabled). gmail-consent-dialog 1→13/13; copy unchanged; full suite 579/579 (worker); parent spot-checked 1440 checked and 390 unchecked.
