@@ -92,7 +92,7 @@ test("loading is truthful and hero preserves links, phone chrome and example cap
   }
   assert.match(markup, /<figure class="landing-stage" aria-label="Vista ilustrativa/);
   assert.match(markup, /<figcaption class="landing-stage-caption">Vista ilustrativa · datos de ejemplo<\/figcaption>/);
-  assert.match(markup, /href="\/auth\/google[^\"]*"/);
+  assert.match(markup, /<a class="landing-primary-button" href="\/app">Comenzar ahora/);
   assert.match(markup, /href="\/app\/demo"/);
   assert.ok(markup.includes(`${data.movements.length} movimientos`));
   assert.doesNotMatch(markup, /68% utilizado|Presupuesto|Sincronizados|Agosto 2026|landing-bars/);

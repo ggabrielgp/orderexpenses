@@ -982,3 +982,11 @@ body:has(.react-movements-page) {
 		padding-bottom: calc(300px + env(safe-area-inset-bottom));
 	}
 }
+
+/* S23: without the "Periodo:" line the heading block is narrower than the column; keep it
+   left-aligned over the full-width period/actions rows instead of centering it. */
+@media (max-width: 640px) {
+	.react-movements-page .react-dashboard-header {
+		align-items: stretch;
+	}
+}

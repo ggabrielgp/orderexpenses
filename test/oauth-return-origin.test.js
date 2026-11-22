@@ -203,7 +203,9 @@ test("browser login helper and all landing/demo entry points preserve actual ori
 	]);
 	const { createDemoDashboardData } = await vite.ssrLoadModule("/src/client/demo-data.ts");
 	const data = createDemoDashboardData(JSON.parse(await readFile(new URL("../public/demo-data.json", import.meta.url), "utf8")));
-	for (const element of [createElement(LandingHeader, { session: null }), createElement(LandingHero), createElement(DemoDashboardPage, { data })]) {
+	// The hero's "Comenzar ahora" now goes to /app (S23), so it carries no Google login link at all.
+	assert.doesNotMatch(renderToStaticMarkup(createElement(LandingHero)), /\/auth\/google/);
+	for (const element of [createElement(LandingHeader, { session: null }), createElement(DemoDashboardPage, { data })]) {
 		const markup = renderToStaticMarkup(element);
 		const links = [...markup.matchAll(/href="([^\"]*\/auth\/google[^\"]*)"/g)].map((match) => match[1].replaceAll("&amp;", "&"));
 		assert.ok(links.length > 0);

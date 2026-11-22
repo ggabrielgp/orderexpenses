@@ -72,6 +72,7 @@ test("the floating illustration cannot be selected without disabling landing tex
 	const hero = await readFile(new URL("../src/client/components/landing/LandingHero.tsx", import.meta.url), "utf8");
 	assert.match(hero, /<figure className="landing-stage" aria-label="Vista ilustrativa/);
 	assert.match(hero, /<figcaption className="landing-stage-caption">Vista ilustrativa · datos de ejemplo<\/figcaption>/);
-	assert.match(hero, /href=\{getGoogleLoginUrl\(\)\}/);
+	assert.match(hero, /href="\/app">Comenzar ahora/);
+	assert.doesNotMatch(hero, /getGoogleLoginUrl/);
 	assert.match(hero, /href="\/app\/demo"/);
 });

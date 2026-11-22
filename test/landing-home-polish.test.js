@@ -35,7 +35,8 @@ test("hero explains the manual period sync and offers an account-free demo", () 
 	assert.match(html, /href="\/app\/demo"[^>]*>Probar demo<\/a>/);
 	assert.match(html, /Sin conectar tu cuenta/);
 	assert.doesNotMatch(html, /sin mover un dedo|automáticamente/);
-	assert.match(html, /href="\/auth\/google"/);
+	assert.match(html, /href="\/app"[^>]*>Comenzar ahora/);
+	assert.doesNotMatch(html, /\/auth\/google/);
 	assert.match(html, /Vista ilustrativa · datos de ejemplo/);
 	assert.match(html, /landing-dashboard-preview/);
 	assert.match(html, /landing-phone/);

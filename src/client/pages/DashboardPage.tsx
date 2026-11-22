@@ -697,7 +697,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
               <h1 id="react-dashboard-title">
                 {view === "movements" ? "Movimientos" : "Resumen de la cuenta"}
               </h1>
-              <DashboardPeriodContext period={financialDashboard?.period ?? null} />
+              {/* The period button below already shows the range, so no context line here. */}
               {view !== "movements" && (
                 <p className="subtitle">Control y análisis de gastos detectados automáticamente.</p>
               )}
@@ -721,9 +721,6 @@ export function DashboardPage({ session }: DashboardPageProps) {
                   </span>
                   <span className="react-dashboard-period-range react-dashboard-period-range-full">
                     {formatPeriodLabel(financialDashboard.period)}
-                  </span>
-                  <span className="react-dashboard-period-range react-dashboard-period-range-compact" aria-hidden="true">
-                    {formatPeriodLabel(financialDashboard.period).replace(/\/\d{4}/g, "").replace(" a ", "–")}
                   </span>
                 </button>
                 {/* The cycle-first reload the summary publishes: it refetches the selected period's

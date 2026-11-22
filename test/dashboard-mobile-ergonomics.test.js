@@ -153,16 +153,15 @@ test("native dialogs keep available-height scroll and do not force hidden dialog
 	assert.doesNotMatch(source, /animation:|transition:|scroll-behavior: smooth/);
 });
 
-test("mobile header actions share one compact row while desktop labels and existing guards remain", async () => {
+test("mobile header puts the full period on its own row above the actions while desktop labels and existing guards remain", async () => {
 	const source = await css();
 	const page = await read("src/client/pages/DashboardPage.tsx");
-	assert.match(source, /\.react-dashboard-period-range-compact\s*\{\s*display: none/);
-	assert.match(source, /\.react-shell \.react-dashboard-controls\s*\{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) 44px max-content;[^}]*width: 100%/s);
-	assert.match(source, /\.react-shell \.react-dashboard-period-range-full,\s*\.react-shell \.react-dashboard-refresh-label\s*\{\s*display: none/);
-	assert.match(source, /\.react-shell \.react-dashboard-period-range-compact\s*\{\s*display: inline/);
+	assert.match(source, /\.react-shell \.react-dashboard-controls\s*\{[^}]*display: grid;[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[^}]*width: 100%/s);
+	assert.match(source, /\.react-shell \.react-dashboard-period\s*\{[^}]*grid-column: 1 \/ -1/s);
+	assert.doesNotMatch(source, /react-dashboard-period-range-compact/);
 	assert.match(page, /title=\{formatPeriodLabel\(financialDashboard\.period\)\}/);
 	assert.match(page, /className="react-dashboard-period-range react-dashboard-period-range-full"/);
-	assert.match(page, /className="react-dashboard-period-range react-dashboard-period-range-compact"/);
+	assert.doesNotMatch(page, /react-dashboard-period-range-compact/);
 	assert.match(page, /<span className="react-dashboard-refresh-label">Actualizar<\/span>/);
 	assert.match(page, /onClick=\{financialDashboard\.onEditPeriod\}/);
 	assert.match(page, /onClick=\{refreshFromHeader\}\s*disabled=\{isRefreshing\}\s*aria-busy=\{isRefreshing\}/);

@@ -22,15 +22,10 @@
 	display: none;
 }
 
-/* Full period and refresh labels keep their original desktop presentation. */
-.react-dashboard-period-range-compact {
-	display: none;
-}
-
 @media (max-width: 800px) {
 	.react-shell .react-dashboard-controls {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 44px max-content;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		width: 100%;
 		min-width: 0;
 		gap: 6px;
@@ -44,28 +39,25 @@
 		white-space: nowrap;
 	}
 
+	/* The full "dd/mm/aaaa a dd/mm/aaaa" range sits on its own full-width row above the actions. */
 	.react-shell .react-dashboard-period {
+		grid-column: 1 / -1;
 		min-width: 0;
+		min-height: 44px;
 		justify-content: center;
-		gap: 6px;
-		padding-inline: 8px;
+		gap: 8px;
+		padding-inline: 12px;
 	}
 
-	.react-shell .react-dashboard-period-range-full,
-	.react-shell .react-dashboard-refresh-label {
-		display: none;
-	}
-
-	.react-shell .react-dashboard-period-range-compact {
-		display: inline;
-		font-size: .8rem;
+	.react-shell .react-dashboard-period-range {
+		font-size: .875rem;
+		white-space: nowrap;
 	}
 
 	.react-shell .react-dashboard-refresh {
-		width: 44px;
-		min-width: 44px;
+		min-width: 0;
+		min-height: 44px;
 		justify-content: center;
-		padding: 0;
 	}
 
 	.react-app-header-inner {

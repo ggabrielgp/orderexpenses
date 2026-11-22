@@ -1,5 +1,4 @@
 import { RevealOnScroll } from "./RevealOnScroll";
-import { getGoogleLoginUrl } from "../../api/googleLogin";
 import type { DemoDashboardData } from "../../demo-data";
 import { LandingDashboardPreview } from "./LandingDashboardPreview";
 import { LandingPhoneFrame } from "./LandingPhoneFrame";
@@ -17,7 +16,7 @@ export function LandingHero({ data = null, previewError = null }: { data?: DemoD
 					<h1 id="hero-title"><span>Tus comprobantes, convertidos</span><span>en un resumen claro.</span></h1>
 					<p className="landing-hero-description">Organiza los comprobantes de Banco de Chile que llegan a tu Gmail. Elige un periodo y sincroniza para revisar tus gastos, organizados por categoría y con datos que puedes corregir.</p>
 					<div className="landing-hero-actions">
-						<a className="landing-primary-button" href={getGoogleLoginUrl()}>Comenzar ahora<span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>
+						<a className="landing-primary-button" href="/app">Comenzar ahora<span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>
 						<div className="landing-demo-action"><a className="landing-secondary-button" href="/app/demo">Probar demo</a><span>Sin conectar tu cuenta</span></div>
 					</div>
 					<dl className="landing-hero-facts">
