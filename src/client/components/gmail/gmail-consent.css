@@ -1,0 +1,327 @@
+/*
+ * Gmail consent dialog (S22, L32): the product dialog style of the cycle setup. Kicker + title with the
+ * close control in one header row, the three points as a flat list with dividers (no nested cards), the
+ * storage note, a 20px checkbox whose label wraps, and a sticky footer whose ink primary says why it is
+ * disabled. Single column up to 560px; at 760px and below it is the bottom sheet that motion.css already
+ * slides. Ink for every action, no cobalt, targets >= 44px. Selectors carry a `dialog.consent-dialog`
+ * prefix (and `[class]` on the shell) to win over the legacy global button/input rules.
+ */
+
+dialog.consent-dialog[class] {
+	width: min(35rem, calc(100vw - 32px));
+	max-width: none;
+	max-height: min(48rem, calc(100vh - 32px));
+	max-height: min(48rem, calc(100dvh - 32px));
+	margin: auto;
+	padding: 0;
+	overflow: hidden;
+	border: 0;
+	border-radius: var(--radius-featured, 20px);
+	background: var(--color-surface, #ffffff);
+	color: var(--color-ink, #131b2e);
+	box-shadow: 0 20px 56px rgb(19 27 46 / 18%), 0 2px 8px rgb(19 27 46 / 8%);
+}
+
+dialog.consent-dialog:not([open]) {
+	display: none;
+}
+
+dialog.consent-dialog[open] {
+	display: flex;
+	flex-direction: column;
+}
+
+dialog.consent-dialog::backdrop {
+	background: rgb(19 27 46 / 55%);
+}
+
+/* The body scrolls on short screens; the footer never leaves the sheet. */
+dialog.consent-dialog .consent-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 24px 32px 20px;
+}
+
+dialog.consent-dialog .consent-grab {
+	display: none;
+	width: 40px;
+	height: 4px;
+	margin: 0 auto 16px;
+	border-radius: 2px;
+	background: var(--color-line-strong, #d2d0ca);
+}
+
+dialog.consent-dialog .consent-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 8px;
+}
+
+dialog.consent-dialog .consent-head-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+dialog.consent-dialog .consent-kicker {
+	margin: 0;
+	color: var(--color-ink-muted, #59647a);
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+
+dialog.consent-dialog h2.consent-title {
+	margin: 2px 0 0;
+	color: var(--color-ink, #131b2e);
+	font-family: var(--font-body);
+	font-size: 28px;
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	line-height: 1.15;
+	overflow-wrap: anywhere;
+}
+
+dialog.consent-dialog .consent-close {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	min-width: 44px;
+	height: 44px;
+	min-height: 44px;
+	margin: -6px -10px 0 0;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	box-shadow: none;
+	color: var(--color-ink-muted, #59647a);
+}
+
+dialog.consent-dialog .consent-close:hover {
+	background: var(--color-surface-subtle, #f1f0ec);
+	box-shadow: none;
+	color: var(--color-ink, #131b2e);
+}
+
+/* ───────── the three points: title above text, dividers instead of cards ───────── */
+
+dialog.consent-dialog .consent-list {
+	margin: 0 0 12px;
+	padding: 0;
+	list-style: none;
+}
+
+dialog.consent-dialog .consent-list li {
+	display: grid;
+	gap: 4px;
+	padding: 14px 0;
+	border-top: 1px solid var(--color-line, #e3e1dc);
+}
+
+dialog.consent-dialog .consent-list h3 {
+	margin: 0;
+	color: var(--color-ink, #131b2e);
+	font-size: 16px;
+	font-weight: 800;
+	line-height: 1.3;
+}
+
+dialog.consent-dialog .consent-list li p {
+	margin: 0;
+	color: var(--color-ink-secondary, #3f4b63);
+	font-size: 15px;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+dialog.consent-dialog .react-gmail-consent-terms .consent-storage-note {
+	margin: 0;
+	padding: 12px 14px;
+	border-radius: var(--radius-control, 12px);
+	background: var(--color-surface-subtle, #f1f0ec);
+	color: var(--color-ink-secondary, #3f4b63);
+	font-size: 14px;
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+}
+
+/* ───────── acknowledgement: a normal checkbox and a label that wraps next to it ───────── */
+
+dialog.consent-dialog .consent-ack {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 44px;
+	margin: 0;
+	padding: 12px 14px;
+	border: 1px solid var(--color-line-strong, #d2d0ca);
+	border-radius: var(--radius-control, 12px);
+	background: var(--color-surface, #ffffff);
+	color: var(--color-ink, #131b2e);
+	cursor: pointer;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+dialog.consent-dialog .consent-ack:hover,
+dialog.consent-dialog .consent-ack:has(input:checked) {
+	border-color: var(--color-ink, #131b2e);
+}
+
+dialog.consent-dialog .consent-ack input[type="checkbox"] {
+	flex: none;
+	box-sizing: border-box;
+	width: 20px;
+	min-width: 20px;
+	height: 20px;
+	min-height: 0;
+	margin: 1px 0 0;
+	padding: 0;
+	accent-color: var(--color-ink, #131b2e);
+	cursor: pointer;
+}
+
+dialog.consent-dialog .consent-ack span {
+	flex: 1 1 0;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+dialog.consent-dialog :is(button, input):focus-visible {
+	outline: 3px solid var(--color-ink, #131b2e);
+	outline-offset: 2px;
+}
+
+/* ───────── sticky footer: why the primary is off + the two actions ───────── */
+
+dialog.consent-dialog .consent-foot {
+	display: grid;
+	flex: none;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 10px;
+	padding: 16px 32px 20px;
+	border-top: 1px solid var(--color-line, #e3e1dc);
+	background: var(--color-surface, #ffffff);
+}
+
+dialog.consent-dialog p.consent-hint {
+	margin: 0;
+	color: var(--color-ink-muted, #59647a);
+	font-size: 14px;
+	line-height: 1.4;
+	text-align: right;
+}
+
+/* Checked: the hint keeps its row so the footer does not jump, but it is no longer shown. */
+dialog.consent-dialog p.consent-hint[hidden] {
+	display: block;
+	visibility: hidden;
+}
+
+dialog.consent-dialog .consent-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 12px;
+	margin: 0;
+}
+
+dialog.consent-dialog .consent-actions .consent-btn {
+	min-height: 52px;
+	padding: 0 20px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-control, 12px);
+	box-shadow: none;
+	font-size: 16px;
+	font-weight: 800;
+	text-align: center;
+	white-space: normal;
+}
+
+dialog.consent-dialog .consent-actions .consent-btn-primary {
+	background: var(--color-ink, #131b2e);
+	color: #ffffff;
+}
+
+dialog.consent-dialog .consent-actions .consent-btn-primary:hover:not(:disabled) {
+	background: #26324d;
+	color: #ffffff;
+	box-shadow: none;
+}
+
+/* Clearly off: neutral surface and muted ink, not a faded action color. */
+dialog.consent-dialog .consent-actions .consent-btn-primary:disabled {
+	border-color: var(--color-line-strong, #d2d0ca);
+	background: var(--color-surface-pressed, #e8e7e2);
+	color: var(--color-ink-muted, #59647a);
+	opacity: 1;
+	cursor: not-allowed;
+}
+
+dialog.consent-dialog .consent-actions .consent-btn-ghost {
+	border-color: #8b94a6;
+	background: var(--color-surface, #ffffff);
+	color: var(--color-ink, #131b2e);
+	font-weight: 700;
+}
+
+dialog.consent-dialog .consent-actions .consent-btn-ghost:hover:not(:disabled) {
+	border-color: var(--color-ink-secondary, #3f4b63);
+	background: var(--color-surface-subtle, #f1f0ec);
+	color: var(--color-ink, #131b2e);
+	box-shadow: none;
+}
+
+/* ───────── bottom sheet (<= 760px): motion.css slides it, this sets its shape ───────── */
+
+@media (max-width: 760px) {
+	dialog.consent-dialog[class] {
+		width: 100%;
+		max-height: calc(100vh - 56px);
+		max-height: calc(100dvh - 56px);
+		margin: auto 0 0;
+		border-radius: var(--radius-featured, 20px) var(--radius-featured, 20px) 0 0;
+	}
+
+	dialog.consent-dialog .consent-body {
+		padding: 12px 20px 20px;
+	}
+
+	dialog.consent-dialog .consent-grab {
+		display: block;
+	}
+
+	dialog.consent-dialog h2.consent-title {
+		font-size: 24px;
+	}
+
+	dialog.consent-dialog .consent-foot {
+		padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
+	}
+
+	dialog.consent-dialog p.consent-hint {
+		text-align: left;
+	}
+
+	dialog.consent-dialog .consent-actions .consent-btn {
+		font-size: 15px;
+	}
+
+	dialog.consent-dialog .consent-actions .consent-btn-primary {
+		flex: 1;
+		min-width: 0;
+		padding: 0 12px;
+	}
+
+	dialog.consent-dialog .consent-actions .consent-btn-ghost {
+		padding: 0 14px;
+	}
+}
