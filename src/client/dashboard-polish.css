@@ -50,7 +50,7 @@
 /* Keep native controls, their focus ring and imperative indeterminate state intact. */
 .react-movement-select,
 .react-movements-select-all {
-	accent-color: var(--accent, #2563eb);
+	accent-color: var(--accent, #131b2e);
 	transition: box-shadow 150ms ease-out;
 }
 
@@ -62,7 +62,7 @@
 }
 
 .react-movements-table tr[data-selected="true"] > td {
-	background-color: var(--accent-soft, #eff6ff);
+	background-color: var(--accent-soft, rgb(19 27 46 / 0.06));
 }
 
 .react-movements-bulk[data-selected="true"] {
@@ -83,7 +83,7 @@
 }
 
 @keyframes dashboard-selection-pulse {
-	from { box-shadow: 0 0 0 3px var(--accent-soft, #dbeafe); }
+	from { box-shadow: 0 0 0 3px var(--accent-soft, rgb(19 27 46 / 0.12)); }
 	to { box-shadow: 0 0 0 0 transparent; }
 }
 

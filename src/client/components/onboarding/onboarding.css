@@ -421,15 +421,31 @@
 	cursor: pointer;
 }
 
+/* Hover: a subtle surface with ink text (the legacy global button hover paints an ink fill). */
+.cycle-preset:hover {
+	border-color: var(--color-line-strong, #d2d0ca);
+	background: var(--color-surface-subtle, #f1f0ec);
+	color: var(--color-ink, #131b2e);
+	box-shadow: none;
+}
+
+/* Selected: ink border and a soft fill, ink text. */
 .cycle-preset[aria-checked="true"] {
 	border-color: var(--color-ink, #131b2e);
+	background: var(--color-surface-subtle, #f1f0ec);
+	color: var(--color-ink, #131b2e);
+	box-shadow: 0 0 0 1px var(--color-ink, #131b2e) inset;
+}
+
+.cycle-preset[aria-checked="true"]:hover {
+	background: var(--color-surface-pressed, #e8e7e2);
 	box-shadow: 0 0 0 1px var(--color-ink, #131b2e) inset;
 }
 
 .cycle-preset:focus-visible,
 .cycle-preset-payday select:focus-visible,
 .first-result-explainer-dismiss:focus-visible {
-	outline: 3px solid var(--state-calm, #0b7a6b);
+	outline: 3px solid var(--color-ink, #131b2e);
 	outline-offset: 2px;
 }
 

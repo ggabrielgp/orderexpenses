@@ -191,3 +191,12 @@
 	background: var(--color-ink);
 	color: #ffffff;
 }
+
+/* Ink-filled buttons that set their own background (the legacy global hover no longer outranks them):
+   an explicit, darker ink on hover with white text, so the feedback never depends on cascade order. */
+.react-mobile-tabbar .react-mobile-tabbar-add:hover,
+.first-result-explainer .first-result-explainer-dismiss:hover {
+	background: var(--accent-hover, #26324d);
+	color: #ffffff;
+	box-shadow: none;
+}
