@@ -123,13 +123,13 @@ test("the control is demo-only: the movements view and the authenticated page ne
 	assert.doesNotMatch(view({ view: "movements" }), /Ver la demo como/);
 	assert.doesNotMatch(renderToStaticMarkup(createElement(page.DashboardPage, { session: { authenticated: true, profile: { email: "a@b.cl", name: "A" }, gmail: { connected: true, connectUrl: "/auth/google" } } })), /Ver la demo como|demo-scenario/);
 	const source = await read("src/client/pages/DashboardPage.tsx");
-	const demoStart = source.indexOf("export function DemoDashboardPage");
-	const demoEnd = source.indexOf("interface DashboardAnalyticsBodyProps");
-	assert.ok(demoStart > 0 && demoEnd > demoStart);
+	const demoSource = await read("src/client/components/demo/DemoDashboardPage.tsx");
+	const demoStart = demoSource.indexOf("export function DemoDashboardPage");
+	assert.ok(demoStart > 0);
 	// Past the import block: only the demo composition may use the scenario control and its day.
-	const outside = source.slice(source.indexOf("config.autoAddCss"), demoStart) + source.slice(demoEnd);
+	const outside = source.slice(source.indexOf("config.autoAddCss"));
 	assert.ok(!/DemoScenarioControl|demo-scenario|getDemoScenarioToday/.test(outside), "scenario control used outside the demo");
-	assert.match(source.slice(demoStart, demoEnd), /<DemoScenarioControl/);
+	assert.match(demoSource.slice(demoStart), /<DemoScenarioControl/);
 });
 
 test("the control is touch sized on mobile and does not animate under reduced motion", async () => {

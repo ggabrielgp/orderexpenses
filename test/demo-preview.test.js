@@ -96,8 +96,9 @@ test("preview runs only in the demo page, scrolls without stealing focus and hid
 	const css = await read("src/client/components/demo/demo-preview.css");
 	assert.match(css, /html\.demo-preview\s*\{[^}]*scrollbar-width:\s*none/);
 	const source = await read("src/client/pages/DashboardPage.tsx");
+	const demoSource = await read("src/client/components/demo/DemoDashboardPage.tsx");
 	const authStart = source.indexOf("export function DashboardPage");
-	const demoStart = source.indexOf("export function DemoDashboardPage");
+	const demoStart = demoSource.indexOf("export function DemoDashboardPage");
 	assert.ok(authStart > 0 && demoStart > 0);
-	assert.ok(!/parseDemoPreview|useDemoPreview/.test(source.slice(authStart, demoStart)), "authenticated page never reads preview params");
+	assert.ok(!/parseDemoPreview|useDemoPreview/.test(source.slice(authStart)), "authenticated page never reads preview params");
 });

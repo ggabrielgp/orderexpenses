@@ -106,8 +106,8 @@ test("only selected rows gain a visual marker; unselected markup and the filtere
 
 // Structural/SSR safeguards below are not native browser or animation playback proof.
 test("setup retains its mounted draft and synchronizes cancel/close with an explicit reopen control", async () => {
-	const source = await read("src/client/pages/DashboardPage.tsx");
-	const setup = source.slice(source.indexOf("function FinancialCycleSetupForm"), source.indexOf("function browserStorage"));
+	const source = await read("src/client/components/financial-cycle/FinancialCycleSetupForm.tsx");
+	const setup = source.slice(source.indexOf("function FinancialCycleSetupForm"));
 	assert.match(setup, /\[isOpen, setIsOpen\] = useState\(true\)/);
 	assert.match(setup, /syncNativeModalDialog\(dialogRef.current, isOpen\)/);
 	assert.match(setup, /onCancel=\{[\s\S]*?event.preventDefault\(\)[\s\S]*?requestFinancialSetupDismiss/);

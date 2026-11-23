@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { DashboardPaceGauge } from "../components/analytics/DashboardPaceGauge";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CategoryRankingPanel,
   CategoryRankingView,
-  DashboardCounterpartyRankingView,
+  DashboardAnalyticsBody,
   SpendingBreakdownView,
   TopInsightsView,
   type CategoryRankingPanelProps,
@@ -17,7 +16,7 @@ import {
   type SpendingChartPanelProps,
   type SpendingChartViewProps,
 } from "../components/analytics/SpendingChartPanel";
-import { getDashboardPace, todayInSantiago, type DashboardPace, type PaceToday } from "../components/analytics/dashboardPace";
+import { getDashboardPace, todayInSantiago, type DashboardPace } from "../components/analytics/dashboardPace";
 import { config } from "@fortawesome/fontawesome-svg-core";
 import {
   faArrowsRotate,
@@ -66,10 +65,11 @@ import {
 } from "../components/movements/MovementsTable";
 import { FeedbackNotice } from "../components/feedback/FeedbackNotice";
 import { useAnimatedView, useEditHighlight } from "../components/feedback/motion";
-import { DemoScenarioControl } from "../components/demo/DemoScenarioControl";
-import { parseDemoPreview } from "../components/demo/demoPreview";
-import { useDemoPreview } from "../components/demo/useDemoPreview";
-import { DEFAULT_DEMO_SCENARIO, getDemoScenarioToday, type DemoScenario } from "../components/demo/demoScenarios";
+import {
+  DashboardPeriodContext,
+  DemoDashboardPage,
+  DemoDashboardView,
+} from "../components/demo/DemoDashboardPage";
 import { DashboardLoadingState } from "../components/analytics/DashboardLoadingState";
 import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
 import { MobileTabBar } from "../components/shell/MobileTabBar";
@@ -82,26 +82,10 @@ import {
   startFirstResult,
   type FirstResultPhase,
 } from "../components/onboarding/firstResultFlow";
-import { CyclePeriodSummary } from "../components/financial-cycle/CyclePeriodSummary";
-import { CyclePresets } from "../components/financial-cycle/CyclePresets";
-import {
-  DEFAULT_PAY_DAY,
-  resolveCycleOption,
-  type CycleOptionChoice,
-} from "../components/financial-cycle/cycleOptions";
 import { getPeriodAnalytics } from "../components/analytics/periodAnalytics";
-import {
-  getDashboardCounterpartyRanking,
-  type DashboardCounterpartyRanking,
-} from "../components/analytics/dashboardCounterpartyRanking";
-import {
-  getCategoryRanking,
-  type CategoryRanking,
-} from "../components/analytics/categoryRanking";
-import {
-  getDashboardLead,
-  type DashboardLead,
-} from "../components/analytics/dashboardLead";
+import { getDashboardCounterpartyRanking } from "../components/analytics/dashboardCounterpartyRanking";
+import { getCategoryRanking } from "../components/analytics/categoryRanking";
+import { getDashboardLead } from "../components/analytics/dashboardLead";
 import {
   getDashboardStory,
   getMostFrequentCounterparty,
@@ -109,22 +93,14 @@ import {
   getTopCounterpartyGroup,
   getTopInsights,
   getUncategorizedExpenses,
-  type DashboardStory,
-  type DashboardTopInsights,
-  type SpendingBreakdown,
 } from "../components/analytics/dashboardInsights";
-import {
-  getSpendingChart,
-  type SpendingChart,
-  type SpendingChartDetailMovement,
-} from "../components/analytics/spendingChart";
+import { getSpendingChart } from "../components/analytics/spendingChart";
 import {
   CreateManualExpenseDialog,
   acquireInFlightLock,
   createManualExpenseSubmitter,
   getManualExpenseCreationNotice,
   releaseInFlightLock,
-  syncNativeModalDialog,
   type ManualExpenseCreationNotice,
 } from "../components/movements/CreateManualExpenseDialog";
 import {
@@ -161,27 +137,22 @@ import { createCategoryMutationSubmitter } from "../components/settings/category
 import { createCounterpartyRuleSubmitter } from "../components/settings/counterpartyRules";
 import { FinancialCycleEditDialog, type SignInPeriodChoice } from "../components/financial-cycle/FinancialCycleEditDialog";
 import {
+  FinancialCycleSetupForm,
+  requestFinancialSetupDismiss,
+} from "../components/financial-cycle/FinancialCycleSetupForm";
+import {
   clearSignInMarker,
   decideSignInPrompt,
   hasSignInMarker,
   rememberPeriodPromptSkip,
   todayIsoSantiago,
 } from "../components/financial-cycle/signInPeriodPrompt";
-import { CycleCalendar } from "../components/financial-cycle/FinancialCycleCalendar";
-import {
-  createCalendarRange,
-  getCurrentYearCalendarBounds,
-  selectCalendarDate,
-  validateCalendarRange,
-} from "../components/financial-cycle/cycleCalendar";
 import {
   createCycleEditSubmitter,
   getCycleEditNotice,
-  parseCycleIncome,
   type CycleEditNotice,
 } from "../components/financial-cycle/cycleSettings";
 import {
-  formatIncomeInput,
   formatPeriodLabel,
   getMovementUpdateTarget,
   type EditableRecognizedExpenseMovement,
@@ -201,18 +172,13 @@ import {
   summarizeRecognizedExpensesByKind,
 } from "../components/movements/movementSummary";
 import { createBulkCategorySubmitter } from "../components/movements/movementSelection";
-import { getDemoTransactions, type DemoDashboardData } from "../demo-data";
 import type {
   Category,
   FinancialDashboardData,
   FinancialPeriod,
   FinancialTransaction,
-  SessionProfile,
   SessionResponse,
-  UpdateFinancialCycleRequest,
 } from "../api/types";
-// @ts-expect-error The shared JavaScript review-period contract has no TypeScript declaration.
-import { ReviewPeriod } from "../../shared/review-period.js";
 
 config.autoAddCss = false;
 
@@ -235,6 +201,9 @@ export type {
 export {
   CategoryRankingPanel,
   CategoryRankingView,
+  DashboardPeriodContext,
+  DemoDashboardPage,
+  DemoDashboardView,
   MovementFilterBar,
   MovementsTable,
   MovementsTableHeader,
@@ -250,6 +219,7 @@ export {
   getRecognizedExpenseMovements,
   getSpendingChartDetailMovements,
   isRecognizedExpense,
+  requestFinancialSetupDismiss,
   selectLatestRecognizedExpense,
   summarizeRecognizedExpenses,
   summarizeRecognizedExpensesByKind,
@@ -288,10 +258,6 @@ type FinancialSummaryState =
   | { status: "failed" }
   | { status: "unconfigured" }
   | { status: "ready"; data: FinancialDashboardData };
-
-export function DashboardPeriodContext({ period }: { period: FinancialPeriod | null }) {
-  return period ? <p className="react-dashboard-period-context">Período: {formatPeriodLabel(period)}</p> : null;
-}
 
 export function DashboardPage({ session }: DashboardPageProps) {
   /**
@@ -619,330 +585,6 @@ export function GmailConnectControl({
         onClose={closeConsent}
       />
     </>
-  );
-}
-
-/**
- * The stable identity the demo header shows in the account slot. It is deliberately pictureless:
- * there is no session behind the demo, so the menu names the demo account instead of pretending a
- * real profile exists, and its only action is login, which leaves demo mode. No settings, sync or
- * mutation action is offered here.
- */
-const DEMO_PROFILE: SessionProfile = {
-  name: "Usuario demo",
-  email: "demo@demo.com",
-};
-
-export function DemoDashboardPage({ data, search }: {
-  data: DemoDashboardData;
-  /** The URL query; defaults to the page's own. Only the demo reads it, to enter preview mode (S25). */
-  search?: string;
-}) {
-  const query = search ?? (typeof window === "undefined" ? "" : window.location.search);
-  // S25: `?preview=summary|movements` is the landing phones' read-only embed; absent, the demo is unchanged.
-  const preview = useMemo(() => parseDemoPreview(query), [query]);
-  useDemoPreview(preview);
-  const [view, setView] = useAnimatedView<DashboardView>(preview?.view ?? "summary");
-  const [requestedCategory, setRequestedCategory] = useState<string | null>(null);
-  // S17: the demo opens on "Ajustado"; the choice only changes which day of the cycle is simulated.
-  const [scenario, setScenario] = useState<DemoScenario>(preview?.scenario ?? DEFAULT_DEMO_SCENARIO);
-  return <DemoDashboardView
-    previewMode={preview !== null}
-    data={data}
-    view={view}
-    onViewChange={setView}
-    scenario={scenario}
-    onScenarioChange={setScenario}
-    requestedCategory={requestedCategory ?? undefined}
-    onRequestedCategoryChange={setRequestedCategory}
-  />;
-}
-
-/** Read-only production composition, with local navigation and no mutation capabilities. */
-export function DemoDashboardView({ data, view, onViewChange, requestedCategory, onRequestedCategoryChange, today, scenario = DEFAULT_DEMO_SCENARIO, onScenarioChange, previewMode = false }: {
-  data: DemoDashboardData;
-  /** Embedded as a landing phone (S25): no scenario control and no footer call to action. */
-  previewMode?: boolean;
-  view: DashboardView;
-  onViewChange: (view: DashboardView) => void;
-  requestedCategory?: string;
-  onRequestedCategoryChange: (category: string) => void;
-  /** Calendar day the gauge measures against; when absent it is the day the scenario simulates. */
-  today?: PaceToday;
-  /** "Ver la demo como": which pace state the same data is read as (S17). */
-  scenario?: DemoScenario;
-  onScenarioChange?: (scenario: DemoScenario) => void;
-}) {
-  // Every value below comes from the same pure modules the authenticated summary uses, over the
-  // fixture projected to the server's transaction shape: no API client, no request and no
-  // duplicated calculation. The demo mounts the same shared analytics body as the authenticated
-  // summary instead of the authenticated summary container, so the mutation dialogs, the
-  // account/settings surface and Gmail stay absent by construction. Only read-only selection
-  // controls are interactive.
-  const transactions = getDemoTransactions(data);
-  const summary = summarizeRecognizedExpenses(transactions);
-  const movements = getRecognizedExpenseMovements(transactions);
-  const detailMovements = getSpendingChartDetailMovements(transactions);
-  const periodAnalytics = getPeriodAnalytics(transactions);
-  const categoryRanking = getCategoryRanking(movements, summary.pendingAmountCount);
-  const counterpartyRanking = getDashboardCounterpartyRanking(transactions);
-  const spendingChart = getSpendingChart(movements, data.period, summary.pendingAmountCount);
-  const latestExpense = selectLatestRecognizedExpense(transactions, data.period);
-  const topCategoryGroup =
-    categoryRanking.rows[0] === undefined
-      ? null
-      : { label: categoryRanking.rows[0].category, total: categoryRanking.rows[0].total };
-  const topCounterpartyGroup = getTopCounterpartyGroup(movements);
-  const topInsights = getTopInsights({
-    frequency: getMostFrequentCounterparty(movements),
-    uncategorized: getUncategorizedExpenses(transactions),
-    largest:
-      periodAnalytics.largest === null
-        ? null
-        : { label: periodAnalytics.largest.counterparty, total: periodAnalytics.largest.amount },
-    latest:
-      latestExpense === null
-        ? null
-        : {
-          counterparty: getRecognizedExpenseIdentity(latestExpense),
-          date: formatMovementDate(latestExpense.occurredAt),
-        },
-  });
-  const dashboardStory = getDashboardStory({
-    totalSpending: summary.totalSpending,
-    knownCount: summary.count,
-    pendingAmountCount: summary.pendingAmountCount,
-    reviewCount: periodAnalytics.review.count,
-    topCategory: topCategoryGroup,
-    topCounterparty: topCounterpartyGroup,
-  });
-  const spendingBreakdown = getSpendingBreakdown(summarizeRecognizedExpensesByKind(transactions));
-  // The demo has no configured cycle, so the only income it may claim is the fixture's own inflow
-  // sum, and only when that sum is a real positive amount. A zero inflow is the explicit no-income
-  // state, never a fabricated `$0` income or a remaining balance.
-  const demoIncomeAmount =
-    Number.isFinite(data.currentPeriodInflow) && data.currentPeriodInflow > 0
-      ? data.currentPeriodInflow
-      : null;
-  const dashboardLead = getDashboardLead({
-    periodLabel: formatPeriodLabel(data.period),
-    totalSpending: summary.totalSpending,
-    expenseCount: summary.count,
-    pendingAmountCount: summary.pendingAmountCount,
-    incomeAmount: demoIncomeAmount,
-    incomeSource: "demo-inflow",
-  });
-  // The month gauge reads the same income and total the lead states, so both cannot disagree.
-  const demoPace = getDashboardPace({
-    startDate: data.period.startDate,
-    endDateExclusive: data.period.endDateExclusive,
-    incomeAmount: demoIncomeAmount,
-    totalSpending: summary.totalSpending,
-    today: today ?? getDemoScenarioToday({
-      startDate: data.period.startDate,
-      endDateExclusive: data.period.endDateExclusive,
-      incomeAmount: demoIncomeAmount,
-      totalSpending: summary.totalSpending,
-    }, scenario),
-  });
-  return (
-    <>
-      {/* View changes stay local; the account offers login, never mutations. */}
-      <AppHeader view={view} onViewChange={onViewChange}>
-        <AccountMenu profile={DEMO_PROFILE}>
-          <a href={getGoogleLoginUrl()} role="menuitem">Iniciar sesión</a>
-        </AccountMenu>
-      </AppHeader>
-      <main className={`shell react-shell${view === "movements" ? " react-movements-page" : ""}`}>
-        <section className="panel product-panel react-dashboard-shell demo-dashboard" aria-labelledby="demo-dashboard-title" data-demo-preview={previewMode ? view : undefined}>
-          <header className="react-dashboard-header">
-            <div className="react-dashboard-heading">
-              <p className="react-dashboard-greeting">Hola, {DEMO_PROFILE.name}</p>
-              <h1 id="demo-dashboard-title">{view === "movements" ? "Movimientos" : "Resumen de la cuenta"}</h1>
-              <DashboardPeriodContext period={data.period} />
-              {view === "summary" && (
-                <p className="subtitle">Control y análisis de gastos detectados automáticamente.</p>
-              )}
-            </div>
-            <div className="demo-dashboard-aside">
-              <span className="demo-read-only-badge">Datos de ejemplo · Solo lectura</span>
-              {view === "summary" && !previewMode && <DemoScenarioControl scenario={scenario} onChange={(next) => onScenarioChange?.(next)} />}
-            </div>
-          </header>
-
-          {/* The one shared analytics body: the same sections and order as the authenticated summary.
-					    The demo supplies synthetic data and local category navigation; the chart detail
-					    stays read-only and the account/mutation surfaces never mount. */}
-          {view === "summary" ? <DashboardAnalyticsBody
-            pace={demoPace}
-            paceEndExclusive={data.period.endDateExclusive}
-            paceReplayKey={scenario}
-            lead={dashboardLead}
-            story={dashboardStory}
-            chart={spendingChart}
-            chartDetailMovements={detailMovements}
-            ranking={categoryRanking}
-            counterpartyRanking={counterpartyRanking}
-            categoryMovements={movements}
-            onJumpToCategory={(category) => {
-              onRequestedCategoryChange(category);
-              onViewChange("movements");
-            }}
-            insights={topInsights}
-            breakdown={spendingBreakdown}
-          /> : (
-            <MovementsTable
-              period={data.period}
-              movements={movements}
-              pendingAmountCount={summary.pendingAmountCount}
-              editableMovements={[]}
-              readOnlyReason="Edición deshabilitada en la demo"
-              requestedCategory={requestedCategory}
-              onEdit={() => { }}
-              onRemove={() => { }}
-            />
-          )}
-
-          {!previewMode && <footer className="demo-dashboard-footer">
-            <p>Esta demo no guarda cambios ni se conecta a tu cuenta.</p>
-            <a className="button" href={getGoogleLoginUrl()}>Inicia sesión para editar</a>
-          </footer>}
-        </section>
-      </main>
-      <MobileTabBar view={view} onViewChange={onViewChange} />
-    </>
-  );
-}
-
-interface DashboardAnalyticsBodyProps {
-  /** The month gauge (identity B); absent when the caller has no cycle to measure. */
-  pace?: DashboardPace;
-  /** Exclusive end of the period the pace measures; the gauge says on which day it closes. */
-  paceEndExclusive?: string;
-  /** Replays the gauge sweep when it changes (the demo scenario); omitted, the gauge sweeps only once. */
-  paceReplayKey?: string;
-  /** Opens the cycle editor so the user can add the income the gauge needs. */
-  onAddIncome?: () => void;
-  /** Named counterparties from the same period's raw transactions. */
-  counterpartyRanking: DashboardCounterpartyRanking;
-  /** The decided lead, from `getDashboardLead`. */
-  lead: DashboardLead;
-  /** The decided month story, from `getDashboardStory`. */
-  story: DashboardStory;
-  /** The decided chart, from `getSpendingChart`. */
-  chart: SpendingChart;
-  /** Recognized outflow rows for the read-only chart detail. */
-  chartDetailMovements: SpendingChartDetailMovement[];
-  /** The decided ranking, from `getCategoryRanking`. */
-  ranking: CategoryRanking;
-  /** Individual recognized expenses for the donut detail, from the same period as the ranking. */
-  categoryMovements: readonly RecognizedExpenseMovement[];
-  /** Authenticated-only movement detail action; no edit/mutation is mounted in demo. */
-  onOpenCategoryMovement?: (movementId: string) => void;
-  /** Stored category catalog for the donut colours; absent when the caller has none. */
-  catalog?: readonly Category[];
-  /** Jumps into the caller's movement surface, including the read-only demo table. */
-  onJumpToCategory: (category: string) => void;
-  /** The decided insights, from `getTopInsights`. */
-  insights: DashboardTopInsights;
-  /** Authenticated-only jump to the uncategorized movement filter. */
-  canJumpToUncategorized?: boolean;
-  /** The decided breakdown, from `getSpendingBreakdown`. */
-  breakdown: SpendingBreakdown;
-  /** Opens the read-only chart day detail; absent keeps every row inert in the demo. */
-  onOpenMovement?: (movementId: string) => void;
-}
-
-/**
- * The one dashboard analytics composition both the authenticated summary and the read-only demo mount:
- * the month gauge hero (which holds the income, spent, remaining and percentage once), spending chart, spending-type
- * breakdown, category distribution/ranking and top insights, in that order.
- *
- * It is deliberately internal and holds no state, data or request: each caller decides the data and
- * passes the capabilities it supports. The authenticated summary wires the category jump and the chart
- * detail dialog; the demo wires a local jump without a detail callback, and omits the stored catalog, so
- * the two differ in capabilities and copy, never in layout. The authenticated movement table and the
- * demo's read-only movements list/footer stay outside this body.
- *
- * One semantic wrapper keeps the Stitch composition: a two-column region that keeps the
- * chart/history column beside the category/insight column. The four-up KPI band (lead plus
- * income/budget truth) was merged into the gauge hero (S11), so no figure is stated twice. The spending-type distribution leads
- * the main column, so it sits physically left of the category distribution, which leads the side
- * column. The `Lectura rápida · Inteligencia de gastos` card is a full-width row below both columns (S14),
- * so no gap remains under the shorter one. The card keeps its highlights primary and carries the
- * non-duplicative story note below them. Every panel keeps a single mount,
- * so both trees read the same structure.
- */
-function DashboardAnalyticsBody({
-  pace,
-  paceEndExclusive,
-  paceReplayKey,
-  onAddIncome,
-  lead,
-  story,
-  chart,
-  chartDetailMovements,
-  ranking,
-  counterpartyRanking,
-  categoryMovements,
-  onOpenCategoryMovement,
-  catalog,
-  onJumpToCategory,
-  insights,
-  canJumpToUncategorized,
-  breakdown,
-  onOpenMovement,
-}: DashboardAnalyticsBodyProps) {
-  // The facts the former KPI band carried that no figure repeats: how many expenses the total sums
-  // (and how many had no clear amount), and the pending-amount caveat when a balance is stated.
-  const heroNotes = [
-    lead.spending.detail,
-    lead.balance.amount !== null ? lead.balance.detail : "",
-  ].filter((note) => note.length > 0);
-  return (
-    <div className="react-analytics-body">
-      {/* The month gauge is the hero: it answers "am I on track?" first and holds income, spent, remaining
-          and the share of income once, so the former KPI band and the budget card are merged into it.
-          Every panel below keeps its place. */}
-      {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} notes={heroNotes} periodEndExclusive={paceEndExclusive} replayKey={paceReplayKey} />}
-      {/* Two-column region: the larger chart/history column and the category/insight column. */}
-      <div className="react-analytics-columns">
-        <div className="react-analytics-main">
-          {/* The distribution card leads the main column, so it aligns beside the category card in the
-					    side column at desktop. */}
-          <div className="react-mobile-breakdown">
-            <SpendingBreakdownView breakdown={breakdown} />
-          </div>
-          <div className="react-mobile-evolution">
-            <SpendingChartPanel
-              chart={chart}
-              detailMovements={chartDetailMovements}
-              onOpenMovement={onOpenMovement}
-            />
-          </div>
-        </div>
-        <div className="react-analytics-side">
-          <div className="react-mobile-categories">
-            <CategoryRankingPanel
-              ranking={ranking}
-              catalog={catalog}
-              movements={categoryMovements}
-              onOpenMovement={onOpenCategoryMovement}
-              onJumpToCategory={onJumpToCategory}
-            />
-          </div>
-          <div className="react-mobile-counterparties">
-            <DashboardCounterpartyRankingView ranking={counterpartyRanking} />
-          </div>
-        </div>
-      </div>
-      {/* Full-width row below the panels (S14), as in artboard 01: no gap is left under the shorter column. */}
-      <div className="react-mobile-insights">
-        <TopInsightsView insights={insights} story={story}
-          onJumpToUncategorized={canJumpToUncategorized
-            ? () => onJumpToCategory("Sin categoría") : undefined} />
-      </div>
-    </div>
   );
 }
 
@@ -1715,274 +1357,6 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
       />
     </section>
     {firstResultStep(dashboardPace)}
-    </>
-  );
-}
-
-/** Both rendered pending state and the synchronous submit lock own the dismissal policy. */
-export function requestFinancialSetupDismiss(
-  lock: { current: boolean },
-  isSaving: boolean,
-  onDismiss: () => void,
-): boolean {
-  if (lock.current || isSaving) return false;
-  onDismiss();
-  return true;
-}
-
-function FinancialCycleSetupForm({ onSaved }: { onSaved: () => void }) {
-  // Keep the form mounted while dismissed: reopening retains its draft and validation messages.
-  const [isOpen, setIsOpen] = useState(true);
-  const dialogRef = useRef<HTMLDialogElement | null>(null);
-  useEffect(() => {
-    syncNativeModalDialog(dialogRef.current, isOpen);
-  }, [isOpen]);
-  // The configured review period for a first setup is the current month: it is the range the form
-  // starts on. The calendar's own navigation and selectable bounds are the current year through the
-  // current month, so a historical range the default does not cover is still reachable. Both are
-  // frozen for the life of the form so a midnight rollover cannot re-anchor either mid-edit.
-  const configuredPeriod = useMemo(() => ReviewPeriod.currentMonth().toJSON(), []);
-  const calendarBounds = useMemo(() => getCurrentYearCalendarBounds(), []);
-  const presetToday = useMemo(() => todayInSantiago(new Date()), []);
-  const [startDate, setStartDate] = useState(configuredPeriod.startDate);
-  const [endDate, setEndDate] = useState<string>(ReviewPeriod.create(configuredPeriod).visibleEndDate);
-  // "¿Cuándo empieza tu período?": the calendar month is the default, so the form is valid without extra
-  // input and starts on the same range it always did. The option only decides how the start/end
-  // state is filled; validation and the saved payload read that state, as before.
-  const [option, setOption] = useState<CycleOptionChoice>("calendar");
-  const [payDay, setPayDay] = useState(DEFAULT_PAY_DAY);
-  const [incomeValue, setIncomeValue] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const saveLock = useRef(false);
-  const [error, setError] = useState<string | null>(null);
-  const [incomeError, setIncomeError] = useState<string | null>(null);
-  const [calendarError, setCalendarError] = useState<string | null>(null);
-  /** The legacy two-click range: the first click sets the start, the second sets the end. */
-  const [awaitingRangeEnd, setAwaitingRangeEnd] = useState(false);
-  const calendarRange = { ...createCalendarRange(startDate, endDate), awaitingEnd: awaitingRangeEnd };
-  // The date error lives inside the "Otro rango" reveal, which can be scrolled out of view above the
-  // sticky footer: bring it next to the field that needs fixing.
-  useEffect(() => {
-    if (calendarError) {
-      dialogRef.current?.querySelector(".react-cycle-calendar-error")?.scrollIntoView({ block: "nearest" });
-    }
-  }, [calendarError]);
-  useEffect(() => {
-    if (incomeError) {
-      dialogRef.current?.querySelector(".cycle-field-error")?.scrollIntoView({ block: "nearest" });
-    }
-  }, [incomeError]);
-
-  const handleCalendarSelect = (dateKey: string) => {
-    const next = selectCalendarDate(calendarRange, dateKey);
-    setStartDate(next.startDate);
-    setEndDate(next.endDate);
-    setAwaitingRangeEnd(next.awaitingEnd);
-    setCalendarError(null);
-  };
-
-  const applyRange = (range: { startDate: string; endDate: string }) => {
-    setStartDate(range.startDate);
-    setEndDate(range.endDate);
-    setAwaitingRangeEnd(false);
-    setCalendarError(null);
-    setError(null);
-  };
-
-  const handleOptionChange = (next: CycleOptionChoice) => {
-    setOption(next);
-    // "Otro rango" keeps the dates already there; the other two put their own range in the state.
-    if (next !== "custom") {
-      applyRange(resolveCycleOption(next, presetToday, payDay, { startDate, endDate }));
-    }
-  };
-
-  const handlePayDayChange = (next: number) => {
-    setPayDay(next);
-    applyRange(resolveCycleOption("payDay", presetToday, next, { startDate, endDate }));
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (saveLock.current) return;
-    setIncomeError(null);
-    setError(null);
-
-    // The calendar error is derived here, not rendered on every keystroke: the date half of the
-    // validation is stated inline while the income half keeps the form's existing copy.
-    const dateValidation = validateCalendarRange(startDate, endDate);
-    if (!dateValidation.ok) {
-      setCalendarError(dateValidation.message);
-      setError("Revisa las fechas del período antes de guardar.");
-      return;
-    }
-    setCalendarError(null);
-
-    let cycle: UpdateFinancialCycleRequest;
-    try {
-      cycle = createFinancialCycleSetupPayload(startDate, endDate, incomeValue);
-    } catch {
-      // The dates were just validated, so what is left to fix is the income, shown next to its field.
-      setIncomeError("Ingresa un rango de fechas válido y un ingreso en CLP positivo sin decimales, o deja el ingreso en blanco.");
-      return;
-    }
-
-    saveLock.current = true;
-    setIsSaving(true);
-    setError(null);
-    try {
-      await updateFinancialCycle(cycle);
-      onSaved();
-    } catch {
-      saveLock.current = false;
-      setError("No se pudo guardar tu período financiero. Inténtalo de nuevo.");
-      setIsSaving(false);
-    }
-  };
-
-  const formatIncomeOnBlur = () => {
-    try {
-      const incomeAmount = parseCycleIncome(incomeValue);
-      if (incomeAmount !== null) setIncomeValue(formatIncomeInput(incomeAmount));
-    } catch {
-      // Keep the user's value unchanged so it can be corrected.
-    }
-  };
-
-  return (
-    <>
-    {!isOpen && (
-      <section className="react-financial-state" aria-label="Configuración financiera pendiente">
-        <p>Configura tu período para ver el resumen financiero.</p>
-        <button type="button" onClick={() => setIsOpen(true)}>Configurar período</button>
-      </section>
-    )}
-    <dialog
-      ref={dialogRef}
-      className="react-financial-setup-dialog react-financial-state cycle-dialog"
-      aria-labelledby="react-financial-setup-title"
-      onCancel={(event) => {
-        event.preventDefault();
-        requestFinancialSetupDismiss(saveLock, isSaving, () => setIsOpen(false));
-      }}
-      onClose={() => {
-        if (!requestFinancialSetupDismiss(saveLock, isSaving, () => setIsOpen(false))) {
-          syncNativeModalDialog(dialogRef.current, true);
-        }
-      }}
-    >
-      <form className="react-financial-setup-form cycle-form" onSubmit={handleSubmit} aria-busy={isSaving}>
-        <div className="cycle-body">
-          <div className="cycle-grab" aria-hidden="true" />
-          <header>
-            <ol className="cycle-steps" aria-label="Pasos para empezar">
-              <li className="is-done"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 1, Conectar, hecho</span></li>
-              <li aria-current="step"><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 2, Tu período, paso actual</span></li>
-              <li><span className="cycle-step-bar" aria-hidden="true" /><span className="cycle-sr">Paso 3, Tu medidor</span></li>
-            </ol>
-            <p className="cycle-kicker">Paso 2 de 3 · Tu período</p>
-            <h2 id="react-financial-setup-title" className="cycle-title">¿Cuándo empieza tu período?</h2>
-            <p className="cycle-why">Así sabemos cuánto del período pasó y cuánto te queda.</p>
-          </header>
-          {/* One question, three options; each reveals only what it needs. The date inputs and the
-              calendar live in "Otro rango", and every option fills the same start/end state below. */}
-          <CyclePresets
-            option={option}
-            onOptionChange={handleOptionChange}
-            payDay={payDay}
-            onPayDayChange={handlePayDayChange}
-            range={{ startDate, endDate }}
-            disabled={isSaving}
-            customPane={
-              <>
-                {/* The calendar augments the text inputs; it never replaces them. It is bounded to the
-                    current year through the current month, so any month of the year so far is selectable. */}
-                <CycleCalendar
-                  bounds={calendarBounds}
-                  range={calendarRange}
-                  onSelectDate={handleCalendarSelect}
-                  disabled={isSaving}
-                  error={calendarError}
-                />
-                <div className="cycle-dates">
-                  <label htmlFor="financial-cycle-start-date">
-                    <span>Fecha de inicio</span>
-                    <input
-                      id="financial-cycle-start-date"
-                      type="date"
-                      value={startDate}
-                      onChange={(event) => {
-                        setStartDate(event.target.value);
-                        setCalendarError(null);
-                      }}
-                      disabled={isSaving}
-                      required
-                    />
-                  </label>
-                  <label htmlFor="financial-cycle-end-date">
-                    <span>Fecha de término (inclusive)</span>
-                    <input
-                      id="financial-cycle-end-date"
-                      type="date"
-                      value={endDate}
-                      onChange={(event) => {
-                        setEndDate(event.target.value);
-                        setCalendarError(null);
-                      }}
-                      disabled={isSaving}
-                      required
-                    />
-                  </label>
-                </div>
-              </>
-            }
-          />
-          <section className="cycle-income">
-            <label className="cycle-income-label" htmlFor="financial-cycle-income">
-              ¿Cuánto ganas al mes? <span>(opcional)</span>
-            </label>
-            <div className="cycle-money">
-              <span className="cycle-money-unit cycle-money-prefix" aria-hidden="true">$</span>
-              <input
-                id="financial-cycle-income"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9.]*"
-                autoComplete="off"
-                placeholder="Ej: 900.000"
-                value={incomeValue}
-                onChange={(event) => {
-                  setIncomeValue(event.target.value);
-                  setIncomeError(null);
-                }}
-                onBlur={formatIncomeOnBlur}
-                disabled={isSaving}
-                aria-describedby="financial-cycle-income-help"
-                aria-invalid={incomeError !== null}
-              />
-              <span className="cycle-money-unit cycle-money-suffix" aria-hidden="true">CLP</span>
-            </div>
-            <p className="cycle-help" id="financial-cycle-income-help">Lo usamos para tu medidor. Puedes agregarlo después.</p>
-            {incomeError && <p className="cycle-field-error" role="alert">{incomeError}</p>}
-          </section>
-        </div>
-        <div className="cycle-foot">
-          <CyclePeriodSummary startDate={startDate} endDate={endDate} awaitingEnd={awaitingRangeEnd && !endDate} />
-          {error && <p className="react-financial-setup-error cycle-foot-error" role="alert">{error}</p>}
-          <div className="cycle-actions">
-            <button type="button" className="secondary cycle-btn cycle-btn-ghost" disabled={isSaving}
-              onClick={() => requestFinancialSetupDismiss(saveLock, isSaving, () => setIsOpen(false))}>
-              Cancelar
-            </button>
-            <button type="submit" className="cycle-btn cycle-btn-primary" disabled={isSaving}>
-              {isSaving ? <span className="cycle-spinner" aria-hidden="true" /> : null}
-              {isSaving ? "Guardando período financiero..." : "Guardar y ver mi medidor"}
-            </button>
-          </div>
-          <p className="cycle-sr" aria-live="polite">{isSaving ? "Guardando período financiero..." : ""}</p>
-        </div>
-      </form>
-    </dialog>
     </>
   );
 }

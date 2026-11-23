@@ -1031,7 +1031,7 @@ test("the React financial-cycle setup validates inclusive dates and reloads thro
 	const [client, page, source, styles] = await Promise.all([
 		vite.ssrLoadModule("/src/client/api/client.ts"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
-		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/financial-cycle/FinancialCycleSetupForm.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 	assert.deepEqual(
@@ -1109,10 +1109,7 @@ test("the React financial-cycle setup validates inclusive dates and reloads thro
 	assert.match(source, /react-financial-setup-dialog/);
 	assert.match(styles, /\.react-financial-setup-dialog/);
 	assert.doesNotMatch(
-		source.slice(
-			source.indexOf("function FinancialCycleSetupForm"),
-			source.indexOf("function browserStorage"),
-		),
+		source.slice(source.indexOf("function FinancialCycleSetupForm")),
 		/legacy-app/,
 	);
 	assert.match(styles, /\.react-financial-setup-form/);
@@ -1572,9 +1569,9 @@ test("the React dashboard owns category management instead of redirecting to the
 
 	// Demo is protected structurally, not by a guard function: the read-only demo tree never mounts
 	// the settings surface or its trigger.
-	const demoTree = page.slice(
-		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface CategoryRankingViewProps"),
+	const demoTree = await readFile(
+		new URL("../src/client/components/demo/DemoDashboardPage.tsx", import.meta.url),
+		"utf8",
 	);
 	assert.ok(demoTree.length > 0);
 	assert.doesNotMatch(demoTree, /AccountSettingsDialog|isAccountSettingsOpen|Configuración/);
@@ -6428,17 +6425,18 @@ test("the React authenticated summary mounts the spending chart without adding a
 	});
 	t.after(() => vite.close());
 
-	const page = await readFile(
-		new URL("../src/client/pages/DashboardPage.tsx", import.meta.url),
-		"utf8",
-	);
+	const [page, analyticsPanels, demoSource] = await Promise.all([
+		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/analytics/DashboardAnalyticsPanels.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/demo/DemoDashboardPage.tsx", import.meta.url), "utf8"),
+	]);
 
 	// The chart is derived from the rows and the pending count the summary already computed, so the
 	// page composes it and adds no request of its own.
 	assert.match(page, /from "\.\.\/components\/analytics\/spendingChart"/);
 	assert.match(page, /\bgetSpendingChart\b/);
 	assert.match(page, /const spendingChart = getSpendingChart\(movements, selectedPeriod!, summary\.pendingAmountCount\);/);
-	assert.match(page, /<SpendingChartPanel\s+chart=\{chart\}\s+detailMovements=\{chartDetailMovements\}\s+onOpenMovement=\{onOpenMovement\}\s+\/>/);
+	assert.match(analyticsPanels, /<SpendingChartPanel\s+chart=\{chart\}\s+detailMovements=\{chartDetailMovements\}\s+onOpenMovement=\{onOpenMovement\}\s+\/>/);
 	// The chart's detail dialog reuses the read-only movement modal and wires only the identity setter:
 	// no edit/remove callback, so a row can open its detail but never a mutation action.
 	assert.match(
@@ -6446,7 +6444,8 @@ test("the React authenticated summary mounts the spending chart without adding a
 		/<ViewMovementDialog\s+movement=\{chartDetailMovement\}\s+editableMovement=\{chartDetailMovementEditable\}\s+onClose=\{\(\) => setChartDetailMovementId\(null\)\}\s+\/>/,
 	);
 	// The shared analytics body mounts the chart once for both the authenticated summary and the demo.
-	assert.equal((page.match(/<SpendingChartPanel/g) ?? []).length, 1);
+	assert.equal((analyticsPanels.match(/<SpendingChartPanel/g) ?? []).length, 1);
+	assert.equal((page.match(/<SpendingChartPanel/g) ?? []).length, 0);
 	assert.match(page, /export function SpendingChartView\(/);
 	assert.match(page, /export function SpendingChartPanel\(/);
 	// The default series is the full period, like legacy's `chartTab: "month"`.
@@ -6454,10 +6453,6 @@ test("the React authenticated summary mounts the spending chart without adding a
 	assert.doesNotMatch(page, /loadSpendingChart|fetch\("\/api\/analytics/);
 
 	// The demo tree reuses the same chart over its fixture.
-	const demoSource = page.slice(
-		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface CategoryRankingViewProps"),
-	);
 	assert.notEqual(demoSource, "", "the demo tree must be locatable");
 	assert.match(demoSource, /SpendingChart/);
 	// The demo never wires the chart's movement dialog, so its chart stays read-only selection only.
@@ -6710,9 +6705,9 @@ test("the React authenticated header exposes one Configuración action opening t
 
 	// The demo composition reuses the account menu, but only for its login action: the settings
 	// action, its dialog and every mutation surface stay out of the read-only tree.
-	const demoTree = page.slice(
-		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface CategoryRankingViewProps"),
+	const demoTree = await readFile(
+		new URL("../src/client/components/demo/DemoDashboardPage.tsx", import.meta.url),
+		"utf8",
 	);
 	assert.notEqual(demoTree, "", "the demo tree must be locatable");
 	assert.doesNotMatch(
@@ -7057,8 +7052,9 @@ test("the React app header renders the brand, the bound view navigation and the 
 });
 
 test("the React authenticated page composes the app header over a page-owned view state and the demo reuses it with inert navigation", async () => {
-	const [page, styles] = await Promise.all([
+	const [page, demoTree, styles] = await Promise.all([
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/demo/DemoDashboardPage.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 
@@ -7068,7 +7064,8 @@ test("the React authenticated page composes the app header over a page-owned vie
 		page,
 		/import \{ AppHeader, type DashboardView \} from "\.\.\/components\/shell\/AppHeader";/,
 	);
-	assert.equal((page.match(/<AppHeader/g) ?? []).length, 2);
+	assert.equal((page.match(/<AppHeader/g) ?? []).length, 1);
+	assert.equal((demoTree.match(/<AppHeader/g) ?? []).length, 1);
 	assert.match(page, /<AppHeader view=\{view\} onViewChange=\{setView\}>/);
 	assert.match(page, /const \[view, setView\] = useAnimatedView<DashboardView>\("summary"\);/);
 
@@ -7080,10 +7077,6 @@ test("the React authenticated page composes the app header over a page-owned vie
 	assert.doesNotMatch(page, /react-financial-view-toggle/);
 
 	// The read-only demo reuses the chrome with local, state-driven navigation.
-	const demoTree = page.slice(
-		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface CategoryRankingViewProps"),
-	);
 	assert.notEqual(demoTree, "", "the demo tree must be locatable");
 	assert.match(demoTree, /<AppHeader view=\{view\} onViewChange=\{onViewChange\}>/);
 
@@ -7360,10 +7353,11 @@ test("the React authenticated summary mounts the dashboard lead hero without add
 	});
 	t.after(() => vite.close());
 
-	const page = await readFile(
-		new URL("../src/client/pages/DashboardPage.tsx", import.meta.url),
-		"utf8",
-	);
+	const [page, analyticsPanels, demoSource] = await Promise.all([
+		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/analytics/DashboardAnalyticsPanels.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/demo/DemoDashboardPage.tsx", import.meta.url), "utf8"),
+	]);
 
 	// The hero is derived from the summary and the configured income the cycle already loaded, so the
 	// page composes it and adds no request of its own.
@@ -7375,8 +7369,8 @@ test("the React authenticated summary mounts the dashboard lead hero without add
 	// S11: the lead cards are no longer mounted by the summary (the month gauge hero holds those figures
 	// once and reads its count/pending notes from the same lead); the view itself was removed (S14, S16).
 	assert.equal((page.match(/<DashboardLeadView/g) ?? []).length, 0);
-	assert.match(page, /notes=\{heroNotes\}/);
-	assert.match(page, /lead\.spending\.detail/);
+	assert.match(analyticsPanels, /notes=\{heroNotes\}/);
+	assert.match(analyticsPanels, /lead\.spending\.detail/);
 	assert.doesNotMatch(page, /DashboardLeadView/);
 	// The authenticated call site declares the configured-cycle source, so its hero keeps the stored
 	// income copy; the demo call site declares the demo source instead.
@@ -7392,10 +7386,6 @@ test("the React authenticated summary mounts the dashboard lead hero without add
 	assert.doesNotMatch(page, /<span>Montos pendientes<\/span>/);
 
 	// The demo tree reuses the same hero over its fixture.
-	const demoSource = page.slice(
-		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface CategoryRankingViewProps"),
-	);
 	assert.notEqual(demoSource, "", "the demo tree must be locatable");
 	assert.match(demoSource, /DashboardLead/);
 	assert.match(demoSource, /incomeSource: "demo-inflow"/);
@@ -7645,9 +7635,12 @@ test("the React authenticated summary renders the shared analytics body in the p
 	// The accepted composition has lead/income truth, distribution and chart in the main column,
 	// then category distribution, recipient ranking and intelligence (including its story note).
 	// Removed metrics/story panels retain their data decisions, not duplicate mount sites.
-	const bodySource = page.slice(
-		page.indexOf("interface DashboardAnalyticsBodyProps"),
-		page.indexOf("interface FinancialSummaryProps"),
+	const analyticsPanels = await readFile(
+		new URL("../src/client/components/analytics/DashboardAnalyticsPanels.tsx", import.meta.url),
+		"utf8",
+	);
+	const bodySource = analyticsPanels.slice(
+		analyticsPanels.indexOf("export interface DashboardAnalyticsBodyProps"),
 	);
 	assert.notEqual(bodySource, "", "the shared analytics body must be locatable");
 	// S11: the gauge hero replaces the lead and budget cards at the head of the body.
@@ -7703,13 +7696,13 @@ test("the React authenticated summary renders the shared analytics body in the p
 	// The temporary two-card sidebar pair wrapper and its placement rules are gone.
 	assert.doesNotMatch(page, /react-analytics-pair/);
 	// The shared body is the single mount site for both the authenticated summary and the demo.
-	assert.equal((page.match(/<TopInsightsView insights=\{insights\} story=\{story\}/g) ?? []).length, 1);
-	assert.equal((page.match(/<TopInsightsView/g) ?? []).length, 1);
-	assert.equal((page.match(/<SpendingBreakdownView/g) ?? []).length, 1);
-	assert.match(page, /story\.facts\.map\(\(fact\) =>/);
+	assert.equal((analyticsPanels.match(/<TopInsightsView insights=\{insights\} story=\{story\}/g) ?? []).length, 1);
+	assert.equal((analyticsPanels.match(/<TopInsightsView/g) ?? []).length, 1);
+	assert.equal((analyticsPanels.match(/<SpendingBreakdownView/g) ?? []).length, 1);
+	assert.match(analyticsPanels, /story\.facts\.map\(\(fact\) =>/);
 	assert.match(bodySource, /onJumpToUncategorized=\{canJumpToUncategorized\s*\? \(\) => onJumpToCategory\("Sin categoría"\) : undefined\}/);
-	assert.match(page, /export function TopInsightsView\(/);
-	assert.match(page, /export function SpendingBreakdownView\(/);
+	assert.match(analyticsPanels, /export function TopInsightsView\(/);
+	assert.match(analyticsPanels, /export function SpendingBreakdownView\(/);
 
 	// The duplicate latest-expense card and the plain definition-list breakdown are gone, so the three
 	// facts and the three kind totals are not stated twice.
@@ -8132,10 +8125,15 @@ test("the React category distribution renders the ECharts donut legend, reuses t
 	assert.match(page, /catalog=\{categoryCatalog\}/);
 	// The shared analytics body mounts the ranking wrapper once for both the authenticated summary
 	// and the read-only demo, so the wrapper keeps a single mount site.
-	assert.equal((page.match(/<CategoryRankingPanel/g) ?? []).length, 1);
+	const analyticsPanels = await readFile(
+		new URL("../src/client/components/analytics/DashboardAnalyticsPanels.tsx", import.meta.url),
+		"utf8",
+	);
+	assert.equal((analyticsPanels.match(/<CategoryRankingPanel/g) ?? []).length, 1);
+	assert.equal((page.match(/<CategoryRankingPanel/g) ?? []).length, 0);
 	const summarySource = page.slice(
 		page.indexOf("function FinancialSummary"),
-		page.indexOf("function FinancialCycleSetupForm"),
+		page.indexOf("function browserStorage"),
 	);
 	assert.match(summarySource, /getCategories\(controller\.signal\)/);
 	assert.doesNotMatch(page, /loadCategoryDistribution|fetch\("\/api\/analytics/);
@@ -8599,9 +8597,9 @@ test("the React movements table renders the selection column, the bulk bar and t
 	assert.match(page, /submitBulkCategory=\{submitBulkCategory\}/);
 	assert.match(page, /updateMovement: updateTransaction/);
 	// The demo shares the production table with no editable targets or mutation capabilities.
-	const demoSource = page.slice(
-		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("interface DashboardAnalyticsBodyProps"),
+	const demoSource = await readFile(
+		new URL("../src/client/components/demo/DemoDashboardPage.tsx", import.meta.url),
+		"utf8",
 	);
 	assert.match(demoSource, /<MovementsTable\b[\s\S]*?editableMovements=\{\[\]\}[\s\S]*?readOnlyReason="Edición deshabilitada en la demo"/);
 	assert.doesNotMatch(demoSource, /submitBulkCategory|updateTransaction|syncGmail|createManualExpense|react-movements-bulk/);
@@ -8888,9 +8886,12 @@ test("the React financial-cycle setup and edit flows mount the modal setup and t
 	]);
 
 	// The setup form keeps its two date inputs and the income input, and adds the calendar over them.
-	const setupSource = page.slice(
-		page.indexOf("function FinancialCycleSetupForm"),
-		page.indexOf("function browserStorage"),
+	const setupFile = await readFile(
+		new URL("../src/client/components/financial-cycle/FinancialCycleSetupForm.tsx", import.meta.url),
+		"utf8",
+	);
+	const setupSource = setupFile.slice(
+		setupFile.indexOf("function FinancialCycleSetupForm"),
 	);
 	assert.notEqual(setupSource, "", "the setup form must be locatable");
 	assert.match(setupSource, /<CycleCalendar/);
@@ -9024,9 +9025,9 @@ test("the React demo dashboard composes the read-only analytics without API, Gma
 	);
 
 	// The composition reads no API: the demo tree imports no client and calls no fetch.
-	const demoSource = page.slice(
-		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface CategoryRankingViewProps"),
+	const demoSource = await readFile(
+		new URL("../src/client/components/demo/DemoDashboardPage.tsx", import.meta.url),
+		"utf8",
 	);
 	assert.notEqual(demoSource, "", "the demo tree must be locatable");
 	assert.doesNotMatch(

@@ -130,12 +130,12 @@ test("the summary mounts step 3 as a dialog, not as the inline card", async () =
 	assert.doesNotMatch(source, /<FirstResultExplainer/);
 	assert.match(source, /startFirstResult\(hasSeenFirstResult\(browserStorage\(\)\)\)/);
 	assert.match(source, /observeFirstResult\(/);
-	const summary = source.slice(source.indexOf("function FinancialSummary("), source.indexOf("function FinancialCycleSetupForm"));
+	const summary = source.slice(source.indexOf("function FinancialSummary("), source.indexOf("function browserStorage"));
 	assert.match(summary, /<FirstResultDialog/);
 	assert.match(summary, /onAddIncome=\{/);
 	// Only the authenticated summary mounts it: never the demo.
-	const demo = source.slice(source.indexOf("function DemoDashboardPage"), source.indexOf("function DemoDashboardPage") + 20000);
-	assert.doesNotMatch(demo.slice(0, demo.indexOf("\nfunction ", 10)), /FirstResultDialog/);
+	const demo = await read("src/client/components/demo/DemoDashboardPage.tsx");
+	assert.doesNotMatch(demo, /FirstResultDialog/);
 	// Editing an existing cycle never starts it.
 	assert.doesNotMatch(summary.slice(summary.indexOf("const handleCycleEdited"), summary.indexOf("const handleCycleEdited") + 400), /FirstResult/);
 });

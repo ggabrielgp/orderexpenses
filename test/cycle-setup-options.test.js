@@ -240,8 +240,8 @@ test("the edit-period dialog has the same structure: options, income and a summa
 });
 
 test("the setup form keeps its handlers: the same ids, the same validation, dismissal and the single income field", async () => {
-	const source = await read("src/client/pages/DashboardPage.tsx");
-	const form = source.slice(source.indexOf("function FinancialCycleSetupForm"), source.indexOf("function browserStorage"));
+	const source = await read("src/client/components/financial-cycle/FinancialCycleSetupForm.tsx");
+	const form = source.slice(source.indexOf("function FinancialCycleSetupForm"));
 	for (const id of ["financial-cycle-start-date", "financial-cycle-end-date", "financial-cycle-income", "financial-cycle-income-help"]) {
 		assert.equal((form.match(new RegExp(`id="${id}"`, "g")) ?? []).length, 1, id);
 	}

@@ -107,7 +107,9 @@ test("demo movements view keeps the table and mounts no gauge", () => {
 
 test("authenticated summary feeds the gauge from the configured cycle and offers empty/failed actions", async () => {
 	const source = await read("src/client/pages/DashboardPage.tsx");
-	assert.equal(source.split("<DashboardPaceGauge").length - 1, 1, "the gauge mounts once, inside the shared body");
+	const panels = await read("src/client/components/analytics/DashboardAnalyticsPanels.tsx");
+	assert.equal(panels.split("<DashboardPaceGauge").length - 1, 1, "the gauge mounts once, inside the shared body");
+	assert.equal(source.split("<DashboardPaceGauge").length - 1, 0, "the page delegates the gauge mount to the shared body");
 	assert.match(source, /getDashboardPace\(\{[\s\S]*?startDate: selectedPeriod!\.startDate[\s\S]*?incomeAmount,[\s\S]*?\}\)/);
 	assert.match(source, /onAddIncome=\{openCycleEdit\}/);
 	// Empty summary: the existing copy plus two real actions.

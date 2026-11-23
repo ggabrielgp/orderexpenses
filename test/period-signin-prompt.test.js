@@ -197,7 +197,7 @@ test("the regular edit dialog keeps its title, actions and no skip checkbox", ()
 
 test("the summary wires the prompt to the OAuth return only: the marker is cleared, the skip stored, the demo untouched", async () => {
 	const source = await read("src/client/pages/DashboardPage.tsx");
-	const summary = source.slice(source.indexOf("function FinancialSummary("), source.indexOf("/** Both rendered pending state"));
+	const summary = source.slice(source.indexOf("function FinancialSummary("), source.indexOf("function browserStorage"));
 	assert.match(summary, /decideSignInPrompt\(/);
 	assert.match(summary, /clearSignInMarker\(/);
 	assert.match(summary, /rememberPeriodPromptSkip\(/);
@@ -205,9 +205,7 @@ test("the summary wires the prompt to the OAuth return only: the marker is clear
 	// The first load after the OAuth return reads the server, not a tab cache left from an earlier session.
 	assert.match(summary, /signInPending\.current/);
 	// The read-only demo never mounts the summary or the prompt.
-	const demoStart = source.indexOf("export function DemoDashboardPage");
-	const demoView = source.indexOf("export function DemoDashboardView");
-	const demo = source.slice(demoStart, source.indexOf("\nfunction ", demoView));
+	const demo = await read("src/client/components/demo/DemoDashboardPage.tsx");
 	assert.ok(demo.length > 1000);
 	assert.doesNotMatch(demo, /decideSignInPrompt|signInPeriodPrompt|FinancialCycleEditDialog|clearSignInMarker/);
 });

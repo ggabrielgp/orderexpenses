@@ -15,6 +15,8 @@ import type { Category } from "../../api/types";
 import type { RecognizedExpenseMovement } from "../movements/manualExpense";
 import { formatClp } from "../movements/movementSummary";
 import { CategoryDetailView, CategoryDistributionPanel } from "./CategoryDistributionPanel";
+import { DashboardPaceGauge } from "./DashboardPaceGauge";
+import { SpendingChartPanel } from "./SpendingChartPanel";
 import { formatMovementCount } from "./categoryDistribution";
 import {
   findCategoryRankingRow,
@@ -28,6 +30,9 @@ import type {
   SpendingBreakdown,
   SpendingBreakdownBar,
 } from "./dashboardInsights";
+import type { DashboardLead } from "./dashboardLead";
+import type { DashboardPace } from "./dashboardPace";
+import type { SpendingChart, SpendingChartDetailMovement } from "./spendingChart";
 
 /**
  * The category ranking as one already-decided state: the ranked rows, and the detail of the selected
@@ -377,5 +382,137 @@ export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps)
         </>
       )}
     </section>
+  );
+}
+
+export interface DashboardAnalyticsBodyProps {
+  /** The month gauge (identity B); absent when the caller has no cycle to measure. */
+  pace?: DashboardPace;
+  /** Exclusive end of the period the pace measures; the gauge says on which day it closes. */
+  paceEndExclusive?: string;
+  /** Replays the gauge sweep when it changes (the demo scenario); omitted, the gauge sweeps only once. */
+  paceReplayKey?: string;
+  /** Opens the cycle editor so the user can add the income the gauge needs. */
+  onAddIncome?: () => void;
+  /** Named counterparties from the same period's raw transactions. */
+  counterpartyRanking: DashboardCounterpartyRanking;
+  /** The decided lead, from `getDashboardLead`. */
+  lead: DashboardLead;
+  /** The decided month story, from `getDashboardStory`. */
+  story: DashboardStory;
+  /** The decided chart, from `getSpendingChart`. */
+  chart: SpendingChart;
+  /** Recognized outflow rows for the read-only chart detail. */
+  chartDetailMovements: SpendingChartDetailMovement[];
+  /** The decided ranking, from `getCategoryRanking`. */
+  ranking: CategoryRanking;
+  /** Individual recognized expenses for the donut detail, from the same period as the ranking. */
+  categoryMovements: readonly RecognizedExpenseMovement[];
+  /** Authenticated-only movement detail action; no edit/mutation is mounted in demo. */
+  onOpenCategoryMovement?: (movementId: string) => void;
+  /** Stored category catalog for the donut colours; absent when the caller has none. */
+  catalog?: readonly Category[];
+  /** Jumps into the caller's movement surface, including the read-only demo table. */
+  onJumpToCategory: (category: string) => void;
+  /** The decided insights, from `getTopInsights`. */
+  insights: DashboardTopInsights;
+  /** Authenticated-only jump to the uncategorized movement filter. */
+  canJumpToUncategorized?: boolean;
+  /** The decided breakdown, from `getSpendingBreakdown`. */
+  breakdown: SpendingBreakdown;
+  /** Opens the read-only chart day detail; absent keeps every row inert in the demo. */
+  onOpenMovement?: (movementId: string) => void;
+}
+
+/**
+ * The one dashboard analytics composition both the authenticated summary and the read-only demo mount:
+ * the month gauge hero (which holds the income, spent, remaining and percentage once), spending chart, spending-type
+ * breakdown, category distribution/ranking and top insights, in that order.
+ *
+ * It is deliberately internal and holds no state, data or request: each caller decides the data and
+ * passes the capabilities it supports. The authenticated summary wires the category jump and the chart
+ * detail dialog; the demo wires a local jump without a detail callback, and omits the stored catalog, so
+ * the two differ in capabilities and copy, never in layout. The authenticated movement table and the
+ * demo's read-only movements list/footer stay outside this body.
+ *
+ * One semantic wrapper keeps the Stitch composition: a two-column region that keeps the
+ * chart/history column beside the category/insight column. The four-up KPI band (lead plus
+ * income/budget truth) was merged into the gauge hero (S11), so no figure is stated twice. The spending-type distribution leads
+ * the main column, so it sits physically left of the category distribution, which leads the side
+ * column. The `Lectura rápida · Inteligencia de gastos` card is a full-width row below both columns (S14),
+ * so no gap remains under the shorter one. The card keeps its highlights primary and carries the
+ * non-duplicative story note below them. Every panel keeps a single mount,
+ * so both trees read the same structure.
+ */
+export function DashboardAnalyticsBody({
+  pace,
+  paceEndExclusive,
+  paceReplayKey,
+  onAddIncome,
+  lead,
+  story,
+  chart,
+  chartDetailMovements,
+  ranking,
+  counterpartyRanking,
+  categoryMovements,
+  onOpenCategoryMovement,
+  catalog,
+  onJumpToCategory,
+  insights,
+  canJumpToUncategorized,
+  breakdown,
+  onOpenMovement,
+}: DashboardAnalyticsBodyProps) {
+  // The facts the former KPI band carried that no figure repeats: how many expenses the total sums
+  // (and how many had no clear amount), and the pending-amount caveat when a balance is stated.
+  const heroNotes = [
+    lead.spending.detail,
+    lead.balance.amount !== null ? lead.balance.detail : "",
+  ].filter((note) => note.length > 0);
+  return (
+    <div className="react-analytics-body">
+      {/* The month gauge is the hero: it answers "am I on track?" first and holds income, spent, remaining
+          and the share of income once, so the former KPI band and the budget card are merged into it.
+          Every panel below keeps its place. */}
+      {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} notes={heroNotes} periodEndExclusive={paceEndExclusive} replayKey={paceReplayKey} />}
+      {/* Two-column region: the larger chart/history column and the category/insight column. */}
+      <div className="react-analytics-columns">
+        <div className="react-analytics-main">
+          {/* The distribution card leads the main column, so it aligns beside the category card in the
+					    side column at desktop. */}
+          <div className="react-mobile-breakdown">
+            <SpendingBreakdownView breakdown={breakdown} />
+          </div>
+          <div className="react-mobile-evolution">
+            <SpendingChartPanel
+              chart={chart}
+              detailMovements={chartDetailMovements}
+              onOpenMovement={onOpenMovement}
+            />
+          </div>
+        </div>
+        <div className="react-analytics-side">
+          <div className="react-mobile-categories">
+            <CategoryRankingPanel
+              ranking={ranking}
+              catalog={catalog}
+              movements={categoryMovements}
+              onOpenMovement={onOpenCategoryMovement}
+              onJumpToCategory={onJumpToCategory}
+            />
+          </div>
+          <div className="react-mobile-counterparties">
+            <DashboardCounterpartyRankingView ranking={counterpartyRanking} />
+          </div>
+        </div>
+      </div>
+      {/* Full-width row below the panels (S14), as in artboard 01: no gap is left under the shorter column. */}
+      <div className="react-mobile-insights">
+        <TopInsightsView insights={insights} story={story}
+          onJumpToUncategorized={canJumpToUncategorized
+            ? () => onJumpToCategory("Sin categoría") : undefined} />
+      </div>
+    </div>
   );
 }
