@@ -4,11 +4,12 @@ import test from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("index.html declares favicon, manifest and share metadata", async () => {
+test("index.html declares light and dark favicons, theme colors, manifest and share metadata", async () => {
 	const html = await read("index.html");
 	const description =
 		"Conecta tu Gmail y entiende tus gastos del mes: cuánto te queda, cuánto puedes gastar por día y si vas en ritmo.";
-	assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\/favicon\.svg"/);
+	assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\/favicon\.svg" media="\(prefers-color-scheme: light\)"/);
+	assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\/favicon-dark\.svg" media="\(prefers-color-scheme: dark\)"/);
 	assert.match(html, /<link rel="manifest" href="\/manifest\.webmanifest"/);
 	assert.ok(html.includes(`<meta name="description" content="${description}"`));
 	assert.match(html, /<meta property="og:type" content="website"/);
@@ -21,7 +22,8 @@ test("index.html declares favicon, manifest and share metadata", async () => {
 	// Existing document basics stay.
 	assert.match(html, /<html lang="es">/);
 	assert.match(html, /name="viewport"/);
-	assert.match(html, /<meta name="theme-color" content="#f6f5f2"/);
+	assert.match(html, /<meta name="theme-color" content="#f6f5f2" media="\(prefers-color-scheme: light\)"/);
+	assert.match(html, /<meta name="theme-color" content="#131b2e" media="\(prefers-color-scheme: dark\)"/);
 	assert.match(html, /<title>Gastos Controlados<\/title>/);
 });
 
@@ -42,11 +44,20 @@ test("web manifest describes the installable app", async () => {
 });
 
 // iOS ignores SVG and manifest icons for "Agregar a inicio": without an opaque PNG it screenshots the page.
-test("home screen icons are opaque PNGs at their declared size", async () => {
+test("home screen icons (light and dark) are opaque PNGs at their declared size", async () => {
 	const html = await read("index.html");
-	assert.match(html, /<link rel="apple-touch-icon" sizes="180x180" href="\/apple-touch-icon\.png"/);
+	assert.match(html, /<link[^>]*rel="apple-touch-icon"[^>]*sizes="180x180"[^>]*href="\/apple-touch-icon\.png"/);
+	assert.match(html, /\/apple-touch-icon-dark\.png/);
+	assert.match(html, /prefers-color-scheme:\s*dark/);
 	assert.match(html, /<meta name="apple-mobile-web-app-title" content="Gastos"/);
-	for (const [file, size] of [["apple-touch-icon.png", 180], ["icon-192.png", 192], ["icon-512.png", 512]]) {
+	for (const [file, size] of [
+		["apple-touch-icon.png", 180],
+		["icon-192.png", 192],
+		["icon-512.png", 512],
+		["apple-touch-icon-dark.png", 180],
+		["icon-192-dark.png", 192],
+		["icon-512-dark.png", 512],
+	]) {
 		const png = await readFile(new URL(`../public/${file}`, import.meta.url));
 		assert.equal(png.subarray(1, 4).toString("latin1"), "PNG", file);
 		assert.equal(png.readUInt32BE(16), size, `${file} width`);
@@ -56,24 +67,44 @@ test("home screen icons are opaque PNGs at their declared size", async () => {
 	}
 });
 
-test("favicon is the month gauge mark as an svg", async () => {
+test("favicon is the month gauge mark as an svg and adapts automatically to dark mode", async () => {
 	const svg = await read("public/favicon.svg");
 	assert.match(svg, /^<svg[^>]*xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
 	assert.match(svg, /viewBox="0 0 56 56"/);
 	assert.match(svg, /#0b7a6b/);
+	assert.match(svg, /@media\s*\(prefers-color-scheme:\s*dark\)/);
+	assert.match(svg, /#2ab5a0/);
+	assert.match(svg, /#f8fbff/);
 	assert.match(svg, /rotate\(240 28 28\)/);
 	assert.match(svg, /<\/svg>\s*$/);
+
+	const darkSvg = await read("public/favicon-dark.svg");
+	assert.match(darkSvg, /^<svg[^>]*xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+	assert.match(darkSvg, /viewBox="0 0 56 56"/);
+	assert.match(darkSvg, /#2a3650/);
+	assert.match(darkSvg, /#2ab5a0/);
+	assert.match(darkSvg, /#f8fbff/);
+	assert.match(darkSvg, /rotate\(240 28 28\)/);
+	assert.match(darkSvg, /<\/svg>\s*$/);
 });
 
 // The mark's centre is a peso sign drawn as a path (never font-dependent text), identical in every copy.
 const PESO_SIGN = "M33 21.6C32.1 19.7 30.3 18.6 28 18.6c-2.9 0-4.9 1.6-4.9 3.9 0 2.6 2.3 3.6 4.9 4.3 2.9.8 5.1 1.9 5.1 4.6 0 2.5-2.2 4.2-5.1 4.2-2.4 0-4.3-1.2-5.2-3.2M28 15.5v25";
 test("every copy of the brand mark centres the peso sign instead of a dot", async () => {
-	for (const path of ["public/favicon.svg", "src/client/components/brand/BrandMark.tsx", "scripts/brand/app-icon.svg"]) {
+	for (const path of [
+		"public/favicon.svg",
+		"public/favicon-dark.svg",
+		"src/client/components/brand/BrandMark.tsx",
+		"scripts/brand/app-icon.svg",
+		"scripts/brand/app-icon-dark.svg",
+	]) {
 		const source = await read(path);
 		assert.ok(source.includes(`d="${PESO_SIGN}"`), `${path} must draw the peso sign`);
 		assert.doesNotMatch(source, /r="5"/, `${path} must not keep the centre dot`);
 		assert.doesNotMatch(source, /<text/, `${path} must not depend on a font`);
 	}
+	const darkTile = await read("scripts/brand/app-icon-dark.svg");
+	assert.match(darkTile, /<rect width="100" height="100" fill="#131b2e"/);
 });
 
 test("design tokens add the Semáforo sereno palette and keep the base ones", async () => {

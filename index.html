@@ -3,11 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f6f5f2" />
+    <meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#131b2e" media="(prefers-color-scheme: dark)" />
     <title>Gastos Controlados</title>
     <meta name="description" content="Conecta tu Gmail y entiende tus gastos del mes: cuánto te queda, cuánto puedes gastar por día y si vas en ritmo." />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon-dark.svg" media="(prefers-color-scheme: dark)" />
+    <link id="apple-touch-icon" rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <script>
+      (function () {
+        var mq = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+        var link = document.getElementById("apple-touch-icon");
+        if (!mq || !link) return;
+        function sync() {
+          link.href = mq.matches ? "/apple-touch-icon-dark.png" : "/apple-touch-icon.png";
+        }
+        sync();
+        if (mq.addEventListener) mq.addEventListener("change", sync);
+      })();
+    </script>
     <meta name="apple-mobile-web-app-title" content="Gastos" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta property="og:type" content="website" />
