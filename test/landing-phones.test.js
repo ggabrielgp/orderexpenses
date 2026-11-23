@@ -9,7 +9,7 @@ import { createServer } from "vite";
 // non-interactive and lazy-loaded, with a text alternative. They never draw a hand-built mock again.
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const exists = (path) => access(new URL(`../${path}`, import.meta.url)).then(() => true, () => false);
-let vite, Hero, Tour, Page, preview, data;
+let vite, Hero, Tour, Page, DemoDashboardView, preview, data;
 
 before(async () => {
 	vite = await createServer({
@@ -19,6 +19,7 @@ before(async () => {
 	Hero = (await vite.ssrLoadModule("/src/client/components/landing/LandingHero.tsx")).LandingHero;
 	Tour = (await vite.ssrLoadModule("/src/client/components/landing/LandingTourSection.tsx")).LandingTourSection;
 	Page = (await vite.ssrLoadModule("/src/client/pages/LandingPage.tsx")).LandingPage;
+	DemoDashboardView = (await vite.ssrLoadModule("/src/client/components/demo/DemoDashboardPage.tsx")).DemoDashboardView;
 	preview = await vite.ssrLoadModule("/src/client/components/demo/demoPreview.ts");
 	const demo = await vite.ssrLoadModule("/src/client/demo-data.ts");
 	data = demo.createDemoDashboardData(JSON.parse(await read("public/demo-data.json")), new Date(2026, 4, 20));
@@ -139,4 +140,49 @@ test("the hand-built mock markup and its CSS are gone", async () => {
 	assert.doesNotMatch(tourCss, /react-cycle-calendar|react-movements|react-create-expense|landing-tour-modal|landing-tour-period-fields/);
 	const tourSource = await read("src/client/components/landing/LandingTourSection.tsx");
 	assert.doesNotMatch(tourSource, /ExpenseFormPreview|CycleCalendar|MovementsTableView|demo-data/);
+});
+
+test("mobile hero badges float over the iPhone instead of stacking statically below it", async () => {
+	const css = await read("src/client/components/landing/landing-hero-stage.css");
+	const mobileBlock = css.match(/@media\s*\(width\s*<\s*1024px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+	assert.ok(mobileBlock.length > 0, "expected @media (width < 1024px) block");
+	assert.match(mobileBlock, /\.landing-page \.landing-stage \.landing-info-card\s*\{[^}]*position:\s*absolute/);
+	assert.match(mobileBlock, /\.landing-page \.landing-stage \.landing-info-card\s*\{[^}]*z-index:\s*3/);
+	assert.doesNotMatch(mobileBlock, /position:\s*static/);
+	assert.doesNotMatch(mobileBlock, /animation:\s*none/);
+});
+
+test("DemoDashboardView renders the central + tabbar button in previewMode and omits it in standalone demo", () => {
+	const noop = () => {};
+	const previewHtml = renderToStaticMarkup(React.createElement(DemoDashboardView, {
+		data,
+		view: "summary",
+		onViewChange: noop,
+		onRequestedCategoryChange: noop,
+		previewMode: true,
+	}));
+	assert.match(previewHtml, /class="react-mobile-tabbar"/);
+	assert.match(previewHtml, /class="react-mobile-tabbar-add"/);
+	assert.doesNotMatch(previewHtml, /react-mobile-tabbar-two/);
+
+	const standaloneHtml = renderToStaticMarkup(React.createElement(DemoDashboardView, {
+		data,
+		view: "summary",
+		onViewChange: noop,
+		onRequestedCategoryChange: noop,
+		previewMode: false,
+	}));
+	assert.match(standaloneHtml, /class="react-mobile-tabbar react-mobile-tabbar-two"/);
+	assert.doesNotMatch(standaloneHtml, /react-mobile-tabbar-add/);
+});
+
+test("preview mode CSS locks pointer events inside the iframe and keeps the bottom tabbar flush", async () => {
+	const demoPreviewCss = await read("src/client/components/demo/demo-preview.css");
+	assert.match(demoPreviewCss, /body:has\(\[data-demo-preview\]\)[\s\S]*?pointer-events:\s*none\s*!important/);
+	assert.match(demoPreviewCss, /touch-action:\s*none/);
+	assert.match(demoPreviewCss, /\.react-mobile-tabbar\s*\{[^}]*bottom:\s*-2px/);
+
+	const liveCss = await read("src/client/components/landing/landing-phone-live.css");
+	assert.match(liveCss, /\.landing-phone-live-viewport\s*\{[^}]*pointer-events:\s*none/);
+	assert.match(liveCss, /\.landing-phone-home\s*\{[^}]*position:\s*absolute/);
 });

@@ -1,14 +1,24 @@
 /*
- * Hero stage (S25). The phone shows the real app, so the floating info cards must never cover it: under
- * 1024px they sit in rows below the phone, and from 1024px they only touch its edges (the legacy
- * positions overlapped the real gauge and tab bar). Scoped to `.landing-stage`; styles.css still owns the
- * card look.
+ * Hero stage (S25). The phone shows the real app, and the floating info cards sit cleanly over its edges:
+ * under 1024px they float compactly over the centered phone (top-left, mid-right, bottom-left above the
+ * tabbar) while keeping the gentle float animation; from 1024px they flank the handset edges. Scoped to
+ * `.landing-stage`; styles.css still owns the card look and reduced-motion pause.
  */
+.landing-page .landing-stage .landing-info-card {
+	box-shadow:
+		0 14px 32px rgb(19 27 46 / 0.16),
+		0 4px 12px rgb(19 27 46 / 0.1),
+		0 0 0 1px rgb(19 27 46 / 0.05);
+}
+
 @media (width < 1024px) {
 	.landing-page .landing-stage {
+		position: relative;
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		padding: 0;
+		grid-template-columns: minmax(0, 1fr);
+		justify-items: center;
+		max-width: 396px;
+		padding: 8px 0 0;
 	}
 
 	.landing-page .landing-stage .landing-phone {
@@ -17,19 +27,53 @@
 	}
 
 	.landing-page .landing-stage .landing-info-card {
-		position: static;
+		position: absolute;
+		z-index: 3;
+		grid-area: auto;
+		gap: 8px;
 		width: auto;
-		max-width: 100%;
-		min-height: 60px;
+		max-width: min(172px, calc(100% - 12px));
+		min-height: 50px;
 		margin: 0;
-		padding: 10px;
-		animation: none;
+		padding: 8px 10px;
+		border-radius: 14px;
 	}
 
-	.landing-page .landing-stage .landing-connected { grid-column: 1; grid-row: 2; justify-self: stretch; }
-	.landing-page .landing-stage .landing-sync-note { grid-column: 2; grid-row: 2; justify-self: stretch; }
-	.landing-page .landing-stage .landing-budget { grid-column: 1 / -1; grid-row: 3; justify-self: center; width: 196px; }
-	.landing-page .landing-stage .landing-stage-caption { grid-row: 4; margin-top: 0; }
+	.landing-page .landing-stage .landing-info-icon {
+		width: 28px;
+		height: 28px;
+		border-radius: 9px;
+		font-size: 17px;
+	}
+
+	.landing-page .landing-stage .landing-connected {
+		top: 18px;
+		right: auto;
+		bottom: auto;
+		left: 0;
+		max-width: 136px;
+	}
+
+	.landing-page .landing-stage .landing-budget {
+		top: 56%;
+		right: 0;
+		bottom: auto;
+		left: auto;
+		max-width: 168px;
+	}
+
+	.landing-page .landing-stage .landing-sync-note {
+		top: auto;
+		right: auto;
+		bottom: 112px;
+		left: 0;
+		max-width: 164px;
+	}
+
+	.landing-page .landing-stage .landing-stage-caption {
+		grid-row: 2;
+		margin-top: 0;
+	}
 }
 
 @media (width >= 1024px) {

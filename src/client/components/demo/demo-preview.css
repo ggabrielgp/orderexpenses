@@ -12,3 +12,27 @@ html.demo-preview body {
 	-webkit-user-select: none;
 	user-select: none;
 }
+
+/* Lock all pointer, tap, and selection interactions inside embedded landing previews (including iOS Safari). */
+html.demo-preview,
+html.demo-preview body,
+html.demo-preview *,
+body:has([data-demo-preview]),
+body:has([data-demo-preview]) *,
+[data-demo-preview],
+[data-demo-preview] * {
+	pointer-events: none !important;
+	-webkit-user-select: none !important;
+	user-select: none !important;
+	-webkit-touch-callout: none !important;
+	touch-action: none;
+}
+
+/* Keep the bottom tabbar completely flush against the scaled iframe bottom edge with an opaque surface. */
+html.demo-preview .react-mobile-tabbar,
+body:has([data-demo-preview]) .react-mobile-tabbar {
+	bottom: -2px;
+	padding-bottom: 18px;
+	background: var(--color-surface, #ffffff);
+	backdrop-filter: none;
+}

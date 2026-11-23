@@ -228,7 +228,11 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
           </footer>}
         </section>
       </main>
-      <MobileTabBar view={view} onViewChange={onViewChange} />
+      <MobileTabBar
+        view={view}
+        onViewChange={onViewChange}
+        onAddExpense={previewMode ? () => {} : undefined}
+      />
     </>
   );
 }

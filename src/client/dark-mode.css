@@ -286,7 +286,7 @@
 }
 
 :root[data-theme="dark"] .react-mobile-tabbar {
-	background: rgb(22 30 46 / 0.95);
+	background: #161e2e;
 	border-top-color: var(--color-line);
 	box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.36);
 }
@@ -757,6 +757,15 @@
 :root[data-theme="dark"] .landing-page .landing-connected .landing-info-icon {
 	background: var(--color-success-soft);
 	color: var(--color-success);
+}
+
+:root[data-theme="dark"] .landing-page .landing-stage .landing-info-card {
+	background: #1b2538;
+	border-color: #3a4c6e;
+	box-shadow:
+		0 16px 36px rgb(0 0 0 / 0.62),
+		0 4px 14px rgb(0 0 0 / 0.42),
+		0 0 0 1px rgb(220 227 238 / 0.08);
 }
 
 :root[data-theme="dark"] .landing-page .landing-tour .landing-tour-arrow {
