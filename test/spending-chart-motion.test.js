@@ -230,7 +230,7 @@ test("motion refs preserve populated/empty detail markup and tab/day/movement ca
 });
 
 test("only the stateful panel supplies motion refs; direct view callers keep their native controls", async () => {
-	const source = await read("src/client/pages/DashboardPage.tsx");
+	const source = await read("src/client/components/analytics/SpendingChartPanel.tsx");
 	const view = source.slice(source.indexOf("export function SpendingChartView("), source.indexOf("export interface SpendingChartPanelProps"));
 	assert.doesNotMatch(view, /useSpendingChartMotion\(/);
 	assert.match(view, /ref=\{motion\?\.chartRef\}/);

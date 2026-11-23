@@ -124,7 +124,7 @@ test("the control is demo-only: the movements view and the authenticated page ne
 	assert.doesNotMatch(renderToStaticMarkup(createElement(page.DashboardPage, { session: { authenticated: true, profile: { email: "a@b.cl", name: "A" }, gmail: { connected: true, connectUrl: "/auth/google" } } })), /Ver la demo como|demo-scenario/);
 	const source = await read("src/client/pages/DashboardPage.tsx");
 	const demoStart = source.indexOf("export function DemoDashboardPage");
-	const demoEnd = source.indexOf("export interface CategoryRankingViewProps");
+	const demoEnd = source.indexOf("interface DashboardAnalyticsBodyProps");
 	assert.ok(demoStart > 0 && demoEnd > demoStart);
 	// Past the import block: only the demo composition may use the scenario control and its day.
 	const outside = source.slice(source.indexOf("config.autoAddCss"), demoStart) + source.slice(demoEnd);

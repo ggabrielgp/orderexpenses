@@ -1,24 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { useSpendingChartMotion } from "../hooks/useSpendingChartMotion";
-import { SpendingDayDetailDialog } from "../components/analytics/SpendingDayDetailDialog";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { DashboardPaceGauge } from "../components/analytics/DashboardPaceGauge";
+import {
+  CategoryRankingPanel,
+  CategoryRankingView,
+  DashboardCounterpartyRankingView,
+  SpendingBreakdownView,
+  TopInsightsView,
+  type CategoryRankingPanelProps,
+  type CategoryRankingViewProps,
+  type SpendingBreakdownViewProps,
+  type TopInsightsViewProps,
+} from "../components/analytics/DashboardAnalyticsPanels";
+import {
+  SpendingChartPanel,
+  SpendingChartView,
+  type SpendingChartPanelProps,
+  type SpendingChartViewProps,
+} from "../components/analytics/SpendingChartPanel";
 import { getDashboardPace, todayInSantiago, type DashboardPace, type PaceToday } from "../components/analytics/dashboardPace";
 import { config } from "@fortawesome/fontawesome-svg-core";
 import {
-  faArrowRightArrowLeft,
   faArrowsRotate,
-  faBolt,
   faCalendarDays,
-  faCartShopping,
-  faChartColumn,
-  faChartPie,
-  faClock,
-  faLightbulb,
   faReceipt,
   faRightFromBracket,
-  faStore,
-  faTags,
-  faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 // The base Font Awesome stylesheet is imported once here and runtime injection is disabled, so the
@@ -90,16 +95,10 @@ import {
   type DashboardCounterpartyRanking,
 } from "../components/analytics/dashboardCounterpartyRanking";
 import {
-  findCategoryRankingRow,
   getCategoryRanking,
   type CategoryRanking,
-  type CategoryRankingRow,
 } from "../components/analytics/categoryRanking";
-import {
-  CategoryDetailView,
-  CategoryDistributionPanel,
-} from "../components/analytics/CategoryDistributionPanel";
-import { createCategoryColorResolver, formatMovementCount } from "../components/analytics/categoryDistribution";
+import { createCategoryColorResolver } from "../components/analytics/categoryDistribution";
 import {
   getDashboardLead,
   type DashboardLead,
@@ -114,20 +113,12 @@ import {
   type DashboardStory,
   type DashboardTopInsights,
   type SpendingBreakdown,
-  type SpendingBreakdownBar,
 } from "../components/analytics/dashboardInsights";
 import {
-  FULL_PERIOD_TAB_ID,
   getSpendingChart,
-  getSpendingChartDayDetail,
-  getSpendingChartDefaultDayKey,
   getSpendingChartKindLabel,
-  getSpendingChartSeries,
-  getSpendingChartTotalsRows,
   type SpendingChart,
-  type SpendingChartBar,
   type SpendingChartDetailMovement,
-  type SpendingChartSeries,
 } from "../components/analytics/spendingChart";
 import {
   CreateManualExpenseDialog,
@@ -266,8 +257,22 @@ config.autoAddCss = false;
 // The recognized-expense row type is owned by the movements module; it stays re-exported
 // here so the page's public type surface is unchanged. `formatPeriodLabel` and the pure movement
 // summary helpers are re-exported for the same reason: one shared definition, an unchanged public surface.
-export type { RecognizedExpenseMovement };
+export type {
+  CategoryRankingPanelProps,
+  CategoryRankingViewProps,
+  RecognizedExpenseMovement,
+  SpendingBreakdownViewProps,
+  SpendingChartPanelProps,
+  SpendingChartViewProps,
+  TopInsightsViewProps,
+};
 export {
+  CategoryRankingPanel,
+  CategoryRankingView,
+  SpendingBreakdownView,
+  SpendingChartPanel,
+  SpendingChartView,
+  TopInsightsView,
   createFinancialCycleSetupPayload,
   formatPeriodLabel,
   getEditableRecognizedExpenseMovements,
@@ -836,732 +841,6 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
       </main>
       <MobileTabBar view={view} onViewChange={onViewChange} />
     </>
-  );
-}
-
-/**
- * The category ranking as one already-decided state: the ranked rows, and the detail of the selected
- * row when there is one.
- *
- * Exported so both the list and the detail markup are provable from a static render, like
- * other analytics views: a live summary only ever reaches the list without a session, and what the
- * detail claims is worth proving from what the user reads. The component renders the decisions the
- * pure module made and computes nothing of its own.
- *
- * The merged tail offers no jump: `Otras categorías` is not a category the movement filter can
- * select, so a control that pretended otherwise would narrow the table to nothing. Its detail lists
- * the categories it merged, which is the part of the distribution a user can still act on.
- */
-export interface CategoryRankingViewProps {
-  /** The decided ranking, from `getCategoryRanking`. */
-  ranking: CategoryRanking;
-  /** Category whose detail is shown, or `null` for the ranked list. */
-  selectedCategory: string | null;
-  onSelect: (category: string) => void;
-  onClearSelection: () => void;
-  /** Jumps into the movement table filter; never called for the merged tail. */
-  onJumpToCategory: (category: string) => void;
-}
-
-export function CategoryRankingView({
-  ranking,
-  selectedCategory,
-  onSelect,
-  onClearSelection,
-  onJumpToCategory,
-}: CategoryRankingViewProps) {
-  const selectedRow: CategoryRankingRow | null =
-    selectedCategory === null ? null : findCategoryRankingRow(ranking, selectedCategory);
-
-  return (
-    <section className="react-category-ranking" aria-labelledby="react-category-ranking-title">
-      <h3 id="react-category-ranking-title">Gasto reconocido por categoría</h3>
-      {/* The excluded outflows are their own fact, stated only when there is one to state. */}
-      {ranking.disclosure !== null && (
-        <p className="react-category-ranking-disclosure" role="status">{ranking.disclosure}</p>
-      )}
-      {ranking.rows.length === 0 ? (
-        <p className="react-category-ranking-empty" role="status">
-          Aún no hay gastos con monto conocido para distribuir por categoría en este período.
-        </p>
-      ) : selectedRow === null ? (
-        <ul className="react-category-ranking-list">
-          {ranking.rows.map((row) => (
-            <li key={row.category}>
-              <button
-                type="button"
-                className="react-category-ranking-row"
-                onClick={() => onSelect(row.category)}
-              >
-                <strong>{row.category}</strong>
-                <small>
-                  {formatClp(row.total)} · {row.share}% · {formatMovementCount(row.count)}
-                </small>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <CategoryDetailView
-          row={selectedRow}
-          onClearSelection={onClearSelection}
-          onJumpToCategory={onJumpToCategory}
-          formatAmount={formatClp}
-        />
-      )}
-    </section>
-  );
-}
-
-/**
- * The legacy `¿A dónde se fue tu dinero?` mount point: it hands the decided ranking, the stored colours
- * and the jump to the distribution container, which owns the selection. The jump stays the
- * summary's, because only the summary can switch to the movements view and carry the requested
- * category into it.
- */
-export interface CategoryRankingPanelProps {
-  ranking: CategoryRanking;
-  /** Stored category catalog, used for the donut and legend colours. */
-  catalog?: readonly Category[];
-  onJumpToCategory: (category: string) => void;
-  movements?: readonly RecognizedExpenseMovement[];
-  onOpenMovement?: (movementId: string) => void;
-}
-
-export function CategoryRankingPanel({ ranking, catalog, onJumpToCategory, movements, onOpenMovement }: CategoryRankingPanelProps) {
-  return (
-    <CategoryDistributionPanel
-      ranking={ranking}
-      catalog={catalog}
-      onJumpToCategory={onJumpToCategory}
-      formatAmount={formatClp}
-      movements={movements}
-      onOpenMovement={onOpenMovement}
-    />
-  );
-}
-
-/**
- * Accessible name of one bar: it names the day and, when it carries a value, the total it selects.
- * A padded day outside the period is stated as outside instead of claiming a zero.
- */
-function getSpendingChartBarLabel(series: SpendingChartSeries, day: SpendingChartBar): string {
-  if (!day.isInPeriod) return `${day.label}, fuera del período`;
-  const prefix =
-    series.mode === "period"
-      ? `Ver detalle de ${day.titleDetail ?? day.label}`
-      : `Ver detalle de ${day.label} ${day.detail}`;
-  return `${prefix}: ${day.total > 0 ? formatClp(day.total) : "$0"}`;
-}
-
-/**
- * Native hover tooltip for one bar track, restored from legacy's `track.title`
- * (`public/app.js:2286-2289`): the weekday label plus the day's date (or the period-wide weekday
- * detail) and its total, and the explicit "outside the period" wording for a padded day.
- */
-function getSpendingChartBarTitle(day: SpendingChartBar): string {
-  if (!day.isInPeriod) return `${day.label}: fuera del período`;
-  const detail = day.titleDetail ?? day.detail;
-  return `${day.label} · ${detail}: ${day.total > 0 ? formatClp(day.total) : "$0"}`;
-}
-
-/**
- * The spending chart as one already-decided state: the selected series, its proportional bars, the
- * read-only detail of the selected bar and the totals summary grid.
- *
- * Exported so the populated and empty markup are provable from a static render, like the other
- * analytics panels. The component renders the heights, the detail and the totals the pure module
- * decided and computes nothing of its own beyond the string labels that need the page formatter.
- *
- * Bars are selectable buttons again, like legacy's `weekly-bar` buttons (`public/app.js:2277`), so
- * each one carries `aria-pressed` and `aria-controls` for the detail panel. A padded day outside the
- * period is disabled and cannot become the selected day. The detail itself offers no edit or delete
- * action: a row with an identity can open the read-only movement dialog, and a row without one stays
- * plain text. `onOpenMovement` is optional so the read-only demo can select bars without ever
- * mounting a dialog.
- */
-export interface SpendingChartViewProps {
-  /** The decided chart, from `getSpendingChart`. */
-  chart: SpendingChart;
-  /** Id of the tab whose series is shown; an unknown id falls back to the full period. */
-  selectedTab: string;
-  onSelectTab: (tabId: string) => void;
-  /** Calendar key of the selected bar, or `null` while none is selected. */
-  selectedDayKey: string | null;
-  onSelectDay: (dayKey: string) => void;
-  /** Recognized outflow rows the read-only detail reads. */
-  detailMovements: SpendingChartDetailMovement[];
-  /** Opens the read-only movement dialog for a row identity; absent keeps every row inert. */
-  onOpenMovement?: (movementId: string) => void;
-  /** Optional instance identifiers when a page illustrates this chart more than once. */
-  titleId?: string;
-  detailId?: string;
-  /** Supplied by the interactive owner; static previews need no effects or hooks. */
-  motion?: ReturnType<typeof useSpendingChartMotion>;
-  /** Interactive mobile owner may wrap the one detail presentation in a native dialog. */
-  dayDetailPresentation?: (detail: ReactNode) => ReactNode;
-  dayDetailIsModal?: boolean;
-  /** Dashboard-only visual shorthand; exact amounts remain in accessible names and detail. */
-  compactMobileLabels?: boolean;
-}
-
-const DAY_DETAIL_ID = "react-spending-chart-day-detail";
-
-export function SpendingChartView({
-  chart,
-  selectedTab,
-  onSelectTab,
-  selectedDayKey,
-  onSelectDay,
-  detailMovements,
-  onOpenMovement,
-  titleId = "react-spending-chart-title",
-  detailId = DAY_DETAIL_ID,
-  motion,
-  dayDetailPresentation = (detail) => detail,
-  dayDetailIsModal = false,
-  compactMobileLabels = false,
-}: SpendingChartViewProps) {
-  const series = getSpendingChartSeries(chart, selectedTab);
-  const selectedDay =
-    selectedDayKey === null ? null : series.days.find((day) => day.key === selectedDayKey) ?? null;
-  const detail = getSpendingChartDayDetail(series, selectedDay, detailMovements);
-  const totalsRows = getSpendingChartTotalsRows(chart, series.id);
-  const [startDate, endDate] = series.detail.split(" - ");
-  return (
-    <section className="react-spending-chart" aria-labelledby={titleId}>
-      <div className="react-spending-chart-header">
-        <h3 id={titleId}>Gasto por día de la semana</h3>
-        {/* Decorative: the adjacent title names the card, so the glyph is hidden. */}
-        <span className="react-card-icon" aria-hidden="true">
-          <FontAwesomeIcon icon={faChartColumn} />
-        </span>
-      </div>
-      {/* Each excluded fact is its own statement, only when there is one to state. */}
-      {chart.disclosures.map((disclosure) => (
-        <p key={disclosure} className="react-spending-chart-disclosure" role="status">
-          {disclosure}
-        </p>
-      ))}
-      {!chart.hasData ? (
-        <p className="react-spending-chart-empty" role="status">
-          {chart.emptyMessage}
-        </p>
-      ) : (
-        <>
-          <div
-            ref={(element) => {
-              if (motion?.tabsSelection) motion.tabsSelection.containerRef.current = element;
-            }}
-            className="react-spending-chart-tabs"
-            role="group"
-            aria-label="Período del gráfico de gastos"
-          >
-            <span ref={motion?.tabsSelection?.indicatorRef} className="react-spending-chart-selection-indicator" aria-hidden="true" />
-            {chart.tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className="react-spending-chart-tab"
-                aria-pressed={tab.id === series.id}
-                onClick={() => onSelectTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="react-spending-chart-heading">
-            <span>
-              <strong>{startDate}</strong>
-              {endDate !== undefined && <>{" - "}<strong>{endDate}</strong></>}
-            </span>
-          </div>
-          {compactMobileLabels && <p className="react-spending-chart-mobile-note">Montos aproximados en CLP; valor exacto en el detalle.</p>}
-          <div className="react-spending-chart-body">
-            <div ref={motion?.chartRef} className="react-spending-chart-bars" role="region" aria-label={series.ariaLabel}>
-              {series.days.map((day) => {
-                const isSelected = day.key === selectedDayKey;
-                return (
-                  <button
-                    key={day.key}
-                    type="button"
-                    className={
-                      isSelected
-                        ? "react-spending-chart-bar react-spending-chart-bar-selected"
-                        : "react-spending-chart-bar"
-                    }
-                    aria-pressed={isSelected}
-                    aria-controls={detailId}
-                    aria-haspopup={dayDetailIsModal ? "dialog" : undefined}
-                    aria-label={getSpendingChartBarLabel(series, day)}
-                    disabled={!day.isInPeriod}
-                    onClick={(event) => {
-                      // Some touch browsers do not focus clicked buttons; native close must return here.
-                      if (dayDetailIsModal) event.currentTarget.focus();
-                      onSelectDay(day.key);
-                    }}
-                  >
-                    <span
-                      className={day.isInPeriod && day.total > 0
-                        ? "react-spending-chart-value react-spending-chart-value-positive"
-                        : "react-spending-chart-value"}
-                      aria-hidden="true"
-                    >
-                      {day.isInPeriod && (compactMobileLabels ? <>
-                        <span className="react-spending-chart-value-full">{day.total > 0 ? formatClp(day.total) : "$0"}</span>
-                        <span className="react-spending-chart-value-compact">{day.total > 0
-                          ? `$${new Intl.NumberFormat("es-CL", { notation: "compact", maximumFractionDigits: 0 }).format(day.total).replace(/\u00a0/g, " ").replace(/ k$/, " mil")}`
-                          : "$0"}</span>
-                      </> : day.total > 0 ? formatClp(day.total) : "$0")}
-                    </span>
-                    <span
-                      className={
-                        day.isInPeriod
-                          ? "react-spending-chart-track"
-                          : "react-spending-chart-track react-spending-chart-track-empty"
-                      }
-                      title={getSpendingChartBarTitle(day)}
-                    >
-                      {day.isInPeriod && day.total > 0 && (
-                        <span
-                          className="react-spending-chart-fill"
-                          style={{
-                            height: `${day.heightPercent}%`,
-                            // Muted slate ramp (ends at the ink-3 tint), never the old cobalt hue.
-                            backgroundColor: `hsl(220 16% ${72 - 31 * day.total / series.max}%)`,
-                          }}
-                        />
-                      )}
-                    </span>
-                    <strong className="react-spending-chart-day">{day.label}</strong>
-                    <small className="react-spending-chart-detail">{day.detail}</small>
-                  </button>
-                );
-              })}
-            </div>
-            <aside
-              ref={(element) => {
-                if (motion) motion.summaryRef.current = element;
-                if (motion?.summarySelection) motion.summarySelection.containerRef.current = element;
-              }}
-              className="react-spending-chart-summary"
-              aria-label="Resumen de gastos del período"
-            >
-              <h4>Resumen del período</h4>
-              <span ref={motion?.summarySelection?.indicatorRef} className="react-spending-chart-selection-indicator" aria-hidden="true" />
-              {totalsRows.map((row) => (
-                <div
-                  key={row.id}
-                  className={
-                    row.isActive
-                      ? "react-spending-chart-summary-row react-spending-chart-summary-row-active"
-                      : "react-spending-chart-summary-row"
-                  }
-                  aria-current={row.isActive ? "true" : undefined}
-                  aria-label={
-                    row.isActive
-                      ? `${row.label} seleccionado: ${formatClp(row.total)}`
-                      : undefined
-                  }
-                >
-                  <span>{row.label}:</span>
-                  <strong>{formatClp(row.total)}</strong>
-                </div>
-              ))}
-            </aside>
-            {dayDetailPresentation(<aside
-              ref={motion?.dayRef}
-              id={detailId}
-              className="react-spending-chart-day-panel"
-              aria-live="polite"
-            >
-              <header className="react-spending-chart-day-header">
-                <h4>{detail.title}</h4>
-                {selectedDay?.isInPeriod && (
-                  <strong className="react-spending-chart-day-total">
-                    {detail.total > 0 ? formatClp(detail.total) : "$0"}
-                  </strong>
-                )}
-              </header>
-              {detail.groups.length === 0 ? (
-                <p className="react-spending-chart-day-empty">
-                  {detail.isEmpty
-                    ? "No hay gastos con monto conocido para este día."
-                    : "Elige un día del gráfico para ver qué gastos forman ese total."}
-                </p>
-              ) : (
-                detail.groups.map((group) => (
-                  <div key={group.key} className="react-spending-chart-day-group">
-                    <span className="react-spending-chart-day-date">{group.label}</span>
-                    <ul className="react-spending-chart-day-list">
-                      {group.movements.map((movement) => {
-                        const movementId = movement.id;
-                        const rowContent = (
-                          <>
-                            <span className="react-spending-chart-day-identity">
-                              <span className="react-spending-chart-day-person" aria-hidden="true">
-                                <FontAwesomeIcon icon={faUser} />
-                              </span>
-                              <span className="react-spending-chart-day-info">
-                                <strong>
-                                  {movement.time
-                                    ? `${movement.time} · ${movement.label}`
-                                    : movement.label}
-                                </strong>
-                                <small>{movement.kindLabel}</small>
-                              </span>
-                            </span>
-                            <strong className="react-spending-chart-day-amount">
-                              {formatClp(movement.amount)}
-                            </strong>
-                          </>
-                        );
-                        return (
-                          <li
-                            key={
-                              movementId ??
-                              `${movement.dateKey}-${movement.time}-${movement.label}-${movement.amount}`
-                            }
-                            className="react-spending-chart-day-item"
-                          >
-                            {onOpenMovement !== undefined && movementId !== null ? (
-                              <button
-                                type="button"
-                                className="react-spending-chart-day-open"
-                                onClick={() => onOpenMovement(movementId)}
-                              >
-                                {rowContent}
-                              </button>
-                            ) : (
-                              rowContent
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ))
-              )}
-            </aside>)}
-          </div>
-        </>
-      )}
-    </section>
-  );
-}
-
-/**
- * The spending chart container: it owns which period tab and which bar are selected and hands that
- * decided state to the view. It starts on the full period, like legacy's `chartTab: "month"`
- * (`public/app.js:145`), selects Monday of that aggregate, and reselects the default bar of the new
- * series whenever the tab changes (`public/app.js:2261`).
- */
-export interface SpendingChartPanelProps {
-  chart: SpendingChart;
-  /** Recognized outflow rows for the read-only detail; empty when the caller has none. */
-  detailMovements?: SpendingChartDetailMovement[];
-  /** Opens the read-only movement dialog for a row identity; absent keeps every row inert. */
-  onOpenMovement?: (movementId: string) => void;
-}
-
-export function SpendingChartPanel({
-  chart,
-  detailMovements = [],
-  onOpenMovement,
-}: SpendingChartPanelProps) {
-  const [selectedTab, setSelectedTab] = useState<string>(FULL_PERIOD_TAB_ID);
-  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(() =>
-    getSpendingChartDefaultDayKey(getSpendingChartSeries(chart, FULL_PERIOD_TAB_ID)),
-  );
-  const motion = useSpendingChartMotion(selectedTab, selectedDayKey);
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" && typeof window.matchMedia === "function" &&
-    window.matchMedia("(max-width: 640px)").matches,
-  );
-  const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
-  const dayDialogRef = useRef<HTMLDialogElement | null>(null);
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const media = window.matchMedia("(max-width: 640px)");
-    const update = () => {
-      setIsMobile(media.matches);
-      setIsDayDetailOpen(false);
-      syncNativeModalDialog(dayDialogRef.current, false);
-    };
-    update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
-  const closeDayDetail = () => {
-    syncNativeModalDialog(dayDialogRef.current, false);
-    setIsDayDetailOpen(false);
-  };
-  const handleSelectTab = (tabId: string) => {
-    closeDayDetail();
-    setSelectedTab(tabId);
-    setSelectedDayKey(getSpendingChartDefaultDayKey(getSpendingChartSeries(chart, tabId)));
-  };
-  const handleOpenMovement = onOpenMovement === undefined ? undefined : (movementId: string) => {
-    // Close synchronously, before the movement owner can open another native modal.
-    closeDayDetail();
-    onOpenMovement(movementId);
-  };
-  return (
-    <SpendingChartView
-      chart={chart}
-      selectedTab={selectedTab}
-      onSelectTab={handleSelectTab}
-      selectedDayKey={selectedDayKey}
-      onSelectDay={(dayKey) => {
-        setSelectedDayKey(dayKey);
-        if (isMobile) setIsDayDetailOpen(true);
-      }}
-      motion={motion}
-      detailMovements={detailMovements}
-      onOpenMovement={handleOpenMovement}
-      compactMobileLabels
-      dayDetailIsModal={isMobile}
-      dayDetailPresentation={isMobile ? (detail) => (
-        <SpendingDayDetailDialog
-          dialogRef={dayDialogRef}
-          isOpen={isDayDetailOpen}
-          onClose={() => setIsDayDetailOpen(false)}
-        >
-          {detail}
-        </SpendingDayDetailDialog>
-      ) : undefined}
-    />
-  );
-}
-
-/** Compact ranking of stored identities, shared by authenticated and demo period views. */
-function DashboardCounterpartyRankingView({ ranking }: { ranking: DashboardCounterpartyRanking }) {
-  return (
-    <section className="react-counterparty-ranking" aria-labelledby="react-counterparty-ranking-title">
-      <header className="react-counterparty-ranking-header">
-        <div className="react-counterparty-ranking-heading">
-          <span className="react-counterparty-ranking-heading-icon" aria-hidden="true"><FontAwesomeIcon icon={faStore} /></span>
-          <div>
-            <h3 id="react-counterparty-ranking-title">Top Comercios y Personas</h3>
-            <p>Destinatarios identificados de tus gastos.</p>
-          </div>
-        </div>
-        <div className="react-counterparty-ranking-header-actions">
-          <span className="react-counterparty-ranking-badge">Ranking del período</span>
-        </div>
-      </header>
-      {ranking.rows.length === 0 ? (
-        <p className="react-counterparty-ranking-empty">No hay destinatarios identificados con monto conocido en este período.</p>
-      ) : (
-        <ul className="react-counterparty-ranking-list">
-          {ranking.rows.slice(0, 4).map((row, index) => {
-            const initials = row.name.split(" ").slice(0, 2)
-              .map((word) => Array.from(word)[0]?.toLocaleUpperCase("es") ?? "").join("");
-            return (
-              <li key={row.name} className="react-counterparty-ranking-row">
-                <span className={`react-counterparty-ranking-avatar react-counterparty-ranking-avatar-${index % 4}`} aria-hidden="true">
-                  {initials}<span className="react-counterparty-ranking-rank">{index + 1}</span>
-                </span>
-                <div className="react-counterparty-ranking-detail">
-                  <div className="react-counterparty-ranking-line">
-                    <strong>{row.name}</strong>
-                    <b>{Number.isFinite(row.total) ? formatClp(row.total) : "Monto no disponible"}</b>
-                  </div>
-                  <div className="react-counterparty-ranking-meta">
-                    <span>{row.count} {row.count === 1 ? "movimiento" : "movimientos"}</span>
-                    <span>{row.share === null ? "Porcentaje no disponible" : `${new Intl.NumberFormat("es-CL", { maximumFractionDigits: 1 }).format(row.share)}% del gasto cuantificado`}</span>
-                  </div>
-                  <div className="react-counterparty-ranking-track" aria-hidden="true">
-                    <span style={{ width: `${Math.max(0, Math.min(100, row.share ?? 0))}%` }} />
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      <p className="react-counterparty-ranking-denominator">
-        Base: {Number.isFinite(ranking.allRecognizedQuantifiedSpending) ? formatClp(ranking.allRecognizedQuantifiedSpending) : "monto no disponible"} de todos los gastos reconocidos con monto conocido del período, incluidos los no identificados.
-        {ranking.unnamedCount > 0 && ` ${ranking.unnamedCount} ${ranking.unnamedCount === 1 ? "movimiento sin destinatario identificado" : "movimientos sin destinatario identificado"} incluidos en la base.`}
-        {(!Number.isFinite(ranking.allRecognizedQuantifiedSpending) || ranking.allRecognizedQuantifiedSpending <= 0) && " No se calcula un porcentaje sin una base positiva y finita."}
-      </p>
-    </section>
-  );
-}
-
-export interface TopInsightsViewProps {
-  /** The decided insights, from `getTopInsights`. */
-  insights: DashboardTopInsights;
-  /** The non-duplicative period note, from `getDashboardStory`. */
-  story: DashboardStory;
-  /** Authenticated category-filter jump; omitted by the read-only demo. */
-  onJumpToUncategorized?: () => void;
-}
-
-/**
- * The one free solid glyph each top insight keeps beside its label. The label already names the
- * insight, so the glyph is decorative and never carries information on its own.
- */
-const TOP_INSIGHT_ICONS: Record<"frequency" | "uncategorized" | "largest" | "latest", typeof faTags> = {
-  frequency: faStore,
-  uncategorized: faTags,
-  largest: faBolt,
-  latest: faClock,
-};
-
-/**
- * The `Lectura rápida · Inteligencia de gastos` card keeps its existing four equal tiles and period
- * note. Its optional authenticated category action remains separate from the ranking above it.
- */
-export function TopInsightsView({ insights, story, onJumpToUncategorized }: TopInsightsViewProps) {
-  const tiles = [insights.largest, insights.frequency, insights.latest, insights.uncategorized];
-  return (
-    <section className="react-top-insights" aria-labelledby="react-top-insights-title">
-      <header className="react-top-insights-header">
-        <div className="react-top-insights-heading">
-          {/* Decorative: the adjacent title names the card, so the glyph is hidden. */}
-          <span className="react-card-icon" aria-hidden="true">
-            <FontAwesomeIcon icon={faLightbulb} />
-          </span>
-          <h3 id="react-top-insights-title">Lectura rápida · Inteligencia de gastos</h3>
-        </div>
-        <p className="react-top-insights-subtitle">Tus datos más relevantes del período.</p>
-        {/* A compact, supported badge: it names what the card summarizes without claiming AI. */}
-        <span className="react-top-insights-badge">Resumen del período</span>
-      </header>
-      <ul className="react-top-insights-grid">
-        {tiles.map((insight) => (
-          <li key={insight.key} className={`react-insight-callout react-insight-callout-${insight.key}`}>
-            <div className="react-insight-callout-header">
-              <span className="react-insight-callout-label">{insight.label}</span>
-              {/* Decorative: the adjacent label names the insight, so the glyph is hidden. */}
-              <span className="react-insight-callout-icon" aria-hidden="true">
-                <FontAwesomeIcon icon={TOP_INSIGHT_ICONS[insight.key]} />
-              </span>
-            </div>
-            <strong className="react-insight-callout-value">
-              {insight.key === "uncategorized" && insight.amount !== null
-                ? formatClp(insight.amount) : insight.value}
-            </strong>
-            <p className="react-insight-callout-detail">
-              {insight.key === "uncategorized" ? insight.note
-                : insight.amount === null ? insight.note : formatClp(insight.amount)}
-              {insight.hint.length > 0 && (
-                <span className="react-insight-callout-hint">{insight.hint}</span>
-              )}
-            </p>
-            {insight.key === "uncategorized" && insights.uncategorizedCount > 0 &&
-              onJumpToUncategorized && (
-                <button type="button" className="react-insight-category-action"
-                  onClick={onJumpToUncategorized}>
-                  Clasificar ahora →
-                </button>
-              )}
-          </li>
-        ))}
-      </ul>
-      <div className="react-top-insights-note" role={story.facts.length === 0 ? "status" : undefined}>
-        <span className="react-top-insights-note-icon" aria-hidden="true">
-          <FontAwesomeIcon icon={faLightbulb} />
-        </span>
-        <div className="react-top-insights-note-copy">
-          <p>{story.summary}</p>
-          {story.facts.map((fact) => (
-            <p key={fact}>{fact}</p>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/**
- * The visual spending breakdown as one already-decided state: a single segmented bar whose segments
- * are the proportional shares by kind, plus a readable icon legend and the recognized quantified
- * total.
- *
- * Exported so both the populated and the empty markup are provable from a static render, like the
- * other analytics panels. Each segment width is the share the pure module decided from raw amounts,
- * and the legend states every kind's amount and percentage as text too, so the distribution is
- * readable without the bar or its colour. Every legend marker reuses its segment's colour token, an
- * upper-right decorative chart glyph names the card, and there is deliberately no donut or charting
- * dependency. A zero total shows a truthful message instead of fabricated segments.
- */
-export interface SpendingBreakdownViewProps {
-  /** The decided bars, from `getSpendingBreakdown`. */
-  breakdown: SpendingBreakdown;
-}
-
-/**
- * The one free Font Awesome solid glyph each recognized kind keeps in the legend. The icon is
- * decorative — the adjacent label names the kind — so it never carries information on its own and
- * the card never relies on colour alone.
- */
-const SPENDING_BREAKDOWN_ICONS: Record<SpendingBreakdownBar["key"], typeof faCartShopping> = {
-  purchase: faCartShopping,
-  transfer: faArrowRightArrowLeft,
-  payment: faReceipt,
-};
-
-export function SpendingBreakdownView({ breakdown }: SpendingBreakdownViewProps) {
-  return (
-    <section className="react-spending-breakdown" aria-labelledby="react-spending-breakdown-title">
-      <div className="react-spending-breakdown-header">
-        <div className="react-spending-breakdown-heading">
-          <h3 id="react-spending-breakdown-title">Distribución de gastos</h3>
-          {breakdown.emptyMessage === null ? (
-            <p className="react-spending-breakdown-total">
-              <span>Total registrado</span>
-              <strong>{formatClp(breakdown.total)}</strong>
-            </p>
-          ) : null}
-        </div>
-        <span className="react-spending-breakdown-header-icon" aria-hidden="true">
-          <FontAwesomeIcon icon={faChartPie} />
-        </span>
-      </div>
-      {breakdown.emptyMessage !== null ? (
-        <p className="react-spending-breakdown-empty" role="status">{breakdown.emptyMessage}</p>
-      ) : (
-        <>
-          <div className="react-spending-breakdown-chart">
-          <div
-            className="react-spending-breakdown-bar"
-            role="img"
-            aria-label={`Distribución de gastos por tipo. Total registrado ${formatClp(breakdown.total)}.`}
-          >
-            {breakdown.bars.map((bar) => (
-              <span
-                key={bar.key}
-                className={`react-spending-breakdown-segment react-spending-breakdown-segment-${bar.key}`}
-                style={{ "--share": `${bar.percent}%` } as CSSProperties}
-              />
-            ))}
-          </div>
-          <ul className="react-spending-breakdown-legend">
-            {breakdown.bars.map((bar) => (
-              <li
-                key={bar.key}
-                className={`react-spending-breakdown-legend-item react-spending-breakdown-legend-item-${bar.key}`}
-              >
-                <span className="react-spending-breakdown-legend-heading">
-                  <span
-                    className={`react-spending-breakdown-icon react-spending-breakdown-icon-${bar.key}`}
-                    aria-hidden="true"
-                  >
-                    <FontAwesomeIcon icon={SPENDING_BREAKDOWN_ICONS[bar.key]} />
-                  </span>
-                  <span className="react-spending-breakdown-kind">{bar.label}</span>
-                </span>
-                <strong>{formatClp(bar.amount)}</strong>
-                <span className="react-spending-breakdown-percent">{bar.percent}%</span>
-              </li>
-            ))}
-          </ul>
-          </div>
-        </>
-      )}
-    </section>
   );
 }
 

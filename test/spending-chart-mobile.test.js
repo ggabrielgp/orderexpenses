@@ -25,7 +25,7 @@ test("mobile day activation opens detail only on demand, closes on tabs/resize, 
    load(id) { if (id === "\0mobile-test-react") return `export * from 'react'; let hooks; export const install = h => hooks = h;
     export const useRef = (...a) => hooks.useRef(...a); export const useState = (...a) => hooks.useState(...a);
     export const useEffect = (...a) => hooks.useEffect(...a); export const useLayoutEffect = (...a) => hooks.useLayoutEffect(...a);`; },
-   transform(source, id) { if (/\/(?:pages\/DashboardPage\.tsx|hooks\/use.*\.ts|components\/analytics\/SpendingDayDetailDialog\.tsx)$/.test(id.replaceAll("\\", "/"))) return source.replace(/from "react"/g, 'from "mobile-test-react"'); },
+   transform(source, id) { if (/\/(?:pages\/DashboardPage\.tsx|hooks\/use.*\.ts|components\/analytics\/Spending(?:DayDetailDialog|ChartPanel)\.tsx)$/.test(id.replaceAll("\\", "/"))) return source.replace(/from "react"/g, 'from "mobile-test-react"'); },
   }] });
  const previousWindow = globalThis.window;
  const mobile = new EventTarget(); mobile.matches = true;
