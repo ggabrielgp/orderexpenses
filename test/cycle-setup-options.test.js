@@ -18,7 +18,7 @@ after(() => vite.close());
 
 const options = await vite.ssrLoadModule("/src/client/components/financial-cycle/cycleOptions.ts");
 const presets = await vite.ssrLoadModule("/src/client/components/financial-cycle/cyclePresets.ts");
-const view = await vite.ssrLoadModule("/src/client/components/financial-cycle/CyclePresets.tsx");
+const view = await vite.ssrLoadModule("/src/client/components/financial-cycle/CyclePresetsControl.tsx");
 const summaryView = await vite.ssrLoadModule("/src/client/components/financial-cycle/CyclePeriodSummary.tsx");
 const editDialog = await vite.ssrLoadModule("/src/client/components/financial-cycle/FinancialCycleEditDialog.tsx");
 const page = await vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx");

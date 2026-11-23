@@ -15,7 +15,7 @@ const vite = await createServer({
 });
 after(() => vite.close());
 
-const presets = await vite.ssrLoadModule("/src/client/components/financial-cycle/CyclePresets.tsx");
+const presets = await vite.ssrLoadModule("/src/client/components/financial-cycle/CyclePresetsControl.tsx");
 const gauge = await vite.ssrLoadModule("/src/client/components/analytics/DashboardPaceGauge.tsx");
 const pace = await vite.ssrLoadModule("/src/client/components/analytics/dashboardPace.ts");
 const text = (html) => html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
@@ -114,7 +114,7 @@ const TARGETS = [
 	"src/client/components/analytics/categoryRanking.ts",
 	"src/client/components/analytics/categoryDistribution.ts",
 	"src/client/components/analytics/CategoryDistributionPanel.tsx",
-	"src/client/components/financial-cycle/CyclePresets.tsx",
+	"src/client/components/financial-cycle/CyclePresetsControl.tsx",
 	"src/client/components/financial-cycle/CyclePeriodSummary.tsx",
 	"src/client/components/financial-cycle/FinancialCycleEditDialog.tsx",
 	"src/client/components/financial-cycle/FinancialCycleCalendar.tsx",

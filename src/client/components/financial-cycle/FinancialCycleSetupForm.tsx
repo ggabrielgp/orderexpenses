@@ -6,7 +6,7 @@ import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import { formatIncomeInput } from "../movements/manualExpense";
 import { createFinancialCycleSetupPayload } from "../movements/movementSummary";
 import { CyclePeriodSummary } from "./CyclePeriodSummary";
-import { CyclePresets } from "./CyclePresets";
+import { CyclePresets } from "./CyclePresetsControl";
 import { CycleCalendar } from "./FinancialCycleCalendar";
 import {
   createCalendarRange,

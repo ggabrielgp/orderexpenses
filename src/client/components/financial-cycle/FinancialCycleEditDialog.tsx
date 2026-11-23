@@ -3,7 +3,7 @@ import { useRetainedWhileClosing } from "../feedback/motion";
 import { syncNativeModalDialog } from "../movements/CreateManualExpenseDialog";
 import { todayInSantiago } from "../analytics/dashboardPace";
 import { CyclePeriodSummary } from "./CyclePeriodSummary";
-import { CyclePresets } from "./CyclePresets";
+import { CyclePresets } from "./CyclePresetsControl";
 import { CycleCalendar } from "./FinancialCycleCalendar";
 import { inferCycleOption, resolveCycleOption, type CycleOptionChoice } from "./cycleOptions";
 import { confirmSignInPeriod } from "./signInPeriodPrompt";
