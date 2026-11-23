@@ -1111,7 +1111,7 @@ test("the React financial-cycle setup validates inclusive dates and reloads thro
 	assert.doesNotMatch(
 		source.slice(
 			source.indexOf("function FinancialCycleSetupForm"),
-			source.indexOf("function MovementsTable"),
+			source.indexOf("function browserStorage"),
 		),
 		/legacy-app/,
 	);
@@ -4253,12 +4253,13 @@ test("the React movements filter control renders the labelled group, the active 
 	});
 	t.after(() => vite.close());
 
-	const [React, renderer, pageModule, filters, page, styles] = await Promise.all([
+	const [React, renderer, pageModule, filters, page, movementsTable, styles] = await Promise.all([
 		import("react"),
 		import("react-dom/server"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		vite.ssrLoadModule("/src/client/components/movements/movementFilters.ts"),
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/MovementsTable.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 
@@ -4311,18 +4312,18 @@ test("the React movements filter control renders the labelled group, the active 
 	// differs or its category left the rows, and the table commits the returned selection above its
 	// empty-rows return instead of merely ignoring the old one.
 	assert.match(
-		page,
-		/import \{[\s\S]{0,400}?\} from "\.\.\/components\/movements\/movementFilters";/,
+		movementsTable,
+		/import \{[\s\S]{0,400}?\} from "\.\/movementFilters";/,
 	);
 	assert.match(
-		page,
-		/import \{[\s\S]{0,400}?getMovementFilterView,[\s\S]{0,400}?reconcileMovementFilterSelection,[\s\S]{0,400}?selectMovementFilterCategory,[\s\S]{0,400}?\} from "\.\.\/components\/movements\/movementFilters";/,
+		movementsTable,
+		/import \{[\s\S]{0,400}?getMovementFilterView,[\s\S]{0,400}?reconcileMovementFilterSelection,[\s\S]{0,400}?selectMovementFilterCategory,[\s\S]{0,400}?\} from "\.\/movementFilters";/,
 	);
 	// The control itself is part of the movements view, exported so its two states are provable.
-	assert.match(page, /export function MovementFilterBar\(/);
-	assert.match(page, /reconcileMovementFilterSelection/);
-	assert.match(page, /setSelection\(selectMovementFilterCategory\(/);
-	assert.match(page, /setSelection\(createMovementFilterSelection\(period\)\)/);
+	assert.match(movementsTable, /export function MovementFilterBar\(/);
+	assert.match(movementsTable, /reconcileMovementFilterSelection/);
+	assert.match(movementsTable, /setSelection\(selectMovementFilterCategory\(/);
+	assert.match(movementsTable, /setSelection\(createMovementFilterSelection\(period\)\)/);
 	// The count statement is proved by the render above instead of by the shape of the guard: the idle
 	// control announces nothing and the active one announces the statement the pure module decided.
 	assert.doesNotMatch(idle, /role="status"/);
@@ -4535,7 +4536,7 @@ test("the React movements table reconciles the filter reset before rendering eve
 
 	const [filters, page] = await Promise.all([
 		vite.ssrLoadModule("/src/client/components/movements/movementFilters.ts"),
-		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/MovementsTable.tsx", import.meta.url), "utf8"),
 	]);
 
 	// The table's own order is the guarantee: reconciliation and its commit precede the view mount,
@@ -4743,7 +4744,7 @@ test("the React movements table headers expose the accessible sort control for t
 		import("react-dom/server"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		vite.ssrLoadModule("/src/client/components/movements/movementSorting.ts"),
-		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/MovementsTable.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 
@@ -4821,7 +4822,7 @@ test("the React movement sorting orders the filtered rows without changing the f
 		import("react"),
 		import("react-dom/server"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
-		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/MovementsTable.tsx", import.meta.url), "utf8"),
 	]);
 
 	const noop = () => {};
@@ -5645,11 +5646,12 @@ test("the React authenticated summary composes the category ranking and jumps in
 	});
 	t.after(() => vite.close());
 
-	const [React, renderer, pageModule, page] = await Promise.all([
+	const [React, renderer, pageModule, page, movementsTable] = await Promise.all([
 		import("react"),
 		import("react-dom/server"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/MovementsTable.tsx", import.meta.url), "utf8"),
 	]);
 
 	const noop = () => {};
@@ -5714,7 +5716,7 @@ test("the React authenticated summary composes the category ranking and jumps in
 	assert.match(page, /setRequestedCategory\(category\)/);
 	// The requested category is handed to the table the jump switches to.
 	assert.match(page, /<MovementsTable[\s\S]{0,400}?requestedCategory=/);
-	const tableSource = page.slice(page.indexOf("export function MovementsTable"));
+	const tableSource = movementsTable.slice(movementsTable.indexOf("export function MovementsTable"));
 	assert.notEqual(tableSource, "", "the MovementsTable container must be locatable");
 	assert.match(tableSource, /requestedCategory/);
 	// No analytics request was introduced anywhere in the page.
@@ -8479,13 +8481,14 @@ test("the React movements table renders the selection column, the bulk bar and t
 	});
 	t.after(() => vite.close());
 
-	const [filters, selection, pageModule, React, renderer, page, styles] = await Promise.all([
+	const [filters, selection, pageModule, React, renderer, page, movementsTable, styles] = await Promise.all([
 		vite.ssrLoadModule("/src/client/components/movements/movementFilters.ts"),
 		vite.ssrLoadModule("/src/client/components/movements/movementSelection.ts"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		import("react"),
 		import("react-dom/server"),
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/MovementsTable.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 	const noop = () => {};
@@ -8590,15 +8593,15 @@ test("the React movements table renders the selection column, the bulk bar and t
 	}
 
 	// The table wires the container state to the pure module and passes the bulk submitter through.
-	assert.match(page, /getMovementSelectionView/);
-	assert.match(page, /getSimilarCounterpartyAffordance/);
-	assert.match(page, /onSelectSimilar=/);
+	assert.match(movementsTable, /getMovementSelectionView/);
+	assert.match(movementsTable, /getSimilarCounterpartyAffordance/);
+	assert.match(movementsTable, /onSelectSimilar=/);
 	assert.match(page, /submitBulkCategory=\{submitBulkCategory\}/);
 	assert.match(page, /updateMovement: updateTransaction/);
 	// The demo shares the production table with no editable targets or mutation capabilities.
 	const demoSource = page.slice(
 		page.indexOf("export function DemoDashboardPage"),
-		page.indexOf("export interface CategoryRankingViewProps"),
+		page.indexOf("interface DashboardAnalyticsBodyProps"),
 	);
 	assert.match(demoSource, /<MovementsTable\b[\s\S]*?editableMovements=\{\[\]\}[\s\S]*?readOnlyReason="Edición deshabilitada en la demo"/);
 	assert.doesNotMatch(demoSource, /submitBulkCategory|updateTransaction|syncGmail|createManualExpense|react-movements-bulk/);
@@ -8887,7 +8890,7 @@ test("the React financial-cycle setup and edit flows mount the modal setup and t
 	// The setup form keeps its two date inputs and the income input, and adds the calendar over them.
 	const setupSource = page.slice(
 		page.indexOf("function FinancialCycleSetupForm"),
-		page.indexOf("function MovementsTable"),
+		page.indexOf("function browserStorage"),
 	);
 	assert.notEqual(setupSource, "", "the setup form must be locatable");
 	assert.match(setupSource, /<CycleCalendar/);

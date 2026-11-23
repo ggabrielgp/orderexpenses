@@ -246,10 +246,13 @@ test("an empty period has one clear first action; the demo stays read-only", () 
 });
 
 test("the table container wires the prompt, the empty period and clear-all without a second filter implementation", async () => {
-	const source = await read("src/client/pages/DashboardPage.tsx");
-	assert.match(source, /onClassify=\{/);
-	assert.match(source, /selectMovementFilterCategory\("Sin categoría", period\)/);
-	assert.match(source, /onCreateExpense=\{openCreateExpense\}/);
+	const [page, table] = await Promise.all([
+		read("src/client/pages/DashboardPage.tsx"),
+		read("src/client/components/movements/MovementsTable.tsx"),
+	]);
+	assert.match(table, /onClassify=\{/);
+	assert.match(table, /selectMovementFilterCategory\("Sin categoría", period\)/);
+	assert.match(page, /onCreateExpense=\{openCreateExpense\}/);
 });
 
 test("the movements layer carries no cobalt and keeps the 28/18/15 type scale", async () => {
