@@ -1,0 +1,124 @@
+/* Centered, non-invasive animated success check toast.
+   Uses only neutral surface/ink and semantic success tokens (never cobalt). */
+.react-success-toast {
+	position: fixed;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	padding: var(--space-4, 16px);
+	z-index: 60;
+	pointer-events: none;
+}
+
+.react-success-toast-card {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	min-width: 176px;
+	max-width: min(260px, calc(100vw - 32px));
+	padding: 20px 26px;
+	border-radius: var(--radius-featured, 20px);
+	border: 1px solid var(--color-line, #e3e1dc);
+	background: var(--color-surface, #ffffff);
+	color: var(--color-ink, #131b2e);
+	text-align: center;
+	box-shadow:
+		0 18px 44px rgba(19, 27, 46, 0.14),
+		0 4px 12px rgba(19, 27, 46, 0.06);
+	animation: success-toast-in 240ms var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+.react-success-toast.react-success-toast-leaving .react-success-toast-card {
+	animation: success-toast-out 260ms ease-in both;
+}
+
+.react-success-toast-badge {
+	display: grid;
+	place-items: center;
+	width: 52px;
+	height: 52px;
+	border-radius: var(--radius-pill, 999px);
+	background: var(--color-success-soft, #eaf8f3);
+	color: var(--color-success, #087c61);
+	box-shadow: inset 0 0 0 1px rgba(8, 124, 97, 0.14);
+	animation: success-toast-badge-pop 340ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) 60ms both;
+}
+
+.react-success-toast-check {
+	width: 26px;
+	height: 26px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2.75;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.react-success-toast-check path {
+	stroke-dasharray: 1;
+	stroke-dashoffset: 0;
+	animation: success-toast-check-draw 320ms ease-out 130ms both;
+}
+
+.react-success-toast-message {
+	font-family: var(--font-body, "Inter", sans-serif);
+	font-size: var(--text-md, 0.95rem);
+	font-weight: 600;
+	line-height: 1.3;
+	letter-spacing: -0.01em;
+	color: var(--color-ink, #131b2e);
+}
+
+@keyframes success-toast-in {
+	from {
+		opacity: 0;
+		transform: scale(0.9) translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+}
+
+@keyframes success-toast-out {
+	from {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: scale(0.94) translateY(-6px);
+	}
+}
+
+@keyframes success-toast-badge-pop {
+	from {
+		opacity: 0;
+		transform: scale(0.65);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@keyframes success-toast-check-draw {
+	from {
+		stroke-dashoffset: 1;
+	}
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.react-success-toast,
+	.react-success-toast-card,
+	.react-success-toast.react-success-toast-leaving .react-success-toast-card,
+	.react-success-toast-badge,
+	.react-success-toast-check path {
+		animation: none !important;
+		transition: none !important;
+	}
+}

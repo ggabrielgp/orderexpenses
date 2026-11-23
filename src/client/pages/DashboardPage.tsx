@@ -64,6 +64,7 @@ import {
   type MovementsTableViewProps,
 } from "../components/movements/MovementsTable";
 import { FeedbackNotice } from "../components/feedback/FeedbackNotice";
+import { SuccessToast, type SuccessToastItem } from "../components/feedback/SuccessToast";
 import { useAnimatedView, useEditHighlight } from "../components/feedback/motion";
 import {
   DashboardPeriodContext,
@@ -698,6 +699,12 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   }, []);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [creationNotice, setCreationNotice] = useState<ManualExpenseCreationNotice | null>(null);
+  const [successToast, setSuccessToast] = useState<SuccessToastItem | null>(null);
+  const successToastSeq = useRef(0);
+  const showSuccessToast = useCallback((message: string) => {
+    successToastSeq.current += 1;
+    setSuccessToast({ id: successToastSeq.current, message });
+  }, []);
   /** Movement being edited; `null` keeps the edit dialog closed. */
   const [editMovement, setEditMovement] = useState<EditableRecognizedExpenseMovement | null>(null);
   // A recategorization notice also carries what "Deshacer" restores (S7).
@@ -873,9 +880,11 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
 
   const handleCycleEdited = useCallback((reloadFailed: boolean) => {
     if (!mounted.current) return;
-    setCycleEditNotice(getCycleEditNotice({ status: "saved", reloadFailed }));
+    const notice = getCycleEditNotice({ status: "saved", reloadFailed });
+    setCycleEditNotice(notice);
+    if (!reloadFailed && notice.tone === "success") showSuccessToast("Período actualizado");
     setIsCycleEditOpen(false);
-  }, []);
+  }, [showSuccessToast]);
 
   /**
    * The manual-expense trigger, defined here so the publish effect below can hand it to the page
@@ -929,9 +938,11 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   );
 
   const handleManualExpenseSaved = useCallback((reloadFailed: boolean) => {
-    setCreationNotice(getManualExpenseCreationNotice(reloadFailed));
+    const notice = getManualExpenseCreationNotice(reloadFailed);
+    setCreationNotice(notice);
+    if (!reloadFailed && notice.tone === "success") showSuccessToast("Gasto guardado");
     setIsCreateOpen(false);
-  }, []);
+  }, [showSuccessToast]);
 
   useEffect(() => {
     dashboardLoadEpoch.current += 1;
@@ -1135,10 +1146,22 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   // the visible list is refreshed. This is built per render, like the single-edit/removal submitters,
   // because this branch sits after loading/failed/unconfigured early returns and must not add a hook
   // only when the summary is ready.
-  const submitBulkCategory = createBulkCategorySubmitter({
+  const rawSubmitBulkCategory = createBulkCategorySubmitter({
     updateMovement: updateTransaction,
     reload: reloadFinancialDashboard,
   });
+  const submitBulkCategory: typeof rawSubmitBulkCategory = async (targets, category) => {
+    const outcome = await rawSubmitBulkCategory(targets, category);
+    if (
+      mounted.current &&
+      outcome.total > 0 &&
+      outcome.succeeded === outcome.total &&
+      !outcome.reloadFailed
+    ) {
+      showSuccessToast("Categoría asignada");
+    }
+    return outcome;
+  };
 
   const openMovementEdit = (movement: EditableRecognizedExpenseMovement) => {
     // A previous outcome must not describe the new attempt.
@@ -1147,11 +1170,11 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   };
 
   const handleMovementEditSaved = (reloadFailed: boolean, recategorized?: MovementRecategorized) => {
-    setEditNotice(
-      recategorized
-        ? { ...getRecategorizeNotice({ reloadFailed, ...recategorized }), undo: recategorized.undo }
-        : getMovementEditNotice(reloadFailed),
-    );
+    const notice = recategorized
+      ? { ...getRecategorizeNotice({ reloadFailed, ...recategorized }), undo: recategorized.undo }
+      : getMovementEditNotice(reloadFailed);
+    setEditNotice(notice);
+    if (!reloadFailed && notice.tone === "success") showSuccessToast("Cambios guardados");
     flashEdited(editMovement?.id);
     setEditMovement(null);
   };
@@ -1193,7 +1216,9 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     // The by-phase mapping is unit B's: `confirming` cancels, and a terminal phase dismisses
     // through `dismissRemoval`, which keeps `removedMovementIds`. Closing with a fresh
     // `createRemovalState()` here would erase the guard and re-arm a completed removal.
-    setRemovalNotice(getRemovalNotice(removal));
+    const notice = getRemovalNotice(removal);
+    setRemovalNotice(notice);
+    if (notice?.tone === "success") showSuccessToast("Movimiento eliminado");
     setRemoval((current) => reduceRemovalDismissal(current));
     setRemovalMovement(null);
     releaseInFlightLock(removalLock);
@@ -1439,6 +1464,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
         </Suspense>
       )}
     </section>
+    <SuccessToast toast={successToast} onDismiss={() => setSuccessToast(null)} />
     {firstResultStep(dashboardPace)}
     </>
   );
