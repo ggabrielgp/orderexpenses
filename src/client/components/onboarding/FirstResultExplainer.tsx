@@ -9,9 +9,9 @@ export function FirstResultExplainer({ withIncome = true }: { withIncome?: boole
 	return (
 		<p className="first-result-explainer">
 			<svg width="24" height="24" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
-				<circle cx="14" cy="14" r="10" fill="none" stroke="#e3e1dc" strokeWidth="4" />
-				<path d="M14 4a10 10 0 0 1 8.7 15" fill="none" stroke="#0b7a6b" strokeWidth="4" strokeLinecap="round" />
-				<path d="M14 1v6" stroke="#131b2e" strokeWidth="2.5" strokeLinecap="round" transform="rotate(240 14 14)" />
+				<circle cx="14" cy="14" r="10" fill="none" stroke="var(--color-line, #e3e1dc)" strokeWidth="4" />
+				<path d="M14 4a10 10 0 0 1 8.7 15" fill="none" stroke="var(--state-calm, #0b7a6b)" strokeWidth="4" strokeLinecap="round" />
+				<path d="M14 1v6" stroke="var(--color-ink, #131b2e)" strokeWidth="2.5" strokeLinecap="round" transform="rotate(240 14 14)" />
 			</svg>
 			<span>
 				<strong>Así se lee tu medidor</strong>{" "}

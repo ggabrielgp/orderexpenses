@@ -3,6 +3,7 @@ import type { SessionResponse } from "../../api/types";
 import { getGoogleLoginUrl } from "../../api/googleLogin";
 import { watchLandingSections } from "./landingNavigation";
 import { BrandMark } from "../brand/BrandMark";
+import { ThemeToggle } from "../theme/ThemeToggle";
 
 interface LandingHeaderProps {
 	session: SessionResponse | null;
@@ -45,17 +46,20 @@ export function LandingHeader({ session }: LandingHeaderProps) {
 						<a className={activeSection === "compatibilidad" ? "is-current" : undefined} aria-current={activeSection === "compatibilidad" ? "location" : undefined} href="#compatibilidad">Compatibilidad</a>
 						<a className={activeSection === "seguridad" ? "is-current" : undefined} aria-current={activeSection === "seguridad" ? "location" : undefined} href="#seguridad">Seguridad</a>
 					</nav>
-					<a
-						className="landing-primary-button"
-						href={isAuthenticated ? "/app" : getGoogleLoginUrl()}
-						aria-label={isAuthenticated ? "Ir al dashboard" : "Acceder con Google"}
-					>
-						{!isAuthenticated && <span className="landing-google-badge" aria-hidden="true"><GoogleIcon /></span>}
-						{isAuthenticated && <span className="material-symbols-outlined landing-session-action-icon" aria-hidden="true">dashboard</span>}
-						<span className="landing-session-action-label">
-							{isAuthenticated ? "Ir al dashboard" : "Acceder con Google"}
-						</span>
-					</a>
+					<div className="landing-header-actions">
+						<ThemeToggle />
+						<a
+							className="landing-primary-button"
+							href={isAuthenticated ? "/app" : getGoogleLoginUrl()}
+							aria-label={isAuthenticated ? "Ir al dashboard" : "Acceder con Google"}
+						>
+							{!isAuthenticated && <span className="landing-google-badge" aria-hidden="true"><GoogleIcon /></span>}
+							{isAuthenticated && <span className="material-symbols-outlined landing-session-action-icon" aria-hidden="true">dashboard</span>}
+							<span className="landing-session-action-label">
+								{isAuthenticated ? "Ir al dashboard" : "Acceder con Google"}
+							</span>
+						</a>
+					</div>
 					<span className="landing-identity" hidden={!identity}>{identity}</span>
 				</div>
 			</header>

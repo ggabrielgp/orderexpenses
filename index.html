@@ -12,14 +12,35 @@
     <link id="apple-touch-icon" rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <script>
       (function () {
+        var STORAGE_KEY = "gastos-theme";
         var mq = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
         var link = document.getElementById("apple-touch-icon");
-        if (!mq || !link) return;
+        function readPreference() {
+          try {
+            var stored = window.localStorage && window.localStorage.getItem(STORAGE_KEY);
+            return stored === "light" || stored === "dark" ? stored : "system";
+          } catch (e) {
+            return "system";
+          }
+        }
         function sync() {
-          link.href = mq.matches ? "/apple-touch-icon-dark.png" : "/apple-touch-icon.png";
+          var pref = readPreference();
+          var isDark = pref === "dark" || (pref === "system" && Boolean(mq && mq.matches));
+          var theme = isDark ? "dark" : "light";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.dataset.themePreference = pref;
+          document.documentElement.style.colorScheme = theme;
+          if (link) {
+            link.href = isDark ? "/apple-touch-icon-dark.png" : "/apple-touch-icon.png";
+          }
+          var metas = document.querySelectorAll('meta[name="theme-color"]');
+          var color = isDark ? "#131b2e" : "#f6f5f2";
+          for (var i = 0; i < metas.length; i++) {
+            metas[i].setAttribute("content", color);
+          }
         }
         sync();
-        if (mq.addEventListener) mq.addEventListener("change", sync);
+        if (mq && mq.addEventListener) mq.addEventListener("change", sync);
       })();
     </script>
     <meta name="apple-mobile-web-app-title" content="Gastos" />

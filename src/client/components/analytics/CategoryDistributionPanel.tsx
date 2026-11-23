@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type Ref } from "react";
 import type { EChartsOption, EChartsType } from "echarts";
 import { useAutoHeightMotion } from "../../hooks/useAutoHeightMotion";
+import { useTheme } from "../../theme/useTheme";
+import type { ResolvedTheme } from "../../theme/theme";
 import { faLayerGroup } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { Category } from "../../api/types";
@@ -164,15 +166,27 @@ function buildDonutOption(
 	formatAmount: (amount: number) => string,
 	reducedMotion: boolean,
 	selectedRow: CategoryRankingRow | null,
+	theme: ResolvedTheme,
 ): EChartsOption {
 	const total = legend.reduce((sum, entry) => sum + entry.total, 0);
 	const centerAmount = formatAmount(selectedRow?.total ?? total);
+	const isDark = theme === "dark";
+	const mutedColor = isDark ? "#7f8ea6" : "#59647a";
+	const inkColor = isDark ? "#dce3ee" : "#131b2e";
+	const rimColor = isDark ? "#161e2e" : "#ffffff";
 	const option = {
 		animation: !reducedMotion,
 		animationDuration: reducedMotion ? 0 : 800,
 		animationEasing: "cubicOut",
 		tooltip: {
 			trigger: "item",
+			...(isDark
+				? {
+						backgroundColor: "#1d273b",
+						borderColor: "#374766",
+						textStyle: { color: "#dce3ee" },
+					}
+				: {}),
 			formatter: (params: { name?: string; value?: number; percent?: number; data?: { count?: number } }) => {
 				const count = params.data?.count ?? 0;
 				const percent = params.percent ?? 0;
@@ -191,7 +205,7 @@ function buildDonutOption(
 					overflow: "truncate",
 					ellipsis: "…",
 					fontSize: 12,
-					fill: "#59647a",
+					fill: mutedColor,
 					textAlign: "center",
 				},
 			},
@@ -204,7 +218,7 @@ function buildDonutOption(
 					width: 108,
 					overflow: "breakAll",
 					fontSize: centerAmount.length > 16 ? 11 : centerAmount.length > 10 ? 14 : 18,
-					fill: "#131b2e",
+					fill: inkColor,
 					fontWeight: 700,
 					textAlign: "center",
 				},
@@ -228,8 +242,8 @@ function buildDonutOption(
 					count: entry.count,
 					itemStyle: {
 						color: entry.color,
-						// A white rim separates the muted slices like the artboard; no darker tint of the colour.
-						borderColor: "#ffffff",
+						// A surface-matched rim separates the muted slices like the artboard; no darker tint of the colour.
+						borderColor: rimColor,
 						borderWidth: 2,
 						borderRadius: 6,
 					},
@@ -270,6 +284,7 @@ export function CategoryDistributionView({
 	onOpenMovement,
 	titleId = "react-category-distribution-title",
 }: CategoryDistributionViewProps) {
+	const { resolvedTheme } = useTheme();
 	const chartRef = useRef<HTMLDivElement | null>(null);
 	const instanceRef = useRef<EChartsType | null>(null);
 	const detailHeadingRef = useRef<HTMLElement | null>(null);
@@ -364,7 +379,7 @@ export function CategoryDistributionView({
 				setChartUnavailable(false);
 				const chart = instanceRef.current ?? echarts.init(container);
 				instanceRef.current = chart;
-				chart.setOption(buildDonutOption(legend, formatAmount, reducedMotion, selectedRow), true);
+				chart.setOption(buildDonutOption(legend, formatAmount, reducedMotion, selectedRow, resolvedTheme), true);
 				chart.dispatchAction({ type: "downplay", seriesIndex: 0 });
 				if (activeCategory !== null) {
 					chart.dispatchAction({ type: "highlight", seriesIndex: 0, name: activeCategory });
@@ -388,7 +403,7 @@ export function CategoryDistributionView({
 		return () => {
 			disposed = true;
 		};
-	}, [legend, activeCategory, formatAmount, reducedMotion, chartUnavailable]);
+	}, [legend, activeCategory, formatAmount, reducedMotion, chartUnavailable, resolvedTheme]);
 
 	useEffect(() => {
 		const container = chartRef.current;

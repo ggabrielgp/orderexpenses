@@ -120,7 +120,7 @@ function ExampleGauge() {
 		<aside className="onboarding-connect-example" aria-hidden="true">
 			<div className="onboarding-connect-gauge">
 				<svg viewBox="0 0 300 300" focusable="false">
-					<circle cx="150" cy="150" r="118" fill="none" stroke="#efeee9" strokeWidth="22" />
+					<circle cx="150" cy="150" r="118" fill="none" stroke="var(--color-track, #efeee9)" strokeWidth="22" />
 					<circle
 						cx="150"
 						cy="150"
@@ -133,8 +133,8 @@ function ExampleGauge() {
 						transform="rotate(-90 150 150)"
 					/>
 					<g transform="rotate(252 150 150)">
-						<path d="M150 10v46" stroke="#131b2e" strokeWidth="9" strokeLinecap="round" />
-						<path d="M150 14v38" stroke="#ffffff" strokeWidth="3.5" strokeLinecap="round" />
+						<path d="M150 10v46" stroke="var(--color-ink, #131b2e)" strokeWidth="9" strokeLinecap="round" />
+						<path d="M150 14v38" stroke="var(--color-surface, #ffffff)" strokeWidth="3.5" strokeLinecap="round" />
 					</g>
 				</svg>
 				<div className="onboarding-connect-gauge-center">

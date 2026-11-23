@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { BrandMark } from "../brand/BrandMark";
+import { ThemeToggle } from "../theme/ThemeToggle";
 
 /**
  * The two authenticated dashboard views the chrome switches between.
@@ -63,7 +64,10 @@ export function AppHeader({ view, onViewChange, children }: AppHeaderProps) {
 						);
 					})}
 				</nav>
-				<div className="react-app-account">{children}</div>
+				<div className="react-app-account">
+					<ThemeToggle />
+					{children}
+				</div>
 			</div>
 		</header>
 	);

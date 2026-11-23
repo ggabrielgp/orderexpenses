@@ -15,6 +15,8 @@ import "./identity-b.css";
 // Phase 2 motion loads after everything so the bottom-sheet geometry wins over legacy dialog widths.
 import "./motion.css";
 import "./demo-scenarios.css";
+// Dark mode loads last so [data-theme="dark"] overrides both legacy and Identity B layers.
+import "./dark-mode.css";
 
 const rootElement = document.querySelector<HTMLDivElement>("#root");
 if (!rootElement) throw new Error("React root element is missing");

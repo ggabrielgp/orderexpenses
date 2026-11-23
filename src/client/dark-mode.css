@@ -1,0 +1,836 @@
+/*
+ * Dark mode layer · "Semáforo sereno" dark palette.
+ * Loaded last in src/client/main.tsx so light-mode tokens in design-tokens.css and identity-b.css
+ * stay untouched while dark mode cleanly overrides root tokens and hardcoded light surfaces.
+ */
+
+/* Theme toggle button (shared by LandingHeader and AppHeader). */
+.theme-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 40px;
+	height: 40px;
+	min-width: 40px;
+	min-height: 40px;
+	padding: 0;
+	border: 1px solid var(--color-line);
+	border-radius: var(--radius-pill);
+	background: var(--color-surface);
+	color: var(--color-ink);
+	box-shadow: none;
+	cursor: pointer;
+	transition:
+		background var(--duration-fast) ease,
+		border-color var(--duration-fast) ease,
+		color var(--duration-fast) ease,
+		transform var(--duration-fast) ease;
+}
+
+.theme-toggle:hover {
+	background: var(--color-surface-subtle);
+	border-color: var(--color-line-strong);
+	color: var(--color-ink);
+	box-shadow: none;
+}
+
+.theme-toggle:active {
+	transform: scale(0.96);
+}
+
+.theme-toggle:focus-visible {
+	outline: 2px solid var(--color-focus);
+	outline-offset: 2px;
+}
+
+.theme-toggle-icon {
+	display: block;
+	width: 18px;
+	height: 18px;
+	overflow: visible;
+}
+
+.theme-toggle-core,
+.theme-toggle-mask-cutout,
+.theme-toggle-rays {
+	transform-origin: 12px 12px;
+	transition:
+		transform 540ms cubic-bezier(0.34, 1.35, 0.64, 1),
+		opacity 380ms ease;
+}
+
+.theme-toggle[data-theme-state="dark"] .theme-toggle-core {
+	transform: scale(0.56) rotate(0deg);
+}
+
+.theme-toggle[data-theme-state="dark"] .theme-toggle-mask-cutout {
+	transform: translate(12px, -12px);
+}
+
+.theme-toggle[data-theme-state="dark"] .theme-toggle-rays {
+	transform: scale(1) rotate(0deg);
+	opacity: 1;
+}
+
+.theme-toggle[data-theme-state="light"] .theme-toggle-core {
+	transform: scale(1) rotate(-24deg);
+}
+
+.theme-toggle[data-theme-state="light"] .theme-toggle-mask-cutout {
+	transform: translate(0px, 0px);
+}
+
+.theme-toggle[data-theme-state="light"] .theme-toggle-rays {
+	transform: scale(0.35) rotate(45deg);
+	opacity: 0;
+}
+
+/* Smooth theme switch: View Transitions API radial clip-path + CSS fallback */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+	mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+	z-index: 1;
+}
+
+::view-transition-new(root) {
+	z-index: 9999;
+}
+
+:root[data-theme-transition="true"],
+:root[data-theme-transition="true"] *,
+:root[data-theme-transition="true"] *::before,
+:root[data-theme-transition="true"] *::after {
+	transition:
+		background-color 560ms cubic-bezier(0.4, 0, 0.2, 1),
+		color 560ms cubic-bezier(0.4, 0, 0.2, 1),
+		border-color 560ms cubic-bezier(0.4, 0, 0.2, 1),
+		fill 560ms cubic-bezier(0.4, 0, 0.2, 1),
+		stroke 560ms cubic-bezier(0.4, 0, 0.2, 1),
+		box-shadow 560ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.react-app-account {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.landing-header-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+/* ============================================================================
+ * Dark palette tokens (soft, glare-free slate-navy + serene teal primary)
+ * ============================================================================ */
+
+:root[data-theme="dark"] {
+	color-scheme: dark;
+
+	/* Core canvas, elevated surfaces, and soft inks (no stark pure white). */
+	--color-canvas: #0f1522;
+	--color-surface: #161e2e;
+	--color-surface-subtle: #1d273b;
+	--color-surface-pressed: #25324a;
+	--color-ink: #dce3ee;
+	--color-ink-secondary: #a6b3c7;
+	--color-ink-muted: #7f8ea6;
+	--color-blue-deep: #7da9e8;
+	--color-blue-deep-rgb: 125 169 232;
+	--color-blue-standard: #98bdf0;
+	--color-blue-bright: #b4d0f7;
+	--color-blue-soft: rgb(125 169 232 / 0.14);
+	--color-violet: #b2a3e8;
+	--color-violet-soft: rgb(178 163 232 / 0.15);
+	--color-success: #2ab5a0;
+	--color-success-soft: rgb(42 181 160 / 0.15);
+	--color-warning: #e2b14d;
+	--color-warning-soft: rgb(226 177 77 / 0.15);
+	--color-danger: #e57a6b;
+	--color-danger-soft: rgb(229 122 107 / 0.15);
+	--color-line: #27344d;
+	--color-line-strong: #374766;
+	--color-focus: #5cc9b8;
+
+	/* Dedicated dark action & active-pill surfaces (calm teal + elevated slate). */
+	--dark-action-bg: #1e7f71;
+	--dark-action-hover: #259685;
+	--dark-action-text: #eaf3f2;
+	--dark-active-bg: #293854;
+	--dark-active-border: #43587e;
+	--dark-active-text: #e3e9f3;
+
+	/* Marketing tokens */
+	--marketing-canvas: #0f1522;
+	--marketing-surface: #161e2e;
+	--marketing-surface-subtle: #1d273b;
+	--marketing-primary: var(--dark-action-bg);
+	--marketing-primary-rgb: 30 127 113;
+	--marketing-primary-hover: var(--dark-action-hover);
+	--marketing-ink: #dce3ee;
+	--marketing-muted: #95a3ba;
+	--marketing-line: #27344d;
+	--marketing-stage-background: linear-gradient(145deg, #161e2e 0%, #111827 64%, #1b263b 100%);
+	--marketing-stage-border: #2c3b57;
+	--marketing-stage-window-border: #27344d;
+	--marketing-stage-shadow: 0 28px 70px rgba(0, 0, 0, 0.44);
+	--marketing-stage-window-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+	--marketing-featured-kpi-background: #1d273b;
+	--marketing-featured-kpi-text: #dce3ee;
+	--marketing-featured-kpi-text-secondary: #a6b3c7;
+	--marketing-stage-caption: #95a3ba;
+
+	/* Dark anchor tile */
+	--anchor-background: #1a2438;
+	--anchor-background-raised: #22304a;
+	--anchor-text: #dce3ee;
+	--anchor-text-secondary: #a6b3c7;
+	--anchor-accent: #7da9e8;
+	--anchor-border: rgba(125, 169, 232, 0.24);
+
+	/* Shadows adapted for dark surfaces */
+	--shadow-card: 0 3px 16px rgba(0, 0, 0, 0.26);
+	--shadow-panel: 0 10px 32px rgba(0, 0, 0, 0.34);
+	--shadow-sm: 0 1px 6px rgba(0, 0, 0, 0.22);
+	--shadow-xl: 0 20px 56px rgba(0, 0, 0, 0.52), 0 2px 8px rgba(0, 0, 0, 0.3);
+	--shadow-glow: 0 0 0 4px rgba(42, 181, 160, 0.22);
+	--card-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 20px rgba(0, 0, 0, 0.24);
+	--header-shadow: 0 1px 2px rgba(0, 0, 0, 0.34);
+
+	/* Semáforo sereno dark state hues & neutral track */
+	--state-calm: #2ab5a0;
+	--state-calm-soft: rgb(42 181 160 / 0.15);
+	--state-tight: #e2b14d;
+	--state-tight-strong: #ecc36a;
+	--state-tight-soft: rgb(226 177 77 / 0.15);
+	--state-over: #e57a6b;
+	--state-over-soft: rgb(229 122 107 / 0.15);
+	--color-track: #2a3650;
+	--control-border: #4b5e82;
+
+	/* Categorical & channel palettes tuned for calm dark contrast */
+	--cat-1: #7e8fd1;
+	--cat-2: #bd8cb3;
+	--cat-3: #80abc4;
+	--cat-4: #a39e94;
+	/* Channel inks (Compras / Transferencias / Pagos): calm steel-slate tones with clear icon contrast. */
+	--channel-1: #6b84ad;
+	--channel-2: #4c6288;
+	--channel-3: #334361;
+
+	/* Legacy compatibility accent aliases */
+	--primary: var(--dark-action-bg);
+	--primary-container: var(--dark-action-hover);
+	--accent: var(--dark-action-bg);
+	--accent-hover: var(--dark-action-hover);
+	--accent-soft: rgb(42 181 160 / 0.14);
+	--accent-line: rgb(42 181 160 / 0.32);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		color-scheme: dark;
+		--color-canvas: #0f1522;
+		--color-surface: #161e2e;
+		--color-surface-subtle: #1d273b;
+		--color-surface-pressed: #25324a;
+		--color-ink: #dce3ee;
+		--color-ink-secondary: #a6b3c7;
+		--color-ink-muted: #7f8ea6;
+		--color-line: #27344d;
+		--color-line-strong: #374766;
+		--state-calm: #2ab5a0;
+		--state-calm-soft: rgb(42 181 160 / 0.15);
+		--state-tight: #e2b14d;
+		--state-tight-strong: #ecc36a;
+		--state-tight-soft: rgb(226 177 77 / 0.15);
+		--state-over: #e57a6b;
+		--state-over-soft: rgb(229 122 107 / 0.15);
+		--color-track: #2a3650;
+		--control-border: #4b5e82;
+	}
+}
+
+/* ============================================================================
+ * Product chrome & Identity B dark overrides
+ * ============================================================================ */
+
+:root[data-theme="dark"] .react-shell,
+:root[data-theme="dark"] .react-app-header,
+:root[data-theme="dark"] .react-mobile-tabbar {
+	--accent: var(--dark-action-bg);
+	--accent-hover: var(--dark-action-hover);
+	--accent-soft: rgb(42 181 160 / 0.14);
+	--accent-line: rgb(42 181 160 / 0.32);
+	--primary: var(--dark-action-bg);
+	--primary-container: var(--dark-action-hover);
+	--focus: #5cc9b8;
+	--shadow-glow: 0 0 0 4px rgb(42 181 160 / 0.22);
+}
+
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] body:has(.react-movements-page) {
+	background: var(--color-canvas);
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] .react-app-header {
+	background: rgb(15 21 34 / 0.92);
+	border-bottom-color: var(--color-line);
+}
+
+:root[data-theme="dark"] .react-mobile-tabbar {
+	background: rgb(22 30 46 / 0.95);
+	border-top-color: var(--color-line);
+	box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.36);
+}
+
+:root[data-theme="dark"] .react-mobile-tabbar-link-active,
+:root[data-theme="dark"] .react-mobile-tabbar .react-mobile-tabbar-link-active:hover {
+	background: var(--dark-active-bg);
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] .react-mobile-tabbar-add {
+	background: var(--dark-action-bg);
+	color: var(--dark-action-text);
+	box-shadow: 0 0 0 6px #161e2e, 0 10px 22px rgba(0, 0, 0, 0.44);
+}
+
+:root[data-theme="dark"] .react-mobile-tabbar .react-mobile-tabbar-add:hover {
+	background: var(--dark-action-hover);
+	color: var(--dark-action-text);
+}
+
+/* ============================================================================
+ * Dashboard summary, charts, legacy surfaces & controls
+ * ============================================================================ */
+
+:root[data-theme="dark"] .modal-card,
+:root[data-theme="dark"] dialog,
+:root[data-theme="dark"] dialog.modal,
+:root[data-theme="dark"] .react-dialog,
+:root[data-theme="dark"] .account-menu,
+:root[data-theme="dark"] .account-menu-dropdown,
+:root[data-theme="dark"] .account-menu-panel,
+:root[data-theme="dark"] .react-account-menu-panel,
+:root[data-theme="dark"] .react-success-toast,
+:root[data-theme="dark"] .cycle-setup-card,
+:root[data-theme="dark"] .react-cycle-setup-card,
+:root[data-theme="dark"] .react-onboarding-card,
+:root[data-theme="dark"] .onboarding-connect-card,
+:root[data-theme="dark"] .onboarding-connect-example,
+:root[data-theme="dark"] .react-demo-banner,
+:root[data-theme="dark"] .react-spending-chart-bars,
+:root[data-theme="dark"] .category-distribution-card,
+:root[data-theme="dark"] .counterparty-spend-row {
+	background: var(--color-surface);
+	border-color: var(--color-line);
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] .weekly-track,
+:root[data-theme="dark"] .progress-bar {
+	background: var(--color-track);
+}
+
+:root[data-theme="dark"] .react-counterparty-ranking-avatar-2 {
+	background: var(--state-tight-soft);
+	color: var(--state-tight);
+}
+
+:root[data-theme="dark"] .react-pace-gauge-action,
+:root[data-theme="dark"] .onboarding-connect-cta {
+	background: var(--dark-action-bg);
+	border-color: var(--dark-action-bg);
+	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] .react-pace-gauge-action:hover,
+:root[data-theme="dark"] .onboarding-connect-cta:hover {
+	background: var(--dark-action-hover);
+	border-color: var(--dark-action-hover);
+	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] button.secondary,
+:root[data-theme="dark"] .switch-control span {
+	background: var(--color-surface-subtle);
+	border-color: var(--color-line-strong);
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] button.secondary:hover:not(:disabled) {
+	background: var(--color-surface-pressed);
+	border-color: var(--control-border);
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] .react-spending-chart-tab[aria-pressed="true"],
+:root[data-theme="dark"] .react-analytics-body .react-spending-chart-tab[aria-pressed="true"],
+:root[data-theme="dark"] .demo-scenario-option[aria-pressed="true"],
+:root[data-theme="dark"] .react-demo-scenario-chip[aria-pressed="true"] {
+	background: var(--dark-active-bg);
+	border-color: var(--dark-active-border);
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] .react-spending-chart-tabs > .react-spending-chart-selection-indicator,
+:root[data-theme="dark"] .react-analytics-body .react-spending-chart-tabs > .react-spending-chart-selection-indicator,
+:root[data-theme="dark"] .react-spending-chart-summary > .react-spending-chart-selection-indicator {
+	background: var(--dark-active-bg);
+	border-color: var(--dark-active-border);
+}
+
+:root[data-theme="dark"] .react-analytics-body .react-spending-chart-tabs[data-selection-motion="true"] > .react-spending-chart-tab[aria-pressed="true"],
+:root[data-theme="dark"] .react-spending-chart-summary[data-selection-motion="true"] > .react-spending-chart-summary-row-active {
+	background: transparent;
+	border-color: transparent;
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] .react-spending-chart-summary-row-active {
+	background: var(--dark-active-bg);
+	border-color: var(--dark-active-border);
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] .react-spending-chart-summary-row-active strong {
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] .react-analytics-body .react-spending-chart-bar-selected .react-spending-chart-fill {
+	background-color: var(--state-calm) !important;
+}
+
+:root[data-theme="dark"] .react-analytics-body .react-counterparty-ranking-rank {
+	background: var(--dark-active-bg);
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] .react-financial-warning {
+	border-left-color: var(--state-tight);
+	color: var(--state-tight) !important;
+}
+
+:root[data-theme="dark"] .react-cycle-calendar-day-selected,
+:root[data-theme="dark"] .react-cycle-calendar-day-selected:hover:not(:disabled),
+:root[data-theme="dark"] .react-financial-cycle-edit-dialog .react-cycle-calendar-day-selected:hover:not(:disabled) {
+	background: var(--dark-active-bg);
+	border-color: var(--dark-active-border);
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] .react-loading-shimmer::after,
+:root[data-theme="dark"] .react-skeleton::after {
+	background: linear-gradient(90deg, transparent, rgb(220 227 238 / 0.08), transparent);
+}
+
+:root[data-theme="dark"] .react-pace-gauge-tick-inner {
+	stroke: var(--color-surface);
+}
+
+/* ============================================================================
+ * Movements view (overrides hardcoded light surfaces & dark inks in styles.css / movements-polish.css)
+ * ============================================================================ */
+
+:root[data-theme="dark"] .react-movements-page,
+:root[data-theme="dark"] .react-movements-view {
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] .react-movements-pending-note {
+	color: var(--color-ink-muted);
+}
+
+:root[data-theme="dark"] .react-movements-metric,
+:root[data-theme="dark"] .react-movements-table-card,
+:root[data-theme="dark"] .react-movements-view .react-movements-table tbody tr {
+	background: var(--color-surface);
+	border-color: var(--color-line);
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] .react-movements-view .react-movements-table th {
+	background: var(--color-surface-subtle);
+	border-color: var(--color-line);
+	color: var(--color-ink-secondary);
+}
+
+:root[data-theme="dark"] .react-movements-view .react-movement-amount {
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] .react-movements-view .react-movement-category-unassigned,
+:root[data-theme="dark"] .react-movements-view .react-movement-kind-badge {
+	background: var(--color-surface-subtle);
+	color: var(--color-ink-secondary);
+}
+
+:root[data-theme="dark"] .react-movements-page .react-movements-view .react-movements-all-classified-mark {
+	background: var(--dark-action-bg);
+	color: var(--dark-action-text);
+}
+
+@media (max-width: 760px) {
+	:root[data-theme="dark"] .react-movements-page .react-movements-view .react-movements-table-card {
+		background: transparent;
+		border-color: transparent;
+	}
+}
+
+:root[data-theme="dark"] .react-movements-view .react-movements-table tbody tr:hover,
+:root[data-theme="dark"] .react-movement-card:hover {
+	background: var(--color-surface-subtle);
+}
+
+:root[data-theme="dark"] .react-movements-page .react-movements-view .react-movement-category {
+	background: color-mix(in srgb, var(--category-color) 20%, #161e2e);
+	border-color: color-mix(in srgb, var(--category-color) 38%, #27344d);
+}
+
+:root[data-theme="dark"] .react-movements-page .react-movements-view :is(
+	.react-movements-prompt-action,
+	.react-movements-state-action,
+	.react-movements-bulk-assign
+),
+:root[data-theme="dark"] .react-movements-view .react-movements-bulk-assign {
+	background: var(--dark-action-bg);
+	border-color: var(--dark-action-bg);
+	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] .react-movements-page .react-movements-view :is(
+	.react-movements-prompt-action,
+	.react-movements-state-action,
+	.react-movements-bulk-assign
+):hover:not(:disabled) {
+	background: var(--dark-action-hover);
+	border-color: var(--dark-action-hover);
+	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] .react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] {
+	background: var(--dark-active-bg);
+	border-color: var(--dark-active-border);
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] .react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] .react-movements-bulk-assign {
+	background: var(--dark-action-bg);
+	border-color: var(--dark-action-bg);
+	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] .react-movements-page .react-movements-view .react-movements-bulk[data-selected="true"] .react-movements-bulk-assign:hover:not(:disabled) {
+	background: var(--dark-action-hover);
+	border-color: var(--dark-action-hover);
+	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] .react-movements-page .react-movements-view .react-movements-kind-tab[aria-pressed="true"],
+:root[data-theme="dark"] .react-movements-page .react-movements-view .react-movements-kind-tab[aria-pressed="true"]:hover,
+:root[data-theme="dark"] .react-movements-page .react-movements-view .react-mobile-movement-sort button[aria-pressed="true"],
+:root[data-theme="dark"] .react-movements-page .react-movements-view .react-mobile-movement-sort button[aria-pressed="true"]:hover,
+:root[data-theme="dark"] .react-account-settings-tab[aria-selected="true"],
+:root[data-theme="dark"] .react-movements-filter-chip.is-active,
+:root[data-theme="dark"] .react-movements-category-chip.is-active {
+	background: var(--dark-active-bg);
+	border-color: var(--dark-active-border);
+	color: var(--dark-active-text);
+}
+
+/* ============================================================================
+ * Dialogs, forms, expense sheet, cycle setup & Gmail consent
+ * ============================================================================ */
+
+:root[data-theme="dark"] dialog::backdrop,
+:root[data-theme="dark"] dialog.cycle-dialog::backdrop,
+:root[data-theme="dark"] dialog.consent-dialog::backdrop {
+	background: rgba(5, 9, 18, 0.72);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog[class],
+:root[data-theme="dark"] dialog.consent-dialog[class] {
+	--cycle-ctl: var(--control-border);
+	--cycle-ink-hover: var(--dark-action-hover);
+	background: var(--color-surface);
+	color: var(--color-ink);
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.56), 0 4px 12px rgba(0, 0, 0, 0.34);
+}
+
+/* Replace hardcoded white scroll-shadow masks in cycle-setup.css with dark surface fades. */
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-body {
+	background:
+		linear-gradient(#161e2e 30%, rgb(22 30 46 / 0)) center top,
+		linear-gradient(rgb(22 30 46 / 0), #161e2e 70%) center bottom,
+		radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 32%), rgb(0 0 0 / 0)) center top,
+		radial-gradient(farthest-side at 50% 100%, rgb(0 0 0 / 32%), rgb(0 0 0 / 0)) center bottom;
+	background-repeat: no-repeat;
+	background-size: 100% 40px, 100% 40px, 100% 12px, 100% 12px;
+	background-attachment: local, local, scroll, scroll;
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] .react-movements-view .react-movements-bulk-field select,
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-amount input,
+:root[data-theme="dark"] dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields :is(
+	#edit-movement-amount,
+	#edit-movement-occurred-at,
+	#edit-movement-kind,
+	#edit-movement-category,
+	#edit-movement-counterparty,
+	#edit-movement-description
+),
+:root[data-theme="dark"] dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(
+	#manual-expense-amount,
+	#manual-expense-occurred-at,
+	#manual-expense-kind,
+	#manual-expense-category,
+	#manual-expense-counterparty,
+	#manual-expense-description
+) {
+	background-color: var(--color-surface-subtle);
+	border-color: var(--color-line-strong);
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields :is(#edit-movement-kind, #edit-movement-category),
+:root[data-theme="dark"] dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-kind, #manual-expense-category) {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23dce3ee' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+	color: var(--color-ink-muted);
+}
+
+:root[data-theme="dark"] table,
+:root[data-theme="dark"] thead,
+:root[data-theme="dark"] tbody,
+:root[data-theme="dark"] tr,
+:root[data-theme="dark"] th,
+:root[data-theme="dark"] td {
+	border-color: var(--color-line);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-option-radio,
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-chip span {
+	background: var(--color-surface-subtle);
+	border-color: var(--color-line-strong);
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-chip input:checked + span {
+	background: var(--dark-active-bg);
+	border-color: var(--dark-active-border);
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-actions .cycle-btn-primary,
+:root[data-theme="dark"] dialog.consent-dialog .consent-actions .consent-btn-primary {
+	background: var(--dark-action-bg);
+	border-color: var(--dark-action-bg);
+	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-actions .cycle-btn-primary:hover:not(:disabled),
+:root[data-theme="dark"] dialog.consent-dialog .consent-actions .consent-btn-primary:hover:not(:disabled) {
+	background: var(--dark-action-hover);
+	border-color: var(--dark-action-hover);
+	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-actions .cycle-btn-primary:disabled,
+:root[data-theme="dark"] dialog.consent-dialog .consent-actions .consent-btn-primary:disabled {
+	background: var(--color-surface-pressed);
+	border-color: var(--color-line-strong);
+	color: var(--color-ink-muted);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-actions .cycle-btn-ghost,
+:root[data-theme="dark"] dialog.consent-dialog .consent-actions .consent-btn-ghost {
+	background: var(--color-surface-subtle);
+	border-color: var(--color-line-strong);
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-actions .cycle-btn-ghost:hover:not(:disabled),
+:root[data-theme="dark"] dialog.consent-dialog .consent-actions .consent-btn-ghost:hover:not(:disabled) {
+	background: var(--color-surface-pressed);
+	border-color: var(--control-border);
+	color: var(--color-ink);
+}
+
+/* ============================================================================
+ * Landing page dark overrides
+ * ============================================================================ */
+
+:root[data-theme="dark"] .landing-page {
+	--marketing-canvas: #0f1522;
+	--marketing-surface: #161e2e;
+	--marketing-surface-subtle: #1d273b;
+	--marketing-primary: var(--dark-action-bg);
+	--marketing-primary-rgb: 30 127 113;
+	--marketing-primary-hover: var(--dark-action-hover);
+	--marketing-ink: #dce3ee;
+	--marketing-muted: #95a3ba;
+	--marketing-line: #27344d;
+	--marketing-stage-background: linear-gradient(145deg, #161e2e 0%, #111827 64%, #1b263b 100%);
+	--marketing-stage-border: #2c3b57;
+	--marketing-stage-window-border: #27344d;
+	--marketing-stage-shadow: 0 28px 70px rgba(0, 0, 0, 0.44);
+	--marketing-stage-window-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+	--marketing-featured-kpi-background: #1d273b;
+
+	--color-blue-deep: var(--dark-action-bg);
+	--color-blue-deep-rgb: 30 127 113;
+	--color-blue-standard: var(--dark-action-hover);
+	--color-blue-bright: #95a3ba;
+	--color-blue-soft: #1d273b;
+	--color-violet: #8b94a6;
+	--color-focus: #5cc9b8;
+	--focus: #5cc9b8;
+	--accent: var(--dark-action-bg);
+	--accent-hover: var(--dark-action-hover);
+	--accent-soft: rgb(42 181 160 / 0.14);
+	--accent-line: rgb(42 181 160 / 0.32);
+	--primary: var(--dark-action-bg);
+	--primary-container: var(--dark-action-hover);
+
+	background: var(--marketing-canvas);
+	color: var(--marketing-ink);
+}
+
+:root[data-theme="dark"] .landing-page .landing-header {
+	background: rgb(15 21 34 / 0.9);
+	border-bottom-color: var(--marketing-line);
+}
+
+:root[data-theme="dark"] .landing-page .landing-primary-button {
+	background: var(--dark-action-bg);
+	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] .landing-page .landing-primary-button:hover {
+	background: var(--dark-action-hover);
+	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] .landing-page .landing-secondary-button {
+	background: var(--marketing-surface);
+	border-color: var(--color-line-strong);
+	color: var(--marketing-ink);
+}
+
+:root[data-theme="dark"] .landing-page .landing-secondary-button:hover {
+	background: var(--marketing-surface-subtle);
+	border-color: var(--control-border);
+	color: var(--marketing-ink);
+}
+
+:root[data-theme="dark"] .landing-page .landing-hero-badge,
+:root[data-theme="dark"] .landing-page .landing-info-card,
+:root[data-theme="dark"] .landing-page .landing-feature-card,
+:root[data-theme="dark"] .landing-page .landing-kpi,
+:root[data-theme="dark"] .landing-page .landing-stage-card,
+:root[data-theme="dark"] .landing-page .landing-phone-screen,
+:root[data-theme="dark"] .landing-page .landing-tour-stage,
+:root[data-theme="dark"] .landing-page .landing-tour-card {
+	border-color: var(--marketing-line);
+	background: var(--marketing-surface);
+	color: var(--marketing-ink);
+}
+
+:root[data-theme="dark"] .landing-page .landing-budget-ring::before {
+	background: var(--marketing-surface);
+}
+
+:root[data-theme="dark"] .landing-page .landing-tour .landing-tour-arrow {
+	background: var(--marketing-surface);
+	border-color: var(--color-line-strong);
+	color: var(--marketing-ink);
+}
+
+:root[data-theme="dark"] .landing-page .landing-tour .landing-tour-arrow:hover {
+	background: var(--marketing-surface-subtle);
+	color: var(--marketing-ink);
+}
+
+:root[data-theme="dark"] .landing-page .landing-tour .landing-tour-dot::before {
+	background: #3a4b6b;
+}
+
+:root[data-theme="dark"] .landing-page .landing-tour .landing-tour-dot[aria-current="true"]::before {
+	background: var(--state-calm);
+}
+
+:root[data-theme="dark"] .landing-page .landing-problem-icon.is-view {
+	background: #1d273b;
+	color: #c2cde0;
+}
+
+:root[data-theme="dark"] .landing-page .landing-problem-icon.is-time {
+	background: var(--state-tight-soft);
+	color: var(--state-tight);
+}
+
+:root[data-theme="dark"] .landing-page .landing-problem-icon.is-correction {
+	background: rgb(189 140 179 / 0.16);
+	color: #d6a6cc;
+}
+
+:root[data-theme="dark"] .landing-page .landing-product-icon,
+:root[data-theme="dark"] .landing-page .landing-product-icon.is-accent {
+	background: var(--dark-active-bg);
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] .landing-page .landing-compatibility-section,
+:root[data-theme="dark"] .landing-page .landing-security-section {
+	background: var(--marketing-canvas);
+	border-color: var(--marketing-line);
+}
+
+:root[data-theme="dark"] .landing-page .landing-compatibility-panel {
+	border-color: var(--marketing-line);
+	background: linear-gradient(120deg, #161e2e 0%, #1d273b 100%);
+}
+
+:root[data-theme="dark"] .landing-page .landing-product-section {
+	background: #121a29;
+}
+
+:root[data-theme="dark"] .landing-page .landing-footer {
+	background: #0f1522;
+	border-top-color: var(--marketing-line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.theme-toggle,
+	.theme-toggle-core,
+	.theme-toggle-mask-cutout,
+	.theme-toggle-rays {
+		transition: none;
+	}
+
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation: none !important;
+	}
+
+	:root[data-theme-transition="true"],
+	:root[data-theme-transition="true"] *,
+	:root[data-theme-transition="true"] *::before,
+	:root[data-theme-transition="true"] *::after {
+		transition: none !important;
+	}
+}

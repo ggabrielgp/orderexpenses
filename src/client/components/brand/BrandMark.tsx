@@ -25,7 +25,7 @@ export function BrandMark({ size = 28, title, className }: BrandMarkProps) {
 			{...(title ? { role: "img", "aria-label": title } : { "aria-hidden": true })}
 		>
 			{title ? <title>{title}</title> : null}
-			<circle cx="28" cy="28" r="22" fill="none" stroke="#e3e1dc" strokeWidth="7" />
+			<circle cx="28" cy="28" r="22" fill="none" stroke="var(--color-line, #e3e1dc)" strokeWidth="7" />
 			<circle
 				cx="28"
 				cy="28"
