@@ -263,3 +263,19 @@ test("the movements layer carries no cobalt and keeps the 28/18/15 type scale", 
 	const identity = await read("src/client/identity-b.css");
 	assert.match(identity, /@import "\.\/movements-polish\.css"/);
 });
+
+test("mobile hides the idle bulk-selection card while keeping the sticky selected bar and post-action notices", async () => {
+	const css = await read("src/client/movements-polish.css");
+	assert.match(
+		css,
+		/\.react-movements-bulk\[data-selected="false"\]:not\(:has\(\.react-movements-bulk-notice\)\)\s*\{\s*display:\s*none;/,
+	);
+	assert.match(
+		css,
+		/\.react-movements-bulk\[data-selected="false"\]:has\(\.react-movements-bulk-notice\)\s*>\s*:not\(\.react-movements-bulk-notice\)\s*\{\s*display:\s*none;/,
+	);
+	assert.match(
+		css,
+		/\.react-movements-bulk\[data-selected="true"\]\s*\{[\s\S]*?position:\s*fixed;/,
+	);
+});

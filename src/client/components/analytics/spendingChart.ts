@@ -455,6 +455,16 @@ export interface SpendingChartTotalsRow {
 
 const NO_SELECTION_TITLE = "Selecciona una barra";
 
+const PLURAL_WEEKDAY_LABELS = [
+	"lunes",
+	"martes",
+	"miércoles",
+	"jueves",
+	"viernes",
+	"sábados",
+	"domingos",
+] as const;
+
 const KIND_LABELS: Record<string, string> = {
 	purchase: "Compras",
 	transfer: "Transferencias",
@@ -509,13 +519,13 @@ export function getSpendingChartDayDetail(
 		return { title: NO_SELECTION_TITLE, total: 0, groups: [], isEmpty: false };
 	}
 
+	const weekday = getWeekdayIndex(day.timestamp);
 	const label = longWeekdayFormatter.format(new Date(day.timestamp));
 	const title =
 		series.mode === "period"
-			? `Detalle de ${label} de ${series.detail}`
+			? `Detalle de los ${PLURAL_WEEKDAY_LABELS[weekday]} del período`
 			: `Detalle del ${label} ${day.detail}`;
 
-	const weekday = getWeekdayIndex(day.timestamp);
 	const matched = movements.filter((movement) => {
 		if (series.mode === "period") {
 			const timestamp = parseDateOnly(movement.dateKey);

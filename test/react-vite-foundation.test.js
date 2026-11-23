@@ -6116,7 +6116,7 @@ test("the React spending chart view renders selectable proportional bars, the re
 
 	// The full-period selection groups the whole period by date for the chosen weekday.
 	const mondayDetail = renderView("period", chart, "weekday-0");
-	assert.match(mondayDetail, /<h4>Detalle de lunes de domingo 1 de febrero - sábado 28 de febrero<\/h4>/);
+	assert.match(mondayDetail, /<h4>Detalle de los lunes del período<\/h4>/);
 	assert.match(mondayDetail, /<span class="react-spending-chart-day-date">lunes 2 feb<\/span>/);
 
 	// The totals grid states every week plus the full period and marks the selected row. The visible
@@ -6393,12 +6393,24 @@ test("the React spending chart detail and totals read the loaded transactions wi
 	const periodSeries = analytics.getSpendingChartSeries(chart, "period");
 	const monday = periodSeries.days.find((day) => day.key === "weekday-0");
 	const mondayDetail = analytics.getSpendingChartDayDetail(periodSeries, monday, rows);
-	assert.equal(mondayDetail.title, "Detalle de lunes de domingo 1 de febrero - sábado 28 de febrero");
+	assert.equal(mondayDetail.title, "Detalle de los lunes del período");
 	assert.equal(mondayDetail.total, 2500);
 	assert.equal(mondayDetail.isEmpty, false);
 	assert.deepEqual(mondayDetail.groups.map((group) => group.key), ["2026-02-02"]);
 	assert.equal(mondayDetail.groups[0].label, "lunes 2 feb");
 	assert.deepEqual(mondayDetail.groups[0].movements.map((movement) => movement.id), ["m1", null]);
+
+	// Weekend weekdays pluralize cleanly in the full-period detail heading.
+	const saturday = periodSeries.days.find((day) => day.key === "weekday-5");
+	assert.equal(
+		analytics.getSpendingChartDayDetail(periodSeries, saturday, rows).title,
+		"Detalle de los sábados del período",
+	);
+	const sunday = periodSeries.days.find((day) => day.key === "weekday-6");
+	assert.equal(
+		analytics.getSpendingChartDayDetail(periodSeries, sunday, rows).title,
+		"Detalle de los domingos del período",
+	);
 
 	// A week selection lists exactly that calendar day; a padded day has no detail at all.
 	const weekSeries = analytics.getSpendingChartSeries(chart, "week-0");

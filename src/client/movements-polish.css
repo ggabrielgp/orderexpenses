@@ -1001,6 +1001,22 @@ body:has(.react-movements-page) {
 }
 
 @media (max-width: 760px) {
+	/* On mobile, hide the idle "Sin selección" bulk card; only the floating bar appears once
+	   movements are selected. Keep any post-action feedback notice visible on its own. */
+	.react-movements-page .react-movements-view .react-movements-bulk[data-selected="false"]:not(:has(.react-movements-bulk-notice)) {
+		display: none;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-bulk[data-selected="false"]:has(.react-movements-bulk-notice) {
+		padding: 0;
+		background: transparent;
+		box-shadow: none;
+	}
+
+	.react-movements-page .react-movements-view .react-movements-bulk[data-selected="false"]:has(.react-movements-bulk-notice) > :not(.react-movements-bulk-notice) {
+		display: none;
+	}
+
 	/* The selection bar stacks: count, the category select at full width, then two equal buttons. The
 	   desktop three-column grid above outranked the legacy single-column rule and squeezed them. */
 	.react-movements-page .react-movements-view .react-movements-bulk {
