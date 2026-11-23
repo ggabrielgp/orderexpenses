@@ -65,6 +65,11 @@ dialog[class*="react-"][open]::backdrop {
 	}
 }
 
+@keyframes motion-sheet-up {
+	from { transform: translateY(100%); }
+	to { transform: translateY(0); }
+}
+
 /* Narrow screens: the same dialogs become bottom sheets that slide up and back down in 300ms. */
 @media (max-width: 760px) {
 	dialog[class*="react-"] {
@@ -82,7 +87,13 @@ dialog[class*="react-"][open]::backdrop {
 	}
 
 	dialog[class*="react-"][open] {
-		transform: none;
+		transform: translateY(0);
+		animation: motion-sheet-up var(--duration-view) var(--ease-out-expo);
+	}
+
+	dialog[class*="react-"][open][data-dragging="true"] {
+		animation: none;
+		transition: none;
 	}
 
 	@starting-style {
@@ -149,6 +160,7 @@ tr[data-highlighted="true"] > td {
 
 	dialog[class*="react-"],
 	dialog[class*="react-"]::backdrop {
+		animation: none !important;
 		transition: none !important;
 	}
 

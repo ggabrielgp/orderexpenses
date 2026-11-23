@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
+import { registerSheetDragDismiss } from "../dialog/sheetDragDismiss";
 import { useRetainedWhileClosing } from "../feedback/motion";
 import { getSpendingChartKindLabel } from "../analytics/spendingChart";
+import "../financial-cycle/cycle-setup.css";
+import "./expense-sheet.css";
 import { syncNativeModalDialog } from "./CreateManualExpenseDialog";
 import type {
 	EditableRecognizedExpenseMovement,
@@ -118,6 +121,7 @@ export function ViewMovementDialog({
 	readOnlyReason,
 }: ViewMovementDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	const titleRef = useRef<HTMLHeadingElement | null>(null);
 	const isOpen = openMovement !== null;
 	// The page unmounts this dialog by passing `null`; keep the last content rendered while the CSS
 	// exit (300ms sheet / 150ms desktop, immediate under reduced motion) plays, then release it.
@@ -126,7 +130,10 @@ export function ViewMovementDialog({
 	);
 
 	useEffect(() => {
+		const wasOpen = dialogRef.current?.open === true;
 		syncNativeModalDialog(dialogRef.current, isOpen);
+		registerSheetDragDismiss(dialogRef.current);
+		if (isOpen && !wasOpen) titleRef.current?.focus({ preventScroll: true });
 	}, [isOpen]);
 
 	if (!shown.value) return null;
@@ -140,49 +147,56 @@ export function ViewMovementDialog({
 	return (
 		<dialog
 			ref={dialogRef}
-			className="react-view-movement-dialog"
+			className="react-view-movement-dialog cycle-dialog"
 			aria-labelledby="react-view-movement-title"
 			onClose={onClose}
 			onTransitionEnd={shown.onTransitionEnd}
 		>
-			<h2 id="react-view-movement-title">Detalle del movimiento</h2>
-			<dl className="react-view-movement-fields">
-				{fields.map((field) => (
-					<div key={field.label} className="react-view-movement-field">
-						<dt>{field.label}</dt>
-						<dd>{field.value}</dd>
-					</div>
-				))}
-			</dl>
-			{!isEditable && (
-				<p className="react-view-movement-read-only">
-					{readOnlyReason ?? "Este movimiento no tiene identificación o fecha válida, por lo que solo puede verse."}
-				</p>
-			)}
-			<div className="react-shell-actions">
-				<button type="button" className="secondary" onClick={onClose}>
-					Cerrar
-				</button>
-				{/* The existing edit and removal dialogs stay the only mutation surfaces: the detail only
-				    forwards the editable record the table already resolved. */}
-				{canEdit && editableMovement && (
-					<button
-						type="button"
-						className="secondary react-movement-action"
-						onClick={() => onEdit?.(editableMovement)}
-					>
-						Editar
-					</button>
+			<div className="cycle-body">
+				<div className="cycle-grab" aria-hidden="true" />
+				<h2 id="react-view-movement-title" className="cycle-title" ref={titleRef} tabIndex={-1}>
+					Detalle del movimiento
+				</h2>
+				<dl className="react-view-movement-fields">
+					{fields.map((field) => (
+						<div key={field.label} className="react-view-movement-field">
+							<dt>{field.label}</dt>
+							<dd>{field.value}</dd>
+						</div>
+					))}
+				</dl>
+				{!isEditable && (
+					<p className="react-view-movement-read-only">
+						{readOnlyReason ?? "Este movimiento no tiene identificación o fecha válida, por lo que solo puede verse."}
+					</p>
 				)}
-				{canRemove && editableMovement && (
-					<button
-						type="button"
-						className="secondary react-movement-action"
-						onClick={() => onRemove?.(editableMovement)}
-					>
-						Eliminar
+			</div>
+			<div className="cycle-foot">
+				<div className="react-shell-actions cycle-actions">
+					<button type="button" className="secondary cycle-btn cycle-btn-ghost" onClick={onClose}>
+						Cerrar
 					</button>
-				)}
+					{/* The existing edit and removal dialogs stay the only mutation surfaces: the detail only
+					    forwards the editable record the table already resolved. */}
+					{canEdit && editableMovement && (
+						<button
+							type="button"
+							className="secondary react-movement-action cycle-btn cycle-btn-primary"
+							onClick={() => onEdit?.(editableMovement)}
+						>
+							Editar
+						</button>
+					)}
+					{canRemove && editableMovement && (
+						<button
+							type="button"
+							className="secondary react-movement-action cycle-btn cycle-btn-ghost"
+							onClick={() => onRemove?.(editableMovement)}
+						>
+							Eliminar
+						</button>
+					)}
+				</div>
 			</div>
 		</dialog>
 	);

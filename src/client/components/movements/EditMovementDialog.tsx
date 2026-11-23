@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
 import { getCategories } from "../../api/client";
+import { registerSheetDragDismiss } from "../dialog/sheetDragDismiss";
 import { useRetainedWhileClosing } from "../feedback/motion";
 import "../financial-cycle/cycle-setup.css";
 import "./expense-sheet.css";
@@ -398,6 +399,7 @@ export function EditMovementDialog({
 		const wasOpen = dialogRef.current?.open === true;
 		syncNativeModalDialog(dialogRef.current, isOpen);
 		if (isOpen && !wasOpen) titleRef.current?.focus({ preventScroll: true });
+		registerSheetDragDismiss(dialogRef.current);
 	}, [isOpen, movementId]);
 
 	// Reopening starts a brand new edit: no stale error, outcome or lock may leak into it.

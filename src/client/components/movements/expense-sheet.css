@@ -72,8 +72,26 @@ dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields :is(#
 
 /* Never a sideways scroll: a field that still grows past the sheet is clipped, not scrolled. */
 dialog.cycle-dialog.react-edit-movement-dialog .cycle-body,
-dialog.cycle-dialog.react-create-expense-dialog .cycle-body {
+dialog.cycle-dialog.react-create-expense-dialog .cycle-body,
+dialog.cycle-dialog.react-view-movement-dialog .cycle-body {
 	overflow-x: hidden;
+}
+
+/* Comfortable touch hit area for the mobile sheet handle without altering the visible 40x4 pill. */
+dialog.cycle-dialog:is(.react-create-expense-dialog, .react-edit-movement-dialog, .react-view-movement-dialog) .cycle-grab {
+	position: relative;
+	touch-action: none;
+	cursor: grab;
+}
+
+dialog.cycle-dialog:is(.react-create-expense-dialog, .react-edit-movement-dialog, .react-view-movement-dialog) .cycle-grab::before {
+	content: "";
+	position: absolute;
+	inset: -12px -48px -24px;
+}
+
+dialog.cycle-dialog:is(.react-create-expense-dialog, .react-edit-movement-dialog, .react-view-movement-dialog) .cycle-grab:active {
+	cursor: grabbing;
 }
 
 /* iOS gives datetime-local an intrinsic width and a centred value, which pushed the sheet sideways;
@@ -144,7 +162,8 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-catalog {
 
 /* The title takes focus on open only to keep the keyboard down; it is not a control, so no ring. */
 dialog.cycle-dialog.react-edit-movement-dialog h2.cycle-title:focus,
-dialog.cycle-dialog.react-create-expense-dialog h2.cycle-title:focus {
+dialog.cycle-dialog.react-create-expense-dialog h2.cycle-title:focus,
+dialog.cycle-dialog.react-view-movement-dialog h2.cycle-title:focus {
 	outline: none;
 }
 
@@ -162,7 +181,8 @@ dialog.cycle-dialog.react-create-expense-dialog :is(.react-create-expense-error,
 	}
 
 	dialog.cycle-dialog.react-edit-movement-dialog h2.cycle-title,
-	dialog.cycle-dialog.react-create-expense-dialog h2.cycle-title {
+	dialog.cycle-dialog.react-create-expense-dialog h2.cycle-title,
+	dialog.cycle-dialog.react-view-movement-dialog h2.cycle-title {
 		font-size: 26px;
 	}
 }

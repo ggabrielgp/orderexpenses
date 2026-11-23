@@ -8,6 +8,7 @@ import {
 } from "react";
 import { getCategories } from "../../api/client";
 import { registerNativeBackdropDismiss } from "../dialog/nativeBackdropDismiss";
+import { registerSheetDragDismiss } from "../dialog/sheetDragDismiss";
 import "../financial-cycle/cycle-setup.css";
 import "./expense-sheet.css";
 import type {
@@ -424,6 +425,7 @@ export function CreateManualExpenseDialog({
 		const wasOpen = dialogRef.current?.open === true;
 		syncNativeModalDialog(dialogRef.current, isOpen);
 		if (isOpen && !wasOpen) titleRef.current?.focus({ preventScroll: true });
+		registerSheetDragDismiss(dialogRef.current);
 	}, [isOpen]);
 
 	// Reopening starts a brand new expense: no stale error, outcome or lock may leak into it.
