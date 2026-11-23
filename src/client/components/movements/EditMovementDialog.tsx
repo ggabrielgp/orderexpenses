@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type SyntheticEvent } from "react";
 import { getCategories } from "../../api/client";
 import { useRetainedWhileClosing } from "../feedback/motion";
+import "../financial-cycle/cycle-setup.css";
+import "./expense-sheet.css";
 import type {
 	FinancialPeriod,
 	MovementUpdateTarget,
@@ -358,6 +360,7 @@ export function EditMovementDialog({
 	onSaved,
 }: EditMovementDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	const titleRef = useRef<HTMLHeadingElement | null>(null);
 	const saveLock = useRef(false);
 	// The parent closes this dialog by passing `null`; the last movement stays rendered while the CSS
 	// exit (300ms sheet / 150ms desktop, immediate under reduced motion) plays, then it is released.
@@ -388,9 +391,14 @@ export function EditMovementDialog({
 		: null;
 	const isDateEditable = isMovementDateEditable(target);
 
+	// showModal() focuses the first field, which on a phone raises the keyboard over the sheet
+	// before anything can be read. Opening moves focus to the title instead: screen readers still
+	// start at the dialog's name and the keyboard only appears when a field is tapped.
 	useEffect(() => {
+		const wasOpen = dialogRef.current?.open === true;
 		syncNativeModalDialog(dialogRef.current, isOpen);
-	}, [isOpen]);
+		if (isOpen && !wasOpen) titleRef.current?.focus({ preventScroll: true });
+	}, [isOpen, movementId]);
 
 	// Reopening starts a brand new edit: no stale error, outcome or lock may leak into it.
 	useEffect(() => {
@@ -542,15 +550,17 @@ export function EditMovementDialog({
 	return (
 		<dialog
 			ref={dialogRef}
-			className="react-edit-movement-dialog"
+			className="react-edit-movement-dialog cycle-dialog"
 			aria-labelledby="react-edit-movement-title"
 			inert={!isOpen}
 			onCancel={handleDialogCancel}
 			onClose={isOpen ? onClose : undefined}
 			onTransitionEnd={shown.onTransitionEnd}
 		>
-			<form className="react-edit-movement-form" onSubmit={handleSubmit} aria-busy={isSaving}>
-				<h2 id="react-edit-movement-title">Editar movimiento</h2>
+			<form className="react-edit-movement-form cycle-form" onSubmit={handleSubmit} aria-busy={isSaving}>
+				<div className="cycle-body">
+				<div className="cycle-grab" aria-hidden="true" />
+				<h2 id="react-edit-movement-title" className="cycle-title" ref={titleRef} tabIndex={-1}>Editar movimiento</h2>
 				<div className="react-edit-movement-fields">
 					<label className="react-edit-movement-full" htmlFor="edit-movement-occurred-at">
 						<span>Fecha y hora</span>
@@ -576,8 +586,10 @@ export function EditMovementDialog({
 								: getMovementDateLockMessage()}
 						</small>
 					</label>
-					<label htmlFor="edit-movement-amount">
+					<label className="react-edit-movement-full react-edit-movement-amount" htmlFor="edit-movement-amount">
 						<span>Monto CLP</span>
+						<span className="cycle-money">
+						<span className="cycle-money-unit cycle-money-prefix" aria-hidden="true">$</span>
 						<input
 							id="edit-movement-amount"
 							name="amount"
@@ -589,6 +601,8 @@ export function EditMovementDialog({
 							disabled={isSaving}
 							required
 						/>
+						<span className="cycle-money-unit cycle-money-suffix" aria-hidden="true">CLP</span>
+						</span>
 					</label>
 					<label htmlFor="edit-movement-kind">
 						<span>Tipo</span>
@@ -678,7 +692,7 @@ export function EditMovementDialog({
 							</button>
 						</>
 					) : (
-						<p className="react-edit-movement-catalog" role="status" aria-live="polite">
+						<p className={isCatalogReady ? "react-edit-movement-catalog cycle-sr" : "react-edit-movement-catalog"} role="status" aria-live="polite">
 							{isCatalogReady ? "Categorías disponibles." : "Cargando categorías..."}
 						</p>
 					)}
@@ -693,23 +707,26 @@ export function EditMovementDialog({
 						Guardando cambios...
 					</p>
 				)}
-				<div className="react-shell-actions">
+				</div>
+				<div className="cycle-foot">
+				<div className="react-shell-actions cycle-actions">
 					{/* A missing movement is terminal: the PATCH cannot succeed with the same request,
 					    so the dialog offers only a truthful close and never a retry control. */}
 					{isNotFound ? (
-						<button type="button" className="secondary" onClick={onClose}>
+						<button type="button" className="secondary cycle-btn cycle-btn-ghost" onClick={onClose}>
 							Cerrar
 						</button>
 					) : (
 						<>
-							<button type="button" className="secondary" onClick={onClose} disabled={isSaving}>
+							<button type="button" className="secondary cycle-btn cycle-btn-ghost" onClick={onClose} disabled={isSaving}>
 								Cancelar
 							</button>
-							<button type="submit" disabled={!isSubmitOpen}>
+							<button type="submit" className="cycle-btn cycle-btn-primary" disabled={!isSubmitOpen}>
 								{isSaving ? "Guardando..." : "Guardar cambios"}
 							</button>
 						</>
 					)}
+				</div>
 				</div>
 			</form>
 		</dialog>

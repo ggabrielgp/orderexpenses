@@ -5,10 +5,12 @@
  * the field look live here (the ids outrank the shared dialog field rule in dialog-polish.css); the shell, body scroll, footer and buttons come from `dialog.cycle-dialog`.
  */
 
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-form,
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-form {
 	gap: 0;
 }
 
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields,
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -16,6 +18,7 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields {
 	margin-top: 20px;
 }
 
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields label:not(.react-edit-movement-always),
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields label {
 	display: grid;
 	align-content: start;
@@ -27,6 +30,7 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields lab
 	line-height: 1.35;
 }
 
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields :is(#edit-movement-amount, #edit-movement-occurred-at, #edit-movement-kind, #edit-movement-category, #edit-movement-counterparty, #edit-movement-description),
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-amount, #manual-expense-occurred-at, #manual-expense-kind, #manual-expense-category, #manual-expense-counterparty, #manual-expense-description) {
 	-webkit-appearance: none;
 	appearance: none;
@@ -48,23 +52,33 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is
 	box-shadow: none;
 }
 
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields :is(#edit-movement-amount, #edit-movement-occurred-at, #edit-movement-kind, #edit-movement-category, #edit-movement-counterparty, #edit-movement-description):hover:not(:disabled),
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-amount, #manual-expense-occurred-at, #manual-expense-kind, #manual-expense-category, #manual-expense-counterparty, #manual-expense-description):hover:not(:disabled) {
 	border-color: var(--color-ink-secondary, #3f4b63);
 }
 
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields :is(#edit-movement-amount, #edit-movement-occurred-at, #edit-movement-kind, #edit-movement-category, #edit-movement-counterparty, #edit-movement-description):focus-visible,
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-amount, #manual-expense-occurred-at, #manual-expense-kind, #manual-expense-category, #manual-expense-counterparty, #manual-expense-description):focus-visible {
 	border-color: var(--color-ink, #131b2e);
 	outline: 3px solid var(--color-ink, #131b2e);
 	outline-offset: 2px;
 }
 
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields :is(#edit-movement-occurred-at, #edit-movement-category):disabled {
+	background-color: var(--color-surface-subtle, #f3f2ee);
+	opacity: 0.72;
+	cursor: not-allowed;
+}
+
 /* Never a sideways scroll: a field that still grows past the sheet is clipped, not scrolled. */
+dialog.cycle-dialog.react-edit-movement-dialog .cycle-body,
 dialog.cycle-dialog.react-create-expense-dialog .cycle-body {
 	overflow-x: hidden;
 }
 
 /* iOS gives datetime-local an intrinsic width and a centred value, which pushed the sheet sideways;
    it now fills the column and reads left-aligned like the text fields. */
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields #edit-movement-occurred-at,
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields #manual-expense-occurred-at {
 	height: 48px;
 	padding: 12px 14px;
@@ -74,6 +88,7 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields #ma
 
 /* iOS paints the date value at the top of a taller box; a content box exactly one line tall
    (12 + 22 + 12 plus the border = 48px) keeps it vertically centred. */
+dialog.cycle-dialog.react-edit-movement-dialog #edit-movement-occurred-at::-webkit-date-and-time-value,
 dialog.cycle-dialog.react-create-expense-dialog #manual-expense-occurred-at::-webkit-date-and-time-value {
 	min-height: 22px;
 	margin: 0;
@@ -81,11 +96,13 @@ dialog.cycle-dialog.react-create-expense-dialog #manual-expense-occurred-at::-we
 	text-align: left;
 }
 
+dialog.cycle-dialog.react-edit-movement-dialog #edit-movement-occurred-at::-webkit-datetime-edit,
 dialog.cycle-dialog.react-create-expense-dialog #manual-expense-occurred-at::-webkit-datetime-edit {
 	padding: 0;
 }
 
 /* Without the native control the selects draw the same chevron as the period dialog. */
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields :is(#edit-movement-kind, #edit-movement-category),
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is(#manual-expense-kind, #manual-expense-category) {
 	padding-right: 40px;
 	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23131b2e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -96,6 +113,7 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields :is
 	text-overflow: ellipsis;
 }
 
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields input::placeholder,
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields input::placeholder {
 	color: var(--color-ink-muted, #59647a);
 	font-weight: 500;
@@ -104,6 +122,7 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields inp
 
 /* The amount uses the product money field (the period income): a touch taller and bolder than the
    other fields, tabular, with its currency on both sides at the same 16px as the income field. */
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-amount input#edit-movement-amount,
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-amount input#manual-expense-amount {
 	min-height: 52px;
 	padding: 0 56px 0 32px;
@@ -112,6 +131,8 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-amount inp
 	font-weight: 700;
 }
 
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields small,
+dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-catalog,
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields small,
 dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-catalog {
 	margin: 0;
@@ -122,21 +143,25 @@ dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-catalog {
 }
 
 /* The title takes focus on open only to keep the keyboard down; it is not a control, so no ring. */
+dialog.cycle-dialog.react-edit-movement-dialog h2.cycle-title:focus,
 dialog.cycle-dialog.react-create-expense-dialog h2.cycle-title:focus {
 	outline: none;
 }
 
+dialog.cycle-dialog.react-edit-movement-dialog :is(.react-edit-movement-error, .react-edit-movement-pending),
 dialog.cycle-dialog.react-create-expense-dialog :is(.react-create-expense-error, .react-create-expense-pending) {
 	margin-top: 16px;
 }
 
 @media (max-width: 760px) {
+	dialog.cycle-dialog.react-edit-movement-dialog .react-edit-movement-fields,
 	dialog.cycle-dialog.react-create-expense-dialog .react-create-expense-fields {
 		grid-template-columns: minmax(0, 1fr);
 		gap: 16px;
 		margin-top: 16px;
 	}
 
+	dialog.cycle-dialog.react-edit-movement-dialog h2.cycle-title,
 	dialog.cycle-dialog.react-create-expense-dialog h2.cycle-title {
 		font-size: 26px;
 	}

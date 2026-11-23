@@ -67,3 +67,19 @@ test("Nuevo gasto amount matches the product money field and the date value is v
 	assert.match(css, /#manual-expense-occurred-at::-webkit-date-and-time-value \{[^}]*min-height: 22px;[^}]*line-height: 22px;/s);
 	assert.match(css, /h2\.cycle-title:focus \{[^}]*outline: none/s);
 });
+
+test("Editar movimiento uses the product sheet and opens focused on its title so mobile does not raise the keyboard", async () => {
+	const source = await read("src/client/components/movements/EditMovementDialog.tsx");
+	assert.match(source, /className="react-edit-movement-dialog cycle-dialog"/);
+	assert.match(source, /className="react-edit-movement-form cycle-form"/);
+	assert.match(source, /<div className="cycle-body">/);
+	assert.match(source, /<div className="cycle-foot">/);
+	assert.match(source, /<h2 id="react-edit-movement-title" className="cycle-title" ref=\{titleRef\} tabIndex=\{-1\}>Editar movimiento<\/h2>/);
+	assert.match(source, /const wasOpen = dialogRef\.current\?\.open === true;\s*syncNativeModalDialog\(dialogRef\.current, isOpen\);\s*if \(isOpen && !wasOpen\) titleRef\.current\?\.focus\(\{ preventScroll: true \}\);/);
+	assert.doesNotMatch(source, /autoFocus/);
+
+	const css = await read("src/client/components/movements/expense-sheet.css");
+	assert.match(css, /dialog\.cycle-dialog\.react-edit-movement-dialog \.react-edit-movement-fields/);
+	assert.match(css, /#edit-movement-occurred-at::-webkit-date-and-time-value/);
+	assert.match(css, /dialog\.cycle-dialog\.react-edit-movement-dialog h2\.cycle-title:focus/);
+});
