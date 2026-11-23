@@ -180,6 +180,7 @@ test("dark-mode.css loads last and defines dark palette aligned with brand ident
 	assert.match(css, /dialog\.cycle-dialog \.cycle-body/);
 	assert.match(css, /dialog\.cycle-dialog \.cycle-actions \.cycle-btn-primary/);
 	assert.match(css, /#edit-movement-occurred-at/);
+	assert.match(css, /\.landing-connected \.landing-info-icon/);
 });
 
 test("LandingHeader and AppHeader expose the theme toggle with accessible Spanish labels", async () => {

@@ -754,6 +754,11 @@
 	background: var(--marketing-surface);
 }
 
+:root[data-theme="dark"] .landing-page .landing-connected .landing-info-icon {
+	background: var(--color-success-soft);
+	color: var(--color-success);
+}
+
 :root[data-theme="dark"] .landing-page .landing-tour .landing-tour-arrow {
 	background: var(--marketing-surface);
 	border-color: var(--color-line-strong);
