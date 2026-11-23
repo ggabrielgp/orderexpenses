@@ -636,7 +636,7 @@ test("the React financial summary breaks recognized spending down by kind withou
 	);
 
 	const source = await readFile(
-		new URL("../src/client/pages/DashboardPage.tsx", import.meta.url),
+		new URL("../src/client/components/analytics/DashboardAnalyticsPanels.tsx", import.meta.url),
 		"utf8",
 	);
 	// The section is one Stitch-style card: a segmented distribution bar plus an icon legend, not a
@@ -709,14 +709,16 @@ test("the React financial summary selects the latest valid recognized expense wi
 	assert.equal(page.getRecognizedExpenseIdentity({ counterparty: "   ", description: null }), "Gasto sin identificar");
 	assert.equal(page.selectLatestRecognizedExpense([], period), null);
 
-	const source = await readFile(
-		new URL("../src/client/pages/DashboardPage.tsx", import.meta.url),
-		"utf8",
-	);
+	const [source, movementSummary, analyticsPanels] = await Promise.all([
+		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/movementSummary.ts", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/analytics/DashboardAnalyticsPanels.tsx", import.meta.url), "utf8"),
+	]);
 	assert.doesNotMatch(source, /new Date\(occurredAt\)/);
+	assert.doesNotMatch(movementSummary, /new Date\(occurredAt\)/);
 	// The current intelligence card owns the latest-expense identity and date, not a duplicate card.
 	assert.match(source, /latestExpense === null\s*\? null\s*:\s*\{\s*counterparty: getRecognizedExpenseIdentity\(latestExpense\),\s*date: formatMovementDate\(latestExpense\.occurredAt\),/);
-	assert.match(source, /const tiles = \[insights\.largest, insights\.frequency, insights\.latest, insights\.uncategorized\]/);
+	assert.match(analyticsPanels, /const tiles = \[insights\.largest, insights\.frequency, insights\.latest, insights\.uncategorized\]/);
 	const [React, renderer, insights] = await Promise.all([
 		import("react"), import("react-dom/server"),
 		vite.ssrLoadModule("/src/client/components/analytics/dashboardInsights.ts"),
@@ -747,9 +749,11 @@ test("the React financial summary exposes pending recognized amounts without inv
 	});
 	t.after(() => vite.close());
 
-	const [page, source, styles] = await Promise.all([
+	const [page, source, movementsTable, movementSummary, styles] = await Promise.all([
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/MovementsTable.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/movementSummary.ts", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 	assert.deepEqual(
@@ -762,7 +766,7 @@ test("the React financial summary exposes pending recognized amounts without inv
 		]),
 		{ count: 1, totalSpending: 1200, pendingAmountCount: 3 },
 	);
-	assert.match(source, /gastos reconocidos sin monto conocido no figuran en estos indicadores ni en la tabla\./);
+	assert.match(movementsTable, /gastos reconocidos sin monto conocido no figuran en estos indicadores ni en la tabla\./);
 	assert.match(source, /pendingAmountCount=\{summary\.pendingAmountCount\}/);
 	// Missing amounts are disclosed, never substituted into spending or a fabricated balance.
 	const [React, renderer, filters] = await Promise.all([
@@ -778,7 +782,7 @@ test("the React financial summary exposes pending recognized amounts without inv
 	}));
 	assert.match(markup, /role="status">3 gastos reconocidos sin monto conocido no figuran en estos indicadores ni en la tabla\.<\/p>/);
 	assert.doesNotMatch(markup, /Saldo disponible|Saldo restante|remainingBalance/);
-	assert.match(source, /return amount < 0 \? `-\$\{formatted\}` : formatted/);
+	assert.match(movementSummary, /return amount < 0 \? `-\$\{formatted\}` : formatted/);
 	assert.match(styles, /\.react-financial-grid\s*\{\s*display: grid;\s*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
 	assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.react-financial-grid\s*\{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 });
@@ -865,18 +869,19 @@ test("the React movements view derives safe, finite recognized expense rows", as
 		],
 	);
 
-	const source = await readFile(
-		new URL("../src/client/pages/DashboardPage.tsx", import.meta.url),
-		"utf8",
-	);
+	const [source, movementsTable] = await Promise.all([
+		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/MovementsTable.tsx", import.meta.url), "utf8"),
+	]);
 	assert.match(source, /view === "summary" \?/);
 	assert.match(source, /<MovementsTable/);
-	assert.match(source, /Contraparte/);
-	assert.match(source, /Monto/);
-	assert.match(source, /Fecha/);
-	assert.match(source, /Categoría/);
+	assert.match(movementsTable, /Contraparte/);
+	assert.match(movementsTable, /Monto/);
+	assert.match(movementsTable, /Fecha/);
+	assert.match(movementsTable, /Categoría/);
 	assert.match(source, /No se encontraron gastos reconocidos para este período\./);
 	assert.doesNotMatch(source, /legacy-app/);
+	assert.doesNotMatch(movementsTable, /legacy-app/);
 	assert.match(source, /\}, \[retryToken\]\);/);
 });
 
@@ -1028,10 +1033,11 @@ test("the React financial-cycle setup validates inclusive dates and reloads thro
 	});
 	t.after(() => vite.close());
 
-	const [client, page, source, styles] = await Promise.all([
+	const [client, page, source, movementSummary, styles] = await Promise.all([
 		vite.ssrLoadModule("/src/client/api/client.ts"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		readFile(new URL("../src/client/components/financial-cycle/FinancialCycleSetupForm.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/movementSummary.ts", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 	assert.deepEqual(
@@ -1099,7 +1105,7 @@ test("the React financial-cycle setup validates inclusive dates and reloads thro
 	}
 
 	assert.match(source, /ReviewPeriod\.currentMonth\(\)/);
-	assert.match(source, /ReviewPeriod\.fromInclusive\(startDate, endDate\)/);
+	assert.match(movementSummary, /ReviewPeriod\.fromInclusive\(startDate, endDate\)/);
 	assert.match(source, /<form[^>]*onSubmit=\{handleSubmit\}/);
 	assert.match(source, /type="date"/);
 	assert.match(source, /disabled=\{isSaving\}/);
@@ -1558,7 +1564,7 @@ test("the React dashboard owns category management instead of redirecting to the
 	assert.match(page, /onClick=\{\(\) => setIsAccountSettingsOpen\(true\)\}/);
 	assert.match(
 		page,
-		/import \{ AccountSettingsDialog \} from "\.\.\/components\/settings\/AccountSettingsDialog";/,
+		/const AccountSettingsDialog = lazy\(\(\) =>\s*import\("\.\.\/components\/settings\/AccountSettingsDialog"\)/,
 	);
 	assert.equal((page.match(/<AccountSettingsDialog/g) ?? []).length, 1);
 	assert.match(
@@ -2446,7 +2452,7 @@ test("the React dashboard exposes counterparty rules only in the authenticated t
 	assert.doesNotMatch(page, />\s*Reglas de contraparte\s*<\/button>/);
 	assert.match(
 		page,
-		/import \{ AccountSettingsDialog \} from "\.\.\/components\/settings\/AccountSettingsDialog";/,
+		/const AccountSettingsDialog = lazy\(\(\) =>\s*import\("\.\.\/components\/settings\/AccountSettingsDialog"\)/,
 	);
 	assert.equal((page.match(/<AccountSettingsDialog/g) ?? []).length, 1);
 	assert.match(
@@ -3157,7 +3163,7 @@ test("the React financial summary exposes one period edit trigger and reloads th
 	// heading and closure action must not leave a duplicate control or stale wiring behind.
 	assert.match(
 		page,
-		/import \{ FinancialCycleEditDialog(?:, type SignInPeriodChoice)? \} from "\.\.\/components\/financial-cycle\/FinancialCycleEditDialog";/,
+		/const FinancialCycleEditDialog = lazy\(\(\) =>\s*import\("\.\.\/components\/financial-cycle\/FinancialCycleEditDialog"\)/,
 	);
 	assert.match(page, /from "\.\.\/components\/financial-cycle\/cycleSettings";/);
 	assert.match(page, /createCycleEditSubmitter,/);
@@ -3282,16 +3288,21 @@ test("the React setup form and the financial-cycle module share one income rule"
 	});
 	t.after(() => vite.close());
 
-	const [page, settings, pageSource] = await Promise.all([
+	const [page, settings, pageSource, setupFormSource, movementSummarySource] = await Promise.all([
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		vite.ssrLoadModule("/src/client/components/financial-cycle/cycleSettings.ts"),
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/financial-cycle/FinancialCycleSetupForm.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/movements/movementSummary.ts", import.meta.url), "utf8"),
 	]);
 
 	// One rule, owned by the cycle module: the setup form consumes `parseCycleIncome` instead of
 	// carrying a second copy of it.
 	assert.doesNotMatch(pageSource, /function parseIncomeAmount/);
-	assert.match(pageSource, /parseCycleIncome/);
+	assert.doesNotMatch(setupFormSource, /function parseIncomeAmount/);
+	assert.doesNotMatch(movementSummarySource, /function parseIncomeAmount/);
+	assert.match(setupFormSource, /parseCycleIncome/);
+	assert.match(movementSummarySource, /parseCycleIncome/);
 
 	// Equivalence over the shipped surface: the setup payload and the module's own rule agree on every
 	// outcome — the value for a valid CLP integer, the same thrown message otherwise — so replacing one
@@ -5307,11 +5318,13 @@ test("the React authenticated summary derives period analytics for shared intell
 	});
 	t.after(() => vite.close());
 
-	const [React, renderer, pageModule, page] = await Promise.all([
+	const [React, renderer, pageModule, page, analyticsPanels, demoSource] = await Promise.all([
 		import("react"),
 		import("react-dom/server"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/analytics/DashboardAnalyticsPanels.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/demo/DemoDashboardPage.tsx", import.meta.url), "utf8"),
 	]);
 
 	// A static authenticated summary renders only loading; wiring proves its use of the public
@@ -5320,14 +5333,16 @@ test("the React authenticated summary derives period analytics for shared intell
 	assert.match(page, /\bgetPeriodAnalytics\b/);
 	assert.match(page, /const periodAnalytics = getPeriodAnalytics\(state\.data\.transactions\);/);
 	// Both callers retain the calculations after the intentionally removed metrics panel.
-	assert.equal((page.match(/const periodAnalytics = getPeriodAnalytics\(/g) ?? []).length, 2);
+	assert.equal((page.match(/const periodAnalytics = getPeriodAnalytics\(/g) ?? []).length, 1);
+	assert.equal((demoSource.match(/const periodAnalytics = getPeriodAnalytics\(/g) ?? []).length, 1);
 	assert.match(page, /reviewCount: periodAnalytics\.review\.count/);
 	assert.match(page, /label: periodAnalytics\.largest\.counterparty, total: periodAnalytics\.largest\.amount/);
-	assert.equal((page.match(/<TopInsightsView/g) ?? []).length, 1);
-	assert.match(page, /<TopInsightsView insights=\{insights\} story=\{story\}/);
-	assert.match(page, /export function TopInsightsView\(/);
+	assert.equal((analyticsPanels.match(/<TopInsightsView/g) ?? []).length, 1);
+	assert.match(analyticsPanels, /<TopInsightsView insights=\{insights\} story=\{story\}/);
+	assert.match(analyticsPanels, /export function TopInsightsView\(/);
 	// The metrics are derived, never fetched: the module owns no request and the page adds none.
 	assert.doesNotMatch(page, /loadPeriodAnalytics|fetch\("\/api\/analytics/);
+	assert.doesNotMatch(demoSource, /loadPeriodAnalytics|fetch\("\/api\/analytics/);
 
 	// The same intelligence card is reused by the demo, checked against a populated render.
 	const demoMarkup = renderer.renderToStaticMarkup(
@@ -5356,7 +5371,7 @@ test("the React authenticated summary derives period analytics for shared intell
 	assert.match(demoMarkup, /Mayor impacto/);
 	assert.match(demoMarkup, /react-insight-callout-detail">\$25\.000<\/p>/);
 	assert.match(demoMarkup, /Tus gastos ya están listos para explorarse en el detalle/);
-	assert.match(page, /className="react-top-insights-note"/);
+	assert.match(analyticsPanels, /className="react-top-insights-note"/);
 });
 
 test("the React category ranking groups recognized outflows by raw totals, merges the tail and discloses the unknown amounts", async (t) => {
@@ -5643,11 +5658,12 @@ test("the React authenticated summary composes the category ranking and jumps in
 	});
 	t.after(() => vite.close());
 
-	const [React, renderer, pageModule, page, movementsTable] = await Promise.all([
+	const [React, renderer, pageModule, page, analyticsPanels, movementsTable] = await Promise.all([
 		import("react"),
 		import("react-dom/server"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/analytics/DashboardAnalyticsPanels.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/components/movements/MovementsTable.tsx", import.meta.url), "utf8"),
 	]);
 
@@ -5708,7 +5724,8 @@ test("the React authenticated summary composes the category ranking and jumps in
 	assert.match(page, /const categoryRanking = getCategoryRanking\(movements, summary\.pendingAmountCount\);/);
 	// The shared analytics body mounts the ranking wrapper once for both the authenticated summary and
 	// the read-only demo, so the wrapper keeps a single mount site.
-	assert.equal((page.match(/<CategoryRankingPanel/g) ?? []).length, 1);
+	assert.equal((analyticsPanels.match(/<CategoryRankingPanel/g) ?? []).length, 1);
+	assert.equal((page.match(/<CategoryRankingPanel/g) ?? []).length, 0);
 	assert.match(page, /onJumpToCategory=\{/);
 	assert.match(page, /setRequestedCategory\(category\)/);
 	// The requested category is handed to the table the jump switches to.
@@ -5877,7 +5894,7 @@ test("the spending chart shows zero days as $0 and selects without automatic pag
 		import("react-dom/server"),
 		vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx"),
 		vite.ssrLoadModule("/src/client/components/analytics/spendingChart.ts"),
-		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/analytics/SpendingChartPanel.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/styles.css", import.meta.url), "utf8"),
 	]);
 	const chart = analytics.getSpendingChart(
@@ -6425,9 +6442,10 @@ test("the React authenticated summary mounts the spending chart without adding a
 	});
 	t.after(() => vite.close());
 
-	const [page, analyticsPanels, demoSource] = await Promise.all([
+	const [page, analyticsPanels, spendingChartPanel, demoSource] = await Promise.all([
 		readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/components/analytics/DashboardAnalyticsPanels.tsx", import.meta.url), "utf8"),
+		readFile(new URL("../src/client/components/analytics/SpendingChartPanel.tsx", import.meta.url), "utf8"),
 		readFile(new URL("../src/client/components/demo/DemoDashboardPage.tsx", import.meta.url), "utf8"),
 	]);
 
@@ -6446,11 +6464,12 @@ test("the React authenticated summary mounts the spending chart without adding a
 	// The shared analytics body mounts the chart once for both the authenticated summary and the demo.
 	assert.equal((analyticsPanels.match(/<SpendingChartPanel/g) ?? []).length, 1);
 	assert.equal((page.match(/<SpendingChartPanel/g) ?? []).length, 0);
-	assert.match(page, /export function SpendingChartView\(/);
-	assert.match(page, /export function SpendingChartPanel\(/);
+	assert.match(spendingChartPanel, /export function SpendingChartView\(/);
+	assert.match(spendingChartPanel, /export function SpendingChartPanel\(/);
 	// The default series is the full period, like legacy's `chartTab: "month"`.
-	assert.match(page, /useState<string>\(FULL_PERIOD_TAB_ID\)/);
+	assert.match(spendingChartPanel, /useState<string>\(FULL_PERIOD_TAB_ID\)/);
 	assert.doesNotMatch(page, /loadSpendingChart|fetch\("\/api\/analytics/);
+	assert.doesNotMatch(spendingChartPanel, /loadSpendingChart|fetch\("\/api\/analytics/);
 
 	// The demo tree reuses the same chart over its fixture.
 	assert.notEqual(demoSource, "", "the demo tree must be locatable");

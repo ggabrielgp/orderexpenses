@@ -143,3 +143,52 @@ test("the removal dialog keeps the reducer guard against a second DELETE and the
 	assert.match(edit, /acquireInFlightLock\(saveLock\)/);
 	assert.match(edit, /releaseInFlightLock\(saveLock\)/);
 });
+
+test("secondary modal dialogs are lazy-loaded with Suspense and gated by useHasOpened for SSR safety and exit animations", async () => {
+	const [dashboard, table] = await Promise.all([
+		read("src/client/pages/DashboardPage.tsx"),
+		read("src/client/components/movements/MovementsTable.tsx"),
+	]);
+
+	for (const [name, modulePath] of [
+		["AccountSettingsDialog", "../components/settings/AccountSettingsDialog"],
+		["CreateManualExpenseDialog", "../components/movements/CreateManualExpenseDialog"],
+		["EditMovementDialog", "../components/movements/EditMovementDialog"],
+		["RemoveMovementDialog", "../components/movements/RemoveMovementDialog"],
+		["FinancialCycleEditDialog", "../components/financial-cycle/FinancialCycleEditDialog"],
+		["ViewMovementDialog", "../components/movements/ViewMovementDialog"],
+		["FirstResultDialog", "../components/onboarding/FirstResultDialog"],
+	]) {
+		const escaped = modulePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+		assert.match(
+			dashboard,
+			new RegExp(`const ${name} = lazy\\(\\(\\) =>\\s*import\\("${escaped}"\\)`),
+			`${name} must be lazy-loaded in DashboardPage.tsx`,
+		);
+	}
+	assert.match(dashboard, /function useHasOpened\(/);
+	assert.match(dashboard, /<Suspense fallback=\{null\}>/);
+
+	assert.match(
+		table,
+		/const ViewMovementDialog = lazy\(\(\) =>\s*import\("\.\/ViewMovementDialog"\)/,
+		"ViewMovementDialog must be lazy-loaded in MovementsTable.tsx",
+	);
+	assert.match(table, /function useHasOpened\(/);
+	assert.match(table, /<Suspense fallback=\{null\}>/);
+
+	// SSR safety: rendering MovementsTable with the detail dialog never opened must not suspend.
+	const tableModule = await vite.ssrLoadModule("/src/client/components/movements/MovementsTable.tsx");
+	const html = renderToStaticMarkup(
+		createElement(tableModule.MovementsTable, {
+			period,
+			movements: [movement],
+			pendingAmountCount: 0,
+			editableMovements: [movement],
+			onEdit: noop,
+			onRemove: noop,
+		}),
+	);
+	assert.match(html, /Café/);
+	assert.doesNotMatch(html, /<dialog/);
+});

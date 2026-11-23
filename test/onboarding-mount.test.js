@@ -14,6 +14,7 @@ const vite = await createServer({
 const page = await vite.ssrLoadModule("/src/client/pages/DashboardPage.tsx");
 test.after(() => vite.close());
 const source = await readFile(new URL("../src/client/pages/DashboardPage.tsx", import.meta.url), "utf8");
+const setupFormSource = await readFile(new URL("../src/client/components/financial-cycle/FinancialCycleSetupForm.tsx", import.meta.url), "utf8");
 
 test("signed-out screen is onboarding step 1 with the trust points, demo link and the real connect control", () => {
 	const html = renderToStaticMarkup(createElement(page.DashboardPage, {
@@ -29,7 +30,7 @@ test("signed-out screen is onboarding step 1 with the trust points, demo link an
 });
 
 test("first cycle setup offers the options with the unchanged calendar and date inputs revealed by Otro rango", () => {
-	const form = source.slice(source.indexOf("function FinancialCycleSetupForm"), source.indexOf("export interface MovementFilterBarProps"));
+	const form = setupFormSource.slice(setupFormSource.indexOf("function FinancialCycleSetupForm"));
 	const presets = form.indexOf("<CyclePresets");
 	assert.ok(presets > 0);
 	assert.ok(presets < form.indexOf("<CycleCalendar"));
@@ -40,13 +41,13 @@ test("first cycle setup offers the options with the unchanged calendar and date 
 	assert.match(form, /id="financial-cycle-end-date"/);
 });
 
-test("onboarding step 3 starts only after the first cycle save and closes through the seen flag", () => {
+test("onboarding step 3 starts only after the first cycle save and closes through the seen flag", async () => {
 	// The inline "Así se lee tu medidor" card is gone: step 3 is the dialog of the first-result-step tests.
 	assert.match(source, /<FinancialCycleSetupForm onSaved=\{handleFirstCycleSaved\} \/>/);
 	assert.match(source, /setFirstResultPhase\(startFirstResult\(hasSeenFirstResult\(browserStorage\(\)\)\)\);\s*retry\(\);/);
 	assert.match(source, /dismissFirstResult\(phase, browserStorage\(\)\)/);
 	assert.doesNotMatch(source, /<FirstResultExplainer/);
 	// The demo body never receives the step.
-	const demo = source.slice(source.indexOf("function DemoDashboardPage"), source.indexOf("function DemoDashboardPage") + 20000);
-	assert.doesNotMatch(demo.slice(0, demo.indexOf("\nfunction ", 10)), /FirstResultDialog/);
+	const demo = await readFile(new URL("../src/client/components/demo/DemoDashboardPage.tsx", import.meta.url), "utf8");
+	assert.doesNotMatch(demo, /FirstResultDialog/);
 });

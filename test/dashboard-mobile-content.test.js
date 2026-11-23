@@ -146,6 +146,7 @@ test("responsive layout has complementary projections and single analytics panel
   assert.match(css, new RegExp(`\\.react-mobile-${name}\\s*\\{\\s*order:\\s*${order}`));
  }
  const page = await read("src/client/pages/DashboardPage.tsx");
+ const analyticsPanels = await read("src/client/components/analytics/DashboardAnalyticsPanels.tsx");
  assert.match(page, /<AccountMenu profile=\{profile\} gmailConnected=\{connected\}>/);
- for (const name of ["SpendingBreakdownView", "SpendingChartPanel", "CategoryRankingPanel", "DashboardCounterpartyRankingView", "TopInsightsView"]) assert.equal((page.match(new RegExp(`<${name}\\b`, "g")) ?? []).length, 1);
+ for (const name of ["SpendingBreakdownView", "SpendingChartPanel", "CategoryRankingPanel", "DashboardCounterpartyRankingView", "TopInsightsView"]) assert.equal((analyticsPanels.match(new RegExp(`<${name}\\b`, "g")) ?? []).length, 1);
 });

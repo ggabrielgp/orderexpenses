@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Suspense, lazy, useRef, useState } from "react";
 import { faReceipt } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { createCategoryColorResolver } from "../analytics/categoryDistribution";
@@ -18,7 +18,6 @@ import {
   MovementsNoResults,
   MovementsUncategorizedPrompt,
 } from "./MovementsStates";
-import { ViewMovementDialog } from "./ViewMovementDialog";
 import {
   getMovementUpdateTarget,
   type EditableRecognizedExpenseMovement,
@@ -62,6 +61,16 @@ import {
 } from "./movementSorting";
 import { formatClp } from "./movementSummary";
 import type { Category, FinancialPeriod } from "../../api/types";
+
+const ViewMovementDialog = lazy(() =>
+  import("./ViewMovementDialog").then((m) => ({ default: m.ViewMovementDialog })),
+);
+
+function useHasOpened(isOpen: boolean): boolean {
+  const [hasOpened, setHasOpened] = useState(isOpen);
+  if (isOpen && !hasOpened) setHasOpened(true);
+  return hasOpened || isOpen;
+}
 
 /**
  * Movements filter control: the category narrowed over the rows already loaded for the period.
@@ -717,6 +726,7 @@ export function MovementsTable({
 
   const openDetail = (movement: RecognizedExpenseMovement) => setDetailMovement(movement);
   const closeDetail = () => setDetailMovement(null);
+  const hasOpenedDetail = useHasOpened(detailMovement !== null);
   const detailEditable =
     detailMovement === null
       ? null
@@ -822,14 +832,18 @@ export function MovementsTable({
         bulkNotice={bulkNotice}
       />
       {/* The detail modal is rendered for every recognized row, editable or not. */}
-      <ViewMovementDialog
-        movement={detailMovement}
-        readOnlyReason={readOnlyReason}
-        editableMovement={detailEditable}
-        onClose={closeDetail}
-        onEdit={handleDetailEdit}
-        onRemove={handleDetailRemove}
-      />
+      {hasOpenedDetail && (
+        <Suspense fallback={null}>
+          <ViewMovementDialog
+            movement={detailMovement}
+            readOnlyReason={readOnlyReason}
+            editableMovement={detailEditable}
+            onClose={closeDetail}
+            onEdit={handleDetailEdit}
+            onRemove={handleDetailRemove}
+          />
+        </Suspense>
+      )}
     </>
   );
 }

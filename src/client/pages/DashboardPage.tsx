@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CategoryRankingPanel,
   CategoryRankingView,
@@ -74,7 +74,6 @@ import { DashboardLoadingState } from "../components/analytics/DashboardLoadingS
 import { AppHeader, type DashboardView } from "../components/shell/AppHeader";
 import { MobileTabBar } from "../components/shell/MobileTabBar";
 import { OnboardingConnect } from "../components/onboarding/OnboardingConnect";
-import { FirstResultDialog } from "../components/onboarding/FirstResultDialog";
 import { hasSeenFirstResult } from "../components/onboarding/firstResult";
 import {
   dismissFirstResult,
@@ -96,7 +95,6 @@ import {
 } from "../components/analytics/dashboardInsights";
 import { getSpendingChart } from "../components/analytics/spendingChart";
 import {
-  CreateManualExpenseDialog,
   acquireInFlightLock,
   createManualExpenseSubmitter,
   getManualExpenseCreationNotice,
@@ -104,14 +102,11 @@ import {
   type ManualExpenseCreationNotice,
 } from "../components/movements/CreateManualExpenseDialog";
 import {
-  EditMovementDialog,
   createMovementEditSubmitter,
   getMovementEditNotice,
   type MovementEditNotice,
   type MovementRecategorized,
 } from "../components/movements/EditMovementDialog";
-import { RemoveMovementDialog } from "../components/movements/RemoveMovementDialog";
-import { ViewMovementDialog } from "../components/movements/ViewMovementDialog";
 import {
   canSubmitRemoval,
   createMovementRemovalSubmitter,
@@ -132,10 +127,9 @@ import {
   type GmailConsentState,
 } from "../components/gmail/gmailConsent";
 import { createGmailSyncSubmitter, type GmailSyncResultReusePreparation } from "../components/gmail/gmailSync";
-import { AccountSettingsDialog } from "../components/settings/AccountSettingsDialog";
 import { createCategoryMutationSubmitter } from "../components/settings/categorySettings";
 import { createCounterpartyRuleSubmitter } from "../components/settings/counterpartyRules";
-import { FinancialCycleEditDialog, type SignInPeriodChoice } from "../components/financial-cycle/FinancialCycleEditDialog";
+import type { SignInPeriodChoice } from "../components/financial-cycle/FinancialCycleEditDialog";
 import {
   FinancialCycleSetupForm,
   requestFinancialSetupDismiss,
@@ -181,6 +175,54 @@ import type {
 } from "../api/types";
 
 config.autoAddCss = false;
+
+// Secondary modal dialogs are lazy-loaded so Vite splits them into on-demand chunks while keeping
+// initial render and SSR free of modal code.
+const AccountSettingsDialog = lazy(() =>
+  import("../components/settings/AccountSettingsDialog").then((m) => ({
+    default: m.AccountSettingsDialog,
+  })),
+);
+const CreateManualExpenseDialog = lazy(() =>
+  import("../components/movements/CreateManualExpenseDialog").then((m) => ({
+    default: m.CreateManualExpenseDialog,
+  })),
+);
+const EditMovementDialog = lazy(() =>
+  import("../components/movements/EditMovementDialog").then((m) => ({
+    default: m.EditMovementDialog,
+  })),
+);
+const RemoveMovementDialog = lazy(() =>
+  import("../components/movements/RemoveMovementDialog").then((m) => ({
+    default: m.RemoveMovementDialog,
+  })),
+);
+const FinancialCycleEditDialog = lazy(() =>
+  import("../components/financial-cycle/FinancialCycleEditDialog").then((m) => ({
+    default: m.FinancialCycleEditDialog,
+  })),
+);
+const ViewMovementDialog = lazy(() =>
+  import("../components/movements/ViewMovementDialog").then((m) => ({
+    default: m.ViewMovementDialog,
+  })),
+);
+const FirstResultDialog = lazy(() =>
+  import("../components/onboarding/FirstResultDialog").then((m) => ({
+    default: m.FirstResultDialog,
+  })),
+);
+
+/**
+ * Latches `true` once a dialog opens so SSR and initial load never trigger `React.lazy`, while
+ * keeping the dialog mounted after first open so its native `<dialog>` exit animation can play.
+ */
+function useHasOpened(isOpen: boolean): boolean {
+  const [hasOpened, setHasOpened] = useState(isOpen);
+  if (isOpen && !hasOpened) setHasOpened(true);
+  return hasOpened || isOpen;
+}
 
 // The recognized-expense row type is owned by the movements module; it stays re-exported
 // here so the page's public type surface is unchanged. `formatPeriodLabel` and the pure movement
@@ -355,6 +397,8 @@ export function DashboardPage({ session }: DashboardPageProps) {
     [financialDashboard],
   );
 
+  const hasOpenedAccountSettings = useHasOpened(isAccountSettingsOpen);
+
   if (!session.authenticated) {
     return (
       // Onboarding step 1: trust in three points; the real connect control keeps the consent flow.
@@ -473,23 +517,27 @@ export function DashboardPage({ session }: DashboardPageProps) {
 					    composition that never mounts the unified settings surface. The one account modal hosts
 					    the session profile and the Gmail connection, so the dashboard body starts at its own
 					    content instead of repeating that chrome. */}
-          <AccountSettingsDialog
-            isOpen={isAccountSettingsOpen}
-            onClose={() => setIsAccountSettingsOpen(false)}
-            profile={profile}
-            authenticated={session.authenticated}
-            initialConnected={connected}
-            connectControl={(accountConnected) => (
-              <GmailConnectControl
-                connectUrl={session.gmail.connectUrl}
-                accountConnected={accountConnected}
-                className="button"
+          {hasOpenedAccountSettings && (
+            <Suspense fallback={null}>
+              <AccountSettingsDialog
+                isOpen={isAccountSettingsOpen}
+                onClose={() => setIsAccountSettingsOpen(false)}
+                profile={profile}
+                authenticated={session.authenticated}
+                initialConnected={connected}
+                connectControl={(accountConnected) => (
+                  <GmailConnectControl
+                    connectUrl={session.gmail.connectUrl}
+                    accountConnected={accountConnected}
+                    className="button"
+                  />
+                )}
+                submitSync={submitGmailSync}
+                submitCategoryMutation={submitCategoryMutation}
+                submitCounterpartyRule={submitCounterpartyRule}
               />
-            )}
-            submitSync={submitGmailSync}
-            submitCategoryMutation={submitCategoryMutation}
-            submitCounterpartyRule={submitCounterpartyRule}
-          />
+            </Suspense>
+          )}
 
           <FinancialSummary
             key={profile?.email?.trim().toLowerCase() ?? ""}
@@ -933,20 +981,31 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     return () => controller.abort();
   }, [retryToken]);
 
+  const hasOpenedFirstResult = useHasOpened(firstResultPhase !== "idle");
+  const hasOpenedCreate = useHasOpened(isCreateOpen);
+  const hasOpenedCategoryDetail = useHasOpened(categoryDetailMovementId !== null);
+  const hasOpenedEdit = useHasOpened(editMovement !== null);
+  const hasOpenedRemoval = useHasOpened(removal.phase !== "closed");
+  const hasOpenedChartDetail = useHasOpened(chartDetailMovementId !== null);
+  const hasOpenedCycleEdit = useHasOpened(isCycleEditOpen);
+
   // Step 3 sits at the same position in every state, so the one dialog instance survives the move from
   // the saved setup, through loading, to the ready summary instead of re-opening.
-  const firstResultStep = (pace: DashboardPace | null) => (
-    <FirstResultDialog
-      phase={firstResultPhase}
-      pace={pace}
-      formatClp={formatClp}
-      onDone={closeFirstResult}
-      onAddIncome={() => {
-        closeFirstResult();
-        openCycleEdit();
-      }}
-    />
-  );
+  const firstResultStep = (pace: DashboardPace | null) =>
+    hasOpenedFirstResult ? (
+      <Suspense fallback={null}>
+        <FirstResultDialog
+          phase={firstResultPhase}
+          pace={pace}
+          formatClp={formatClp}
+          onDone={closeFirstResult}
+          onAddIncome={() => {
+            closeFirstResult();
+            openCycleEdit();
+          }}
+        />
+      </Suspense>
+    ) : null;
   if (state.status === "loading") {
     return <><DashboardLoadingState view={view} />{firstResultStep(null)}</>;
   }
@@ -1303,58 +1362,82 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
       )}
       {/* Only a configured summary can create an expense: the trigger lives here, and the
 			    dialog is the only place that requests the category catalog. */}
-      <CreateManualExpenseDialog
-        isOpen={isCreateOpen}
-        period={selectedPeriod!}
-        onClose={() => setIsCreateOpen(false)}
-        submitExpense={submitManualExpense}
-        onSaved={handleManualExpenseSaved}
-      />
+      {hasOpenedCreate && (
+        <Suspense fallback={null}>
+          <CreateManualExpenseDialog
+            isOpen={isCreateOpen}
+            period={selectedPeriod!}
+            onClose={() => setIsCreateOpen(false)}
+            submitExpense={submitManualExpense}
+            onSaved={handleManualExpenseSaved}
+          />
+        </Suspense>
+      )}
       {/* Category detail is independent from the weekday's read-only dialog. Unmount it before
 			    opening edit so native modal top layers never overlap. Only eligible rows offer Editar. */}
-      <ViewMovementDialog
-        movement={categoryDetailMovement}
-        editableMovement={categoryDetailMovementEditable}
-        onClose={() => setCategoryDetailMovementId(null)}
-        onEdit={(movement) => {
-          setCategoryDetailMovementId(null);
-          openMovementEdit(movement);
-        }}
-      />
+      {hasOpenedCategoryDetail && (
+        <Suspense fallback={null}>
+          <ViewMovementDialog
+            movement={categoryDetailMovement}
+            editableMovement={categoryDetailMovementEditable}
+            onClose={() => setCategoryDetailMovementId(null)}
+            onEdit={(movement) => {
+              setCategoryDetailMovementId(null);
+              openMovementEdit(movement);
+            }}
+          />
+        </Suspense>
+      )}
       {/* The edit dialog is only reachable from a row action, and every row that offers one is
 			    already bound to a target the PATCH accepts. */}
-      <EditMovementDialog
-        isOpen={editMovement !== null}
-        movement={editMovement}
-        period={selectedPeriod!}
-        onClose={() => setEditMovement(null)}
-        submitEdit={submitEdit}
-        onSaved={handleMovementEditSaved}
-      />
+      {hasOpenedEdit && (
+        <Suspense fallback={null}>
+          <EditMovementDialog
+            isOpen={editMovement !== null}
+            movement={editMovement}
+            period={selectedPeriod!}
+            onClose={() => setEditMovement(null)}
+            submitEdit={submitEdit}
+            onSaved={handleMovementEditSaved}
+          />
+        </Suspense>
+      )}
       {/* Unit B's dialog, driven by the reducer that owns the guard against a second DELETE. */}
-      <RemoveMovementDialog
-        movement={removalMovement}
-        state={removal}
-        onCancel={dismissMovementRemoval}
-        onConfirm={confirmMovementRemoval}
-      />
+      {hasOpenedRemoval && (
+        <Suspense fallback={null}>
+          <RemoveMovementDialog
+            movement={removalMovement}
+            state={removal}
+            onCancel={dismissMovementRemoval}
+            onConfirm={confirmMovementRemoval}
+          />
+        </Suspense>
+      )}
       {/* The chart's day-detail dialog is read-only: it names the movement and offers only `Cerrar`,
 			    reusing the same native modal the movements table mounts. */}
-      <ViewMovementDialog
-        movement={chartDetailMovement}
-        editableMovement={chartDetailMovementEditable}
-        onClose={() => setChartDetailMovementId(null)}
-      />
+      {hasOpenedChartDetail && (
+        <Suspense fallback={null}>
+          <ViewMovementDialog
+            movement={chartDetailMovement}
+            editableMovement={chartDetailMovementEditable}
+            onClose={() => setChartDetailMovementId(null)}
+          />
+        </Suspense>
+      )}
       {/* Mounted inside the ready state: an unconfigured or failed summary has no period to edit. */}
-      <FinancialCycleEditDialog
-        isOpen={isCycleEditOpen}
-        cycle={state.data.cycle}
-        onClose={() => setIsCycleEditOpen(false)}
-        submitCycle={submitCycleEdit}
-        onSaved={handleCycleEdited}
-        signIn={cycleEditMode === "signIn"}
-        onSignInConfirmed={handleSignInConfirmed}
-      />
+      {hasOpenedCycleEdit && (
+        <Suspense fallback={null}>
+          <FinancialCycleEditDialog
+            isOpen={isCycleEditOpen}
+            cycle={state.data.cycle}
+            onClose={() => setIsCycleEditOpen(false)}
+            submitCycle={submitCycleEdit}
+            onSaved={handleCycleEdited}
+            signIn={cycleEditMode === "signIn"}
+            onSignInConfirmed={handleSignInConfirmed}
+          />
+        </Suspense>
+      )}
     </section>
     {firstResultStep(dashboardPace)}
     </>
