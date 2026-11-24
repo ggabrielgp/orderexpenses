@@ -63,6 +63,8 @@ test("OnboardingConnect renders step, headline, points, children and the demo li
 	assert.ok(html.includes('<button class="button" type="button">Conectar Gmail</button>'));
 	assert.ok(html.includes('href="/app/demo"'));
 	assert.ok(html.includes("Ver la demo"));
+	assert.match(html, /class="theme-toggle"/);
+	assert.match(html, /aria-label="Cambiar a modo (?:oscuro|claro)"/);
 	assert.doesNotMatch(html, /localmente|presupuesto mensual/);
 });
 

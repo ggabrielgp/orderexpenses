@@ -346,17 +346,21 @@
 }
 
 :root[data-theme="dark"] .react-pace-gauge-action,
-:root[data-theme="dark"] .onboarding-connect-cta {
+:root[data-theme="dark"] .onboarding-connect .onboarding-connect-cta .button:not(:disabled) {
 	background: var(--dark-action-bg);
 	border-color: var(--dark-action-bg);
 	color: var(--dark-action-text);
 }
 
 :root[data-theme="dark"] .react-pace-gauge-action:hover,
-:root[data-theme="dark"] .onboarding-connect-cta:hover {
+:root[data-theme="dark"] .onboarding-connect .onboarding-connect-cta .button:not(:disabled):hover {
 	background: var(--dark-action-hover);
 	border-color: var(--dark-action-hover);
 	color: var(--dark-action-text);
+}
+
+:root[data-theme="dark"] .onboarding-connect-steps li[aria-current="step"] b {
+	color: var(--color-canvas);
 }
 
 :root[data-theme="dark"] button.secondary,

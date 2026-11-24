@@ -181,17 +181,22 @@ test("dark-mode.css loads last and defines dark palette aligned with brand ident
 	assert.match(css, /dialog\.cycle-dialog \.cycle-actions \.cycle-btn-primary/);
 	assert.match(css, /#edit-movement-occurred-at/);
 	assert.match(css, /\.landing-connected \.landing-info-icon/);
+	assert.doesNotMatch(css, /:root\[data-theme="dark"\]\s+\.onboarding-connect-cta\s*(?:,|\{|:hover)/);
+	assert.match(css, /:root\[data-theme="dark"\]\s+\.onboarding-connect\s+\.onboarding-connect-cta\s+\.button:not\(:disabled\)/);
+	assert.match(css, /:root\[data-theme="dark"\]\s+\.onboarding-connect-steps\s+li\[aria-current="step"\]\s+b/);
 });
 
-test("LandingHeader and AppHeader expose the theme toggle with accessible Spanish labels", async () => {
-	const [landingHeader, appHeader, toggle] = await Promise.all([
+test("LandingHeader, AppHeader and OnboardingConnect expose the theme toggle with accessible Spanish labels", async () => {
+	const [landingHeader, appHeader, onboardingConnect, toggle] = await Promise.all([
 		read("src/client/components/landing/LandingHeader.tsx"),
 		read("src/client/components/shell/AppHeader.tsx"),
+		read("src/client/components/onboarding/OnboardingConnect.tsx"),
 		read("src/client/components/theme/ThemeToggle.tsx"),
 	]);
 
 	assert.match(landingHeader, /<ThemeToggle/);
 	assert.match(appHeader, /<ThemeToggle/);
+	assert.match(onboardingConnect, /<ThemeToggle/);
 	assert.match(toggle, /Cambiar a modo claro/);
 	assert.match(toggle, /Cambiar a modo oscuro/);
 	assert.match(toggle, /data-theme-state/);

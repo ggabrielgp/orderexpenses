@@ -12,6 +12,10 @@
 }
 
 .onboarding-connect-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
 	padding-top: 24px;
 }
 

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { BrandMark } from "../brand/BrandMark";
 import { getGmailConsentCopy } from "../gmail/gmailConsent";
+import { ThemeToggle } from "../theme/ThemeToggle";
 import "./consent-points.css";
 import "./onboarding.css";
 
@@ -48,6 +49,7 @@ export function OnboardingConnect({ children }: OnboardingConnectProps) {
 					<BrandMark size={32} />
 					Gastos Controlados
 				</a>
+				<ThemeToggle />
 			</div>
 			<div className="onboarding-connect-grid">
 				<section className="onboarding-connect-intro" aria-labelledby="onboarding-connect-title">
