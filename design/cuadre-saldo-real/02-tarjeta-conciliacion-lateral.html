@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>02 · Tarjeta dedicada de cuadre — Cuadre de saldo real</title>
+<style>
+:root{
+  --color-canvas:#f6f5f2;
+  --color-surface:#ffffff;
+  --color-surface-subtle:#f1f0ec;
+  --color-track:#efeee9;
+  --color-ink:#131b2e;
+  --color-ink-secondary:#3f4b63;
+  --color-ink-muted:#59647a;
+  --accent-hover:#26324d;
+  --color-line:#e3e1dc;
+  --color-line-strong:#d2d0ca;
+  --control-border:#8b94a6;
+  --state-calm:#0b7a6b;
+  --state-calm-soft:#e2f3ef;
+  --state-tight:#9a6700;
+  --state-tight-strong:#8f5f00;
+  --state-tight-soft:#fdf3d8;
+  --state-over:#b4412f;
+  --state-over-soft:#fbe9e5;
+  --cat-1:#5a67a0;
+  --cat-2:#94678c;
+  --cat-3:#6f93ad;
+  --cat-4:#8e897f;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --radius-control:12px;
+  --radius-card:16px;
+  --radius-featured:20px;
+  --radius-pill:999px;
+  --card-shadow-soft:0 1px 2px rgba(15,23,42,.04),0 6px 18px rgba(15,23,42,.05);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-canvas);color:var(--color-ink);font-family:var(--font-body);font-size:15px;line-height:1.45}
+.frame{width:1440px;min-height:900px;display:flex;flex-direction:column}
+:is(button,a,input):focus-visible{outline:2px solid var(--color-ink);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+.topbar{height:68px;background:var(--color-surface);border-bottom:1px solid var(--color-line);padding:0 64px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em;font-size:1.05rem;color:var(--color-ink);text-decoration:none}
+.nav{display:flex;gap:8px}
+.nav a{padding:8px 14px;border-radius:var(--radius-pill);text-decoration:none;font-size:.9rem;font-weight:600;color:var(--color-ink-muted);min-height:40px;display:inline-flex;align-items:center}
+.nav a[aria-current="page"]{background:var(--color-ink);color:#fff;font-weight:700}
+.top-actions{display:flex;gap:10px}
+.btn{min-height:44px;padding:0 16px;border-radius:var(--radius-control);font:inherit;font-size:.875rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background 150ms ease}
+.btn-primary{background:var(--color-ink);color:#fff;border:0}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:var(--color-surface);color:var(--color-ink);border:1px solid var(--color-line-strong)}
+.btn-secondary:hover{background:var(--color-surface-subtle)}
+
+.proto-bar{background:var(--color-surface-subtle);border-bottom:1px solid var(--color-line);padding:10px 64px;display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:12px;color:var(--color-ink-secondary)}
+.proto-pills{display:flex;gap:6px;flex-wrap:wrap}
+.proto-pill{border:1px solid var(--color-line-strong);background:var(--color-surface);color:var(--color-ink-secondary);border-radius:var(--radius-pill);padding:6px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;min-height:32px}
+.proto-pill[aria-pressed="true"]{background:var(--color-ink);color:#fff;border-color:var(--color-ink)}
+
+main{max-width:1340px;width:100%;margin:0 auto;padding:28px 64px 40px;display:grid;gap:20px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end}
+.page-head h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.025em}
+.page-head p{margin:4px 0 0;font-size:14px;color:var(--color-ink-muted)}
+.cycle-chip{display:inline-flex;align-items:center;gap:8px;background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-pill);padding:6px 14px;font-size:13px;font-weight:600;color:var(--color-ink-secondary)}
+.dot-calm{width:8px;height:8px;border-radius:50%;background:var(--state-calm)}
+
+.top-grid{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:stretch}
+.card{background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-featured);padding:24px;box-shadow:var(--card-shadow-soft)}
+
+/* Pure Hero Pace Card */
+.hero-pure{display:flex;flex-direction:column;justify-content:space-between}
+.hero-top{display:grid;grid-template-columns:196px 1fr;gap:28px;align-items:center}
+.gauge{position:relative;width:196px;height:196px}
+.gauge-center{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.gauge-center strong{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.gauge-center span{font-size:12px;color:var(--color-ink-muted);margin-top:4px}
+.hero-kicker{font-size:13px;font-weight:600;color:var(--color-ink-muted)}
+.hero-amount{font-size:48px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:4px 0 6px}
+.hero-sub{font-size:15px;color:var(--color-ink-secondary);margin:0 0 12px}
+.hero-sub strong{color:var(--color-ink)}
+.state-pill{display:inline-flex;align-items:center;gap:6px;border-radius:var(--radius-pill);padding:5px 12px;font-size:12px;font-weight:700}
+.state-pill.calm{background:var(--state-calm-soft);color:var(--state-calm)}
+.state-pill.tight{background:var(--state-tight-soft);color:var(--state-tight-strong)}
+.state-pill.neutral{background:var(--color-surface-subtle);color:var(--color-ink-secondary)}
+
+.hero-stats{display:grid;grid-template-columns:repeat(3,1fr);margin-top:24px;padding-top:16px;border-top:1px solid var(--color-line)}
+.hero-stat span{display:block;font-size:12px;color:var(--color-ink-muted)}
+.hero-stat strong{display:block;font-size:18px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
+.hero-stat+.hero-stat{border-left:1px solid var(--color-line);padding-left:16px}
+
+/* NEW FEATURE: Dedicated Reconciliation Card */
+.recon-card{display:flex;flex-direction:column;gap:16px}
+.recon-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.recon-head h2{margin:0;font-size:18px;font-weight:700}
+.recon-head p{margin:2px 0 0;font-size:12px;color:var(--color-ink-muted)}
+
+.ledger{display:grid;gap:0;border:1px solid var(--color-line);border-radius:var(--radius-card);overflow:hidden;background:var(--color-canvas)}
+.ledger-row{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:14px;background:var(--color-surface)}
+.ledger-row+.ledger-row{border-top:1px solid var(--color-line)}
+.ledger-row .lbl{color:var(--color-ink-secondary)}
+.ledger-row .amt{font-weight:700;font-size:15px}
+.ledger-row.result{background:var(--color-canvas);padding:14px 16px}
+.ledger-row.result .lbl{font-weight:700;color:var(--color-ink)}
+.ledger-row.result .amt{font-size:22px;font-weight:800;letter-spacing:-.025em}
+.ledger-row.result .amt.tight{color:var(--state-tight-strong)}
+.ledger-row.result .amt.calm{color:var(--state-calm)}
+
+.callout{border-radius:var(--radius-control);padding:10px 12px;font-size:12.5px;display:flex;gap:10px;align-items:flex-start;line-height:1.4}
+.callout.warn{background:var(--state-tight-soft);color:var(--state-tight-strong)}
+.callout.calm{background:var(--state-calm-soft);color:var(--state-calm)}
+.callout.neutral{background:var(--color-surface-subtle);color:var(--color-ink-secondary)}
+.callout strong{display:block;font-weight:700}
+
+.edit-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:auto}
+.clp-wrap{position:relative;display:flex;align-items:center}
+.clp-wrap span{position:absolute;left:12px;font-weight:700;color:var(--color-ink-muted)}
+.clp-wrap input{width:100%;min-height:44px;padding:0 12px 0 26px;border:1px solid var(--control-border);border-radius:var(--radius-control);background:var(--color-surface);color:var(--color-ink);font:inherit;font-weight:700;font-size:15px}
+
+/* Bottom row: compact categories */
+.bottom-card{background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-featured);padding:20px 24px;box-shadow:var(--card-shadow-soft)}
+.bottom-card h2{margin:0 0 14px;font-size:16px;font-weight:700}
+.cat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.cat-pill-card{background:var(--color-canvas);border:1px solid var(--color-line);border-radius:var(--radius-card);padding:12px 14px;display:grid;gap:6px}
+.cat-pill-top{display:flex;justify-content:space-between;font-size:13px;color:var(--color-ink-secondary)}
+.cat-pill-amt{font-size:17px;font-weight:800}
+.cat-bar{height:5px;border-radius:3px;background:var(--color-track);overflow:hidden}
+.cat-bar i{display:block;height:100%;border-radius:3px}
+
+.direction-note{margin-top:auto;padding:12px 64px;background:var(--color-surface);border-top:1px solid var(--color-line);font-size:12px;color:var(--color-ink-muted);display:flex;justify-content:space-between}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="frame">
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Gastos Controlados">
+      <svg width="28" height="28" viewBox="0 0 56 56" aria-hidden="true">
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#e3e1dc" stroke-width="7"/>
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#0b7a6b" stroke-width="7" stroke-linecap="round" stroke-dasharray="86 138.2" transform="rotate(-90 28 28)"/>
+        <circle cx="28" cy="28" r="5" fill="#131b2e"/>
+      </svg>
+      gastos controlados
+    </a>
+    <nav class="nav" aria-label="Principal">
+      <a href="#" aria-current="page">Resumen</a>
+      <a href="#">Movimientos</a>
+    </nav>
+    <div class="top-actions">
+      <button class="btn btn-secondary" type="button">Sincronizar Gmail</button>
+      <button class="btn btn-primary" type="button">+ Registrar gasto</button>
+    </div>
+  </header>
+
+  <div class="proto-bar" role="region" aria-label="Estados interactivos de prueba">
+    <span><strong>Dirección 02 · Tarjeta dedicada de cuadre</strong> — Prueba estados reales:</span>
+    <div class="proto-pills">
+      <button class="proto-pill" data-state="gap" aria-pressed="true" type="button">Brecha $42.500</button>
+      <button class="proto-pill" data-state="stale" aria-pressed="false" type="button">Saldo desactualizado</button>
+      <button class="proto-pill" data-state="pending" aria-pressed="false" type="button">Con montos pendientes</button>
+      <button class="proto-pill" data-state="surplus" aria-pressed="false" type="button">Saldo a favor</button>
+      <button class="proto-pill" data-state="matched" aria-pressed="false" type="button">Cuadrado ($0)</button>
+      <button class="proto-pill" data-state="empty" aria-pressed="false" type="button">Sin saldo aún</button>
+    </div>
+  </div>
+
+  <main>
+    <div class="page-head">
+      <div>
+        <h1>Resumen del ciclo</h1>
+        <p>1 – 30 nov 2026 · Día 25 de 30 · Gmail sincronizado hoy a las 19:15</p>
+      </div>
+      <div class="cycle-chip"><span class="dot-calm" aria-hidden="true"></span> Ciclo activo · 6 días restantes</div>
+    </div>
+
+    <div class="top-grid">
+      <section class="card hero-pure" aria-labelledby="hero-title">
+        <div class="hero-top">
+          <div class="gauge" aria-hidden="true">
+            <svg width="196" height="196" viewBox="0 0 196 196">
+              <circle cx="98" cy="98" r="82" fill="none" stroke="#efeee9" stroke-width="14"/>
+              <circle cx="98" cy="98" r="82" fill="none" stroke="#0b7a6b" stroke-width="14" stroke-linecap="round" stroke-dasharray="324 515" transform="rotate(-90 98 98)"/>
+            </svg>
+            <div class="gauge-center">
+              <strong class="num">63%</strong>
+              <span>gastado</span>
+            </div>
+          </div>
+          <div>
+            <div id="hero-title" class="hero-kicker">Disponible según tus registros</div>
+            <div class="hero-amount num">$537.570</div>
+            <p class="hero-sub">Puedes gastar <strong class="num">$89.595 por día</strong> hasta el 30 nov</p>
+            <span class="state-pill calm">Ritmo tranquilo · cierras con unos $355.000 de sobra</span>
+          </div>
+        </div>
+
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <span>Ingreso del ciclo</span>
+            <strong class="num">$1.450.000</strong>
+          </div>
+          <div class="hero-stat">
+            <span>Gastado registrado</span>
+            <strong class="num">$912.430</strong>
+          </div>
+          <div class="hero-stat">
+            <span>Restante teórico</span>
+            <strong class="num">$537.570</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dedicated reconciliation card -->
+      <section class="card recon-card" aria-labelledby="recon-title" aria-live="polite">
+        <div class="recon-head">
+          <div>
+            <h2 id="recon-title">Cuadre con tu cuenta</h2>
+            <p id="tsText">Actualizado hoy a las 19:20</p>
+          </div>
+          <span class="state-pill tight" id="statusBadge">Sin seguimiento</span>
+        </div>
+
+        <div class="ledger">
+          <div class="ledger-row">
+            <span class="lbl">Disponible según registros</span>
+            <span class="amt num">$537.570</span>
+          </div>
+          <div class="ledger-row">
+            <span class="lbl">Saldo real en tu cuenta</span>
+            <span class="amt num" id="realLedger">$495.070</span>
+          </div>
+          <div class="ledger-row result">
+            <span class="lbl" id="diffLabel">Dinero sin seguimiento</span>
+            <span class="amt tight num" id="diffLedger">$42.500</span>
+          </div>
+        </div>
+
+        <div class="callout neutral" id="calloutBox">
+          <div>
+            <strong id="calloutTitle">¿Qué significa esta diferencia?</strong>
+            <span id="calloutBody">Tienes $42.500 menos en tu cuenta que lo calculado: suele ser efectivo, comisiones o compras sin correo.</span>
+          </div>
+        </div>
+
+        <form class="edit-row" id="editForm" onsubmit="return false">
+          <div class="clp-wrap">
+            <span aria-hidden="true">$</span>
+            <input id="balInput" class="num" type="text" inputmode="numeric" value="495.070" aria-label="Saldo real en cuenta en pesos chilenos" placeholder="Ej. 495.070">
+          </div>
+          <button class="btn btn-primary" type="submit" id="saveBtn">Actualizar saldo</button>
+        </form>
+      </section>
+    </div>
+
+    <section class="bottom-card" aria-labelledby="cat-title">
+      <h2 id="cat-title">Categorías principales del ciclo</h2>
+      <div class="cat-strip">
+        <div class="cat-pill-card">
+          <div class="cat-pill-top"><span>Supermercado</span><span class="num">35%</span></div>
+          <div class="cat-pill-amt num">$318.200</div>
+          <div class="cat-bar"><i style="width:35%;background:var(--cat-1)"></i></div>
+        </div>
+        <div class="cat-pill-card">
+          <div class="cat-pill-top"><span>Cuentas y servicios</span><span class="num">27%</span></div>
+          <div class="cat-pill-amt num">$246.800</div>
+          <div class="cat-bar"><i style="width:27%;background:var(--cat-2)"></i></div>
+        </div>
+        <div class="cat-pill-card">
+          <div class="cat-pill-top"><span>Transporte y bencina</span><span class="num">20%</span></div>
+          <div class="cat-pill-amt num">$184.430</div>
+          <div class="cat-bar"><i style="width:20%;background:var(--cat-3)"></i></div>
+        </div>
+        <div class="cat-pill-card">
+          <div class="cat-pill-top"><span>Salidas y cafés</span><span class="num">18%</span></div>
+          <div class="cat-pill-amt num">$163.000</div>
+          <div class="cat-bar"><i style="width:18%;background:var(--cat-4)"></i></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="direction-note">
+    <span>Tradeoff 02: Mantiene el hero limpio y deja la ecuación y advertencias muy claras; compite por espacio en la primera pantalla con las categorías.</span>
+    <span>Tokens sincronizados · Semáforo sereno</span>
+  </footer>
+</div>
+
+<script>
+const THEORETICAL = 537570;
+const fmt = n => "$" + Math.abs(Math.round(n)).toLocaleString("es-CL");
+const parseClp = s => {
+  const clean = String(s).replace(/[^\d]/g, "");
+  return clean === "" ? null : parseInt(clean, 10);
+};
+
+const states = {
+  gap: {
+    real: 495070, ts: "Actualizado hoy a las 19:20", tone: "neutral",
+    cTitle: "¿Qué significa esta diferencia?",
+    cBody: "Tienes $42.500 menos en tu cuenta que lo calculado: suele ser efectivo, comisiones o compras sin correo."
+  },
+  stale: {
+    real: 495070, ts: "Actualizado hace 2 días (23 nov, 18:10)", tone: "warn",
+    cTitle: "Saldo posiblemente desactualizado",
+    cBody: "Se registraron 2 gastos después de tu último corte. Ingresa tu saldo actual para volver a cuadrar."
+  },
+  pending: {
+    real: 495070, ts: "Actualizado hoy a las 19:20", tone: "warn",
+    cTitle: "2 movimientos sin monto conocido",
+    cBody: "Esos movimientos todavía no se descuentan del disponible teórico, por lo que la brecha real podría ser menor."
+  },
+  surplus: {
+    real: 565000, ts: "Actualizado hoy a las 19:20", tone: "calm",
+    cTitle: "Tienes $27.430 más de lo calculado",
+    cBody: "Puede deberse a un ingreso no contemplado en el ingreso del ciclo, saldo arrastrado o un gasto duplicado."
+  },
+  matched: {
+    real: 537570, ts: "Actualizado hoy a las 19:20", tone: "calm",
+    cTitle: "Números cuadrados",
+    cBody: "Tu saldo real coincide exactamente con el disponible calculado en este ciclo."
+  },
+  empty: {
+    real: null, ts: "Aún sin saldo real registrado", tone: "neutral",
+    cTitle: "Compara contra tu banco",
+    cBody: "Ingresa cuánto dinero tienes realmente disponible en tu cuenta para descubrir si hay gastos sin seguimiento."
+  }
+};
+
+function paint(real, meta) {
+  const badge = document.getElementById("statusBadge");
+  const realLedger = document.getElementById("realLedger");
+  const diffLabel = document.getElementById("diffLabel");
+  const diffLedger = document.getElementById("diffLedger");
+  const tsText = document.getElementById("tsText");
+  const box = document.getElementById("calloutBox");
+  const cTitle = document.getElementById("calloutTitle");
+  const cBody = document.getElementById("calloutBody");
+  const btn = document.getElementById("saveBtn");
+
+  tsText.textContent = meta.ts;
+  box.className = "callout " + meta.tone;
+  cTitle.textContent = meta.cTitle;
+  cBody.textContent = meta.cBody;
+
+  if (real === null) {
+    realLedger.textContent = "—";
+    diffLabel.textContent = "Dinero sin seguimiento";
+    diffLedger.textContent = "—";
+    diffLedger.className = "amt num";
+    badge.textContent = "Pendiente";
+    badge.className = "state-pill neutral";
+    btn.textContent = "Guardar saldo";
+    return;
+  }
+
+  btn.textContent = "Actualizar saldo";
+  realLedger.textContent = fmt(real);
+  const diff = THEORETICAL - real;
+  if (diff > 0) {
+    diffLabel.textContent = "Dinero sin seguimiento";
+    diffLedger.textContent = fmt(diff);
+    diffLedger.className = "amt tight num";
+    badge.textContent = "Sin seguimiento";
+    badge.className = "state-pill tight";
+  } else if (diff < 0) {
+    diffLabel.textContent = "Saldo a favor no registrado";
+    diffLedger.textContent = "+" + fmt(diff);
+    diffLedger.className = "amt calm num";
+    badge.textContent = "A favor";
+    badge.className = "state-pill calm";
+  } else {
+    diffLabel.textContent = "Diferencia";
+    diffLedger.textContent = "$0";
+    diffLedger.className = "amt calm num";
+    badge.textContent = "Cuadrado";
+    badge.className = "state-pill calm";
+  }
+}
+
+document.querySelectorAll(".proto-pill").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".proto-pill").forEach(b => b.setAttribute("aria-pressed", "false"));
+    btn.setAttribute("aria-pressed", "true");
+    const s = states[btn.dataset.state];
+    document.getElementById("balInput").value = s.real !== null ? s.real.toLocaleString("es-CL") : "";
+    paint(s.real, s);
+  });
+});
+
+document.getElementById("editForm").addEventListener("submit", () => {
+  const val = parseClp(document.getElementById("balInput").value);
+  if (val !== null) document.getElementById("balInput").value = val.toLocaleString("es-CL");
+  const diff = val !== null ? THEORETICAL - val : null;
+  const meta = val === null ? states.empty : diff > 0 ? {
+    ts: "Actualizado ahora mismo", tone: "neutral",
+    cTitle: "¿Qué significa esta diferencia?",
+    cBody: `Tienes ${fmt(diff)} menos en tu cuenta que lo calculado: suele ser efectivo, comisiones o compras sin correo.`
+  } : diff < 0 ? {
+    ts: "Actualizado ahora mismo", tone: "calm",
+    cTitle: `Tienes ${fmt(diff)} más de lo calculado`,
+    cBody: "Puede deberse a un ingreso extra, saldo arrastrado o un gasto duplicado."
+  } : { ...states.matched, ts: "Actualizado ahora mismo" };
+  paint(val, meta);
+});
+</script>
+</body>
+</html>

@@ -55,11 +55,18 @@ export interface FinancialCycleResponse {
 	selectedPeriod: FinancialPeriod | null;
 	incomeAmount: number | null;
 	completedAt: string | null;
+	actualBalance?: number | null;
+	actualBalanceAt?: string | null;
 }
 
 export interface UpdateFinancialCycleRequest {
 	selectedPeriod: FinancialPeriod;
 	incomeAmount: number | null;
+}
+
+export interface UpdateFinancialCycleReconciliationRequest {
+	period: FinancialPeriod;
+	actualBalance: number | null;
 }
 
 /**

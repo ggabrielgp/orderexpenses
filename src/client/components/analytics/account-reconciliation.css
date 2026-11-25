@@ -1,0 +1,261 @@
+/*
+ * Account reconciliation card ("Cuadre con tu cuenta")
+ * Follows design/cuadre-saldo-real/02-tarjeta-conciliacion-lateral.html and design/system.md tokens.
+ */
+
+.react-analytics-top-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
+	gap: var(--space-5, 24px);
+	align-items: stretch;
+}
+
+.react-reconciliation-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4, 16px);
+	background: var(--color-surface);
+	border: 1px solid var(--color-line);
+	border-radius: var(--radius-featured, 20px);
+	padding: var(--space-5, 24px);
+	box-shadow: var(--card-shadow-soft, var(--shadow-card));
+}
+
+.react-reconciliation-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: var(--space-3, 12px);
+}
+
+.react-reconciliation-head h2 {
+	margin: 0;
+	font-size: var(--type-section, 18px);
+	font-weight: 700;
+	letter-spacing: -0.015em;
+	color: var(--color-ink);
+}
+
+.react-reconciliation-updated {
+	margin: 2px 0 0;
+	font-size: var(--type-min, 12px);
+	color: var(--color-ink-muted);
+}
+
+.react-reconciliation-badge {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	border-radius: var(--radius-pill, 999px);
+	padding: 5px 12px;
+	font-size: var(--type-min, 12px);
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.react-reconciliation-badge.is-calm {
+	background: var(--state-calm-soft);
+	color: var(--state-calm);
+}
+
+.react-reconciliation-badge.is-tight {
+	background: var(--state-tight-soft);
+	color: var(--state-tight-strong, var(--state-tight));
+}
+
+.react-reconciliation-badge.is-neutral {
+	background: var(--color-surface-subtle);
+	color: var(--color-ink-secondary);
+}
+
+.react-reconciliation-ledger {
+	display: grid;
+	border: 1px solid var(--color-line);
+	border-radius: var(--radius-card, 16px);
+	overflow: hidden;
+	background: var(--color-canvas);
+}
+
+.react-reconciliation-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--space-3, 12px);
+	padding: 12px 16px;
+	font-size: 14px;
+	background: var(--color-surface);
+}
+
+.react-reconciliation-row + .react-reconciliation-row {
+	border-top: 1px solid var(--color-line);
+}
+
+.react-reconciliation-lbl {
+	color: var(--color-ink-secondary);
+}
+
+.react-reconciliation-amt {
+	font-weight: 700;
+	font-size: 15px;
+	font-variant-numeric: tabular-nums;
+	color: var(--color-ink);
+	white-space: nowrap;
+}
+
+.react-reconciliation-row.is-result {
+	background: var(--color-canvas);
+	padding: 14px 16px;
+}
+
+.react-reconciliation-row.is-result .react-reconciliation-lbl {
+	font-weight: 700;
+	color: var(--color-ink);
+}
+
+.react-reconciliation-row.is-result .react-reconciliation-amt {
+	font-size: 22px;
+	font-weight: 800;
+	letter-spacing: -0.025em;
+}
+
+.react-reconciliation-row.is-result .react-reconciliation-amt.is-tight {
+	color: var(--state-tight-strong, var(--state-tight));
+}
+
+.react-reconciliation-row.is-result .react-reconciliation-amt.is-calm {
+	color: var(--state-calm);
+}
+
+.react-reconciliation-callout {
+	border-radius: var(--radius-control, 12px);
+	padding: 10px 12px;
+	font-size: 12.5px;
+	line-height: 1.45;
+}
+
+.react-reconciliation-callout strong {
+	display: block;
+	font-weight: 700;
+	margin-bottom: 2px;
+}
+
+.react-reconciliation-callout.is-neutral {
+	background: var(--color-surface-subtle);
+	color: var(--color-ink-secondary);
+}
+
+.react-reconciliation-callout.is-warn {
+	background: var(--state-tight-soft);
+	color: var(--state-tight-strong, var(--state-tight));
+}
+
+.react-reconciliation-callout.is-calm {
+	background: var(--state-calm-soft);
+	color: var(--state-calm);
+}
+
+.react-reconciliation-form {
+	margin-top: auto;
+	display: grid;
+	gap: var(--space-2, 8px);
+}
+
+.react-reconciliation-input-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: var(--space-2, 8px);
+	align-items: center;
+}
+
+.react-reconciliation-clp-wrap {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.react-reconciliation-clp-prefix {
+	position: absolute;
+	left: 12px;
+	font-weight: 700;
+	color: var(--color-ink-muted);
+	pointer-events: none;
+}
+
+.react-reconciliation-input {
+	width: 100%;
+	min-height: 44px;
+	padding: 0 12px 0 26px;
+	border: 1px solid var(--control-border, var(--color-line-strong));
+	border-radius: var(--radius-control, 12px);
+	background: var(--color-surface);
+	color: var(--color-ink);
+	font: inherit;
+	font-weight: 700;
+	font-size: 15px;
+	font-variant-numeric: tabular-nums;
+}
+
+.react-reconciliation-input:focus-visible {
+	outline: 2px solid var(--focus, var(--color-ink));
+	outline-offset: 2px;
+}
+
+.react-reconciliation-btn {
+	min-height: 44px;
+	padding: 0 16px;
+	border-radius: var(--radius-control, 12px);
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.react-reconciliation-cta-row {
+	margin-top: auto;
+}
+
+.react-reconciliation-secondary-row {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.react-reconciliation-clear {
+	border: 0;
+	background: transparent;
+	color: var(--color-ink-muted);
+	font: inherit;
+	font-size: var(--type-min, 12px);
+	font-weight: 600;
+	padding: 4px 2px;
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.react-reconciliation-clear:hover {
+	color: var(--color-ink);
+}
+
+.react-reconciliation-clear:focus-visible {
+	outline: 2px solid var(--focus, var(--color-ink));
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+.react-reconciliation-error {
+	margin: 0;
+	font-size: var(--type-min, 12px);
+	font-weight: 600;
+	color: var(--state-over, var(--color-danger));
+}
+
+@media (max-width: 960px) {
+	.react-analytics-top-grid {
+		grid-template-columns: 1fr;
+		gap: var(--space-4, 16px);
+	}
+}
+
+@media (max-width: 520px) {
+	.react-reconciliation-input-row {
+		grid-template-columns: 1fr;
+	}
+}

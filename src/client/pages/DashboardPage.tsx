@@ -16,6 +16,7 @@ import {
   type SpendingChartPanelProps,
   type SpendingChartViewProps,
 } from "../components/analytics/SpendingChartPanel";
+import { getAccountReconciliation } from "../components/analytics/accountReconciliation";
 import { getDashboardPace, todayInSantiago, type DashboardPace } from "../components/analytics/dashboardPace";
 import { config } from "@fortawesome/fontawesome-svg-core";
 import {
@@ -39,6 +40,7 @@ import {
   removeTransaction,
   syncGmail,
   updateFinancialCycle,
+  updateFinancialCycleReconciliation,
   updateTransaction,
   upsertCategory,
   upsertCounterpartyRule,
@@ -1062,6 +1064,21 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     totalSpending: summary.totalSpending,
     today: todayInSantiago(new Date()),
   });
+  const reconciliation = getAccountReconciliation({
+    incomeAmount,
+    totalSpending: summary.totalSpending,
+    pendingAmountCount: summary.pendingAmountCount,
+    actualBalance: state.data.cycle.actualBalance ?? null,
+    actualBalanceAt: state.data.cycle.actualBalanceAt ?? null,
+    transactions: state.data.transactions,
+  });
+  const handleSaveActualBalance = async (actualBalance: number | null) => {
+    await updateFinancialCycleReconciliation({
+      period: selectedPeriod!,
+      actualBalance,
+    });
+    await reloadFinancialDashboard();
+  };
   const periodAnalytics = getPeriodAnalytics(state.data.transactions);
   const spendingByKind = summarizeRecognizedExpensesByKind(state.data.transactions);
   const latestExpense = selectLatestRecognizedExpense(state.data.transactions, selectedPeriod!);
@@ -1338,6 +1355,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
 					    the chart detail opens the read-only movement dialog. */}
           <DashboardAnalyticsBody
             pace={dashboardPace}
+            reconciliation={reconciliation}
+            onSaveActualBalance={handleSaveActualBalance}
             periodStartDate={selectedPeriod!.startDate}
             paceEndExclusive={selectedPeriod!.endDateExclusive}
             onAddIncome={openCycleEdit}

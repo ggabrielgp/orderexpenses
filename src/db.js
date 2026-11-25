@@ -132,17 +132,37 @@ export async function initDb() {
 			end_date_exclusive TEXT NOT NULL,
 			income_amount INTEGER,
 			completed_at TEXT,
+			actual_balance INTEGER,
+			actual_balance_at TEXT,
 			updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY(user_email, start_date, end_date_exclusive)
 		)
 	`);
+
+	await ensureFinancialPeriodsColumns();
+}
+
+async function ensureFinancialPeriodsColumns() {
+	const info = await db.execute("PRAGMA table_info(financial_periods)");
+	const columns = new Set(info.rows.map((row) => String(row.name)));
+	if (!columns.has("actual_balance")) {
+		await db.execute("ALTER TABLE financial_periods ADD COLUMN actual_balance INTEGER");
+	}
+	if (!columns.has("actual_balance_at")) {
+		await db.execute("ALTER TABLE financial_periods ADD COLUMN actual_balance_at TEXT");
+	}
+}
+
+function normalizeActualBalance(value) {
+	return value === null || value === undefined ? null : Number(value);
 }
 
 export async function getFinancialCycleSettings(userEmail) {
 	const result = await db.execute({
 		sql: `SELECT p.selected_start_date AS startDate,
 			p.selected_end_date_exclusive AS endDateExclusive,
-			f.income_amount AS incomeAmount, f.completed_at AS completedAt
+			f.income_amount AS incomeAmount, f.completed_at AS completedAt,
+			f.actual_balance AS actualBalance, f.actual_balance_at AS actualBalanceAt
 			FROM financial_preferences p
 			LEFT JOIN financial_periods f ON f.user_email = p.user_email
 				AND f.start_date = p.selected_start_date
@@ -159,18 +179,50 @@ export async function getFinancialCycleSettings(userEmail) {
 				},
 				incomeAmount: row.incomeAmount,
 				completedAt: row.completedAt,
+				actualBalance: normalizeActualBalance(row.actualBalance),
+				actualBalanceAt: row.actualBalanceAt ?? null,
 			}
 		: null;
 }
 
 export async function getFinancialCyclePeriod(userEmail, period) {
 	const result = await db.execute({
-		sql: `SELECT income_amount AS incomeAmount, completed_at AS completedAt FROM financial_periods
+		sql: `SELECT income_amount AS incomeAmount, completed_at AS completedAt,
+			actual_balance AS actualBalance, actual_balance_at AS actualBalanceAt
+			FROM financial_periods
 			WHERE user_email = ? AND start_date = ? AND end_date_exclusive = ?`,
 		args: [userEmail, period.startDate, period.endDateExclusive],
 	});
 	const row = result.rows[0];
-	return row ? { selectedPeriod: period, incomeAmount: row.incomeAmount, completedAt: row.completedAt } : null;
+	return row
+		? {
+				selectedPeriod: period,
+				incomeAmount: row.incomeAmount,
+				completedAt: row.completedAt,
+				actualBalance: normalizeActualBalance(row.actualBalance),
+				actualBalanceAt: row.actualBalanceAt ?? null,
+			}
+		: null;
+}
+
+export async function upsertFinancialCycleReconciliation(userEmail, record) {
+	const { selectedPeriod, actualBalance, actualBalanceAt } = record;
+	await db.execute({
+		sql: `INSERT INTO financial_periods (user_email, start_date, end_date_exclusive, actual_balance, actual_balance_at)
+			VALUES (?, ?, ?, ?, ?)
+			ON CONFLICT(user_email, start_date, end_date_exclusive) DO UPDATE SET
+			actual_balance = excluded.actual_balance,
+			actual_balance_at = excluded.actual_balance_at,
+			updated_at = CURRENT_TIMESTAMP`,
+		args: [
+			userEmail,
+			selectedPeriod.startDate,
+			selectedPeriod.endDateExclusive,
+			actualBalance,
+			actualBalanceAt,
+		],
+	});
+	return getFinancialCyclePeriod(userEmail, selectedPeriod);
 }
 
 export async function completeFinancialCyclePeriod(userEmail, record) {

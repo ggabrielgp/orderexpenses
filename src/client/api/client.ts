@@ -14,6 +14,7 @@ import type {
 	MovementUpdateTarget,
 	SessionResponse,
 	TransactionsResponse,
+	UpdateFinancialCycleReconciliationRequest,
 	UpdateFinancialCycleRequest,
 	UpdateTransactionRequest,
 	UpsertCategoryRequest,
@@ -62,6 +63,23 @@ export async function updateFinancialCycle(
 	});
 	if (!response.ok) {
 		throw new ApiError(`Request to /api/financial-cycle failed (${response.status})`);
+	}
+	return (await response.json()) as FinancialCycleResponse;
+}
+
+export async function updateFinancialCycleReconciliation(
+	payload: UpdateFinancialCycleReconciliationRequest,
+	signal?: AbortSignal,
+) {
+	const response = await fetch("/api/financial-cycle/reconciliation", {
+		method: "PUT",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(payload),
+		signal,
+		credentials: "same-origin",
+	});
+	if (!response.ok) {
+		throw new ApiError(`Request to /api/financial-cycle/reconciliation failed (${response.status})`);
 	}
 	return (await response.json()) as FinancialCycleResponse;
 }
@@ -374,7 +392,9 @@ function isFinancialCycleValue(value: unknown): value is FinancialCycleResponse 
 	return (
 		(cycle.selectedPeriod === null || isFinancialPeriodValue(cycle.selectedPeriod)) &&
 		(cycle.incomeAmount === null || typeof cycle.incomeAmount === "number") &&
-		(cycle.completedAt === null || typeof cycle.completedAt === "string")
+		(cycle.completedAt === null || typeof cycle.completedAt === "string") &&
+		(cycle.actualBalance === undefined || cycle.actualBalance === null || typeof cycle.actualBalance === "number") &&
+		(cycle.actualBalanceAt === undefined || cycle.actualBalanceAt === null || typeof cycle.actualBalanceAt === "string")
 	);
 }
 

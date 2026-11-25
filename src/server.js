@@ -33,6 +33,7 @@ import {
 	updateManualMovement,
 	upsertCounterpartyCategoryRule,
 	upsertUserCategory,
+	upsertFinancialCycleReconciliation,
 	upsertFinancialCycleSettings,
 } from "./db.js";
 import { ReviewPeriod } from "./shared/review-period.js";
@@ -134,7 +135,8 @@ export default async function handleRequest(req, res) {
 		}
 		if (
 			url.pathname === "/api/financial-cycle" ||
-			url.pathname === "/api/financial-cycle/complete"
+			url.pathname === "/api/financial-cycle/complete" ||
+			url.pathname === "/api/financial-cycle/reconciliation"
 		) {
 			const user = await requireActiveUser(session);
 			const result = await dispatchFinancialCycleRequest({
@@ -148,6 +150,7 @@ export default async function handleRequest(req, res) {
 					readPeriod: getFinancialCyclePeriod,
 					write: upsertFinancialCycleSettings,
 					complete: completeFinancialCyclePeriod,
+					reconcile: upsertFinancialCycleReconciliation,
 					syncPeriod: syncFinancialCyclePeriod,
 				}),
 			});
@@ -393,7 +396,9 @@ export async function dispatchFinancialCycleRequest({
 			? ["GET", "PUT"]
 			: pathname === "/api/financial-cycle/complete"
 				? ["POST"]
-				: null;
+				: pathname === "/api/financial-cycle/reconciliation"
+					? ["PUT"]
+					: null;
 	if (!allowedMethods) return null;
 	if (!allowedMethods.includes(method))
 		return financialCycleResponse(
@@ -407,7 +412,7 @@ export async function dispatchFinancialCycleRequest({
 			"forbidden",
 			"Same-origin request required",
 		);
-	return api({ method, user, body: method === "GET" ? null : await readBody() });
+	return api({ pathname, method, user, body: method === "GET" ? null : await readBody() });
 }
 
 export function createFinancialCycleApi({
@@ -416,9 +421,10 @@ export function createFinancialCycleApi({
 	readPeriod = read,
 	write,
 	complete = write,
+	reconcile = write,
 	syncPeriod = unavailableRangeSync,
 }) {
-	return async ({ method, user, body, sameOrigin = true }) => {
+	return async ({ pathname = "/api/financial-cycle", method, user, body, sameOrigin = true }) => {
 		if (!user?.email)
 			return financialCycleResponse(
 				401,
@@ -437,6 +443,11 @@ export function createFinancialCycleApi({
 				body: (await read(user.email)) ?? emptyFinancialCycle(),
 			};
 		if (method === "PUT") {
+			if (pathname === "/api/financial-cycle/reconciliation") {
+				const validation = validateFinancialCycleReconciliation(body);
+				if (validation.error) return validation.error;
+				return { status: 200, body: await reconcile(user.email, validation.value) };
+			}
 			const validation = validateFinancialCycle(body);
 			if (validation.error) return validation.error;
 			return { status: 200, body: await write(user.email, validation.value) };
@@ -533,6 +544,33 @@ function validateFinancialCycle(body) {
 	}
 }
 
+function validateFinancialCycleReconciliation(body) {
+	try {
+		const selectedPeriod = ReviewPeriod.create(body?.period).toJSON();
+		const actualBalance = body?.actualBalance;
+		if (
+			actualBalance !== null &&
+			(!Number.isSafeInteger(actualBalance) || actualBalance < 0)
+		) {
+			throw Object.assign(
+				new TypeError("actualBalance must be null or a non-negative whole CLP amount"),
+				{ field: "actualBalance" },
+			);
+		}
+		const actualBalanceAt =
+			actualBalance === null ? null : new Date().toISOString();
+		return { value: { selectedPeriod, actualBalance, actualBalanceAt } };
+	} catch (error) {
+		const field = error.field ?? financialCycleErrorField(error.message);
+		return {
+			error: {
+				status: 400,
+				body: { error: { code: "invalid_input", message: error.message, field } },
+			},
+		};
+	}
+}
+
 export function financialCyclePeriodFromQuery(searchParams) {
 	const startDate = searchParams.get("startDate");
 	const endDateExclusive = searchParams.get("endDateExclusive");
@@ -541,7 +579,13 @@ export function financialCyclePeriodFromQuery(searchParams) {
 }
 
 function emptyFinancialCycle() {
-	return { selectedPeriod: null, incomeAmount: null, completedAt: null };
+	return {
+		selectedPeriod: null,
+		incomeAmount: null,
+		completedAt: null,
+		actualBalance: null,
+		actualBalanceAt: null,
+	};
 }
 
 function financialCycleErrorField(message) {

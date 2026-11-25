@@ -4,6 +4,7 @@ import type { FinancialPeriod, SessionProfile } from "../../api/types";
 import { getDemoTransactions, type DemoDashboardData } from "../../demo-data";
 import { AccountMenu } from "../account/AccountMenuComponent";
 import { DashboardAnalyticsBody } from "../analytics/DashboardAnalyticsPanels";
+import { getAccountReconciliation } from "../analytics/accountReconciliation";
 import { getCategoryRanking } from "../analytics/categoryRanking";
 import { getDashboardCounterpartyRanking } from "../analytics/dashboardCounterpartyRanking";
 import {
@@ -164,6 +165,20 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
       totalSpending: summary.totalSpending,
     }, scenario),
   });
+  const demoActualBalance =
+    demoIncomeAmount !== null && demoIncomeAmount - summary.totalSpending > 42_500
+      ? demoIncomeAmount - summary.totalSpending - 42_500
+      : null;
+  const demoReconciliation = !previewMode
+    ? getAccountReconciliation({
+        incomeAmount: demoIncomeAmount,
+        totalSpending: summary.totalSpending,
+        pendingAmountCount: summary.pendingAmountCount,
+        actualBalance: demoActualBalance,
+        actualBalanceAt: demoActualBalance !== null ? new Date().toISOString() : null,
+        transactions,
+      })
+    : undefined;
   return (
     <>
       {/* View changes stay local; the account offers login, never mutations. */}
@@ -194,6 +209,8 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
 					    stays read-only and the account/mutation surfaces never mount. */}
           {view === "summary" ? <DashboardAnalyticsBody
             pace={demoPace}
+            reconciliation={demoReconciliation}
+            reconciliationReadOnly
             periodStartDate={data.period.startDate}
             paceEndExclusive={data.period.endDateExclusive}
             paceReplayKey={scenario}

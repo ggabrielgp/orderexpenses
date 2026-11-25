@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>03 · Píldora discreta + panel de cuadre (Desktop y Móvil)</title>
+<style>
+:root{
+  --color-canvas:#f6f5f2;
+  --color-surface:#ffffff;
+  --color-surface-subtle:#f1f0ec;
+  --color-track:#efeee9;
+  --color-ink:#131b2e;
+  --color-ink-secondary:#3f4b63;
+  --color-ink-muted:#59647a;
+  --accent-hover:#26324d;
+  --color-line:#e3e1dc;
+  --color-line-strong:#d2d0ca;
+  --control-border:#8b94a6;
+  --state-calm:#0b7a6b;
+  --state-calm-soft:#e2f3ef;
+  --state-tight:#9a6700;
+  --state-tight-strong:#8f5f00;
+  --state-tight-soft:#fdf3d8;
+  --state-over:#b4412f;
+  --state-over-soft:#fbe9e5;
+  --cat-1:#5a67a0;
+  --cat-2:#94678c;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --radius-control:12px;
+  --radius-card:16px;
+  --radius-featured:20px;
+  --radius-pill:999px;
+  --card-shadow-soft:0 1px 2px rgba(15,23,42,.04),0 6px 18px rgba(15,23,42,.05);
+  --shadow-xl:0 20px 56px rgba(30,52,100,.14),0 2px 8px rgba(30,52,100,.06);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-canvas);color:var(--color-ink);font-family:var(--font-body);font-size:15px;line-height:1.45}
+.frame{width:1440px;min-height:900px;display:flex;flex-direction:column}
+:is(button,a,input):focus-visible{outline:2px solid var(--color-ink);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+.proto-bar{background:var(--color-surface);border-bottom:1px solid var(--color-line);padding:12px 48px;display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:12.5px;color:var(--color-ink-secondary)}
+.proto-pills{display:flex;gap:6px;flex-wrap:wrap}
+.proto-pill{border:1px solid var(--color-line-strong);background:var(--color-surface);color:var(--color-ink-secondary);border-radius:var(--radius-pill);padding:6px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;min-height:32px}
+.proto-pill[aria-pressed="true"]{background:var(--color-ink);color:#fff;border-color:var(--color-ink)}
+
+/* Two-viewport showcase: Desktop dashboard + open drawer + Mobile sheet */
+.stage{flex:1;padding:28px 48px 36px;display:grid;grid-template-columns:1fr 390px;gap:28px;align-items:start}
+
+.viewport-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-ink-muted);margin:0 0 10px}
+
+/* Desktop window with slide-over panel */
+.desktop-win{position:relative;background:var(--color-canvas);border:1px solid var(--color-line-strong);border-radius:var(--radius-featured);overflow:hidden;box-shadow:var(--card-shadow-soft);height:756px;display:flex;flex-direction:column}
+.d-bar{height:58px;background:var(--color-surface);border-bottom:1px solid var(--color-line);padding:0 24px;display:flex;align-items:center;justify-content:space-between}
+.d-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:.95rem}
+.d-body{padding:24px;display:grid;gap:18px}
+.d-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.d-head h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.025em}
+.d-head small{display:block;font-size:13px;color:var(--color-ink-muted)}
+
+/* Quiet trigger pill on the dashboard */
+.recon-trigger{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:var(--radius-pill);border:1px solid var(--color-line-strong);background:var(--color-surface);color:var(--color-ink);font:inherit;font-size:13px;font-weight:700;cursor:pointer;box-shadow:var(--card-shadow-soft)}
+.recon-trigger:hover{background:var(--color-surface-subtle)}
+.recon-trigger .badge-dot{width:8px;height:8px;border-radius:50%;background:var(--state-tight)}
+.recon-trigger .badge-dot.calm{background:var(--state-calm)}
+.recon-trigger .sub{font-weight:500;color:var(--color-ink-muted)}
+
+.hero-card{background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-featured);padding:22px;display:grid;grid-template-columns:168px 1fr;gap:22px;align-items:center}
+.gauge{position:relative;width:168px;height:168px}
+.gauge-center{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.gauge-center strong{font-size:26px;font-weight:800}
+.gauge-center span{font-size:12px;color:var(--color-ink-muted)}
+.hero-amt{font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:4px 0}
+.pill-calm{display:inline-flex;border-radius:var(--radius-pill);padding:4px 10px;font-size:12px;font-weight:700;background:var(--state-calm-soft);color:var(--state-calm)}
+
+/* Slide-over drawer inside desktop preview */
+.drawer-scrim{position:absolute;inset:0;background:rgba(19,27,46,.22);display:flex;justify-content:flex-end;transition:opacity 180ms ease}
+.drawer-scrim[hidden]{display:none}
+.drawer{width:420px;height:100%;background:var(--color-surface);border-left:1px solid var(--color-line);box-shadow:var(--shadow-xl);padding:24px;display:flex;flex-direction:column;gap:18px;overflow:auto}
+.drawer-head{display:flex;justify-content:space-between;align-items:center}
+.drawer-head h2{margin:0;font-size:18px;font-weight:800}
+.icon-btn{width:40px;height:40px;border-radius:var(--radius-pill);border:1px solid var(--color-line);background:var(--color-surface);color:var(--color-ink);font-size:18px;cursor:pointer;display:grid;place-items:center}
+.icon-btn:hover{background:var(--color-surface-subtle)}
+
+/* Large amount input */
+.field-label{display:block;font-size:12px;font-weight:700;color:var(--color-ink-secondary);margin-bottom:6px}
+.big-input-wrap{position:relative;display:flex;align-items:center}
+.big-input-wrap span{position:absolute;left:16px;font-size:22px;font-weight:800;color:var(--color-ink-muted)}
+.big-input{width:100%;min-height:56px;padding:0 16px 0 38px;border:1.5px solid var(--control-border);border-radius:var(--radius-control);font:inherit;font-size:26px;font-weight:800;letter-spacing:-.025em;color:var(--color-ink);background:var(--color-surface)}
+
+/* Visual comparison bar */
+.bar-box{background:var(--color-canvas);border:1px solid var(--color-line);border-radius:var(--radius-card);padding:14px 16px;display:grid;gap:10px}
+.bar-head{display:flex;justify-content:space-between;font-size:13px;font-weight:700}
+.split-bar{height:10px;border-radius:var(--radius-pill);background:var(--color-track);overflow:hidden;display:flex}
+.seg-real{background:var(--state-calm);height:100%}
+.seg-gap{background:var(--state-tight);height:100%}
+.bar-legend{display:flex;justify-content:space-between;font-size:12px;color:var(--color-ink-secondary)}
+
+.summary-lines{display:grid;gap:8px;font-size:14px}
+.s-line{display:flex;justify-content:space-between}
+.s-line.strong{padding-top:8px;border-top:1px solid var(--color-line);font-weight:800;font-size:16px}
+.s-line .tight{color:var(--state-tight-strong)}
+.s-line .calm{color:var(--state-calm)}
+
+.notice{border-radius:var(--radius-control);padding:10px 12px;font-size:12.5px;line-height:1.4}
+.notice.warn{background:var(--state-tight-soft);color:var(--state-tight-strong)}
+.notice.calm{background:var(--state-calm-soft);color:var(--state-calm)}
+
+.btn{min-height:44px;padding:0 16px;border-radius:var(--radius-control);font:inherit;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border:0}
+.btn-primary{background:var(--color-ink);color:#fff;width:100%}
+.btn-primary:hover{background:var(--accent-hover)}
+
+/* Mobile 390px preview */
+.phone{width:390px;height:756px;background:var(--color-canvas);border:1px solid var(--color-line-strong);border-radius:28px;overflow:hidden;box-shadow:var(--card-shadow-soft);display:flex;flex-direction:column;position:relative}
+.p-head{background:var(--color-surface);padding:16px 18px;border-bottom:1px solid var(--color-line);display:flex;justify-content:space-between;align-items:center}
+.p-head strong{font-size:15px}
+.p-body{padding:16px;display:grid;gap:14px}
+.p-hero{background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-featured);padding:18px;text-align:center}
+.p-hero .amt{font-size:40px;font-weight:800;letter-spacing:-.04em;margin:4px 0}
+.p-pill-row{display:flex;justify-content:center;margin-top:10px}
+.p-sheet{margin-top:auto;background:var(--color-surface);border-top:1px solid var(--color-line-strong);border-radius:20px 20px 0 0;padding:14px 18px 20px;box-shadow:0 -10px 28px rgba(19,27,46,.12);display:grid;gap:12px}
+.sheet-handle{width:36px;height:4px;border-radius:999px;background:var(--color-line-strong);margin:0 auto 2px}
+.p-sheet h3{margin:0;font-size:16px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.p-sheet h3 span{font-size:12px;font-weight:600;color:var(--color-ink-muted)}
+
+.direction-note{margin-top:auto;padding:12px 48px;background:var(--color-surface);border-top:1px solid var(--color-line);font-size:12px;color:var(--color-ink-muted);display:flex;justify-content:space-between}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="proto-bar" role="region" aria-label="Estados interactivos de prueba">
+    <span><strong>Dirección 03 · Píldora discreta + panel de cuadre</strong> — Haz clic en la píldora para abrir/cerrar el panel:</span>
+    <div class="proto-pills">
+      <button class="proto-pill" data-state="gap" aria-pressed="true" type="button">Brecha $42.500</button>
+      <button class="proto-pill" data-state="stale" aria-pressed="false" type="button">Saldo desactualizado</button>
+      <button class="proto-pill" data-state="pending" aria-pressed="false" type="button">Con montos pendientes</button>
+      <button class="proto-pill" data-state="surplus" aria-pressed="false" type="button">Saldo a favor</button>
+      <button class="proto-pill" data-state="matched" aria-pressed="false" type="button">Cuadrado ($0)</button>
+    </div>
+  </div>
+
+  <main class="stage">
+    <!-- Desktop preview -->
+    <div>
+      <p class="viewport-label">Escritorio · Píldora en cabecera + panel deslizable</p>
+      <div class="desktop-win">
+        <div class="d-bar">
+          <div class="d-brand">
+            <svg width="24" height="24" viewBox="0 0 56 56" aria-hidden="true">
+              <circle cx="28" cy="28" r="22" fill="none" stroke="#e3e1dc" stroke-width="7"/>
+              <circle cx="28" cy="28" r="22" fill="none" stroke="#0b7a6b" stroke-width="7" stroke-linecap="round" stroke-dasharray="86 138.2" transform="rotate(-90 28 28)"/>
+              <circle cx="28" cy="28" r="5" fill="#131b2e"/>
+            </svg>
+            gastos controlados
+          </div>
+          <button class="recon-trigger" id="openDrawerBtn" type="button">
+            <span class="badge-dot" id="triggerDot" aria-hidden="true"></span>
+            <span id="triggerText">Sin seguimiento: $42.500</span>
+            <span class="sub" id="triggerSub">· hoy 19:20</span>
+          </button>
+        </div>
+
+        <div class="d-body">
+          <div class="d-head">
+            <div>
+              <h1>Resumen del ciclo</h1>
+              <small>1 – 30 nov 2026 · Día 25 de 30</small>
+            </div>
+          </div>
+
+          <div class="hero-card">
+            <div class="gauge" aria-hidden="true">
+              <svg width="168" height="168" viewBox="0 0 168 168">
+                <circle cx="84" cy="84" r="70" fill="none" stroke="#efeee9" stroke-width="12"/>
+                <circle cx="84" cy="84" r="70" fill="none" stroke="#0b7a6b" stroke-width="12" stroke-linecap="round" stroke-dasharray="276 440" transform="rotate(-90 84 84)"/>
+              </svg>
+              <div class="gauge-center"><strong class="num">63%</strong><span>gastado</span></div>
+            </div>
+            <div>
+              <div style="font-size:13px;color:var(--color-ink-muted);font-weight:600">Disponible según tus registros</div>
+              <div class="hero-amt num">$537.570</div>
+              <div style="font-size:14px;color:var(--color-ink-secondary);margin-bottom:10px">Puedes gastar <strong class="num" style="color:var(--color-ink)">$89.595 por día</strong></div>
+              <span class="pill-calm">Ritmo tranquilo</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide-over panel -->
+        <div class="drawer-scrim" id="drawerScrim">
+          <aside class="drawer" role="dialog" aria-labelledby="drawer-title" aria-live="polite">
+            <div class="drawer-head">
+              <h2 id="drawer-title">Cuadrar con tu cuenta</h2>
+              <button class="icon-btn" id="closeDrawerBtn" type="button" aria-label="Cerrar panel de cuadre">×</button>
+            </div>
+
+            <form id="drawerForm" onsubmit="return false">
+              <label class="field-label" for="drawerInput">¿Cuánto dinero real tienes hoy en tu cuenta?</label>
+              <div class="big-input-wrap">
+                <span aria-hidden="true">$</span>
+                <input id="drawerInput" class="big-input num" type="text" inputmode="numeric" value="495.070">
+              </div>
+              <button class="btn btn-primary" style="margin-top:12px" type="submit">Guardar saldo real</button>
+            </form>
+
+            <div class="bar-box">
+              <div class="bar-head">
+                <span>Comparación visual</span>
+                <span class="num" id="pctTracked">92% explicado</span>
+              </div>
+              <div class="split-bar" aria-hidden="true">
+                <div class="seg-real" id="segReal" style="width:92%"></div>
+                <div class="seg-gap" id="segGap" style="width:8%"></div>
+              </div>
+              <div class="bar-legend">
+                <span>Saldo real en cuenta</span>
+                <span id="legendRight">Sin seguimiento</span>
+              </div>
+            </div>
+
+            <div class="summary-lines">
+              <div class="s-line"><span>Disponible según registros</span><strong class="num">$537.570</strong></div>
+              <div class="s-line"><span>Saldo real ingresado</span><strong class="num" id="dReal">$495.070</strong></div>
+              <div class="s-line strong"><span id="dDiffLbl">Sin seguimiento</span><span class="tight num" id="dDiff">$42.500</span></div>
+            </div>
+
+            <div class="notice warn" id="dNotice">
+              Actualizado hoy a las 19:20. Esta diferencia suele corresponder a efectivo, comisiones o compras sin notificación por correo.
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile preview -->
+    <div>
+      <p class="viewport-label">Móvil (390px) · Hoja inferior al tocar la píldora</p>
+      <div class="phone">
+        <div class="p-head">
+          <strong>Resumen · Nov</strong>
+          <span style="font-size:12px;color:var(--color-ink-muted)">Día 25 de 30</span>
+        </div>
+        <div class="p-body">
+          <div class="p-hero">
+            <div style="font-size:12px;color:var(--color-ink-muted);font-weight:600">Disponible registrado</div>
+            <div class="amt num">$537.570</div>
+            <div style="font-size:13px;color:var(--color-ink-secondary)"><strong class="num" style="color:var(--color-ink)">$89.595</strong> por día</div>
+            <div class="p-pill-row">
+              <span class="pill-calm">Ritmo tranquilo</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-sheet" aria-label="Vista previa móvil de cuadre">
+          <div class="sheet-handle" aria-hidden="true"></div>
+          <h3>Cuadrar saldo <span id="mTs">hoy 19:20</span></h3>
+          <div class="big-input-wrap">
+            <span aria-hidden="true" style="font-size:18px">$</span>
+            <input id="mInput" class="big-input num" style="min-height:48px;font-size:22px;padding-left:32px" type="text" inputmode="numeric" value="495.070" aria-label="Saldo real móvil">
+          </div>
+          <div class="summary-lines" style="font-size:13px">
+            <div class="s-line"><span>Según registros</span><strong class="num">$537.570</strong></div>
+            <div class="s-line strong"><span id="mDiffLbl">Sin seguimiento</span><span class="tight num" id="mDiff">$42.500</span></div>
+          </div>
+          <div class="notice warn" id="mNotice" style="font-size:12px">
+            Efectivo, comisiones o compras sin correo.
+          </div>
+          <button class="btn btn-primary" type="button" id="mSaveBtn">Actualizar saldo</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="direction-note">
+    <span>Tradeoff 03: Mantiene el dashboard ultra sereno y brilla en móvil; requiere un clic para ver el desglose completo.</span>
+    <span>Tokens sincronizados · Semáforo sereno</span>
+  </footer>
+</div>
+
+<script>
+const THEORETICAL = 537570;
+const fmt = n => "$" + Math.abs(Math.round(n)).toLocaleString("es-CL");
+const parseClp = s => {
+  const c = String(s).replace(/[^\d]/g, "");
+  return c === "" ? null : parseInt(c, 10);
+};
+
+const presets = {
+  gap: { real: 495070, sub: "· hoy 19:20", mTs: "hoy 19:20", cls: "warn", note: "Actualizado hoy a las 19:20. Esta diferencia suele corresponder a efectivo, comisiones o compras sin notificación por correo.", mNote: "Efectivo, comisiones o compras sin correo." },
+  stale: { real: 495070, sub: "· hace 2 días", mTs: "hace 2 días", cls: "warn", note: "Saldo del 23 nov (18:10). Hubo 2 gastos posteriores al corte: actualiza tu saldo real para volver a cuadrar.", mNote: "2 gastos posteriores al corte. Actualiza tu saldo." },
+  pending: { real: 495070, sub: "· 2 sin monto", mTs: "hoy 19:20", cls: "warn", note: "Aviso: hay 2 movimientos sin monto conocido que todavía no se descuentan del disponible teórico.", mNote: "2 movimientos sin monto aún no se descuentan." },
+  surplus: { real: 565000, sub: "· hoy 19:20", mTs: "hoy 19:20", cls: "calm", note: "Tienes $27.430 más en tu cuenta que el teórico. Revisa si faltó un ingreso o si hay algún gasto duplicado.", mNote: "Tienes $27.430 más que lo calculado." },
+  matched: { real: 537570, sub: "· cuadrado", mTs: "hoy 19:20", cls: "calm", note: "Tus registros coinciden exactamente con el saldo real en cuenta.", mNote: "Tus registros coinciden con tu cuenta." }
+};
+
+function syncAll(real, p) {
+  const diff = THEORETICAL - real;
+  const formatted = real.toLocaleString("es-CL");
+  document.getElementById("drawerInput").value = formatted;
+  document.getElementById("mInput").value = formatted;
+  document.getElementById("dReal").textContent = fmt(real);
+  document.getElementById("triggerSub").textContent = p.sub;
+  document.getElementById("mTs").textContent = p.mTs;
+
+  const dDiff = document.getElementById("dDiff");
+  const dDiffLbl = document.getElementById("dDiffLbl");
+  const mDiff = document.getElementById("mDiff");
+  const mDiffLbl = document.getElementById("mDiffLbl");
+  const trigText = document.getElementById("triggerText");
+  const trigDot = document.getElementById("triggerDot");
+
+  if (diff > 0) {
+    dDiffLbl.textContent = mDiffLbl.textContent = "Sin seguimiento";
+    dDiff.textContent = mDiff.textContent = fmt(diff);
+    dDiff.className = mDiff.className = "tight num";
+    trigText.textContent = `Sin seguimiento: ${fmt(diff)}`;
+    trigDot.className = "badge-dot";
+    const pct = Math.max(0, Math.min(100, Math.round((real / THEORETICAL) * 100)));
+    document.getElementById("pctTracked").textContent = `${pct}% explicado`;
+    document.getElementById("segReal").style.width = pct + "%";
+    document.getElementById("segGap").style.width = (100 - pct) + "%";
+    document.getElementById("legendRight").textContent = "Sin seguimiento";
+  } else if (diff < 0) {
+    dDiffLbl.textContent = mDiffLbl.textContent = "Saldo a favor";
+    dDiff.textContent = mDiff.textContent = "+" + fmt(diff);
+    dDiff.className = mDiff.className = "calm num";
+    trigText.textContent = `A favor: +${fmt(diff)}`;
+    trigDot.className = "badge-dot calm";
+    document.getElementById("pctTracked").textContent = "100%+ cubierto";
+    document.getElementById("segReal").style.width = "100%";
+    document.getElementById("segGap").style.width = "0%";
+    document.getElementById("legendRight").textContent = "Sobre lo teórico";
+  } else {
+    dDiffLbl.textContent = mDiffLbl.textContent = "Diferencia";
+    dDiff.textContent = mDiff.textContent = "$0";
+    dDiff.className = mDiff.className = "calm num";
+    trigText.textContent = "Saldo cuadrado";
+    trigDot.className = "badge-dot calm";
+    document.getElementById("pctTracked").textContent = "100% cuadrado";
+    document.getElementById("segReal").style.width = "100%";
+    document.getElementById("segGap").style.width = "0%";
+    document.getElementById("legendRight").textContent = "Sin brecha";
+  }
+
+  const dn = document.getElementById("dNotice");
+  const mn = document.getElementById("mNotice");
+  dn.className = "notice " + p.cls;
+  mn.className = "notice " + p.cls;
+  dn.textContent = p.note;
+  mn.textContent = p.mNote;
+}
+
+document.querySelectorAll(".proto-pill").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".proto-pill").forEach(b => b.setAttribute("aria-pressed", "false"));
+    btn.setAttribute("aria-pressed", "true");
+    const p = presets[btn.dataset.state];
+    syncAll(p.real, p);
+  });
+});
+
+document.getElementById("drawerForm").addEventListener("submit", () => {
+  const val = parseClp(document.getElementById("drawerInput").value);
+  if (val === null) return;
+  const diff = THEORETICAL - val;
+  syncAll(val, diff > 0 ? { ...presets.gap, sub: "· ahora", mTs: "ahora" } : diff < 0 ? { ...presets.surplus, sub: "· ahora", mTs: "ahora", note: `Tienes ${fmt(diff)} más en tu cuenta que el teórico.` } : { ...presets.matched, sub: "· ahora", mTs: "ahora" });
+});
+
+document.getElementById("mSaveBtn").addEventListener("click", () => {
+  const val = parseClp(document.getElementById("mInput").value);
+  if (val === null) return;
+  const diff = THEORETICAL - val;
+  syncAll(val, diff > 0 ? { ...presets.gap, sub: "· ahora", mTs: "ahora" } : diff < 0 ? { ...presets.surplus, sub: "· ahora", mTs: "ahora", note: `Tienes ${fmt(diff)} más en tu cuenta que el teórico.` } : { ...presets.matched, sub: "· ahora", mTs: "ahora" });
+});
+
+const scrim = document.getElementById("drawerScrim");
+document.getElementById("openDrawerBtn").addEventListener("click", () => { scrim.hidden = !scrim.hidden; });
+document.getElementById("closeDrawerBtn").addEventListener("click", () => { scrim.hidden = true; });
+</script>
+</body>
+</html>

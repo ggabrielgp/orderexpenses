@@ -1,0 +1,27 @@
+{
+  "title": "Cuadre de saldo real",
+  "brief": "Permitir al usuario ingresar el saldo real restante en su cuenta con fecha/hora para ver cuánto dinero tiene sin seguimiento, con avisos de vigencia y de movimientos sin monto.",
+  "artboards": [
+    {
+      "file": "01-franja-en-hero.html",
+      "title": "01 · Franja integrada en el hero",
+      "tradeoff": "Comparación inmediata junto al disponible teórico sin crear tarjetas nuevas; aumenta la densidad de la tarjeta hero",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-tarjeta-conciliacion-lateral.html",
+      "title": "02 · Tarjeta dedicada de cuadre",
+      "tradeoff": "Mantiene el hero limpio y deja la ecuación y advertencias muy claras; compite por espacio con las categorías en la primera vista",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-pildora-y-panel-cuadre.html",
+      "title": "03 · Píldora discreta + panel (Desktop y Móvil)",
+      "tradeoff": "Mantiene el dashboard ultra sereno y funciona muy bien en móvil; oculta el desglose completo detrás de un clic",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}
