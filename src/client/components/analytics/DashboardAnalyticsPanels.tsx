@@ -16,6 +16,7 @@ import type { RecognizedExpenseMovement } from "../movements/manualExpense";
 import { formatClp } from "../movements/movementSummary";
 import { CategoryDetailView, CategoryDistributionPanel } from "./CategoryDistributionPanel";
 import { DashboardPaceGauge } from "./DashboardPaceGauge";
+import { PaceCurvePanel } from "./PaceCurvePanel";
 import { SpendingChartPanel } from "./SpendingChartPanel";
 import { formatMovementCount } from "./categoryDistribution";
 import {
@@ -422,6 +423,10 @@ export interface DashboardAnalyticsBodyProps {
   breakdown: SpendingBreakdown;
   /** Opens the read-only chart day detail; absent keeps every row inert in the demo. */
   onOpenMovement?: (movementId: string) => void;
+  /** Inclusive period start date (YYYY-MM-DD) for the cumulative pace curve. */
+  periodStartDate?: string;
+  /** Hide the cumulative pace curve in embedded landing phone previews. */
+  hidePaceCurve?: boolean;
 }
 
 /**
@@ -463,6 +468,8 @@ export function DashboardAnalyticsBody({
   canJumpToUncategorized,
   breakdown,
   onOpenMovement,
+  periodStartDate,
+  hidePaceCurve = false,
 }: DashboardAnalyticsBodyProps) {
   // The facts the former KPI band carried that no figure repeats: how many expenses the total sums
   // (and how many had no clear amount), and the pending-amount caveat when a balance is stated.
@@ -476,6 +483,14 @@ export function DashboardAnalyticsBody({
           and the share of income once, so the former KPI band and the budget card are merged into it.
           Every panel below keeps its place. */}
       {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} notes={heroNotes} periodEndExclusive={paceEndExclusive} replayKey={paceReplayKey} />}
+      {!hidePaceCurve && pace && periodStartDate && paceEndExclusive && categoryMovements && (
+        <PaceCurvePanel
+          pace={pace}
+          periodStartDate={periodStartDate}
+          periodEndExclusive={paceEndExclusive}
+          movements={categoryMovements}
+        />
+      )}
       {/* Two-column region: the larger chart/history column and the category/insight column. */}
       <div className="react-analytics-columns">
         <div className="react-analytics-main">

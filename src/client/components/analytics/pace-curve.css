@@ -1,0 +1,157 @@
+.react-pace-curve {
+	background: var(--color-surface);
+	border: 1px solid var(--color-line);
+	border-radius: var(--radius-card);
+	padding: 20px 22px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.react-pace-curve-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.react-pace-curve-title {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 700;
+	color: var(--color-ink);
+}
+
+.react-pace-curve-sub {
+	margin: 2px 0 0;
+	font-size: 0.8125rem;
+	color: var(--color-ink-muted);
+}
+
+.react-pace-curve-badge {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.78rem;
+	font-weight: 700;
+	padding: 4px 10px;
+	border-radius: var(--radius-pill);
+	white-space: nowrap;
+}
+
+.react-pace-curve-badge--calm {
+	background: var(--state-calm-soft);
+	color: var(--state-calm);
+}
+
+.react-pace-curve-badge--tight {
+	background: var(--state-tight-soft);
+	color: var(--state-tight-strong, var(--state-tight));
+}
+
+.react-pace-curve-badge--over {
+	background: var(--state-over-soft);
+	color: var(--state-over);
+}
+
+.react-pace-curve-frame {
+	background: var(--color-surface-subtle);
+	border: 1px solid var(--color-line);
+	border-radius: var(--radius-control);
+	padding: 12px 14px;
+}
+
+.react-pace-curve-meta {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 8px;
+	font-size: 0.78rem;
+	color: var(--color-ink-muted);
+}
+
+.react-pace-curve-meta strong {
+	color: var(--color-ink);
+	font-variant-numeric: tabular-nums;
+}
+
+.react-pace-curve-interactive {
+	position: relative;
+	cursor: crosshair;
+	touch-action: pan-y;
+	border-radius: 6px;
+	padding-top: 26px;
+}
+
+.react-pace-curve-interactive:focus-visible {
+	outline: 2px solid var(--color-focus);
+	outline-offset: 2px;
+}
+
+/* Simple floating tooltip (date + daily spend only) */
+.react-pace-curve-tooltip {
+	position: absolute;
+	top: 0;
+	transform: translateX(-50%);
+	pointer-events: none;
+	z-index: 2;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 10px;
+	border-radius: var(--radius-pill);
+	background: var(--color-ink);
+	color: var(--color-surface);
+	font-size: 0.75rem;
+	line-height: 1.2;
+	white-space: nowrap;
+	box-shadow: var(--shadow-sm);
+}
+
+.react-pace-curve-tooltip-date {
+	opacity: 0.82;
+	font-weight: 500;
+}
+
+.react-pace-curve-tooltip-amt {
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+.react-pace-curve-tooltip-cum {
+	opacity: 0.78;
+	font-size: 0.7rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.react-pace-curve-ytick {
+	fill: var(--color-ink-muted);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
+
+.react-pace-curve-svg {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+
+.react-pace-curve-legend {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 6px;
+	padding-left: 48px;
+	font-size: 0.75rem;
+	color: var(--color-ink-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+	.react-pace-curve {
+		padding: 16px;
+	}
+}

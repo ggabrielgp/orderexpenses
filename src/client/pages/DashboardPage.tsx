@@ -1338,6 +1338,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
 					    the chart detail opens the read-only movement dialog. */}
           <DashboardAnalyticsBody
             pace={dashboardPace}
+            periodStartDate={selectedPeriod!.startDate}
             paceEndExclusive={selectedPeriod!.endDateExclusive}
             onAddIncome={openCycleEdit}
             lead={dashboardLead}

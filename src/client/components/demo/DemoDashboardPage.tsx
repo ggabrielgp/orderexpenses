@@ -194,8 +194,10 @@ export function DemoDashboardView({ data, view, onViewChange, requestedCategory,
 					    stays read-only and the account/mutation surfaces never mount. */}
           {view === "summary" ? <DashboardAnalyticsBody
             pace={demoPace}
+            periodStartDate={data.period.startDate}
             paceEndExclusive={data.period.endDateExclusive}
             paceReplayKey={scenario}
+            hidePaceCurve={previewMode}
             lead={dashboardLead}
             story={dashboardStory}
             chart={spendingChart}
