@@ -510,7 +510,27 @@ export function prepareFinancialDashboardSyncReuse(
 /** Loads the cycle first so configured users never fall back to a month request. */
 export async function loadFinancialDashboardData(
 	signal?: AbortSignal,
+	periodHint?: FinancialPeriod | null,
 ): Promise<FinancialDashboardData> {
+	if (periodHint) {
+		// A refresh after a save already knows the period on screen, so the cycle and its movements are
+		// requested together instead of one after the other. The hinted movements are used only when the
+		// stored cycle still selects that exact period; otherwise the period's movements are re-read.
+		const [cycle, hinted] = await Promise.all([
+			getFinancialCycle(signal),
+			getTransactionsForPeriod(periodHint, signal).catch(() => null),
+		]);
+		if (!cycle.selectedPeriod) return { cycle, transactions: [], warning: null };
+		if (
+			hinted !== null &&
+			cycle.selectedPeriod.startDate === periodHint.startDate &&
+			cycle.selectedPeriod.endDateExclusive === periodHint.endDateExclusive
+		) {
+			return { cycle, transactions: hinted.transactions, warning: hinted.warning };
+		}
+		const { transactions, warning } = await getTransactionsForPeriod(cycle.selectedPeriod, signal);
+		return { cycle, transactions, warning };
+	}
 	const cycle = await getFinancialCycle(signal);
 	if (!cycle.selectedPeriod) return { cycle, transactions: [], warning: null };
 
@@ -549,10 +569,11 @@ export async function loadFinancialDashboardWithCache(
 export async function refreshFinancialDashboardData(
 	email: string,
 	signal?: AbortSignal,
+	periodHint?: FinancialPeriod | null,
 ): Promise<FinancialDashboardData> {
 	if (signal?.aborted) throw new DOMException("Dashboard load aborted", "AbortError");
 	const generation = cacheGeneration;
-	const data = await loadFinancialDashboardData(signal);
+	const data = await loadFinancialDashboardData(signal, periodHint);
 	if (signal?.aborted || generation !== cacheGeneration) throw new DOMException("Dashboard load aborted", "AbortError");
 	writeFinancialDashboardCache(email, data);
 	return data;

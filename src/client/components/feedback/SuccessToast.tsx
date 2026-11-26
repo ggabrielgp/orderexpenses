@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createNoticeAutoDismiss } from "./noticeAutoDismiss";
 import "./success-toast.css";
 
@@ -56,11 +56,28 @@ export function SuccessToast({
 		};
 	}, [toast?.id, durationMs]);
 
+	// A native modal dialog sits in the browser's top layer, above any z-index. Showing the toast as a
+	// manual popover (re-shown for every new toast) puts the check above an open settings dialog too.
+	const hostRef = useRef<HTMLDivElement | null>(null);
+	useEffect(() => {
+		const host = hostRef.current as (HTMLDivElement & { showPopover?: () => void; hidePopover?: () => void }) | null;
+		if (!toast || !host || typeof host.showPopover !== "function") return undefined;
+		try {
+			if (host.matches(":popover-open")) host.hidePopover?.();
+			host.showPopover();
+		} catch {
+			// Without the popover API the fixed overlay still shows above the page.
+		}
+		return undefined;
+	}, [toast?.id]);
+
 	if (!toast) return null;
 
 	return (
 		<div
 			key={toast.id}
+			ref={hostRef}
+			popover="manual"
 			className={`react-success-toast${leaving ? " react-success-toast-leaving" : ""}`}
 			role="status"
 			aria-live="polite"
@@ -83,4 +100,29 @@ export function SuccessToast({
 			</div>
 		</div>
 	);
+}
+
+/** Shows the centered success check; a no-op outside a `SuccessToastProvider` (demo, isolated renders). */
+export type ShowSuccessToast = (message: string) => void;
+
+const SuccessToastContext = createContext<ShowSuccessToast>(() => {});
+
+/** The one success check of the page: any save under it calls `useSuccessToast()` to confirm. */
+export function SuccessToastProvider({ children }: { children: ReactNode }) {
+	const [toast, setToast] = useState<SuccessToastItem | null>(null);
+	const seq = useRef(0);
+	const show = useCallback<ShowSuccessToast>((message) => {
+		seq.current += 1;
+		setToast({ id: seq.current, message });
+	}, []);
+	return (
+		<SuccessToastContext.Provider value={show}>
+			{children}
+			<SuccessToast toast={toast} onDismiss={() => setToast(null)} />
+		</SuccessToastContext.Provider>
+	);
+}
+
+export function useSuccessToast(): ShowSuccessToast {
+	return useContext(SuccessToastContext);
 }

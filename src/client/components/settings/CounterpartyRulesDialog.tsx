@@ -1,3 +1,4 @@
+import { useSuccessToast } from "../feedback/SuccessToast";
 import {
 	useCallback,
 	useEffect,
@@ -151,6 +152,7 @@ export function CounterpartyRulesContent({
 	const [listToken, setListToken] = useState(0);
 	const [draft, setDraft] = useState<CounterpartyRuleDraft>(createCounterpartyRuleDraft);
 	const [status, setStatus] = useState<CounterpartyStatus | null>(null);
+	const showSuccessToast = useSuccessToast();
 	const [isMutating, setIsMutating] = useState(false);
 	const [categoryNames, setCategoryNames] = useState<string[]>([]);
 	const [categoryCatalogFailed, setCategoryCatalogFailed] = useState(false);
@@ -235,7 +237,14 @@ export function CounterpartyRulesContent({
 			return;
 		}
 		setDraft(createCounterpartyRuleDraft());
-		setStatus(getCounterpartyRuleNotice(outcome));
+		const notice = getCounterpartyRuleNotice(outcome);
+		if (notice.tone === "success") {
+			// The centered check confirms the save; the status line stays for warnings and errors.
+			showSuccessToast(outcome.status === "cleared" ? "Regla eliminada" : "Regla guardada");
+			setStatus(null);
+		} else {
+			setStatus(notice);
+		}
 		setListToken((token) => token + 1);
 	};
 

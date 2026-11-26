@@ -149,26 +149,21 @@ test("success-toast.css is centered, non-invasive, cobalt-free, and respects red
 	assert.match(reduced, /transition:\s*none\s*!important/);
 });
 
-test("DashboardPage wires SuccessToast only on settled successes and preserves FeedbackNotice banners", async () => {
+test("DashboardPage wires the page-level SuccessToast only on settled successes", async () => {
 	const page = await read("src/client/pages/DashboardPage.tsx");
-	assert.match(page, /import \{ SuccessToast, type SuccessToastItem \} from "\.\.\/components\/feedback\/SuccessToast"/);
-	assert.match(page, /<SuccessToast\s+toast=\{successToast\}\s+onDismiss=\{\(\) => setSuccessToast\(null\)\}\s*\/>/);
-
+	assert.match(page, /import \{ SuccessToastProvider, useSuccessToast \} from "\.\.\/components\/feedback\/SuccessToast"/);
+	assert.match(page, /const showSuccessToast = useSuccessToast\(\);/);
+	const toast = await read("src/client/components/feedback/SuccessToast.tsx");
 	// Monotonic id sequence so consecutive saves replay the animation cleanly.
-	assert.match(page, /successToastSeq\.current \+= 1/);
+	assert.match(toast, /seq\.current \+= 1/);
 
-	// Manual expense saved (only when !reloadFailed)
 	assert.match(page, /handleManualExpenseSaved[\s\S]*?if \(!reloadFailed && notice\.tone === "success"\) showSuccessToast\("Gasto guardado"\)/);
-	// Movement edited (only when !reloadFailed)
 	assert.match(page, /handleMovementEditSaved[\s\S]*?if \(!reloadFailed && notice\.tone === "success"\) showSuccessToast\("Cambios guardados"\)/);
-	// Movement removed (only when tone === "success")
 	assert.match(page, /dismissMovementRemoval[\s\S]*?if \(notice\?\.tone === "success"\) showSuccessToast\("Movimiento eliminado"\)/);
-	// Cycle edited (only when !reloadFailed)
 	assert.match(page, /handleCycleEdited[\s\S]*?if \(!reloadFailed && notice\.tone === "success"\) showSuccessToast\("Período actualizado"\)/);
-	// Bulk category assigned (only when every target succeeded and reload succeeded)
 	assert.match(page, /outcome\.total > 0 &&[\s\S]*?outcome\.succeeded === outcome\.total &&[\s\S]*?!outcome\.reloadFailed[\s\S]*?showSuccessToast\("Categoría asignada"\)/);
 
-	// Existing FeedbackNotice banners remain intact.
+	// Banners remain for warnings, errors and actions.
 	assert.match(page, /\{creationNotice && \(\s*<FeedbackNotice/);
 	assert.match(page, /\{editNotice && \(\s*<FeedbackNotice/);
 	assert.match(page, /\{removalNotice && \(\s*<FeedbackNotice/);

@@ -10,6 +10,25 @@
 	pointer-events: none;
 }
 
+/* Shown as a manual popover so it renders in the top layer above open dialogs. Reset the UA popover
+   box (border, padding, canvas background) so only the card paints and the app stays visible. */
+.react-success-toast[popover] {
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	max-height: none;
+	margin: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	overflow: visible;
+	box-sizing: border-box;
+}
+
+.react-success-toast[popover]::backdrop {
+	display: none;
+}
+
 .react-success-toast-card {
 	display: inline-flex;
 	flex-direction: column;

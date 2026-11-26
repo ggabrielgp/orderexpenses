@@ -1,3 +1,4 @@
+import { useSuccessToast } from "../feedback/SuccessToast";
 import {
 	useCallback,
 	useEffect,
@@ -179,6 +180,7 @@ export function CategorySettingsContent({
 	const [isMutating, setIsMutating] = useState(false);
 	/** Name awaiting the delete confirmation; `null` while no confirmation is open. */
 	const [confirmingDeleteName, setConfirmingDeleteName] = useState<string | null>(null);
+	const showSuccessToast = useSuccessToast();
 
 	// Opening always starts a fresh surface: no previous outcome, draft or confirmation leaks into
 	// a new attempt.
@@ -251,10 +253,12 @@ export function CategorySettingsContent({
 		}
 		if (outcome.status === "saved") {
 			setDraft((current) => ({ ...current, name: "" }));
-			setStatus({ message: CATEGORY_SAVED_MESSAGE, tone: "success" });
+			showSuccessToast(CATEGORY_SAVED_MESSAGE);
 		} else {
-			setStatus({ message: CATEGORY_DELETED_MESSAGE, tone: "success" });
+			showSuccessToast(CATEGORY_DELETED_MESSAGE);
 		}
+		// The centered check confirms the save; the status line stays for pending and errors.
+		setStatus(null);
 		setCatalogToken((token) => token + 1);
 	};
 

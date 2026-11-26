@@ -66,7 +66,7 @@ import {
   type MovementsTableViewProps,
 } from "../components/movements/MovementsTable";
 import { FeedbackNotice } from "../components/feedback/FeedbackNotice";
-import { SuccessToast, type SuccessToastItem } from "../components/feedback/SuccessToast";
+import { SuccessToastProvider, useSuccessToast } from "../components/feedback/SuccessToast";
 import { useAnimatedView, useEditHighlight } from "../components/feedback/motion";
 import {
   DashboardPeriodContext,
@@ -287,6 +287,12 @@ export interface FinancialDashboardHandle {
   period: FinancialPeriod | null;
   /** Re-runs the cycle-first dashboard load. Resolves `false` when the reload failed. */
   reload: () => Promise<boolean>;
+  /**
+   * Starts the same reload without waiting for it and resolves `true` at once, so a saved mutation
+   * can close its dialog and confirm immediately. A failed background reload is reported by the
+   * summary as one stale-list warning instead of by the caller.
+   */
+  reloadInBackground: () => Promise<boolean>;
   /** Captures the ready dashboard before sync so only an unchanged load can reuse its result. */
   prepareSyncResultReuse: GmailSyncResultReusePreparation;
   /**
@@ -394,7 +400,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
     () =>
       createCounterpartyRuleSubmitter({
         upsertRule: upsertCounterpartyRule,
-        reload: financialDashboard?.reload ?? null,
+        reload: financialDashboard?.reloadInBackground ?? null,
         lock: counterpartyRulesLock,
       }),
     [financialDashboard],
@@ -420,7 +426,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
   const connected = session.gmail.connected;
 
   return (
-    <>
+    <SuccessToastProvider>
       {/* Authenticated product chrome. It hosts the one settings action under the shipped
 			    account menu, so the unified settings surface keeps its unchanged mutation contract.
 			    The demo uses the same chrome with a read-only account menu below. */}
@@ -552,7 +558,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
         </section>
       </main>
       <MobileTabBar view={view} onViewChange={setView} onAddExpense={financialDashboard?.period ? financialDashboard.onCreateExpense : undefined} />
-    </>
+    </SuccessToastProvider>
   );
 }
 
@@ -701,12 +707,9 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   }, []);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [creationNotice, setCreationNotice] = useState<ManualExpenseCreationNotice | null>(null);
-  const [successToast, setSuccessToast] = useState<SuccessToastItem | null>(null);
-  const successToastSeq = useRef(0);
-  const showSuccessToast = useCallback((message: string) => {
-    successToastSeq.current += 1;
-    setSuccessToast({ id: successToastSeq.current, message });
-  }, []);
+  const showSuccessToast = useSuccessToast();
+  /** Set when a background reload after a confirmed save failed: the visible list may be stale. */
+  const [staleAfterSave, setStaleAfterSave] = useState(false);
   /** Movement being edited; `null` keeps the edit dialog closed. */
   const [editMovement, setEditMovement] = useState<EditableRecognizedExpenseMovement | null>(null);
   // A recategorization notice also carries what "Deshacer" restores (S7).
@@ -756,7 +759,9 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     const controller = new AbortController();
     activeLoad.current = controller;
     try {
-      const data = await refreshFinancialDashboardData(email, controller.signal);
+      const current = stateRef.current;
+      const periodHint = current.status === "ready" ? current.data.cycle.selectedPeriod : null;
+      const data = await refreshFinancialDashboardData(email, controller.signal, periodHint);
       if (!mounted.current || controller.signal.aborted) return false;
       publishState(
         data.cycle.selectedPeriod ? { status: "ready", data } : { status: "unconfigured" },
@@ -770,6 +775,26 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
       if (activeLoad.current === controller) activeLoad.current = null;
     }
   }, [email, publishState]);
+
+  /**
+   * The save path's reload: the mutation is already confirmed, so the dialog closes and the check
+   * shows without waiting for the slow cycle + Gmail refetch. Only a real failure (not a reload that
+   * a newer one superseded) raises the stale-list warning; the next successful reload clears it.
+   */
+  const reloadInBackground = useCallback((): Promise<boolean> => {
+    void reloadFinancialDashboard().then((reloaded) => {
+      if (!mounted.current) return;
+      if (reloaded) setStaleAfterSave(false);
+      else if (dashboardStale.current) setStaleAfterSave(true);
+    });
+    return Promise.resolve(true);
+  }, [reloadFinancialDashboard]);
+
+  const retryStaleReload = useCallback(() => {
+    void reloadFinancialDashboard().then((reloaded) => {
+      if (mounted.current && reloaded) setStaleAfterSave(false);
+    });
+  }, [reloadFinancialDashboard]);
 
   const prepareSyncResultReuse = useCallback<GmailSyncResultReusePreparation>((period) => {
     const reuse = prepareFinancialDashboardSyncReuse(email, period, () => {
@@ -883,8 +908,9 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   const handleCycleEdited = useCallback((reloadFailed: boolean) => {
     if (!mounted.current) return;
     const notice = getCycleEditNotice({ status: "saved", reloadFailed });
-    setCycleEditNotice(notice);
+    // A clean save is confirmed by the check alone; the banner stays for a stale summary.
     if (!reloadFailed && notice.tone === "success") showSuccessToast("Período actualizado");
+    else setCycleEditNotice(notice);
     setIsCycleEditOpen(false);
   }, [showSuccessToast]);
 
@@ -916,6 +942,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     onHandle({
       period: configuredPeriod,
       reload: reloadFinancialDashboard,
+      reloadInBackground,
       prepareSyncResultReuse: prepareSyncResultReuse,
       onEditPeriod: openCycleEdit,
       onCreateExpense: openCreateExpense,
@@ -925,6 +952,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     onHandle,
     configuredPeriod,
     reloadFinancialDashboard,
+    reloadInBackground,
     prepareSyncResultReuse,
     openCycleEdit,
     openCreateExpense,
@@ -934,15 +962,15 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     () =>
       createManualExpenseSubmitter({
         createExpense: createManualExpense,
-        reload: reloadFinancialDashboard,
+        reload: reloadInBackground,
       }),
-    [reloadFinancialDashboard],
+    [reloadInBackground],
   );
 
   const handleManualExpenseSaved = useCallback((reloadFailed: boolean) => {
     const notice = getManualExpenseCreationNotice(reloadFailed);
-    setCreationNotice(notice);
     if (!reloadFailed && notice.tone === "success") showSuccessToast("Gasto guardado");
+    else setCreationNotice(notice);
     setIsCreateOpen(false);
   }, [showSuccessToast]);
 
@@ -1077,13 +1105,18 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
       period: selectedPeriod!,
       actualBalance,
     });
-    await reloadFinancialDashboard();
+    showSuccessToast(actualBalance === null ? "Saldo real borrado" : "Saldo real guardado");
+    void reloadInBackground();
   };
   const periodAnalytics = getPeriodAnalytics(state.data.transactions);
   const spendingByKind = summarizeRecognizedExpensesByKind(state.data.transactions);
   const latestExpense = selectLatestRecognizedExpense(state.data.transactions, selectedPeriod!);
-  const movements = getRecognizedExpenseMovements(state.data.transactions);
-  const editableMovements = getEditableRecognizedExpenseMovements(state.data.transactions);
+  // A confirmed removal reloads in the background; until that reload lands, the removed rows are
+  // hidden locally so the list never shows a movement the server already deleted.
+  const removedIds = removal.removedMovementIds;
+  const isVisibleRow = (movement: { id?: string | null }) => !movement.id || !removedIds.includes(movement.id);
+  const movements = getRecognizedExpenseMovements(state.data.transactions).filter(isVisibleRow);
+  const editableMovements = getEditableRecognizedExpenseMovements(state.data.transactions).filter(isVisibleRow);
   // The chart's day-detail dialog reads the same loaded lists the table does. The identity is the only
   // state: the movement is re-resolved every render, so a removed or reloaded row cannot keep a stale
   // dialog alive. It is read-only here: no edit or remove callback is wired, so the dialog offers only
@@ -1150,13 +1183,13 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   const submitEdit = createMovementEditSubmitter({
     period: selectedPeriod!,
     updateMovement: updateTransaction,
-    reload: reloadFinancialDashboard,
+    reload: reloadInBackground,
     saveRule: (input) =>
       saveAlwaysUseRule({ getRules: () => getCounterpartyRules(), upsertRule: upsertCounterpartyRule }, input),
   });
   const submitRemoval = createMovementRemovalSubmitter({
     removeMovement: removeTransaction,
-    reload: reloadFinancialDashboard,
+    reload: reloadInBackground,
   });
   // The bulk category assignment reuses the same PATCH client and the same reload as the single-edit
   // flow, so a bulk pass and a single edit cannot disagree about how a movement is written or how
@@ -1165,7 +1198,7 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
   // only when the summary is ready.
   const rawSubmitBulkCategory = createBulkCategorySubmitter({
     updateMovement: updateTransaction,
-    reload: reloadFinancialDashboard,
+    reload: reloadInBackground,
   });
   const submitBulkCategory: typeof rawSubmitBulkCategory = async (targets, category) => {
     const outcome = await rawSubmitBulkCategory(targets, category);
@@ -1190,8 +1223,9 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     const notice = recategorized
       ? { ...getRecategorizeNotice({ reloadFailed, ...recategorized }), undo: recategorized.undo }
       : getMovementEditNotice(reloadFailed);
-    setEditNotice(notice);
     if (!reloadFailed && notice.tone === "success") showSuccessToast("Cambios guardados");
+    // The banner stays for warnings and for the recategorization's Deshacer action.
+    setEditNotice(notice.tone === "success" && !("undo" in notice && notice.undo) ? null : notice);
     flashEdited(editMovement?.id);
     setEditMovement(null);
   };
@@ -1201,10 +1235,16 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     setIsUndoingEdit(true);
     try {
       const { reloadFailed } = await undoRecategorize(
-        { upsertRule: upsertCounterpartyRule, updateMovement: updateTransaction, reload: reloadFinancialDashboard },
+        { upsertRule: upsertCounterpartyRule, updateMovement: updateTransaction, reload: reloadInBackground },
         undo,
       );
-      setEditNotice(getUndoNotice({ status: "done", reloadFailed }));
+      const notice = getUndoNotice({ status: "done", reloadFailed });
+      if (notice.tone === "success") {
+        showSuccessToast("Cambio deshecho");
+        setEditNotice(null);
+      } else {
+        setEditNotice(notice);
+      }
     } catch {
       // Nothing confirms the revert, so the action stays available for another attempt.
       setEditNotice({ ...getUndoNotice({ status: "failed" }), undo });
@@ -1234,8 +1274,8 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     // through `dismissRemoval`, which keeps `removedMovementIds`. Closing with a fresh
     // `createRemovalState()` here would erase the guard and re-arm a completed removal.
     const notice = getRemovalNotice(removal);
-    setRemovalNotice(notice);
     if (notice?.tone === "success") showSuccessToast("Movimiento eliminado");
+    else setRemovalNotice(notice);
     setRemoval((current) => reduceRemovalDismissal(current));
     setRemovalMovement(null);
     releaseInFlightLock(removalLock);
@@ -1260,14 +1300,23 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
     try {
       const outcome = await submitRemoval(target);
       if (outcome.status === "removed") {
-        // The result stays on screen until the user dismisses it, which is when the outcome
-        // is published on the dashboard.
+        // A confirmed removal closes at once with the check: the reducer still records the id
+        // (so the row cannot be removed twice) and the dismissal keeps that guard.
         setRemoval((current) =>
-          reduceRemovalState(current, {
-            type: "succeeded",
-            hadReloadFailure: outcome.reloadFailed,
-          }),
+          reduceRemovalDismissal(
+            reduceRemovalState(current, {
+              type: "succeeded",
+              hadReloadFailure: outcome.reloadFailed,
+            }),
+          ),
         );
+        setRemovalMovement(null);
+        releaseInFlightLock(removalLock);
+        if (outcome.reloadFailed) {
+          setRemovalNotice(getRemovalNotice({ ...removal, phase: "removed", reloadFailed: true }));
+        } else {
+          showSuccessToast("Movimiento eliminado");
+        }
         return;
       }
       if (outcome.status === "notFound") {
@@ -1306,6 +1355,15 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
         <div className="react-financial-summary-heading">
           <p className="react-financial-warning" role="status">Advertencia: {state.data.warning}</p>
         </div>
+      )}
+      {staleAfterSave && (
+        <FeedbackNotice
+          className="react-financial-mutation-notice react-financial-mutation-notice-warning"
+          tone="warning"
+          message="Los cambios se guardaron, pero la lista no se pudo actualizar y puede estar desactualizada."
+          action={{ label: "Reintentar", onClick: retryStaleReload }}
+          onDismiss={() => setStaleAfterSave(false)}
+        />
       )}
       {creationNotice && (
         <FeedbackNotice
@@ -1484,7 +1542,6 @@ function FinancialSummary({ email, onHandle, view, onViewChange }: FinancialSumm
         </Suspense>
       )}
     </section>
-    <SuccessToast toast={successToast} onDismiss={() => setSuccessToast(null)} />
     {firstResultStep(dashboardPace)}
     </>
   );

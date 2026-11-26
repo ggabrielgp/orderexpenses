@@ -2465,7 +2465,7 @@ test("the React dashboard exposes counterparty rules only in the authenticated t
 	assert.match(page, /import \{ createCounterpartyRuleSubmitter \} from "\.\.\/components\/settings\/counterpartyRules";/);
 	assert.match(
 		page,
-		/createCounterpartyRuleSubmitter\(\{[\s\S]{0,300}?reload: financialDashboard\?\.reload \?\? null/,
+		/createCounterpartyRuleSubmitter\(\{[\s\S]{0,300}?reload: financialDashboard\?\.reloadInBackground \?\? null/,
 	);
 	assert.match(page, /counterpartyRulesLock/);
 
@@ -6982,7 +6982,7 @@ test("the React DashboardPage keeps the unified settings wiring, submitters and 
 	assert.match(page, /createCounterpartyRuleSubmitter\(\{/);
 	assert.match(page, /categorySettingsLock/);
 	assert.match(page, /counterpartyRulesLock/);
-	assert.match(page, /reload: financialDashboard\?\.reload \?\? null/);
+	assert.match(page, /reload: financialDashboard\?\.reloadInBackground \?\? null/);
 	assert.match(page, /submitCategoryMutation=\{submitCategoryMutation\}/);
 	assert.match(page, /submitCounterpartyRule=\{submitCounterpartyRule\}/);
 

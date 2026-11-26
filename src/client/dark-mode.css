@@ -320,7 +320,7 @@
 :root[data-theme="dark"] .account-menu-dropdown,
 :root[data-theme="dark"] .account-menu-panel,
 :root[data-theme="dark"] .react-account-menu-panel,
-:root[data-theme="dark"] .react-success-toast,
+:root[data-theme="dark"] .react-success-toast-card,
 :root[data-theme="dark"] .cycle-setup-card,
 :root[data-theme="dark"] .react-cycle-setup-card,
 :root[data-theme="dark"] .react-onboarding-card,
@@ -637,6 +637,48 @@
 	background: var(--dark-active-bg);
 	border-color: var(--dark-active-border);
 	color: var(--dark-active-text);
+}
+
+/* The "Día N" select is drawn as a chip; its light rules use the id, so the dark ones must too.
+   Without them it renders white text on a light fill and a white native list. */
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-select {
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-select.is-on {
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog select#financial-cycle-pay-day {
+	background: var(--color-surface-subtle);
+	border-color: var(--color-line-strong);
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog select#financial-cycle-pay-day:hover:not(:disabled) {
+	background: var(--color-surface-pressed);
+	border-color: var(--control-border);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-select.is-on select#financial-cycle-pay-day {
+	background: var(--dark-active-bg);
+	border-color: var(--dark-active-border);
+	color: var(--dark-active-text);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog .cycle-select.is-on select#financial-cycle-pay-day:hover:not(:disabled) {
+	background: var(--cycle-ink-hover);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog select#financial-cycle-pay-day option {
+	background: var(--color-surface);
+	color: var(--color-ink);
+}
+
+:root[data-theme="dark"] dialog.cycle-dialog input#financial-cycle-income {
+	background: var(--color-surface-subtle);
+	border-color: var(--color-line-strong);
+	color: var(--color-ink);
 }
 
 :root[data-theme="dark"] dialog.cycle-dialog .cycle-actions .cycle-btn-primary,

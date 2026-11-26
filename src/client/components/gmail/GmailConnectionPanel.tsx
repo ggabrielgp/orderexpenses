@@ -1,3 +1,4 @@
+import { useSuccessToast } from "../feedback/SuccessToast";
 import {
 	useCallback,
 	useEffect,
@@ -366,6 +367,7 @@ export function GmailConnectionPanel({
 	const statusLock = useRef(false);
 	/** The same lock, for the disconnection POST. */
 	const disconnectLock = useRef(false);
+	const showSuccessToast = useSuccessToast();
 
 	const refreshStatus = useMemo(
 		() => createGmailStatusRefresher({ getStatus: getGmailStatus, lock: statusLock }),
@@ -436,12 +438,17 @@ export function GmailConnectionPanel({
 				// The authorization is gone: the card stops claiming a connection even when the
 				// follow-up read failed, and the dialog reports the truthful outcome.
 				setConnection((current) => applyGmailDisconnectOutcome(current, outcome));
-				setDisconnect((current) =>
-					reduceGmailDisconnectState(current, {
-						type: "succeeded",
-						gmailStatus: outcome.gmailStatus,
-					}),
+				// A confirmed disconnection closes at once: the check confirms it, and the panel notice
+				// stays only when the follow-up status read failed.
+				const settled = reduceGmailDisconnectState(
+					reduceGmailDisconnectState(disconnect, { type: "confirm" }),
+					{ type: "succeeded", gmailStatus: outcome.gmailStatus },
 				);
+				const notice = getGmailDisconnectNotice(settled);
+				setDisconnect(reduceGmailDisconnectDismissal(settled));
+				releaseInFlightLock(disconnectLock);
+				if (notice?.tone === "success") showSuccessToast("Gmail desconectado");
+				else setDisconnectNotice(notice);
 				return;
 			}
 			releaseInFlightLock(disconnectLock);
@@ -459,7 +466,7 @@ export function GmailConnectionPanel({
 				}),
 			);
 		}
-	}, [disconnect, submitDisconnect]);
+	}, [disconnect, submitDisconnect, showSuccessToast]);
 
 	/**
 	 * Starts the manual sync. The refusal is checked before the request is created, so an anonymous
@@ -475,6 +482,7 @@ export function GmailConnectionPanel({
 		void submitSync()
 			.then((outcome) => {
 				setSync((current) => reduceGmailSync(current, { type: "settled", outcome }));
+				if (outcome.status === "success" && !outcome.reloadFailed) showSuccessToast("Gmail sincronizado");
 			})
 			.catch(() => {
 				// The submitter reports instead of throwing, so this is only reachable if it is replaced:
@@ -486,7 +494,7 @@ export function GmailConnectionPanel({
 					}),
 				);
 			});
-	}, [authenticated, submitSync]);
+	}, [authenticated, submitSync, showSuccessToast]);
 
 	return (
 		<>

@@ -215,3 +215,31 @@ test("CategoryDistributionPanel and BrandMark adapt colors for dark mode", async
 	assert.match(donut, /useTheme/);
 	assert.match(brand, /var\(--color-line,\s*#e3e1dc\)/);
 });
+
+test("dark mode draws the cycle dialog pay-day select and income field with dark tokens", async () => {
+	const css = await read("src/client/dark-mode.css");
+	const rule = (selector) => {
+		const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+		const match = css.match(new RegExp(escaped + "[^{]*\\{([^}]*)\\}"));
+		assert.ok(match, `missing dark rule for ${selector}`);
+		return match[1];
+	};
+	const off = rule(':root[data-theme="dark"] dialog.cycle-dialog select#financial-cycle-pay-day');
+	assert.match(off, /background(-color)?:\s*var\(--color-surface-subtle\)/);
+	assert.match(off, /color:\s*var\(--color-ink\)/);
+	const on = rule(':root[data-theme="dark"] dialog.cycle-dialog .cycle-select.is-on select#financial-cycle-pay-day');
+	assert.match(on, /background(-color)?:\s*var\(--dark-active-bg\)/);
+	assert.match(on, /color:\s*var\(--dark-active-text\)/);
+	const option = rule(':root[data-theme="dark"] dialog.cycle-dialog select#financial-cycle-pay-day option');
+	assert.match(option, /background(-color)?:\s*var\(--color-surface\)/);
+	assert.match(option, /color:\s*var\(--color-ink\)/);
+	const income = rule(':root[data-theme="dark"] dialog.cycle-dialog input#financial-cycle-income');
+	assert.match(income, /background(-color)?:\s*var\(--color-surface-subtle\)/);
+	assert.match(income, /color:\s*var\(--color-ink\)/);
+});
+
+test("dark mode paints the success toast card, never its full-screen overlay (the app stays visible behind the check)", async () => {
+	const css = await read("src/client/dark-mode.css");
+	assert.doesNotMatch(css, /\.react-success-toast(?![-\w])/);
+	assert.match(css, /:root\[data-theme="dark"\] \.react-success-toast-card,/);
+});
