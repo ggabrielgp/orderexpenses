@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "chosen": "08-configurar-ciclo.html",
+  "handoffs": {
+    "01-resumen-desktop-protagonista.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-21T04:10:00.372Z",
+      "startedAt": "2026-11-21T04:10:21.356Z",
+      "implementedAt": "2026-11-21T04:27:06.937Z",
+      "feature": "odd/tasks/identidad-b.md",
+      "note": "feat/identidad-b: medidor protagonista, vocabulario único, sin cobalto. 456/456 pruebas.",
+      "previewUrl": "http://localhost:5173/app/demo"
+    },
+    "03-resumen-mobile.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-21T13:53:53.745Z",
+      "startedAt": "2026-11-21T13:53:53.745Z",
+      "implementedAt": "2026-11-21T14:01:13.511Z",
+      "note": "Barra inferior con píldora activa y aria-current; demo sin hueco; Deshacer con timer de 7 s. 476/476.",
+      "previewUrl": "http://localhost:5173/app/demo"
+    },
+    "04-onboarding-desktop.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-21T13:53:53.944Z",
+      "startedAt": "2026-11-21T13:53:53.944Z",
+      "implementedAt": "2026-11-21T14:01:13.827Z",
+      "note": "Dos columnas, pasos con nombre, botón tinta con G, medidor de ejemplo. 476/476.",
+      "previewUrl": "http://localhost:5173/app"
+    },
+    "05-onboarding-mobile.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-21T13:53:54.343Z",
+      "startedAt": "2026-11-21T13:53:54.343Z",
+      "implementedAt": "2026-11-21T14:01:13.894Z",
+      "note": "Una columna, Conectar Gmail sin bajar. 476/476.",
+      "previewUrl": "http://localhost:5173/app"
+    },
+    "06-movimientos-desktop.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-21T14:46:41.523Z",
+      "startedAt": "2026-11-21T14:46:41.523Z",
+      "implementedAt": "2026-11-22T01:01:34.001Z",
+      "note": "Movimientos con la línea nueva: sin azul, Clasificar, chips como la dona. 539/539.",
+      "previewUrl": "http://localhost:5173/app/demo"
+    },
+    "07-movimientos-mobile.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-21T14:46:41.648Z",
+      "startedAt": "2026-11-21T14:46:41.648Z",
+      "implementedAt": "2026-11-22T01:01:34.662Z",
+      "note": "Movimientos con la línea nueva: sin azul, Clasificar, chips como la dona. 539/539.",
+      "previewUrl": "http://localhost:5173/app/demo"
+    },
+    "08-configurar-ciclo.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-22T01:37:41.649Z",
+      "startedAt": "2026-11-22T01:37:41.649Z",
+      "implementedAt": "2026-11-22T01:58:38.565Z",
+      "note": "Modal del ciclo y editar período con una sola pregunta. 557/557.",
+      "previewUrl": "http://localhost:5173/app"
+    }
+  }
+}

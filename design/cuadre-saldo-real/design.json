@@ -1,6 +1,6 @@
 {
   "title": "Cuadre de saldo real",
-  "brief": "Permitir al usuario ingresar el saldo real restante en su cuenta con fecha/hora para ver cuánto dinero tiene sin seguimiento, con avisos de vigencia y de movimientos sin monto.",
+  "brief": "Permitir al usuario ingresar el saldo real restante en su cuenta con fecha/hora (incluido saldo negativo por línea de crédito) para ver cuánto dinero tiene sin seguimiento, con avisos de vigencia y de movimientos sin monto, sin agregar scroll al dashboard.",
   "artboards": [
     {
       "file": "01-franja-en-hero.html",
@@ -22,6 +22,20 @@
       "tradeoff": "Mantiene el dashboard ultra sereno y funciona muy bien en móvil; oculta el desglose completo detrás de un clic",
       "width": 1440,
       "height": 900
+    },
+    {
+      "file": "04-chip-hero-popover.html",
+      "title": "04 · Chip de estado en el hero + popover Sí/No (Desktop)",
+      "tradeoff": "Una sola línea responde '¿cuadra?' sin agrandar el dashboard y confirmar es un clic; el desglose y la edición quedan detrás del chip",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "05-chip-movil-bottom-sheet.html",
+      "title": "05 · Chip + bottom sheet (Móvil)",
+      "tradeoff": "Cero scroll extra en móvil y botones grandes al alcance del pulgar; el chip a ancho completo suma una fila al hero",
+      "width": 390,
+      "height": 844
     }
   ]
 }

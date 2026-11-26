@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>04 · Chip de cuadre en el hero + popover Sí/No — Cuadre de saldo real</title>
+<style>
+:root{
+  --color-canvas:#f6f5f2;--color-surface:#ffffff;--color-surface-subtle:#f1f0ec;--color-surface-pressed:#e8e7e2;
+  --color-track:#efeee9;--color-ink:#131b2e;--color-ink-secondary:#3f4b63;--color-ink-muted:#59647a;--accent-hover:#26324d;
+  --color-line:#e3e1dc;--color-line-strong:#d2d0ca;--control-border:#8b94a6;
+  --state-calm:#0b7a6b;--state-calm-soft:#e2f3ef;--state-tight:#9a6700;--state-tight-strong:#8f5f00;--state-tight-soft:#fdf3d8;
+  --cat-1:#5a67a0;--cat-2:#94678c;--cat-3:#6f93ad;--cat-4:#8e897f;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --radius-control:12px;--radius-card:16px;--radius-featured:20px;--radius-pill:999px;
+  --card-shadow-soft:0 1px 2px rgba(15,23,42,.04),0 6px 18px rgba(15,23,42,.05);
+  --shadow-xl:0 20px 56px rgba(30,52,100,.14),0 2px 8px rgba(30,52,100,.06);
+  --ease-out-expo:cubic-bezier(0.16,1,0.3,1);--duration-fast:150ms;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-canvas);color:var(--color-ink);font-family:var(--font-body);font-size:15px;line-height:1.45}
+.frame{width:1440px;min-height:900px;display:flex;flex-direction:column}
+:is(button,a,input):focus-visible{outline:2px solid var(--color-ink);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.topbar{height:68px;background:var(--color-surface);border-bottom:1px solid var(--color-line);padding:0 64px;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em;font-size:1.05rem;color:var(--color-ink);text-decoration:none}
+.nav{display:flex;gap:8px}
+.nav a{padding:8px 14px;border-radius:var(--radius-pill);text-decoration:none;font-size:.9rem;font-weight:600;color:var(--color-ink-muted);min-height:40px;display:inline-flex;align-items:center}
+.nav a[aria-current="page"]{background:var(--color-ink);color:#fff}
+.btn{min-height:44px;padding:0 16px;border-radius:var(--radius-control);font:inherit;font-size:.875rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background var(--duration-fast) ease}
+.btn-primary{background:var(--color-ink);color:#fff;border:0}.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:var(--color-surface);color:var(--color-ink);border:1px solid var(--color-line-strong)}.btn-secondary:hover{background:var(--color-surface-subtle)}
+.btn-link{background:none;border:0;color:var(--color-ink-muted);font-weight:600;text-decoration:underline;text-underline-offset:3px;min-height:36px;padding:0 4px}
+.proto-bar{background:var(--color-surface-subtle);border-bottom:1px solid var(--color-line);padding:10px 64px;display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:12px;color:var(--color-ink-secondary)}
+.proto-pills{display:flex;gap:6px;flex-wrap:wrap}
+.proto-pill{border:1px solid var(--color-line-strong);background:var(--color-surface);color:var(--color-ink-secondary);border-radius:var(--radius-pill);padding:6px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;min-height:32px}
+.proto-pill[aria-pressed="true"]{background:var(--color-ink);color:#fff;border-color:var(--color-ink)}
+main{max-width:1340px;width:100%;margin:0 auto;padding:28px 64px 40px;display:grid;gap:20px}
+.page-head h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.025em}
+.page-head p{margin:4px 0 0;font-size:14px;color:var(--color-ink-muted)}
+.card{background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-featured);padding:24px 28px;box-shadow:var(--card-shadow-soft)}
+.hero-top{display:grid;grid-template-columns:196px 1fr;gap:32px;align-items:center}
+.gauge{position:relative;width:196px;height:196px}
+.gauge-center{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.gauge-center strong{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.gauge-center span{font-size:12px;color:var(--color-ink-muted);margin-top:4px}
+.hero-kicker{font-size:13px;font-weight:600;color:var(--color-ink-muted)}
+.amount-line{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:4px 0 6px}
+.hero-amount{font-size:48px;font-weight:800;letter-spacing:-.04em;line-height:1.05}
+.hero-sub{font-size:15px;color:var(--color-ink-secondary);margin:0 0 12px}
+.hero-sub strong{color:var(--color-ink)}
+.state-pill{display:inline-flex;align-items:center;gap:6px;border-radius:var(--radius-pill);padding:5px 12px;font-size:12px;font-weight:700;background:var(--state-calm-soft);color:var(--state-calm)}
+.hero-stats{display:grid;grid-template-columns:repeat(3,1fr);margin-top:24px;padding-top:16px;border-top:1px solid var(--color-line)}
+.hero-stat span{display:block;font-size:12px;color:var(--color-ink-muted)}
+.hero-stat strong{display:block;font-size:18px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
+.hero-stat+.hero-stat{border-left:1px solid var(--color-line);padding-left:16px}
+
+/* ── NEW: reconciliation chip ── */
+.recon-anchor{position:relative}
+.recon-chip{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 14px 0 10px;border-radius:var(--radius-pill);border:1px solid transparent;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background var(--duration-fast) ease,border-color var(--duration-fast) ease}
+.recon-chip .ico{width:18px;height:18px;flex:none}
+.recon-chip .meta{font-weight:600;opacity:.85}
+.recon-chip .caret{width:12px;height:12px;opacity:.7;transition:transform var(--duration-fast) ease}
+.recon-chip[aria-expanded="true"] .caret{transform:rotate(180deg)}
+.recon-chip.is-empty{background:var(--color-surface);border:1px dashed var(--control-border);color:var(--color-ink-secondary)}
+.recon-chip.is-empty:hover{background:var(--color-surface-subtle)}
+.recon-chip.is-tight{background:var(--state-tight-soft);color:var(--state-tight-strong)}
+.recon-chip.is-tight:hover{border-color:var(--state-tight)}
+.recon-chip.is-calm{background:var(--state-calm-soft);color:var(--state-calm)}
+.recon-chip.is-calm:hover{border-color:var(--state-calm)}
+.stale-dot{position:relative;width:8px;height:8px;border-radius:50%;background:var(--state-tight);flex:none}
+.stale-dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--state-tight);opacity:0;animation:pulse 1.8s var(--ease-out-expo) infinite}
+@keyframes pulse{0%{transform:scale(.5);opacity:.8}100%{transform:scale(1.4);opacity:0}}
+
+/* ── NEW: popover ── */
+.popover{position:absolute;top:calc(100% + 10px);left:0;width:380px;background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-featured);box-shadow:var(--shadow-xl);padding:20px;z-index:10;display:grid;gap:14px;transform-origin:top left;animation:pop 220ms var(--ease-out-expo)}
+.popover[hidden]{display:none}
+@keyframes pop{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}
+.popover::before{content:"";position:absolute;top:-7px;left:28px;width:12px;height:12px;background:var(--color-surface);border-left:1px solid var(--color-line);border-top:1px solid var(--color-line);transform:rotate(45deg)}
+.pop-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.pop-head h2{margin:0;font-size:16px;font-weight:700}
+.pop-head p{margin:2px 0 0;font-size:12px;color:var(--color-ink-muted)}
+.icon-btn{width:36px;height:36px;border-radius:50%;border:0;background:transparent;color:var(--color-ink-muted);cursor:pointer;display:grid;place-items:center;flex:none}
+.icon-btn:hover{background:var(--color-surface-subtle)}
+.equation{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:12px 14px;border-radius:var(--radius-card);background:var(--color-canvas);border:1px solid var(--color-line);font-size:13px;color:var(--color-ink-muted)}
+.equation b{color:var(--color-ink);font-size:15px}
+.equation .eq-result{margin-left:auto;font-size:20px;font-weight:800;letter-spacing:-.02em}
+.equation .eq-result.tight{color:var(--state-tight-strong)}
+.equation .eq-result.calm{color:var(--state-calm)}
+.question{font-size:17px;font-weight:700;letter-spacing:-.01em;margin:0}
+.question .num{white-space:nowrap}
+.choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.clp-wrap{position:relative;display:flex;align-items:center}
+.clp-wrap span{position:absolute;left:14px;font-weight:700;color:var(--color-ink-muted)}
+.clp-wrap input{width:100%;min-height:48px;padding:0 14px 0 28px;border:1px solid var(--control-border);border-radius:var(--radius-control);background:var(--color-surface);color:var(--color-ink);font:inherit;font-weight:700;font-size:18px}
+.input-row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.hint{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--color-ink-secondary);line-height:1.4}
+.hint svg{flex:none;margin-top:1px}
+.hint.warn{color:var(--state-tight-strong)}
+.clp-wrap.neg span{color:#b4412f}
+.clp-wrap.neg input{padding-left:38px}
+.sign{display:flex;align-items:center;gap:8px;min-height:32px;font-size:13px;color:var(--color-ink-secondary);cursor:pointer}
+.sign input{width:18px;height:18px;margin:0;accent-color:var(--color-ink)}
+.pop-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--color-line);padding-top:10px}
+.error{margin:0;font-size:12.5px;color:#b42318}
+
+.bottom-card{background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-featured);padding:20px 24px;box-shadow:var(--card-shadow-soft)}
+.bottom-card h2{margin:0 0 14px;font-size:16px;font-weight:700}
+.cat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.cat-pill-card{background:var(--color-canvas);border:1px solid var(--color-line);border-radius:var(--radius-card);padding:12px 14px;display:grid;gap:6px}
+.cat-pill-top{display:flex;justify-content:space-between;font-size:13px;color:var(--color-ink-secondary)}
+.cat-pill-amt{font-size:17px;font-weight:800}
+.cat-bar{height:5px;border-radius:3px;background:var(--color-track);overflow:hidden}
+.cat-bar i{display:block;height:100%;border-radius:3px}
+.direction-note{margin-top:auto;padding:12px 64px;background:var(--color-surface);border-top:1px solid var(--color-line);font-size:12px;color:var(--color-ink-muted);display:flex;justify-content:space-between}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="frame">
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Gastos Controlados">
+      <svg width="28" height="28" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="22" fill="none" stroke="#e3e1dc" stroke-width="7"/><circle cx="28" cy="28" r="22" fill="none" stroke="#0b7a6b" stroke-width="7" stroke-linecap="round" stroke-dasharray="86 138.2" transform="rotate(-90 28 28)"/><circle cx="28" cy="28" r="5" fill="#131b2e"/></svg>
+      gastos controlados
+    </a>
+    <nav class="nav" aria-label="Principal"><a href="#" aria-current="page">Resumen</a><a href="#">Movimientos</a></nav>
+    <div style="display:flex;gap:10px"><button class="btn btn-secondary" type="button">Sincronizar Gmail</button><button class="btn btn-primary" type="button">+ Registrar gasto</button></div>
+  </header>
+
+  <div class="proto-bar" role="region" aria-label="Estados de prueba">
+    <span><strong>Dirección 04 · Chip en el hero + popover Sí/No</strong> — Prueba estados:</span>
+    <div class="proto-pills">
+      <button class="proto-pill" data-state="empty" aria-pressed="false" type="button">Sin saldo aún</button>
+      <button class="proto-pill" data-state="gap" aria-pressed="true" type="button">Brecha $42.500</button>
+      <button class="proto-pill" data-state="stale" aria-pressed="false" type="button">Desactualizado</button>
+      <button class="proto-pill" data-state="pending" aria-pressed="false" type="button">Montos pendientes</button>
+      <button class="proto-pill" data-state="surplus" aria-pressed="false" type="button">A favor</button>
+      <button class="proto-pill" data-state="matched" aria-pressed="false" type="button">Cuadrado</button>
+      <button class="proto-pill" data-state="credit" aria-pressed="false" type="button">Línea de crédito −$120.000</button>
+    </div>
+  </div>
+
+  <main>
+    <div class="page-head">
+      <h1>Resumen del ciclo</h1>
+      <p>1 – 30 nov 2026 · Día 25 de 30 · Gmail sincronizado hoy a las 19:15</p>
+    </div>
+
+    <section class="card" aria-labelledby="hero-title">
+      <div class="hero-top">
+        <div class="gauge" aria-hidden="true">
+          <svg width="196" height="196" viewBox="0 0 196 196"><circle cx="98" cy="98" r="82" fill="none" stroke="#efeee9" stroke-width="14"/><circle cx="98" cy="98" r="82" fill="none" stroke="#0b7a6b" stroke-width="14" stroke-linecap="round" stroke-dasharray="324 515" transform="rotate(-90 98 98)"/></svg>
+          <div class="gauge-center"><strong class="num">63%</strong><span>gastado</span></div>
+        </div>
+        <div>
+          <div id="hero-title" class="hero-kicker">Disponible según tus registros</div>
+          <div class="amount-line">
+            <span class="hero-amount num">$537.570</span>
+            <div class="recon-anchor">
+              <button class="recon-chip is-tight" id="chip" type="button" aria-expanded="false" aria-controls="pop" aria-haspopup="dialog">
+                <span id="chipIcon"></span>
+                <span id="chipText" class="num"></span>
+                <svg class="caret" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="popover" id="pop" role="dialog" aria-labelledby="popTitle" hidden></div>
+            </div>
+          </div>
+          <p class="hero-sub">Puedes gastar <strong class="num">$89.595 por día</strong> hasta el 30 nov</p>
+          <span class="state-pill">Ritmo tranquilo · cierras con unos $355.000 de sobra</span>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><span>Ingreso del ciclo</span><strong class="num">$1.450.000</strong></div>
+        <div class="hero-stat"><span>Gastado registrado</span><strong class="num">$912.430</strong></div>
+        <div class="hero-stat"><span>Restante teórico</span><strong class="num">$537.570</strong></div>
+      </div>
+    </section>
+
+    <section class="bottom-card" aria-labelledby="cat-title">
+      <h2 id="cat-title">Categorías principales del ciclo</h2>
+      <div class="cat-strip">
+        <div class="cat-pill-card"><div class="cat-pill-top"><span>Supermercado</span><span class="num">35%</span></div><div class="cat-pill-amt num">$318.200</div><div class="cat-bar"><i style="width:35%;background:var(--cat-1)"></i></div></div>
+        <div class="cat-pill-card"><div class="cat-pill-top"><span>Cuentas y servicios</span><span class="num">27%</span></div><div class="cat-pill-amt num">$246.800</div><div class="cat-bar"><i style="width:27%;background:var(--cat-2)"></i></div></div>
+        <div class="cat-pill-card"><div class="cat-pill-top"><span>Transporte y bencina</span><span class="num">20%</span></div><div class="cat-pill-amt num">$184.430</div><div class="cat-bar"><i style="width:20%;background:var(--cat-3)"></i></div></div>
+        <div class="cat-pill-card"><div class="cat-pill-top"><span>Salidas y cafés</span><span class="num">18%</span></div><div class="cat-pill-amt num">$163.000</div><div class="cat-bar"><i style="width:18%;background:var(--cat-4)"></i></div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="direction-note">
+    <span>Tradeoff 04: Una sola línea responde "¿cuadra?" y el dashboard no crece; el desglose y la edición quedan a un clic.</span>
+    <span>Tokens sincronizados · Semáforo sereno (modo claro)</span>
+  </footer>
+</div>
+
+<script>
+const THEORETICAL = 537570;
+const fmt = n => "$" + Math.abs(Math.round(n)).toLocaleString("es-CL");
+const fmtS = n => (Math.round(n) < 0 ? "-" : "") + fmt(n);
+const parseClp = s => { const t = String(s).trim().replace(/−/g, "-"); if (!t) return null; if (t.includes(",")) return undefined; const m = /^(-?)(\d+)$/.exec(t.replace(/[$\s.]/g, "")); if (!m) return undefined; const v = parseInt(m[2], 10); return m[1] && v ? -v : v; };
+const ICONS = {
+  check:'<svg class="ico" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="currentColor" opacity=".15"/><path d="M5.5 9.2 7.8 11.4 12.5 6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  gap:'<svg class="ico" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="currentColor" opacity=".15"/><path d="M9 5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="9" cy="12.6" r="1" fill="currentColor"/></svg>',
+  plus:'<svg class="ico" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="currentColor" opacity=".15"/><path d="M9 5.5v7M5.5 9h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  bank:'<svg class="ico" viewBox="0 0 18 18" aria-hidden="true"><path d="M2.5 7 9 3l6.5 4M4 7.5v5M7.3 7.5v5M10.7 7.5v5M14 7.5v5M2.5 14.5h13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  info:'<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="4.8" r=".9" fill="currentColor"/></svg>',
+  close:'<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+};
+const STATES = {
+  empty:{real:null,ts:"Aún sin saldo real registrado",stale:false,pending:0},
+  gap:{real:495070,ts:"hoy 19:20",tsLong:"Actualizado hoy a las 19:20",stale:false,pending:0},
+  stale:{real:495070,ts:"hace 2 días",tsLong:"Actualizado hace 2 días (23 nov, 18:10)",stale:true,after:2,pending:0},
+  pending:{real:495070,ts:"hoy 19:20",tsLong:"Actualizado hoy a las 19:20",stale:false,pending:2},
+  surplus:{real:565000,ts:"hoy 19:20",tsLong:"Actualizado hoy a las 19:20",stale:false,pending:0},
+  matched:{real:537570,ts:"hoy 19:20",tsLong:"Actualizado hoy a las 19:20",stale:false,pending:0},
+  credit:{real:-120000,ts:"hoy 19:20",tsLong:"Actualizado hoy a las 19:20",stale:false,pending:0}
+};
+let cur = {...STATES.gap}; let step = "summary"; // summary | ask | input
+const chip = document.getElementById("chip"), pop = document.getElementById("pop");
+
+function kindOf(s){ if (s.real === null) return "empty"; const d = THEORETICAL - s.real; return d > 0 ? "gap" : d < 0 ? "surplus" : "matched"; }
+
+function paintChip(){
+  const k = kindOf(cur), d = cur.real === null ? 0 : THEORETICAL - cur.real;
+  const icon = document.getElementById("chipIcon"), text = document.getElementById("chipText");
+  let cls, label, aria;
+  if (k === "empty"){ cls="is-empty"; icon.innerHTML=ICONS.bank; label="Cuadrar con tu banco"; aria="Cuadrar con tu banco: aún sin saldo real"; }
+  else if (k === "gap"){ cls="is-tight"; icon.innerHTML=ICONS.gap; label=`${fmt(d)} sin seguimiento`; aria=`${fmt(d)} sin seguimiento, ${cur.ts}`; }
+  else if (k === "surplus"){ cls="is-calm"; icon.innerHTML=ICONS.plus; label=`+${fmt(d)} a favor`; aria=`${fmt(d)} a favor, ${cur.ts}`; }
+  else { cls="is-calm"; icon.innerHTML=ICONS.check; label="Cuadrado"; aria=`Cuadrado con tu cuenta, ${cur.ts}`; }
+  chip.className = "recon-chip " + cls;
+  const warn = cur.stale || cur.pending > 0;
+  text.innerHTML = label + (k !== "empty" ? ` <span class="meta">· ${cur.ts}</span>` : "") + (warn ? ' <span class="stale-dot" aria-hidden="true"></span>' : "");
+  chip.setAttribute("aria-label", aria + (cur.stale ? ". Saldo posiblemente desactualizado" : "") + (cur.pending ? `. ${cur.pending} movimientos sin monto` : "") + ". Abrir cuadre");
+}
+
+function hintsHtml(){
+  let h = "";
+  if (cur.stale) h += `<div class="hint warn">${ICONS.info}<span>${cur.after} gastos registrados después de tu último corte. Vuelve a confirmar tu saldo.</span></div>`;
+  if (cur.pending) h += `<div class="hint warn">${ICONS.info}<span>${cur.pending} movimientos sin monto aún no se descuentan: la brecha real podría ser menor.</span></div>`;
+  const warn = h !== "";
+  if (cur.real !== null && cur.real < 0) h += `<div class="hint">${ICONS.info}<span>Estás usando <b class="num">${fmt(cur.real)}</b> de tu línea de crédito: es dinero que te debes a ti mismo.</span></div>`;
+  const k = kindOf(cur);
+  if (!warn && k === "gap") h = `<div class="hint">${ICONS.info}<span>Suele ser efectivo, comisiones o compras sin correo.</span></div>`;
+  if (!warn && k === "surplus") h += `<div class="hint">${ICONS.info}<span>Puede ser un ingreso extra, saldo arrastrado o un gasto duplicado.</span></div>`;
+  return h;
+}
+
+function paintPop(){
+  const k = kindOf(cur);
+  const head = `<div class="pop-head"><div><h2 id="popTitle">Cuadre con tu cuenta</h2><p>${k==="empty"?cur.ts:cur.tsLong}</p></div><button class="icon-btn" type="button" data-act="close" aria-label="Cerrar">${ICONS.close}</button></div>`;
+  let body = "";
+  if (step === "input" || (k === "empty" && step !== "ask")) {
+    body = `<p class="question">¿Cuánto tienes hoy en tu cuenta?</p>
+      <form class="input-row" data-form novalidate>
+        <div class="clp-wrap${cur.real < 0 ? " neg" : ""}"><span aria-hidden="true">${cur.real < 0 ? "−$" : "$"}</span><input id="balInput" class="num" inputmode="numeric" aria-label="Saldo real en pesos chilenos" placeholder="Ej. 495.070" value="${cur.real !== null ? Math.abs(cur.real).toLocaleString("es-CL") : ""}"></div>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+      </form>
+      <label class="sign"><input type="checkbox" id="neg" ${cur.real < 0 ? "checked" : ""}><span>Saldo en negativo (estoy usando mi línea de crédito)</span></label>
+      <p class="error" id="err" role="alert" hidden></p>
+      <div class="hint">${ICONS.info}<span>Lo comparamos con los <b class="num">${fmt(THEORETICAL)}</b> que calculan tus registros.</span></div>`;
+  } else {
+    const d = THEORETICAL - cur.real;
+    const resCls = k === "gap" ? "tight" : "calm";
+    const resTxt = k === "matched" ? "$0" : (k === "surplus" ? "+" : "−") + fmt(d);
+    body = `<div class="equation num" aria-label="Calculado ${fmt(THEORETICAL)}, real ${fmt(cur.real)}, diferencia ${resTxt}">
+        <span><b>${fmt(THEORETICAL)}</b> calculado</span><span>vs</span><span><b>${fmtS(cur.real)}</b> real</span>
+        <span class="eq-result ${resCls}">${resTxt}</span></div>
+      ${hintsHtml()}
+      <p class="question">¿Sigues teniendo <span class="num">${fmtS(cur.real)}</span> en tu cuenta?</p>
+      <div class="choice-row"><button class="btn btn-primary" type="button" data-act="yes">Sí, confirmar</button><button class="btn btn-secondary" type="button" data-act="no">No, cambió</button></div>`;
+  }
+  const foot = cur.real !== null ? `<div class="pop-foot"><span style="font-size:12px;color:var(--color-ink-muted)">Solo tú ves este saldo</span><button class="btn-link" type="button" data-act="clear">Quitar saldo real</button></div>` : "";
+  pop.innerHTML = head + body + foot;
+}
+
+function openPop(){ pop.hidden = false; chip.setAttribute("aria-expanded","true"); paintPop(); (pop.querySelector("input,[data-act=yes]")||pop.querySelector("button")).focus(); }
+function closePop(){ pop.hidden = true; chip.setAttribute("aria-expanded","false"); step="summary"; chip.focus(); }
+
+chip.addEventListener("click", () => pop.hidden ? openPop() : closePop());
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !pop.hidden) closePop(); });
+document.addEventListener("click", e => { if (!pop.hidden && !e.target.closest(".recon-anchor")) { pop.hidden = true; chip.setAttribute("aria-expanded","false"); step="summary"; } });
+pop.addEventListener("click", e => {
+  const a = e.target.closest("[data-act]")?.dataset.act; if (!a) return;
+  if (a === "close") closePop();
+  if (a === "yes") { cur = {...cur, ts:"ahora", tsLong:"Confirmado ahora mismo", stale:false}; paintChip(); closePop(); }
+  if (a === "no") { step = "input"; paintPop(); pop.querySelector("input").focus(); }
+  if (a === "clear") { cur = {...STATES.empty}; step="summary"; paintChip(); paintPop(); }
+});
+pop.addEventListener("submit", e => {
+  e.preventDefault();
+  const p = parseClp(pop.querySelector("#balInput").value), err = pop.querySelector("#err");
+  if (p === undefined || p === null) { err.textContent = "Ingresa un monto entero en pesos chilenos (por ejemplo, 495.070 o 0)."; err.hidden = false; return; }
+  const v = pop.querySelector("#neg").checked || p < 0 ? -Math.abs(p) : Math.abs(p);
+  cur = {real:v, ts:"ahora", tsLong:"Actualizado ahora mismo", stale:false, pending:cur.pending}; step="summary"; paintChip(); paintPop();
+});
+document.querySelectorAll(".proto-pill").forEach(b => b.addEventListener("click", e => {
+  e.stopPropagation();
+  document.querySelectorAll(".proto-pill").forEach(x => x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true");
+  cur = {...STATES[b.dataset.state]}; step="summary"; paintChip(); if (!pop.hidden) paintPop();
+}));
+pop.addEventListener("change", e => { if (e.target.id !== "neg") return; const w = pop.querySelector(".clp-wrap"); w.classList.toggle("neg", e.target.checked); w.querySelector("span").textContent = e.target.checked ? "−$" : "$"; });
+pop.addEventListener("input", e => { if (e.target.id !== "balInput" || !/[-−]/.test(e.target.value)) return; e.target.value = e.target.value.replace(/[-−]/g, ""); const n = pop.querySelector("#neg"); n.checked = true; n.dispatchEvent(new Event("change", {bubbles:true})); });
+paintChip(); openPop();
+</script>
+</body>
+</html>

@@ -28,6 +28,10 @@ export interface AccountReconciliationModel {
 	actualBalanceAt: string | null;
 	difference: number | null;
 	updatedLabel: string;
+	/** Compact timestamp for the chip ("hoy 19:20", "ayer 19:20", "hace 3 días"); null without a balance. */
+	shortUpdatedLabel: string | null;
+	/** Amount drawn from a credit line when the real balance is below zero; null otherwise. */
+	creditLineUsed: number | null;
 	badgeLabel: string;
 	badgeTone: ReconciliationTone;
 	diffLabel: string;
@@ -61,21 +65,30 @@ export function formatReconciliationClp(amount: number): string {
 	return `$${Math.abs(Math.round(amount)).toLocaleString("es-CL")}`;
 }
 
+/** Signed CLP amount: "-$120.000" below zero, "$495.070" otherwise. */
+export function formatSignedReconciliationClp(amount: number): string {
+	const formatted = formatReconciliationClp(amount);
+	return Math.round(amount) < 0 ? `-${formatted}` : formatted;
+}
+
 /**
  * Parses a user-entered CLP balance string.
  * - Blank string -> `null` (means clear)
- * - Valid non-negative whole CLP string (e.g. "$495.070", "0", "1.200.000") -> integer >= 0
- * - Negative, decimal, or non-numeric garbage -> `undefined` (invalid)
+ * - Whole CLP string (e.g. "$495.070", "0", "1.200.000") -> integer
+ * - One leading minus ("-120.000", "-$120.000", "$-120.000", typographic "−") -> negative integer,
+ *   for accounts drawn into a credit line
+ * - Decimal, misplaced minus, or non-numeric garbage -> `undefined` (invalid)
  */
 export function parseClpBalanceInput(raw: string): number | null | undefined {
-	const trimmed = raw.trim();
+	const trimmed = raw.trim().replace(/−/g, "-");
 	if (trimmed === "") return null;
-	if (trimmed.includes("-") || trimmed.includes(",")) return undefined;
+	if (trimmed.includes(",")) return undefined;
 	const stripped = trimmed.replace(/[$\s.]/g, "");
-	if (!/^\d+$/.test(stripped)) return undefined;
-	const parsed = Number.parseInt(stripped, 10);
-	if (!Number.isSafeInteger(parsed) || parsed < 0) return undefined;
-	return parsed;
+	const match = /^(-?)(\d+)$/.exec(stripped);
+	if (!match) return undefined;
+	const magnitude = Number.parseInt(match[2], 10);
+	if (!Number.isSafeInteger(magnitude)) return undefined;
+	return match[1] === "-" && magnitude !== 0 ? -magnitude : magnitude;
 }
 
 function parseTimestampMs(value: unknown): number | null {
@@ -102,6 +115,17 @@ function formatUpdatedLabel(actualBalanceAt: string | null, now: Date): string {
 	if (diffDays === 1) return `Actualizado ayer a las ${timeStr}`;
 	const shortDate = santiagoShortDateFormatter.format(updated).replace(/\.$/, "");
 	return `Actualizado hace ${diffDays} días (${shortDate}, ${timeStr})`;
+}
+
+function formatShortUpdatedLabel(actualBalanceAt: string | null, now: Date): string | null {
+	const ms = parseTimestampMs(actualBalanceAt);
+	if (ms === null) return null;
+	const updated = new Date(ms);
+	const diffDays = dayDiffInSantiago(updated, now);
+	const timeStr = santiagoTimeFormatter.format(updated);
+	if (diffDays <= 0) return `hoy ${timeStr}`;
+	if (diffDays === 1) return `ayer ${timeStr}`;
+	return `hace ${diffDays} días`;
 }
 
 function countRecognizedExpensesAfter(
@@ -144,6 +168,8 @@ export function getAccountReconciliation({
 			actualBalanceAt,
 			difference: null,
 			updatedLabel: "Define tu ingreso del ciclo para cuadrar",
+			shortUpdatedLabel: null,
+			creditLineUsed: actualBalance !== null && actualBalance < 0 ? -actualBalance : null,
 			badgeLabel: "Requiere ingreso",
 			badgeTone: "neutral",
 			diffLabel: "Dinero sin seguimiento",
@@ -168,6 +194,8 @@ export function getAccountReconciliation({
 			actualBalanceAt: null,
 			difference: null,
 			updatedLabel: "Aún sin saldo real registrado",
+			shortUpdatedLabel: null,
+			creditLineUsed: null,
 			badgeLabel: "Pendiente",
 			badgeTone: "neutral",
 			diffLabel: "Dinero sin seguimiento",
@@ -258,6 +286,8 @@ export function getAccountReconciliation({
 		actualBalanceAt,
 		difference,
 		updatedLabel,
+		shortUpdatedLabel: formatShortUpdatedLabel(actualBalanceAt, now),
+		creditLineUsed: actualBalance < 0 ? -actualBalance : null,
 		badgeLabel,
 		badgeTone,
 		diffLabel,

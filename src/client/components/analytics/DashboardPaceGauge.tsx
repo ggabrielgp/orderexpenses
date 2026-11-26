@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useState } from "react";
+import { useId, useLayoutEffect, useState, type ReactNode } from "react";
 import "./dashboard-pace.css";
 import { runGaugeEntrance } from "./gaugeMotion";
 import { PACE_STATE_LABELS, type DashboardPace, type DashboardPaceState, type DashboardPaceWithIncome } from "./dashboardPace";
@@ -34,6 +34,8 @@ export interface DashboardPaceGaugeProps {
 	 * that says when the period closes; without it that line is omitted and nothing else changes.
 	 */
 	periodEndExclusive?: string;
+	/** Optional control shown beside the state pill (e.g. the "Cuadre con tu cuenta" chip). */
+	accessory?: ReactNode;
 }
 
 const MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -69,7 +71,7 @@ const defaultFormatClp = (amount: number) => new Intl.NumberFormat("es-CL", {
 const percent = (share: number) => Math.round(share * 100);
 const roundToThousand = (amount: number) => Math.round(amount / 1000) * 1000;
 
-export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIncome, notes = [], replayKey, compact = false, periodEndExclusive }: DashboardPaceGaugeProps) {
+export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIncome, notes = [], replayKey, compact = false, periodEndExclusive, accessory }: DashboardPaceGaugeProps) {
 	const labelId = useId();
 	// 1 = final values (what the server and reduced motion render); the entrance drives it 0 -> 1 once.
 	const [progress, setProgress] = useState(1);
@@ -88,6 +90,7 @@ export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIn
 					{onAddIncome ? (
 						<button type="button" className="react-pace-gauge-action" onClick={onAddIncome}>Agregar ingreso</button>
 					) : null}
+					{accessory && !compact ? <div className="react-pace-gauge-pill-row">{accessory}</div> : null}
 					{noteLine}
 				</div>
 			</section>
@@ -135,10 +138,15 @@ export function DashboardPaceGauge({ pace, formatClp = defaultFormatClp, onAddIn
 				</div>
 			</div>
 			<div className="react-pace-gauge-body">
-				<span className="react-pace-gauge-pill">
-					<span className="react-pace-gauge-pill-icon" aria-hidden="true">{STATE_ICONS[pace.state]}</span>
-					<span>{PACE_STATE_LABELS[pace.state]}</span>
-				</span>
+				{(() => {
+					const pill = (
+						<span className="react-pace-gauge-pill">
+							<span className="react-pace-gauge-pill-icon" aria-hidden="true">{STATE_ICONS[pace.state]}</span>
+							<span>{PACE_STATE_LABELS[pace.state]}</span>
+						</span>
+					);
+					return accessory && !compact ? <div className="react-pace-gauge-pill-row">{pill}{accessory}</div> : pill;
+				})()}
 				<p className="react-pace-gauge-sentence">
 					Llevas <b>{spentPercent}%</b> del ingreso y pasó el <b>{elapsedPercent}%</b> del período. A este ritmo {projection}
 				</p>

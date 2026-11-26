@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "chosen": "02-tarjeta-conciliacion-lateral.html",
+  "chosen": "04-chip-hero-popover.html",
   "handoffs": {
     "02-tarjeta-conciliacion-lateral.html": {
       "status": "implemented",
@@ -9,6 +9,13 @@
       "startedAt": "2026-11-25T23:12:08.605Z",
       "implementedAt": "2026-11-25T23:25:28.632Z",
       "note": "Implemented Cuadre con tu cuenta (DB migration, PUT /api/financial-cycle/reconciliation, analytics derivation, AccountReconciliationCard beside DashboardPaceGauge, and read-only demo parity). Verified with 687/687 tests and clean tsc + vite build."
+    },
+    "04-chip-hero-popover.html": {
+      "status": "sent",
+      "queued": false,
+      "sentAt": "2026-11-26T03:20:58.283Z",
+      "startedAt": null,
+      "implementedAt": null
     }
   }
 }

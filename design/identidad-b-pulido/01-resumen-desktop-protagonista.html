@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Resumen · protagonista — Gastos Controlados (pulido fase 1)</title>
+<style>
+:root{
+  /* tokens de design/system.md que se conservan */
+  --canvas:#f6f5f2;--surface:#ffffff;--subtle:#efeee9;--pressed:#e8e7e2;
+  --ink:#131b2e;--ink-2:#3f4b63;--ink-3:#59647a;--line:#e3e1dc;--line-strong:#d2d0ca;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;
+  --r-control:12px;--r-card:16px;--r-feat:20px;--r-pill:999px;
+  --shadow-card:0 3px 14px rgba(30,38,52,.05);--shadow-panel:0 8px 30px rgba(30,38,52,.06);
+  /* identidad B, fase 1: color de estado SOLO para el estado del mes */
+  --calm:#0b7a6b;--calm-soft:#e2f3ef;
+  --tight:#8f5f00;--tight-soft:#fdf3d8;
+  --over:#b4412f;--over-soft:#fbe9e5;
+  /* categorías: paleta propia, nunca los matices de estado */
+  --cat-1:#5a67a0;--cat-2:#94678c;--cat-3:#6f93ad;--cat-4:#8e897f;
+  /* canales (Compras / Transferencias / Pagos): tintas neutras */
+  --ctl:#8b94a6; /* borde de controles, 3:1 sobre blanco */
+  --ch-1:#131b2e;--ch-2:#59647a;--ch-3:#8b94a6;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  /* movimiento: 150 rutina · 300 cambio de vista · 700 solo el medidor */
+  --d-fast:150ms;--d-view:300ms;--d-gauge:700ms;--ease-out:cubic-bezier(.16,1,.3,1);
+  --st:var(--calm);--st-soft:var(--calm-soft);
+}
+[data-state="tight"]{--st:var(--tight);--st-soft:var(--tight-soft)}
+[data-state="over"]{--st:var(--over);--st-soft:var(--over-soft)}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--canvas);color:var(--ink);font:15px/1.5 var(--sans)}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0;padding:0}
+ul,ol{list-style:none}
+button{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip{position:absolute;left:16px;top:-60px;z-index:100;background:var(--ink);color:#fff;padding:12px 16px;border-radius:var(--r-control);font-weight:700;text-decoration:none}
+.skip:focus{top:12px}
+
+/* ── header ── */
+.app-header{position:sticky;top:0;z-index:30;background:var(--surface);border-bottom:1px solid var(--line)}
+.app-header .in{max-width:1280px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;gap:24px}
+.brand{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:800;font-size:16px;letter-spacing:-.02em;text-decoration:none;color:var(--ink)}
+.main-nav{display:flex;gap:8px;margin:0 auto;height:100%}
+.main-nav a{display:flex;align-items:center;padding:0 16px;height:100%;font-size:15px;font-weight:600;color:var(--ink-2);text-decoration:none;transition:color var(--d-fast)}
+.main-nav a:hover{color:var(--ink)}
+.main-nav a[aria-current="page"]{color:var(--ink);font-weight:800;box-shadow:inset 0 -3px 0 var(--ink)}
+.main-nav a:focus-visible{outline-offset:-6px}
+.hdr-right{display:flex;align-items:center;gap:12px;position:relative}
+.gm{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid var(--line-strong);border-radius:var(--r-pill);background:var(--surface);font-size:14px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.gm svg{flex:none}
+.acct{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 6px;border:1px solid var(--ctl);border-radius:var(--r-pill);background:var(--surface);cursor:pointer;font-weight:700;font-size:15px;transition:background var(--d-fast)}
+.acct:hover{background:var(--subtle)}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:800;letter-spacing:.02em}
+.menu{position:absolute;right:0;top:calc(100% + 8px);min-width:220px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow-panel);padding:8px;z-index:50}
+.menu[hidden]{display:none}
+.menu button{display:flex;width:100%;align-items:center;gap:10px;min-height:44px;padding:0 12px;border:0;background:none;border-radius:var(--r-control);text-align:left;cursor:pointer;font-size:15px;font-weight:600}
+.menu button:hover{background:var(--subtle)}
+
+/* ── página ── */
+.page{max-width:1280px;margin:0 auto;padding:32px 40px 72px}
+.dash-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:24px}
+.greet{font-size:15px;font-weight:600;color:var(--ink-3)}
+.title{font-size:28px;line-height:1.15;font-weight:800;letter-spacing:-.025em;margin:4px 0 8px}
+.period{display:flex;align-items:center;gap:4px;font-size:15px;color:var(--ink-2)}
+.icon-btn{width:44px;height:44px;border:0;border-radius:var(--r-control);background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--ink);transition:background var(--d-fast)}
+.icon-btn:hover{background:var(--pressed)}
+.acts{display:flex;gap:12px;flex-wrap:wrap}
+.btn{min-height:44px;padding:0 18px;border-radius:var(--r-control);font-weight:700;font-size:15px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;border:1px solid transparent;transition:background var(--d-fast),border-color var(--d-fast),transform var(--d-fast)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.primary:hover{background:#26304a}
+.btn.ghost{background:var(--surface);border-color:var(--ctl)}
+.btn.ghost:hover{background:var(--subtle)}
+.gm-m{display:none}
+
+/* ── medidor ── */
+.hero{background:var(--surface);border-radius:var(--r-feat);box-shadow:var(--shadow-panel);padding:32px}
+.hero .gauge{position:relative;width:340px;aspect-ratio:1;flex:none}
+.gauge svg{display:block;width:100%;height:100%}
+.gauge .track{stroke:var(--subtle)}
+.gauge .arc{stroke:var(--st);transition:stroke var(--d-view)}
+.gauge .center{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;text-align:center;gap:6px}
+.gauge .lbl{font-size:15px;font-weight:600;color:var(--ink-3)}
+.gauge .num{font-size:48px;line-height:1;font-weight:800;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.gauge .per{font-size:15px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:8px;border-radius:var(--r-pill);padding:6px 16px;font-size:15px;font-weight:700;background:var(--st-soft);color:var(--st);opacity:1;transition:opacity var(--d-view) ease-out,background var(--d-view),color var(--d-view)}
+.hero.sweeping .pill{opacity:0}
+.lead{font-size:18px;line-height:1.5;color:var(--ink-2);max-width:62ch}
+.lead b{color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);padding-top:20px}
+.stats>div{padding:0 24px}
+.stats>div:first-child{padding-left:0}
+.stats>div+div{border-left:1px solid var(--line)}
+.stats dt{font-size:14px;font-weight:600;color:var(--ink-3)}
+.stats dd{margin-top:2px;font-size:24px;line-height:1.2;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stats dd small{display:block;font-size:14px;font-weight:600;letter-spacing:0;color:var(--ink-3)}
+.key{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--ink-3)}
+.key span{display:inline-flex;align-items:center;gap:6px}
+.hero-wide{display:grid;grid-template-columns:340px 1fr;gap:56px;align-items:center}
+.hero-body{display:grid;gap:20px;justify-items:start;min-width:0}
+.hero-body .stats{width:100%}
+
+/* ── paneles ── */
+.cols{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(0,1fr);gap:24px;align-items:start;margin-top:24px}
+.col{display:grid;gap:24px;min-width:0}
+.panel{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow-card);padding:24px;min-width:0}
+.panel h2{font-size:18px;line-height:1.3;font-weight:800;letter-spacing:-.01em}
+.panel .sub{font-size:15px;color:var(--ink-3);margin-top:2px}
+.panel-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:8px 12px;margin-bottom:16px}
+.chip{display:inline-flex;align-items:center;border-radius:var(--r-pill);background:var(--subtle);color:var(--ink-2);font-size:13px;font-weight:700;padding:4px 12px;white-space:nowrap}
+.total{font-size:24px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.total small{font-size:14px;font-weight:600;color:var(--ink-3);letter-spacing:0}
+
+/* distribución */
+.split{display:flex;gap:3px;height:14px;border-radius:7px;overflow:hidden;margin:12px 0 16px}
+.split i{display:block;height:100%}
+.chan{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.chan li{display:grid;gap:2px}
+.chan .nm{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink-2)}
+.sw{width:12px;height:12px;border-radius:4px;flex:none}
+.chan b{font-size:18px;font-variant-numeric:tabular-nums}
+.chan small{font-size:14px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* gasto por día */
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 12px}
+.tab{min-height:44px;padding:0 12px;border-radius:var(--r-pill);border:1px solid var(--ctl);background:var(--surface);cursor:pointer;font-size:15px;font-weight:600;color:var(--ink-2);transition:background var(--d-fast),color var(--d-fast),border-color var(--d-fast)}
+.tab:hover{background:var(--subtle)}
+.tab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:700}
+.range{font-size:15px;font-weight:600;color:var(--ink-2);padding:12px 0;border-top:1px solid var(--line)}
+.wk-grid{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:20px;align-items:start}
+.chart{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;border:1px solid var(--line);border-radius:var(--r-card);padding:8px}
+.day{display:grid;grid-template-rows:auto 200px auto;justify-items:center;gap:8px;min-height:44px;padding:8px 2px;border-radius:var(--r-control);border:1px solid transparent;background:transparent;cursor:pointer;transition:background var(--d-fast)}
+.day:hover{background:var(--subtle)}
+.day[aria-pressed="true"]{background:var(--subtle);border-color:var(--line-strong)}
+.day .v{font-size:12px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums;line-height:1.2;text-align:center;min-height:15px}
+.day .v i{font-style:normal}
+.day .t{width:20px;height:200px;border-radius:10px;background:var(--subtle);position:relative;overflow:hidden}
+.day[aria-pressed="true"] .t{background:var(--surface)}
+.day .fill{position:absolute;left:0;right:0;bottom:0;background:var(--ink-3);border-radius:10px;transition:height var(--d-view) var(--ease-out)}
+.day[aria-pressed="true"] .fill{background:var(--ink)}
+.day .n{font-size:14px;font-weight:700;color:var(--ink-2)}
+.day[aria-pressed="true"] .n{color:var(--ink)}
+.sum{width:100%;border-collapse:separate;border-spacing:0;background:var(--canvas);border-radius:var(--r-card);padding:12px}
+.sum thead th{text-align:left;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding:4px 12px 8px}
+.sum td,.sum th{padding:10px 12px;font-size:15px;text-align:left;font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.sum td:last-child{text-align:right;font-weight:700;color:var(--ink)}
+.sum tbody tr.on td{background:var(--surface);font-weight:800;color:var(--ink)}
+.sum tbody tr.on td:first-child{border-radius:var(--r-control) 0 0 var(--r-control)}
+.sum tbody tr.on td:last-child{border-radius:0 var(--r-control) var(--r-control) 0}
+.sum tfoot td{background:var(--ink);color:#fff;font-weight:800}
+.sum tfoot td:first-child{border-radius:var(--r-control) 0 0 var(--r-control)}
+.sum tfoot td:last-child{border-radius:0 var(--r-control) var(--r-control) 0;color:#fff}
+.detail{margin-top:20px;background:var(--canvas);border-radius:var(--r-card);padding:20px}
+.d-kicker{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.d-total{font-size:24px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0 8px}
+.d-date{font-size:13px;font-weight:700;color:var(--ink-3);padding:12px 0 4px}
+.d-row{display:grid;grid-template-columns:1fr auto;gap:2px 16px;padding:8px 0;border-top:1px solid var(--line)}
+.d-row b{font-size:15px}
+.d-row span{font-size:14px;color:var(--ink-3)}
+.d-row .amt{grid-row:1/3;grid-column:2;align-self:center;font-size:15px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.d-empty{font-size:15px;color:var(--ink-2)}
+.d-empty button{margin-top:8px}
+
+/* donut */
+.donut{display:grid;justify-items:center;margin:16px 0 8px}
+.donut-w{position:relative;width:220px;height:220px}
+.donut svg{display:block;width:100%;height:100%}
+.donut .c{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.donut .c small{font-size:14px;color:var(--ink-3)}
+.donut .c b{font-size:18px;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.note{font-size:15px;color:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-control);padding:12px 14px;margin-top:12px}
+.legend li{display:grid;grid-template-columns:12px 1fr;gap:2px 12px;padding:12px 0;border-top:1px solid var(--line)}
+.legend li:first-child{border-top:0}
+.legend .sw{margin-top:6px}
+.legend b{font-size:15px}
+.legend span{font-size:14px;color:var(--ink-3);grid-column:2;font-variant-numeric:tabular-nums}
+
+/* top comercios */
+.rank li{display:grid;grid-template-columns:44px 1fr auto;gap:2px 12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.rank li:first-child{border-top:0}
+.av{position:relative;width:40px;height:40px;border-radius:12px;background:var(--subtle);display:grid;place-items:center;font-size:13px;font-weight:800;color:var(--ink-2);grid-row:1/3}
+.av em{position:absolute;right:-6px;bottom:-6px;width:20px;height:20px;border-radius:50%;background:var(--ink);color:#fff;font-size:12px;font-style:normal;display:grid;place-items:center;border:2px solid var(--surface)}
+.rank b{font-size:15px}
+.rank .amt{font-weight:800;font-size:15px;text-align:right;font-variant-numeric:tabular-nums}
+.rank small{font-size:14px;color:var(--ink-3)}
+.rank .pct{text-align:right}
+.rank .bar{grid-column:2/4;height:6px;border-radius:3px;background:var(--subtle);overflow:hidden}
+.rank .bar i{display:block;height:100%;background:var(--ink-3);border-radius:3px}
+.base{font-size:14px;color:var(--ink-3);margin-top:12px}
+
+/* insights */
+.insights{margin-top:24px}
+.ins-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:16px 0}
+.ins{background:var(--canvas);border-radius:var(--r-card);padding:16px;display:grid;gap:2px;align-content:start}
+.ins .k{font-size:14px;font-weight:600;color:var(--ink-3)}
+.ins .val{font-size:18px;font-weight:800;line-height:1.3}
+.ins .meta{font-size:15px;color:var(--ink-2)}
+
+/* ── barra inferior (mobile) ── */
+.bottombar{display:none}
+/* ── aviso con Deshacer ── */
+.toast{position:fixed;left:50%;bottom:104px;z-index:70;width:min(440px,calc(100% - 32px));transform:translate(-50%,calc(100% + 48px));opacity:0;visibility:hidden;background:var(--ink);color:#fff;border-radius:var(--r-control);box-shadow:0 20px 56px rgba(30,52,100,.14),0 2px 8px rgba(30,52,100,.06);overflow:hidden;transition:transform var(--d-view) var(--ease-out),opacity var(--d-view) ease-out,visibility 0s linear var(--d-view)}
+.toast.show{transform:translate(-50%,0);opacity:1;visibility:visible;transition-delay:0s}
+.toast-in{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 8px 8px 16px;min-height:56px}
+.toast p{font-size:15px;line-height:1.35}
+.toast .undo{min-height:44px;padding:0 16px;border-radius:var(--r-control);border:1px solid rgba(255,255,255,.55);background:transparent;color:#fff;font-weight:800;font-size:15px;cursor:pointer;transition:background var(--d-fast)}
+.toast .undo:hover{background:rgba(255,255,255,.14)}
+.toast :focus-visible{outline:3px solid #fff;outline-offset:2px}
+.toast .timer{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.9);transform-origin:left center}
+.toast.show .timer{animation:shrink 7s linear forwards}
+.toast:hover .timer,.toast:focus-within .timer{animation-play-state:paused}
+@keyframes shrink{to{transform:scaleX(0)}}
+
+/* ── control "Vista previa": fuera del producto ── */
+.preview{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:60;width:min(980px,calc(100% - 32px));background:#fff;border:2px dashed var(--ink-3);border-radius:var(--r-card);box-shadow:0 8px 30px rgba(30,38,52,.18);font-size:14px;color:var(--ink)}
+.preview.min{width:auto}
+.pv-head{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:44px;padding:0 14px;border:0;background:repeating-linear-gradient(135deg,#efeee9 0 8px,#fff 8px 16px);border-radius:14px 14px 0 0;cursor:pointer;font-weight:800;letter-spacing:.04em;text-transform:uppercase;font-size:12px;text-align:left}
+.pv-head small{font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink-2);font-size:12px;margin-left:8px}
+.pv-head[aria-expanded="false"]{border-radius:14px}
+.pv-body{padding:12px 14px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px}
+.pv-body[hidden]{display:none}
+.pv-note{font-size:12px;color:var(--ink-2);flex-basis:100%}
+.pv-seg{border:0;margin:0;padding:0;display:flex;gap:8px;align-items:center;min-width:0}
+.pv-seg legend{float:left;font-size:12px;font-weight:700;color:var(--ink-3);padding:0 8px 0 0;margin:0}
+.pv-seg label{position:relative;display:block}
+.pv-seg input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.pv-seg span{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--ctl);border-radius:var(--r-control);font-weight:700;font-size:14px;background:#fff;white-space:nowrap;transition:background var(--d-fast)}
+.pv-seg span small{font-weight:500;color:var(--ink-3);font-size:12px}
+.pv-seg input:checked+span{background:var(--ink);border-color:var(--ink);color:#fff}
+.pv-seg input:checked+span small{color:#d6dbe6}
+.pv-seg input:focus-visible+span{outline:3px solid var(--ink);outline-offset:3px}
+.pv-seg .dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--ink-3)}
+.pv-btns{display:flex;gap:8px;margin-left:auto}
+.pv-btns button{min-height:44px;padding:0 14px;border:1px solid var(--ctl);background:#fff;border-radius:var(--r-control);font-weight:700;font-size:14px;cursor:pointer;transition:background var(--d-fast)}
+.pv-btns button:hover{background:var(--subtle)}
+
+/*EXTRA-CSS*/
+
+/* ── móvil ── */
+@media (max-width:760px){
+  .app-header .in{padding:0 16px;height:60px}
+  .main-nav,.gm-d,.btn-new,.acct .nm{display:none}
+  .acct{padding:0 6px 0 6px}
+  .gm-m{display:inline-flex;margin-top:12px}
+  .page{padding:20px 16px 128px}
+  .dash-head{flex-direction:column;align-items:stretch;gap:16px;margin-bottom:16px}
+  .acts .btn{flex:1}
+  .hero{padding:20px 16px}
+  .hero-wide{grid-template-columns:1fr;gap:20px;justify-items:center}
+  .hero .gauge{width:min(100%,296px)}
+  .gauge .num{font-size:44px}
+  .hero-body{justify-items:center;text-align:center;width:100%}
+  .lead{font-size:16px}
+  .stats{display:block;padding-top:4px;text-align:left}
+  .stats>div,.stats>div:first-child{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 0;border-left:0;border-top:1px solid var(--line)}
+  .stats>div:first-child{border-top:0}
+  .stats>div+div{padding-left:0;border-left:0}
+  .stats dd{font-size:20px;text-align:right}
+  .stats dd small{font-size:13px}
+  .key{justify-content:center}
+  .cols{grid-template-columns:1fr;gap:16px;margin-top:16px}
+  .col{gap:16px}
+  .panel{padding:20px 16px}
+  .chan{grid-template-columns:1fr;gap:12px}
+  .chan li{grid-template-columns:1fr auto;align-items:baseline}
+  .chan .nm{grid-column:1}.chan b{grid-column:2;grid-row:1}.chan small{grid-column:1/3}
+  .wk-grid{grid-template-columns:1fr}
+  .tabs{display:grid;grid-template-columns:repeat(3,1fr)}
+  .tab{padding:0 4px}
+  .tab:last-child{grid-column:span 2}
+  .chart{gap:0;padding:4px 2px}
+  .day{padding:8px 0;gap:6px}
+  .day .t{width:18px}
+  .day .v i{display:block}
+  .ins-grid{grid-template-columns:1fr}
+  .insights{margin-top:16px}
+  .bottombar{display:grid;grid-template-columns:1fr 88px 1fr;align-items:center;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);padding:8px 12px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -4px 16px rgba(30,38,52,.05)}
+  .bb{justify-self:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:52px;min-width:96px;padding:4px 14px;border-radius:var(--r-pill);color:var(--ink-2);font-size:13px;font-weight:600;text-decoration:none;transition:background var(--d-fast),color var(--d-fast)}
+  .bb:hover{background:var(--subtle)}
+  .bb[aria-current="page"]{background:var(--ink);color:#fff;font-weight:800}
+  .bb:focus-visible{outline-offset:2px}
+  .bb-add{justify-self:center;width:56px;height:56px;margin-top:-28px;border-radius:50%;border:0;background:var(--ink);color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 0 0 6px var(--surface),0 10px 22px rgba(19,27,46,.3);transition:transform var(--d-fast)}
+  .bb-add:active{transform:scale(.96)}
+  .toast{bottom:calc(88px + env(safe-area-inset-bottom))}
+  .preview{left:12px;right:12px;width:auto;transform:none;bottom:calc(164px + env(safe-area-inset-bottom))}
+  .preview.min{left:auto;right:12px;width:auto}
+  .pv-head small{display:none}
+  .pv-body{display:grid;gap:12px}
+  .pv-seg{display:grid;gap:6px}
+  .pv-seg legend{float:none;padding:0;margin-bottom:6px}
+  .pv-btns{margin-left:0;display:grid;grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms!important;transition-delay:0s!important;animation:none!important;scroll-behavior:auto!important}
+  .toast .timer{display:none}
+}
+</style>
+</head>
+<body data-autotoast="0">
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="app-header">
+  <div class="in">
+    <a class="brand" href="#" aria-label="Gastos Controlados, inicio">
+      <svg width="32" height="32" viewBox="0 0 56 56" aria-hidden="true">
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#e3e1dc" stroke-width="7"/>
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#0b7a6b" stroke-width="7" stroke-linecap="round" stroke-dasharray="86 138.2" transform="rotate(-90 28 28)"/>
+        <path d="M28 2v9" stroke="#131b2e" stroke-width="3" stroke-linecap="round" transform="rotate(240 28 28)"/>
+        <circle cx="28" cy="28" r="5" fill="#131b2e"/>
+      </svg>
+      Gastos Controlados
+    </a>
+    <nav class="main-nav" aria-label="Principal">
+      <a href="#" aria-current="page">Resumen</a>
+      <a href="#">Movimientos</a>
+    </nav>
+    <div class="hdr-right">
+      <span class="gm gm-d"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Gmail conectado</span>
+      <button class="acct" id="acct" type="button" aria-expanded="false" aria-controls="menu" aria-label="Menú de cuenta de Gabriel"><span class="avatar" aria-hidden="true">G</span><span class="nm">Gabriel</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="menu" id="menu" hidden>
+        <button type="button">Configuración</button>
+        <button type="button">Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="page" id="main">
+  <div class="dash-head">
+    <div>
+      <p class="greet">Hola, Gabriel</p>
+      <h1 class="title">Resumen de la cuenta</h1>
+      <p class="period">Periodo: 01/11/2026 a 30/11/2026
+        <button class="icon-btn" type="button" aria-label="Editar periodo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+      </p>
+      <span class="gm gm-m"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Gmail conectado</span>
+    </div>
+    <div class="acts">
+      <button class="btn ghost" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Actualizar</button>
+      <button class="btn primary btn-new" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nuevo gasto</button>
+    </div>
+  </div>
+
+<!--HERO-->
+  <section class="hero hero-wide" id="hero" data-state="over" aria-labelledby="hero-h">
+    <h2 class="sr-only" id="hero-h">Medidor del mes</h2>
+    <div class="gauge">
+      <svg id="g-svg" viewBox="0 0 300 300" role="img" aria-label="Gastaste 92% de tu ingreso; pasó el 70% del ciclo. Estado: Vas rápido.">
+        <circle class="track" cx="150" cy="150" r="118" fill="none" stroke-width="22"/>
+        <circle id="g-arc" class="arc" cx="150" cy="150" r="118" fill="none" stroke-width="22" stroke-linecap="round" transform="rotate(-90 150 150)" stroke-dasharray="680.7 741.42"/>
+        <g transform="rotate(252 150 150)"><path d="M150 10v46" stroke="#131b2e" stroke-width="9" stroke-linecap="round"/><path d="M150 14v38" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></g>
+      </svg>
+      <div class="center"><span class="lbl">Te quedan</span><span class="num" id="g-num">$113.090</span><span class="per" id="g-per">$11.309 por día</span></div>
+    </div>
+    <div class="hero-body">
+      <p><span class="pill" id="pill"><span id="pill-ic" aria-hidden="true">↑</span><span id="pill-t">Vas rápido</span></span></p>
+      <p class="lead" id="lead">Llevas <b>92%</b> del ingreso y pasó el <b>70%</b> del ciclo. A este ritmo terminas unos <b>$430.000</b> bajo cero.</p>
+      <dl class="stats">
+        <div><dt>Ingreso del ciclo</dt><dd id="s-income">$1.380.000</dd></div>
+        <div><dt>Gastado</dt><dd><span id="s-spent">$1.266.910</span><small id="s-pct">92% del ingreso</small></dd></div>
+        <div><dt>Días que quedan</dt><dd><span id="s-days">10</span><small id="s-cycle">Día 21 de 30</small></dd></div>
+      </dl>
+      <p class="key"><span><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="var(--st)"/></svg>Color: lo gastado del ingreso</span><span><svg width="14" height="14" aria-hidden="true"><rect x="2" y="0" width="10" height="14" rx="3" fill="#131b2e"/><rect x="6" y="1" width="2" height="12" fill="#fff"/></svg>Raya: hoy, día 21 de 30</span></p>
+    </div>
+  </section>
+<!--/HERO-->
+
+  <div class="cols">
+    <div class="col">
+      <section class="panel" aria-labelledby="h-dist">
+        <div class="panel-head"><h2 id="h-dist">Distribución de gastos</h2></div>
+        <p class="total">$1.266.910 <small>total registrado</small></p>
+        <div class="split" role="img" aria-label="Compras 64%, Transferencias 30%, Pagos 5%"><i style="flex:64;background:var(--ch-1)"></i><i style="flex:30;background:var(--ch-2)"></i><i style="flex:5;background:var(--ch-3)"></i></div>
+        <ul class="chan">
+          <li><span class="nm"><i class="sw" style="background:var(--ch-1)"></i>Compras</span><b>$815.760</b><small>64%</small></li>
+          <li><span class="nm"><i class="sw" style="background:var(--ch-2)"></i>Transferencias</span><b>$385.000</b><small>30%</small></li>
+          <li><span class="nm"><i class="sw" style="background:var(--ch-3)"></i>Pagos</span><b>$66.150</b><small>5%</small></li>
+        </ul>
+      </section>
+
+      <section class="panel" aria-labelledby="h-wk">
+        <h2 id="h-wk">Gasto por día de la semana</h2>
+        <div class="tabs" role="group" aria-label="Elegir semana">
+          <button class="tab" type="button" data-w="0" aria-pressed="false">Semana 1</button>
+          <button class="tab" type="button" data-w="1" aria-pressed="false">Semana 2</button>
+          <button class="tab" type="button" data-w="2" aria-pressed="false">Semana 3</button>
+          <button class="tab" type="button" data-w="3" aria-pressed="false">Semana 4</button>
+          <button class="tab" type="button" data-w="4" aria-pressed="false">Semana 5</button>
+          <button class="tab" type="button" data-w="5" aria-pressed="false">Semana 6</button>
+          <button class="tab" type="button" data-w="6" aria-pressed="true">Periodo completo</button>
+        </div>
+        <p class="range" id="range">domingo 1 de noviembre – lunes 30 de noviembre</p>
+        <div class="wk-grid">
+          <div class="chart" role="group" aria-label="Gasto por día de la semana, en pesos chilenos">
+            <button class="day" type="button" aria-pressed="true"><span class="v"></span><span class="t"><span class="fill"></span></span><span class="n">Lun</span></button>
+            <button class="day" type="button" aria-pressed="false"><span class="v"></span><span class="t"><span class="fill"></span></span><span class="n">Mar</span></button>
+            <button class="day" type="button" aria-pressed="false"><span class="v"></span><span class="t"><span class="fill"></span></span><span class="n">Mié</span></button>
+            <button class="day" type="button" aria-pressed="false"><span class="v"></span><span class="t"><span class="fill"></span></span><span class="n">Jue</span></button>
+            <button class="day" type="button" aria-pressed="false"><span class="v"></span><span class="t"><span class="fill"></span></span><span class="n">Vie</span></button>
+            <button class="day" type="button" aria-pressed="false"><span class="v"></span><span class="t"><span class="fill"></span></span><span class="n">Sáb</span></button>
+            <button class="day" type="button" aria-pressed="false"><span class="v"></span><span class="t"><span class="fill"></span></span><span class="n">Dom</span></button>
+          </div>
+          <table class="sum">
+            <thead><tr><th colspan="2" scope="colgroup">Resumen del periodo</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Semana 1</th><td>$385.000</td></tr>
+              <tr><th scope="row">Semana 2</th><td>$200.870</td></tr>
+              <tr><th scope="row">Semana 3</th><td>$148.600</td></tr>
+              <tr><th scope="row">Semana 4</th><td>$266.980</td></tr>
+              <tr><th scope="row">Semana 5</th><td>$222.780</td></tr>
+              <tr><th scope="row">Semana 6</th><td>$42.680</td></tr>
+            </tbody>
+            <tfoot><tr><th scope="row">Periodo</th><td>$1.266.910</td></tr></tfoot>
+          </table>
+        </div>
+        <div class="detail" id="detail"></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel" aria-labelledby="h-cat">
+        <h2 id="h-cat">Dónde se fue tu plata</h2>
+        <p class="sub">Distribución por categoría principal.</p>
+        <p class="note">Tus gastos están distribuidos entre varias categorías; mira el top 3 antes que todos los detalles.</p>
+        <div class="donut">
+          <div class="donut-w">
+            <svg viewBox="0 0 200 200" role="img" aria-label="Vivienda 30%, Hogar 14%, Supermercado 13%, Otras categorías 42%">
+              <g transform="rotate(-90 100 100)" fill="none" stroke-width="28">
+                <circle cx="100" cy="100" r="70" stroke="#5a67a0" stroke-dasharray="130.65 439.82" stroke-dashoffset="0"/>
+                <circle cx="100" cy="100" r="70" stroke="#94678c" stroke-dasharray="58.93 439.82" stroke-dashoffset="-133.65"/>
+                <circle cx="100" cy="100" r="70" stroke="#6f93ad" stroke-dasharray="55.57 439.82" stroke-dashoffset="-195.58"/>
+                <circle cx="100" cy="100" r="70" stroke="#8e897f" stroke-dasharray="182.65 439.82" stroke-dashoffset="-254.15"/>
+              </g>
+            </svg>
+            <div class="c"><small>Total</small><b>$1.266.910</b></div>
+          </div>
+        </div>
+        <ul class="legend">
+          <li><i class="sw" style="background:var(--cat-1)"></i><b>Vivienda</b><span>$385.000 · 30% · 1 mov.</span></li>
+          <li><i class="sw" style="background:var(--cat-2)"></i><b>Hogar</b><span>$178.400 · 14% · 4 mov.</span></li>
+          <li><i class="sw" style="background:var(--cat-3)"></i><b>Supermercado</b><span>$168.710 · 13% · 5 mov.</span></li>
+          <li><i class="sw" style="background:var(--cat-4)"></i><b>Otras categorías</b><span>$534.800 · 42% · 25 mov.</span></li>
+        </ul>
+      </section>
+
+      <section class="panel" aria-labelledby="h-top">
+        <div class="panel-head"><div><h2 id="h-top">Top Comercios y Personas</h2><p class="sub">Destinatarios identificados de tus gastos.</p></div><span class="chip">Ranking del periodo</span></div>
+        <ol class="rank">
+          <li><span class="av" aria-hidden="true">AD<em>1</em></span><b>Arriendo departamento</b><span class="amt">$385.000</span><small>1 movimiento</small><small class="pct">30,4% del gasto cuantificado</small><span class="bar" aria-hidden="true"><i style="width:30.4%"></i></span></li>
+          <li><span class="av" aria-hidden="true">L<em>2</em></span><b>Lider</b><span class="amt">$84.890</span><small>2 movimientos</small><small class="pct">6,7% del gasto cuantificado</small><span class="bar" aria-hidden="true"><i style="width:6.7%"></i></span></li>
+          <li><span class="av" aria-hidden="true">F<em>3</em></span><b>Falabella</b><span class="amt">$67.800</span><small>1 movimiento</small><small class="pct">5,4% del gasto cuantificado</small><span class="bar" aria-hidden="true"><i style="width:5.4%"></i></span></li>
+          <li><span class="av" aria-hidden="true">S<em>4</em></span><b>Sodimac</b><span class="amt">$56.700</span><small>1 movimiento</small><small class="pct">4,5% del gasto cuantificado</small><span class="bar" aria-hidden="true"><i style="width:4.5%"></i></span></li>
+        </ol>
+        <p class="base">Base: $1.266.910 de todos los gastos reconocidos con monto conocido del periodo, incluidos los no identificados.</p>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel insights" aria-labelledby="h-ins">
+    <div class="panel-head"><div><h2 id="h-ins">Lectura rápida · Inteligencia de gastos</h2><p class="sub">Tus datos más relevantes del periodo.</p></div><span class="chip">Resumen del periodo</span></div>
+    <div class="ins-grid">
+      <div class="ins"><span class="k">Mayor impacto</span><span class="val">Arriendo departamento</span><span class="meta">$385.000</span></div>
+      <div class="ins"><span class="k">Mayor frecuencia</span><span class="val">Cinemark</span><span class="meta">2 movimientos</span></div>
+      <div class="ins"><span class="k">Último movimiento</span><span class="val">Jumbo</span><span class="meta">2026-11-30</span></div>
+      <div class="ins"><span class="k">Sin clasificar</span><span class="val">$7.250</span><span class="meta">1 movimiento sin categoría</span></div>
+    </div>
+    <p class="note" style="margin-top:0"><b>Puntos clave del periodo.</b> Tus gastos ya están listos para explorarse en el detalle.</p>
+  </section>
+</main>
+
+<nav class="bottombar" aria-label="Principal">
+  <a class="bb" href="#" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V8"/></svg>Resumen</a>
+  <button class="bb-add" type="button" aria-label="Agregar gasto"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <a class="bb" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Movimientos</a>
+</nav>
+
+<div class="toast" id="toast" role="presentation">
+  <div class="toast-in"><p id="toast-msg">Rappi pasó a Restaurantes</p><button class="undo" id="undo" type="button">Deshacer</button></div>
+  <div class="timer" id="timer" aria-hidden="true"></div>
+</div>
+<p class="sr-only" id="live" role="status" aria-live="polite"></p>
+
+<aside class="preview" id="preview" aria-label="Vista previa, fuera del producto">
+  <button class="pv-head" id="pv-toggle" type="button" aria-expanded="true" aria-controls="pv-body"><span>Vista previa<small>control del artboard, fuera del producto</small></span><span aria-hidden="true" id="pv-chev">–</span></button>
+  <div class="pv-body" id="pv-body">
+    <fieldset class="pv-seg">
+      <legend>Estado del mes</legend>
+      <label><input type="radio" name="st" value="calm"><span><i class="dot" style="background:var(--calm)"></i>En ritmo</span></label>
+      <label><input type="radio" name="st" value="tight"><span><i class="dot" style="background:var(--tight)"></i>Ajustado</span></label>
+      <label><input type="radio" name="st" value="over" checked><span><i class="dot" style="background:var(--over)"></i>Vas rápido</span></label>
+    </fieldset>
+    <div class="pv-btns"><button type="button" id="pv-replay">Repetir animación</button><button type="button" id="pv-toast">Ver aviso Deshacer</button></div>
+    <p class="pv-note" id="pv-trade"><!--TRADE-->Estructura A · protagonista. <b>Ganas:</b> medidor y cifras forman una sola pieza ancha; se lee en un golpe. <b>Pierdes:</b> la tarjeta ocupa más alto y los paneles empiezan más abajo.<!--/TRADE--></p>
+  </div>
+</aside>
+
+<script>
+(function(){
+'use strict';
+var $=function(id){return document.getElementById(id)};
+var reduce=window.matchMedia('(prefers-reduced-motion: reduce)');
+var fmt=function(n){return '$'+Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.')};
+var setText=function(id,t){var e=$(id);if(e)e.textContent=t};
+
+/* ── medidor ── */
+var C=741.42,INC=1380000,CYC=.7,LEFT=10;
+var ST={calm:{label:'En ritmo',icon:'✓',spent:760000},tight:{label:'Ajustado',icon:'!',spent:980000},over:{label:'Vas rápido',icon:'↑',spent:1266910}};
+var hero=$('hero'),arc=$('g-arc'),cur='over',raf=0;
+function model(k){var s=ST[k].spent,rem=INC-s,delta=INC-s/CYC;return{s:s,rem:rem,pct:Math.round(s/INC*100),per:Math.round(rem/LEFT),r:Math.round(Math.abs(delta)/1000)*1000,under:delta<0}}
+function paint(m,p){var len=C*Math.min(m.s/INC,1)*p;arc.setAttribute('stroke-dasharray',len.toFixed(1)+' '+C);arc.style.opacity=len<1?0:1;setText('g-num',fmt(m.rem*p))}
+function apply(k,animate){
+  cancelAnimationFrame(raf);cur=k;var m=model(k),st=ST[k];
+  hero.setAttribute('data-state',k);
+  setText('pill-ic',st.icon);setText('pill-t',st.label);
+  $('lead').innerHTML='Llevas <b>'+m.pct+'%</b> del ingreso y pasó el <b>70%</b> del ciclo. A este ritmo '+(m.under?'terminas unos <b>'+fmt(m.r)+'</b> bajo cero.':'cierras con unos <b>'+fmt(m.r)+'</b> de sobra.');
+  setText('s-income',fmt(INC));setText('s-spent',fmt(m.s));setText('s-pct',m.pct+($('s-pct')&&$('s-pct').hasAttribute('data-short')?'%':'% del ingreso'));setText('s-days',String(LEFT));setText('s-cycle','Día 21 de 30');
+  setText('g-per',fmt(m.per)+' por día');
+  $('g-svg').setAttribute('aria-label','Gastaste '+m.pct+'% de tu ingreso; pasó el 70% del ciclo. Estado: '+st.label+'.');
+  if(!animate||reduce.matches){hero.classList.remove('sweeping');paint(m,1);return}
+  hero.classList.add('sweeping');var t0=null;paint(m,0);
+  (function step(ts){if(t0===null)t0=ts;var t=Math.min((ts-t0)/700,1),e=1-Math.pow(1-t,3);paint(m,e);
+    if(t<1){raf=requestAnimationFrame(step)}else{hero.classList.remove('sweeping')}})(performance.now());
+}
+
+/* ── gasto por día de la semana ── */
+var DN=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'],DF=['lunes','martes','miércoles','jueves','viernes','sábado','domingo'],DP=['lunes','martes','miércoles','jueves','viernes','sábados','domingos'];
+var W=[[0,0,0,0,0,0,385000],[45990,20000,28880,41000,15000,30000,20000],[22990,14000,21610,30000,22000,18000,20000],[23500,22640,52000,70000,21000,13690,64150],[12500,20000,30460,52840,26730,30000,50250],[42680,0,0,0,0,0,0]];
+var RANGES=['domingo 1 de noviembre','lunes 2 – domingo 8 de noviembre','lunes 9 – domingo 15 de noviembre','lunes 16 – domingo 22 de noviembre','lunes 23 – domingo 29 de noviembre','lunes 30 de noviembre','domingo 1 de noviembre – lunes 30 de noviembre'];
+var MON=[{d:'Lunes 2 Nov',t:'09:30',n:'Lider',a:45990,w:1},{d:'Lunes 9 Nov',t:'12:40',n:'Pet Happy',a:22990,w:2},{d:'Lunes 16 Nov',t:'18:45',n:'Unimarc',a:23500,w:3},{d:'Lunes 23 Nov',t:'14:00',n:'Farmacias Salcobrand',a:12500,w:4},{d:'Lunes 30 Nov',t:'11:05',n:'Jumbo',a:42680,w:5}];
+var wk=6,dy=0;
+function vals(){return wk===6?DN.map(function(_,i){return W.reduce(function(a,r){return a+r[i]},0)}):W[wk]}
+function compact(v){return v===0?'$0':v>=1000?'$'+Math.round(v/1000)+'<i> mil</i>':fmt(v)}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+function renderWeek(){
+  var v=vals(),mx=Math.max.apply(null,v.concat([1]));
+  [].forEach.call(document.querySelectorAll('.tab'),function(b){b.setAttribute('aria-pressed',String(+b.getAttribute('data-w')===wk))});
+  $('range').textContent=RANGES[wk];
+  [].forEach.call(document.querySelectorAll('.day'),function(b,i){
+    b.setAttribute('aria-pressed',String(i===dy));b.setAttribute('aria-label',cap(DF[i])+': '+fmt(v[i]));
+    b.querySelector('.fill').style.height=(v[i]/mx*100)+'%';b.querySelector('.v').innerHTML=compact(v[i]);
+  });
+  [].forEach.call(document.querySelectorAll('.sum tbody tr'),function(r,i){r.className=i===wk?'on':''});
+  var h='<p class="d-kicker">Detalle de los '+DP[dy]+' · '+(wk===6?'periodo completo':'semana '+(wk+1))+'</p><p class="d-total">'+fmt(v[dy])+'</p>';
+  if(dy===0){
+    MON.filter(function(x){return wk===6||x.w===wk}).forEach(function(x){h+='<p class="d-date">'+x.d+'</p><div class="d-row"><b>'+x.t+' · '+x.n+'</b><span>Compras</span><span class="amt">'+fmt(x.a)+'</span></div>'});
+    if(!MON.some(function(x){return wk===6||x.w===wk}))h+='<p class="d-empty">Sin gastos los lunes en esta semana.</p>';
+  }else if(v[dy]===0){h+='<p class="d-empty">Sin gastos este día.</p>'}
+  else{h+='<p class="d-empty">Los movimientos de este día están en Movimientos.<br><button class="btn ghost" type="button">Ver en Movimientos</button></p>'}
+  $('detail').innerHTML=h;
+}
+[].forEach.call(document.querySelectorAll('.tab'),function(b){b.addEventListener('click',function(){wk=+b.getAttribute('data-w');renderWeek()})});
+[].forEach.call(document.querySelectorAll('.day'),function(b,i){b.addEventListener('click',function(){dy=i;renderWeek()})});
+
+/* ── menú de cuenta ── */
+var acct=$('acct'),menu=$('menu');
+function closeMenu(r){menu.hidden=true;acct.setAttribute('aria-expanded','false');if(r)acct.focus()}
+acct.addEventListener('click',function(){var o=menu.hidden;menu.hidden=!o;acct.setAttribute('aria-expanded',String(o))});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!menu.hidden)closeMenu(true)});
+document.addEventListener('click',function(e){if(!menu.hidden&&!menu.contains(e.target)&&!acct.contains(e.target))closeMenu(false)});
+
+/* ── aviso con Deshacer: 7 s con barra que se acorta ── */
+var toast=$('toast'),timer=$('timer'),tmo=0;
+function hideToast(){clearTimeout(tmo);toast.classList.remove('show')}
+function arm(){clearTimeout(tmo);if(reduce.matches)tmo=setTimeout(hideToast,7000)}
+function showToast(){
+  hideToast();void timer.offsetWidth;
+  setText('toast-msg','Rappi pasó a Restaurantes');$('undo').hidden=false;
+  toast.classList.add('show');arm();
+  var l=$('live');l.textContent='';setTimeout(function(){l.textContent='Rappi pasó a Restaurantes. Deshacer disponible por 7 segundos.'},60);
+}
+timer.addEventListener('animationend',function(){if(!reduce.matches)hideToast()});
+toast.addEventListener('focusin',function(){if(reduce.matches)clearTimeout(tmo)});
+toast.addEventListener('focusout',arm);
+$('undo').addEventListener('click',function(){setText('toast-msg','Cambio deshecho');$('undo').hidden=true;$('live').textContent='Cambio deshecho.';clearTimeout(tmo);tmo=setTimeout(hideToast,1400)});
+
+/* ── vista previa ── */
+var pv=$('preview'),pvb=$('pv-body'),pvt=$('pv-toggle');
+function setPv(open){pvb.hidden=!open;pvt.setAttribute('aria-expanded',String(open));pv.classList.toggle('min',!open);setText('pv-chev',open?'–':'+')}
+pvt.addEventListener('click',function(){setPv(pvb.hidden)});
+if(window.matchMedia('(max-width:760px)').matches)setPv(false);
+[].forEach.call(document.querySelectorAll('input[name=st]'),function(r){r.addEventListener('change',function(){apply(r.value,true)})});
+$('pv-replay').addEventListener('click',function(){apply(cur,true)});
+$('pv-toast').addEventListener('click',showToast);
+
+renderWeek();apply('over',true);
+if(document.body.getAttribute('data-autotoast')==='1')setTimeout(showToast,1100);
+})();
+</script>
+</body>
+</html>

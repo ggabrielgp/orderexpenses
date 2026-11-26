@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>05 · Chip + bottom sheet (móvil) — Cuadre de saldo real</title>
+<style>
+:root{
+  --color-canvas:#f6f5f2;--color-surface:#ffffff;--color-surface-subtle:#f1f0ec;--color-track:#efeee9;
+  --color-ink:#131b2e;--color-ink-secondary:#3f4b63;--color-ink-muted:#59647a;--accent-hover:#26324d;
+  --color-line:#e3e1dc;--color-line-strong:#d2d0ca;--control-border:#8b94a6;
+  --state-calm:#0b7a6b;--state-calm-soft:#e2f3ef;--state-tight:#9a6700;--state-tight-strong:#8f5f00;--state-tight-soft:#fdf3d8;
+  --cat-1:#5a67a0;--cat-2:#94678c;--cat-3:#6f93ad;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --radius-control:12px;--radius-card:16px;--radius-featured:20px;--radius-pill:999px;
+  --card-shadow-soft:0 1px 2px rgba(15,23,42,.04),0 6px 18px rgba(15,23,42,.05);
+  --shadow-xl:0 20px 56px rgba(30,52,100,.14),0 2px 8px rgba(30,52,100,.06);
+  --ease-out-expo:cubic-bezier(0.16,1,0.3,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-canvas);color:var(--color-ink);font-family:var(--font-body);font-size:15px;line-height:1.45}
+.phone{position:relative;width:390px;height:844px;overflow:hidden;display:flex;flex-direction:column}
+:is(button,a,input):focus-visible{outline:2px solid var(--color-ink);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.proto{display:flex;gap:6px;overflow-x:auto;padding:8px 12px;background:var(--color-surface-subtle);border-bottom:1px solid var(--color-line)}
+.proto button{flex:none;border:1px solid var(--color-line-strong);background:var(--color-surface);color:var(--color-ink-secondary);border-radius:var(--radius-pill);padding:4px 10px;font:inherit;font-size:11px;font-weight:600;min-height:30px}
+.proto button[aria-pressed="true"]{background:var(--color-ink);color:#fff;border-color:var(--color-ink)}
+.appbar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--color-surface);border-bottom:1px solid var(--color-line)}
+.appbar strong{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.appbar span{font-size:12px;color:var(--color-ink-muted)}
+main{flex:1;overflow:auto;padding:16px;display:grid;gap:14px;align-content:start}
+.card{background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-featured);padding:18px;box-shadow:var(--card-shadow-soft)}
+.hero-row{display:flex;gap:16px;align-items:center}
+.gauge{position:relative;width:96px;height:96px;flex:none}
+.gauge-c{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.gauge-c strong{font-size:20px;font-weight:800;line-height:1}
+.gauge-c span{font-size:11px;color:var(--color-ink-muted)}
+.kicker{font-size:12px;font-weight:600;color:var(--color-ink-muted)}
+.amount{font-size:36px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:2px 0}
+.sub{font-size:13px;color:var(--color-ink-secondary);margin:0}
+.recon-chip{margin-top:14px;width:100%;display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:var(--radius-pill);border:1px solid transparent;font:inherit;font-size:14px;font-weight:700;text-align:left;cursor:pointer}
+.recon-chip .lbl{flex:1}
+.recon-chip .meta{font-weight:600;opacity:.85}
+.recon-chip.is-empty{background:var(--color-surface);border:1px dashed var(--control-border);color:var(--color-ink-secondary)}
+.recon-chip.is-tight{background:var(--state-tight-soft);color:var(--state-tight-strong)}
+.recon-chip.is-calm{background:var(--state-calm-soft);color:var(--state-calm)}
+.ico{width:20px;height:20px;flex:none}
+.stale-dot{position:relative;width:8px;height:8px;border-radius:50%;background:var(--state-tight);flex:none}
+.stale-dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--state-tight);opacity:0;animation:pulse 1.8s var(--ease-out-expo) infinite}
+@keyframes pulse{0%{transform:scale(.5);opacity:.8}100%{transform:scale(1.4);opacity:0}}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--color-line)}
+.stats span{display:block;font-size:11px;color:var(--color-ink-muted)}
+.stats strong{font-size:15px;font-weight:700}
+.cat{display:flex;justify-content:space-between;font-size:13px;padding:8px 0}
+.cat+.cat{border-top:1px solid var(--color-line)}
+.card h2{margin:0 0 6px;font-size:15px}
+.tabbar{display:flex;justify-content:space-around;background:var(--color-surface);border-top:1px solid var(--color-line);padding:8px 0 22px;font-size:11px;font-weight:600;color:var(--color-ink-muted)}
+.tabbar b{color:var(--color-ink)}
+/* sheet */
+.scrim{position:absolute;inset:0;background:rgba(19,27,46,.38);opacity:0;pointer-events:none;transition:opacity 220ms ease}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--color-surface);border-radius:var(--radius-featured) var(--radius-featured) 0 0;box-shadow:var(--shadow-xl);padding:8px 20px 28px;display:grid;gap:14px;transform:translateY(105%);transition:transform 320ms var(--ease-out-expo)}
+.sheet.open{transform:none}
+.grabber{width:40px;height:5px;border-radius:3px;background:var(--color-line-strong);margin:4px auto 2px}
+.sheet h2{margin:0;font-size:17px;font-weight:700}
+.sheet .ts{margin:2px 0 0;font-size:12px;color:var(--color-ink-muted)}
+.equation{display:grid;grid-template-columns:1fr auto;row-gap:4px;padding:12px 14px;border-radius:var(--radius-card);background:var(--color-canvas);border:1px solid var(--color-line);font-size:13px;color:var(--color-ink-secondary)}
+.equation b{color:var(--color-ink);text-align:right}
+.equation .res{grid-column:1/-1;display:flex;justify-content:space-between;border-top:1px solid var(--color-line);padding-top:8px;margin-top:4px;font-weight:700;color:var(--color-ink)}
+.equation .res strong{font-size:20px;font-weight:800}
+.tight{color:var(--state-tight-strong)!important}.calm{color:var(--state-calm)!important}
+.q{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em}
+.btns{display:grid;gap:8px}
+.btn{min-height:50px;border-radius:var(--radius-control);font:inherit;font-size:15px;font-weight:700;cursor:pointer;border:0}
+.btn-primary{background:var(--color-ink);color:#fff}
+.btn-secondary{background:var(--color-surface);color:var(--color-ink);border:1px solid var(--color-line-strong)}
+.btn-link{background:none;border:0;color:var(--color-ink-muted);font:inherit;font-size:13px;font-weight:600;text-decoration:underline;min-height:40px}
+.clp{position:relative;display:flex;align-items:center}
+.clp span{position:absolute;left:14px;font-weight:700;font-size:20px;color:var(--color-ink-muted)}
+.clp input{width:100%;min-height:56px;padding:0 14px 0 30px;border:1px solid var(--control-border);border-radius:var(--radius-control);font:inherit;font-size:22px;font-weight:800}
+.hint{display:flex;gap:8px;font-size:12.5px;color:var(--color-ink-secondary);line-height:1.4}
+.hint.warn{color:var(--state-tight-strong)}
+.clp.neg span{color:#b4412f}
+.clp.neg input{padding-left:44px}
+.sign{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;color:var(--color-ink-secondary)}
+.sign input{width:22px;height:22px;margin:0;accent-color:var(--color-ink)}
+.hint svg{flex:none;margin-top:1px}
+.error{margin:0;font-size:12.5px;color:#b42318}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="proto" role="region" aria-label="Estados de prueba">
+    <button data-state="empty" aria-pressed="false" type="button">Sin saldo</button>
+    <button data-state="gap" aria-pressed="true" type="button">Brecha</button>
+    <button data-state="stale" aria-pressed="false" type="button">Desactualizado</button>
+    <button data-state="pending" aria-pressed="false" type="button">Pendientes</button>
+    <button data-state="surplus" aria-pressed="false" type="button">A favor</button>
+    <button data-state="matched" aria-pressed="false" type="button">Cuadrado</button>
+    <button data-state="credit" aria-pressed="false" type="button">Línea de crédito</button>
+  </div>
+  <header class="appbar"><strong>Resumen</strong><span>1 – 30 nov · día 25</span></header>
+  <main>
+    <section class="card" aria-labelledby="k">
+      <div class="hero-row">
+        <div class="gauge" aria-hidden="true">
+          <svg width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" fill="none" stroke="#efeee9" stroke-width="9"/><circle cx="48" cy="48" r="40" fill="none" stroke="#0b7a6b" stroke-width="9" stroke-linecap="round" stroke-dasharray="158 251" transform="rotate(-90 48 48)"/></svg>
+          <div class="gauge-c"><strong class="num">63%</strong><span>gastado</span></div>
+        </div>
+        <div>
+          <div id="k" class="kicker">Disponible según tus registros</div>
+          <div class="amount num">$537.570</div>
+          <p class="sub"><b class="num">$89.595</b> por día hasta el 30 nov</p>
+        </div>
+      </div>
+      <button class="recon-chip" id="chip" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="sheet">
+        <span id="chipIcon"></span><span class="lbl num" id="chipText"></span>
+        <svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <div class="stats">
+        <div><span>Ingreso</span><strong class="num">$1.450.000</strong></div>
+        <div><span>Gastado</span><strong class="num">$912.430</strong></div>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="ct">
+      <h2 id="ct">Categorías</h2>
+      <div class="cat"><span>Supermercado</span><b class="num">$318.200</b></div>
+      <div class="cat"><span>Cuentas y servicios</span><b class="num">$246.800</b></div>
+      <div class="cat"><span>Transporte y bencina</span><b class="num">$184.430</b></div>
+    </section>
+  </main>
+  <nav class="tabbar" aria-label="Principal"><b>Resumen</b><span>Movimientos</span><span>+ Gasto</span><span>Ajustes</span></nav>
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-hidden="true"></div>
+</div>
+<script>
+const T = 537570;
+const fmt = n => "$" + Math.abs(Math.round(n)).toLocaleString("es-CL");
+const fmtS = n => (Math.round(n) < 0 ? "-" : "") + fmt(n);
+const parseClp = s => { const t = String(s).trim().replace(/−/g, "-"); if (!t || t.includes(",")) return undefined; const m = /^(-?)(\d+)$/.exec(t.replace(/[$\s.]/g, "")); if (!m) return undefined; const v = parseInt(m[2], 10); return m[1] && v ? -v : v; };
+const I = {
+  check:'<svg class="ico" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="currentColor" opacity=".15"/><path d="M5.5 9.2 7.8 11.4 12.5 6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  gap:'<svg class="ico" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="currentColor" opacity=".15"/><path d="M9 5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="9" cy="12.6" r="1" fill="currentColor"/></svg>',
+  plus:'<svg class="ico" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="currentColor" opacity=".15"/><path d="M9 5.5v7M5.5 9h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  bank:'<svg class="ico" viewBox="0 0 18 18" aria-hidden="true"><path d="M2.5 7 9 3l6.5 4M4 7.5v5M7.3 7.5v5M10.7 7.5v5M14 7.5v5M2.5 14.5h13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  info:'<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="4.8" r=".9" fill="currentColor"/></svg>'
+};
+const S = {
+  empty:{real:null,ts:"Aún sin saldo real registrado",stale:false,pending:0},
+  gap:{real:495070,ts:"hoy 19:20",tsLong:"Actualizado hoy a las 19:20",stale:false,pending:0},
+  stale:{real:495070,ts:"hace 2 días",tsLong:"Actualizado hace 2 días (23 nov, 18:10)",stale:true,after:2,pending:0},
+  pending:{real:495070,ts:"hoy 19:20",tsLong:"Actualizado hoy a las 19:20",stale:false,pending:2},
+  surplus:{real:565000,ts:"hoy 19:20",tsLong:"Actualizado hoy a las 19:20",stale:false,pending:0},
+  matched:{real:537570,ts:"hoy 19:20",tsLong:"Actualizado hoy a las 19:20",stale:false,pending:0},
+  credit:{real:-120000,ts:"hoy 19:20",tsLong:"Actualizado hoy a las 19:20",stale:false,pending:0}
+};
+let cur = {...S.gap}, step = "summary";
+const chip = document.getElementById("chip"), sheet = document.getElementById("sheet"), scrim = document.getElementById("scrim");
+const kind = s => s.real === null ? "empty" : (T - s.real > 0 ? "gap" : T - s.real < 0 ? "surplus" : "matched");
+function paintChip(){
+  const k = kind(cur), d = cur.real === null ? 0 : T - cur.real;
+  const map = {empty:["is-empty",I.bank,"Cuadrar con tu banco"],gap:["is-tight",I.gap,`${fmt(d)} sin seguimiento`],surplus:["is-calm",I.plus,`+${fmt(d)} a favor`],matched:["is-calm",I.check,"Cuadrado con tu cuenta"]}[k];
+  chip.className = "recon-chip " + map[0];
+  document.getElementById("chipIcon").innerHTML = map[1];
+  const warn = cur.stale || cur.pending > 0;
+  document.getElementById("chipText").innerHTML = map[2] + (k !== "empty" ? ` <span class="meta">· ${cur.ts}</span>` : "");
+  const dot = chip.querySelector(".stale-dot"); if (dot) dot.remove();
+  if (warn) chip.lastElementChild.insertAdjacentHTML("beforebegin", '<span class="stale-dot" aria-hidden="true"></span>');
+  chip.setAttribute("aria-label", map[2] + (k!=="empty" ? `, ${cur.ts}` : "") + (cur.stale ? ". Saldo posiblemente desactualizado" : "") + (cur.pending ? `. ${cur.pending} movimientos sin monto` : "") + ". Abrir cuadre");
+}
+function hints(){
+  let h = "";
+  if (cur.stale) h += `<div class="hint warn">${I.info}<span>${cur.after} gastos después de tu último corte.</span></div>`;
+  if (cur.pending) h += `<div class="hint warn">${I.info}<span>${cur.pending} movimientos sin monto: la brecha real podría ser menor.</span></div>`;
+  const warn = h !== "";
+  if (cur.real !== null && cur.real < 0) h += `<div class="hint">${I.info}<span>Estás usando <b class="num">${fmt(cur.real)}</b> de tu línea de crédito: es dinero que te debes a ti mismo.</span></div>`;
+  const k = kind(cur);
+  if (!warn && k === "gap") h += `<div class="hint">${I.info}<span>Suele ser efectivo, comisiones o compras sin correo.</span></div>`;
+  if (!warn && k === "surplus") h += `<div class="hint">${I.info}<span>Puede ser un ingreso extra o un gasto duplicado.</span></div>`;
+  return h;
+}
+function paintSheet(){
+  const k = kind(cur);
+  let html = `<div class="grabber" aria-hidden="true"></div><div><h2 id="sheetTitle">Cuadre con tu cuenta</h2><p class="ts">${k==="empty"?cur.ts:cur.tsLong}</p></div>`;
+  if (step === "input" || k === "empty") {
+    html += `<p class="q">¿Cuánto tienes hoy en tu cuenta?</p>
+      <form data-form novalidate class="btns">
+        <div class="clp${cur.real < 0 ? " neg" : ""}"><span aria-hidden="true">${cur.real < 0 ? "−$" : "$"}</span><input id="balInput" class="num" inputmode="numeric" aria-label="Saldo real en pesos chilenos" placeholder="495.070" value="${cur.real!==null?Math.abs(cur.real).toLocaleString("es-CL"):""}"></div>
+        <label class="sign"><input type="checkbox" id="neg" ${cur.real < 0 ? "checked" : ""}><span>Saldo en negativo (línea de crédito)</span></label>
+        <p class="error" id="err" role="alert" hidden></p>
+        <button class="btn btn-primary" type="submit">Guardar saldo</button>
+      </form>
+      <div class="hint">${I.info}<span>Lo comparamos con los <b class="num">${fmt(T)}</b> de tus registros.</span></div>`;
+  } else {
+    const d = T - cur.real, res = k==="matched" ? "$0" : (k==="surplus"?"+":"−") + fmt(d);
+    html += `<div class="equation num"><span>Calculado</span><b>${fmt(T)}</b><span>Real en tu cuenta</span><b>${fmtS(cur.real)}</b>
+        <div class="res"><span>${k==="gap"?"Sin seguimiento":k==="surplus"?"A favor":"Diferencia"}</span><strong class="${k==="gap"?"tight":"calm"}">${res}</strong></div></div>
+      ${hints()}
+      <p class="q">¿Sigues teniendo <span class="num">${fmtS(cur.real)}</span>?</p>
+      <div class="btns"><button class="btn btn-primary" data-act="yes" type="button">Sí, confirmar</button><button class="btn btn-secondary" data-act="no" type="button">No, cambió</button></div>`;
+  }
+  if (cur.real !== null) html += `<button class="btn-link" data-act="clear" type="button">Quitar saldo real</button>`;
+  sheet.innerHTML = html;
+}
+function open(){ paintSheet(); sheet.classList.add("open"); scrim.classList.add("open"); sheet.setAttribute("aria-hidden","false"); chip.setAttribute("aria-expanded","true"); setTimeout(()=> (sheet.querySelector("input,[data-act=yes]")||sheet).focus(), 50); }
+function close(){ sheet.classList.remove("open"); scrim.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); chip.setAttribute("aria-expanded","false"); step="summary"; chip.focus(); }
+chip.onclick = open; scrim.onclick = close;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && sheet.classList.contains("open")) close(); });
+sheet.addEventListener("click", e => {
+  const a = e.target.closest("[data-act]")?.dataset.act; if (!a) return;
+  if (a === "yes") { cur = {...cur, ts:"ahora", tsLong:"Confirmado ahora mismo", stale:false}; paintChip(); close(); }
+  if (a === "no") { step = "input"; paintSheet(); sheet.querySelector("input").focus(); }
+  if (a === "clear") { cur = {...S.empty}; paintChip(); paintSheet(); }
+});
+sheet.addEventListener("submit", e => {
+  e.preventDefault();
+  const p = parseClp(sheet.querySelector("#balInput").value), err = sheet.querySelector("#err");
+  if (p === undefined) { err.textContent = "Ingresa un monto entero en pesos (ej. 495.070 o 0)."; err.hidden = false; return; }
+  const v = sheet.querySelector("#neg").checked || p < 0 ? -Math.abs(p) : Math.abs(p);
+  cur = {real:v, ts:"ahora", tsLong:"Actualizado ahora mismo", stale:false, pending:cur.pending}; step="summary"; paintChip(); paintSheet();
+});
+document.querySelectorAll(".proto button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".proto button").forEach(x => x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true");
+  cur = {...S[b.dataset.state]}; step="summary"; paintChip(); if (sheet.classList.contains("open")) paintSheet();
+});
+sheet.addEventListener("change", e => { if (e.target.id !== "neg") return; const w = sheet.querySelector(".clp"); w.classList.toggle("neg", e.target.checked); w.querySelector("span").textContent = e.target.checked ? "−$" : "$"; });
+sheet.addEventListener("input", e => { if (e.target.id !== "balInput" || !/[-−]/.test(e.target.value)) return; e.target.value = e.target.value.replace(/[-−]/g, ""); const n = sheet.querySelector("#neg"); n.checked = true; n.dispatchEvent(new Event("change", {bubbles:true})); });
+paintChip(); open();
+</script>
+</body>
+</html>

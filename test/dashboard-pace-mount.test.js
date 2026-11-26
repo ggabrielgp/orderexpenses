@@ -78,7 +78,21 @@ test("demo summary merges the KPI band into the hero: no repeated figure and no 
 	assert.match(html, />(?:En ritmo|Ajustado|Vas rápido)</);
 
 	const start = html.indexOf('<section class="react-pace-gauge');
-	const hero = html.slice(start, html.indexOf("</section>", start));
+	// The reconciliation chip's panel stays in the markup but hidden until the chip opens;
+	// only what the hero shows counts.
+	const withoutHiddenPanel = (markup) => {
+		const open = markup.search(/<div[^>]*class="react-recon-panel"[^>]*hidden=""/);
+		if (open < 0) return markup;
+		const tags = /<div\b|<\/div>/g;
+		tags.lastIndex = open;
+		let depth = 0;
+		for (let tag = tags.exec(markup); tag; tag = tags.exec(markup)) {
+			depth += tag[0] === "</div>" ? -1 : 1;
+			if (depth === 0) return markup.slice(0, open) + markup.slice(tags.lastIndex);
+		}
+		return markup;
+	};
+	const hero = withoutHiddenPanel(html.slice(start, html.indexOf("</section>", start)));
 	const plain = hero.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 	const amounts = plain.match(/\$\d{1,3}(?:\.\d{3})*/g) ?? [];
 	assert.ok(amounts.length >= 3, "income, spent and remaining are in the hero");

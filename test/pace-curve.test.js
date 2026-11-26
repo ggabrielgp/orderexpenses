@@ -1,13 +1,22 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { createServer } from "vite";
 
 test("buildPaceCurve computes cumulative points, per-day breakdown with times, and deviation against ideal pace", async () => {
+	// No project config, no env files and a private dep cache: the test must not read local
+	// secrets (isolation denies it) nor rewrite node_modules/.vite under a running dev server.
+	const cache = await mkdtemp(join(tmpdir(), "pace-curve-vite-"));
 	const vite = await createServer({
-		server: { middlewareMode: true, ws: false },
+		configFile: false,
+		envFile: false,
+		cacheDir: cache,
+		server: { middlewareMode: true, hmr: false, ws: false, watch: null },
 		appType: "custom",
 		logLevel: "silent",
-		optimizeDeps: { noDiscovery: true },
+		optimizeDeps: { noDiscovery: true, include: [] },
 	});
 	try {
 		const { buildPaceCurve } = await vite.ssrLoadModule("/src/client/components/analytics/paceCurve.ts");
@@ -60,5 +69,6 @@ test("buildPaceCurve computes cumulative points, per-day breakdown with times, a
 		assert.deepEqual(model.actualPoints[0].movements, []);
 	} finally {
 		await vite.close();
+		await rm(cache, { recursive: true, force: true });
 	}
 });

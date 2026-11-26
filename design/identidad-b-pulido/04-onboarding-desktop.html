@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Onboarding paso 1 · desktop — Gastos Controlados (pulido fase 1)</title>
+<style>
+:root{
+  --canvas:#f6f5f2;--surface:#ffffff;--subtle:#efeee9;--pressed:#e8e7e2;
+  --ink:#131b2e;--ink-2:#3f4b63;--ink-3:#59647a;--line:#e3e1dc;--line-strong:#d2d0ca;
+  --r-control:12px;--r-card:16px;--r-feat:20px;--r-pill:999px;
+  --shadow-card:0 3px 14px rgba(30,38,52,.05);--shadow-panel:0 8px 30px rgba(30,38,52,.06);
+  --calm:#0b7a6b;--calm-soft:#e2f3ef;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --d-fast:150ms;--d-view:300ms;--d-gauge:700ms;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--canvas);color:var(--ink);font:16px/1.5 var(--sans)}
+h1,h2,p,ul,ol{margin:0;padding:0}
+ul,ol{list-style:none}
+button{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip{position:absolute;left:16px;top:-60px;z-index:100;background:var(--ink);color:#fff;padding:12px 16px;border-radius:var(--r-control);font-weight:700;text-decoration:none}
+.skip:focus{top:12px}
+
+.top{max-width:1216px;margin:0 auto;padding:24px 32px 0;display:flex;align-items:center}
+.brand{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:800;font-size:16px;letter-spacing:-.02em;text-decoration:none}
+.grid{max-width:1216px;margin:0 auto;padding:40px 32px 56px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:96px;align-items:center;min-height:calc(100vh - 80px)}
+
+/* izquierda */
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:32px}
+.steps li{display:grid;gap:8px;font-size:14px;font-weight:600;color:var(--ink-3)}
+.steps .bar{display:block;height:4px;border-radius:2px;background:var(--line-strong)}
+.steps li[aria-current="step"]{color:var(--ink);font-weight:800}
+.steps li[aria-current="step"] .bar{background:var(--ink)}
+.steps b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;margin-right:6px;font-size:13px;background:var(--subtle);color:var(--ink-2)}
+.steps li[aria-current="step"] b{background:var(--ink);color:#fff}
+.kick{font-size:14px;font-weight:700;color:var(--ink-3);letter-spacing:.02em}
+h1{font-size:32px;line-height:1.15;font-weight:800;letter-spacing:-.03em;margin:8px 0 16px;max-width:15em}
+.sub{font-size:16px;color:var(--ink-2);max-width:30em}
+.cta{display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px;margin:32px 0 24px}
+.btn{min-height:56px;padding:0 28px;border-radius:var(--r-control);border:0;background:var(--ink);color:#fff;font-weight:800;font-size:16px;display:inline-flex;align-items:center;justify-content:center;gap:12px;cursor:pointer;transition:background var(--d-fast),transform var(--d-fast)}
+.btn:hover{background:#26304a}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline-offset:4px}
+.g{width:28px;height:28px;border-radius:8px;background:#fff;display:grid;place-items:center;flex:none}
+.demo{display:inline-flex;align-items:center;min-height:44px;font-weight:700;font-size:16px;text-underline-offset:4px;transition:color var(--d-fast)}
+.demo:hover{color:var(--ink-2)}
+.fine{font-size:14px;color:var(--ink-3);max-width:34em}
+
+/* derecha */
+.trust{display:grid;gap:12px}
+.trust li{display:grid;grid-template-columns:44px 1fr;gap:16px;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow-card);padding:20px}
+.ic{width:44px;height:44px;border-radius:12px;background:var(--subtle);color:var(--ink);display:grid;place-items:center}
+.trust h2{font-size:18px;line-height:1.3;font-weight:800;letter-spacing:-.01em;margin-bottom:4px}
+.trust p{font-size:16px;color:var(--ink-2);overflow-wrap:anywhere}
+.trust li>div{min-width:0}
+.example{display:grid;grid-template-columns:150px 1fr;gap:20px;align-items:center;margin-top:16px;background:var(--surface);border-radius:var(--r-feat);box-shadow:var(--shadow-panel);padding:20px}
+.example h2{font-size:18px;line-height:1.3;font-weight:800;letter-spacing:-.01em;margin:6px 0 4px}
+.example p{font-size:15px;color:var(--ink-2)}
+.chip{display:inline-flex;border-radius:var(--r-pill);background:var(--subtle);color:var(--ink-2);font-size:13px;font-weight:700;padding:2px 10px}
+.gauge{position:relative;width:150px;aspect-ratio:1}
+.gauge svg{display:block;width:100%;height:100%}
+.gauge .track{stroke:var(--subtle)}
+.gauge .arc{stroke:var(--calm)}
+.gauge .center{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;text-align:center;gap:2px}
+.gauge .lbl{font-size:12px;font-weight:600;color:var(--ink-3)}
+.gauge .num{font-size:20px;line-height:1;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:6px;margin-top:10px;border-radius:var(--r-pill);padding:4px 12px;font-size:14px;font-weight:700;background:var(--calm-soft);color:var(--calm);opacity:1;transition:opacity var(--d-view) ease-out}
+.example.sweeping .pill{opacity:0}
+
+@media (max-width:900px){
+  .top{padding:16px 20px 0}
+  .grid{grid-template-columns:minmax(0,1fr);gap:32px;padding:24px 20px 48px;min-height:0;align-items:start}
+  h1{font-size:28px}
+  .steps{margin-bottom:24px}
+  .steps li{font-size:13px}
+  .cta{flex-direction:column;align-items:stretch;gap:4px;margin:24px 0 20px}
+  .btn{width:100%}
+  .demo{justify-content:center}
+  .trust li{padding:16px;gap:12px;grid-template-columns:40px minmax(0,1fr)}
+  .ic{width:40px;height:40px}
+  .example{grid-template-columns:120px 1fr;gap:16px;padding:16px}
+  .example .gauge{width:120px}
+  .gauge .num{font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms!important;transition-delay:0s!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+<header class="top">
+  <a class="brand" href="#" aria-label="Gastos Controlados, inicio">
+    <svg width="32" height="32" viewBox="0 0 56 56" aria-hidden="true">
+      <circle cx="28" cy="28" r="22" fill="none" stroke="#e3e1dc" stroke-width="7"/>
+      <circle cx="28" cy="28" r="22" fill="none" stroke="#0b7a6b" stroke-width="7" stroke-linecap="round" stroke-dasharray="86 138.2" transform="rotate(-90 28 28)"/>
+      <path d="M28 2v9" stroke="#131b2e" stroke-width="3" stroke-linecap="round" transform="rotate(240 28 28)"/>
+      <circle cx="28" cy="28" r="5" fill="#131b2e"/>
+    </svg>
+    Gastos Controlados
+  </a>
+</header>
+
+<main class="grid" id="main">
+  <section aria-labelledby="o-h1">
+    <ol class="steps" aria-label="Pasos para empezar">
+      <li aria-current="step"><span class="bar" aria-hidden="true"></span><span><b>1</b>Conectar<span class="sr-only"> (paso actual)</span></span></li>
+      <li><span class="bar" aria-hidden="true"></span><span><b>2</b>Tu ciclo</span></li>
+      <li><span class="bar" aria-hidden="true"></span><span><b>3</b>Tu medidor</span></li>
+    </ol>
+    <p class="kick">Paso 1 de 3 · Conectar</p>
+    <h1 id="o-h1">Conectemos tu Gmail, con reglas claras</h1>
+    <p class="sub">Leemos los avisos de compra de Banco de Chile para armar tu mes. Nada más.</p>
+    <div class="cta">
+      <button class="btn" type="button">
+        <span class="g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg></span>
+        Conectar Gmail
+      </button>
+      <a class="demo" href="#">Ver la demo</a>
+    </div>
+    <p class="fine">Lo que tú decides aplicar —categorías, reglas, correcciones, gastos manuales y tu ciclo— se guarda en nuestro servidor asociado a tu cuenta.</p>
+  </section>
+
+  <section aria-label="Cómo cuidamos tu información">
+    <ul class="trust">
+      <li>
+        <span class="ic" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+        <div><h2>Qué leemos</h2><p>Google nos da permiso de solo lectura sobre tu Gmail. La app solo busca y procesa los avisos de Banco de Chile del periodo que revisas.</p></div>
+      </li>
+      <li>
+        <span class="ic" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></svg></span>
+        <div><h2>Qué nunca hacemos</h2><p>No enviamos, borramos ni modificamos correos, no publicamos nada y no guardamos tus movimientos de Gmail como historial: se vuelven a leer al revisar un período.</p></div>
+      </li>
+      <li>
+        <span class="ic" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></span>
+        <div><h2>Cómo salir</h2><p>Puedes desconectar Gmail cuando quieras desde Configuración; también puedes revocar el acceso en tu cuenta de Google (myaccount.google.com/permissions).</p></div>
+      </li>
+    </ul>
+
+    <aside class="example" id="example" data-sweep aria-labelledby="ex-h">
+      <div class="gauge">
+        <svg id="g-svg" viewBox="0 0 300 300" role="img" aria-label="Ejemplo: gastaste 55% de tu ingreso y pasó el 70% del ciclo. Estado: En ritmo.">
+          <circle class="track" cx="150" cy="150" r="118" fill="none" stroke-width="22"/>
+          <circle id="g-arc" class="arc" cx="150" cy="150" r="118" fill="none" stroke-width="22" stroke-linecap="round" transform="rotate(-90 150 150)" stroke-dasharray="408.7 741.42"/>
+          <g transform="rotate(252 150 150)"><path d="M150 10v46" stroke="#131b2e" stroke-width="9" stroke-linecap="round"/><path d="M150 14v38" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></g>
+        </svg>
+        <div class="center"><span class="lbl">Te quedan</span><span class="num" id="g-num">$620.000</span></div>
+      </div>
+      <div>
+        <span class="chip">Ejemplo</span>
+        <h2 id="ex-h">Así se verá tu mes</h2>
+        <p>El color es lo que gastaste; la raya, cuánto del ciclo pasó. Si el color no alcanza la raya, vas en ritmo.</p>
+        <span class="pill"><span aria-hidden="true">✓</span>En ritmo</span>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<script>
+(function(){
+'use strict';
+var reduce=window.matchMedia('(prefers-reduced-motion: reduce)');
+var box=document.getElementById('example'),arc=document.getElementById('g-arc'),num=document.getElementById('g-num');
+var C=741.42,FRAC=760000/1380000,REM=620000;
+var fmt=function(n){return '$'+Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.')};
+function paint(p){var len=C*FRAC*p;arc.setAttribute('stroke-dasharray',len.toFixed(1)+' '+C);arc.style.opacity=len<1?0:1;num.textContent=fmt(REM*p)}
+if(reduce.matches){paint(1)}else{
+  box.classList.add('sweeping');paint(0);var t0=null;
+  (function step(ts){if(t0===null)t0=ts;var t=Math.min((ts-t0)/700,1);paint(1-Math.pow(1-t,3));
+    if(t<1)requestAnimationFrame(step);else box.classList.remove('sweeping')})(performance.now());
+}
+})();
+</script>
+</body>
+</html>

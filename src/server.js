@@ -548,12 +548,10 @@ function validateFinancialCycleReconciliation(body) {
 	try {
 		const selectedPeriod = ReviewPeriod.create(body?.period).toJSON();
 		const actualBalance = body?.actualBalance;
-		if (
-			actualBalance !== null &&
-			(!Number.isSafeInteger(actualBalance) || actualBalance < 0)
-		) {
+		// Negative balances are valid: an account drawn into its credit line sits below zero.
+		if (actualBalance !== null && !Number.isSafeInteger(actualBalance)) {
 			throw Object.assign(
-				new TypeError("actualBalance must be null or a non-negative whole CLP amount"),
+				new TypeError("actualBalance must be null or a whole CLP amount"),
 				{ field: "actualBalance" },
 			);
 		}

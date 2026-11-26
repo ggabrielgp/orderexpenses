@@ -14,7 +14,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { Category } from "../../api/types";
 import type { RecognizedExpenseMovement } from "../movements/manualExpense";
 import { formatClp } from "../movements/movementSummary";
-import { AccountReconciliationCard } from "./AccountReconciliationCard";
+import { AccountReconciliationChip } from "./AccountReconciliationChip";
 import type { AccountReconciliationModel } from "./accountReconciliation";
 import { CategoryDetailView, CategoryDistributionPanel } from "./CategoryDistributionPanel";
 import { DashboardPaceGauge } from "./DashboardPaceGauge";
@@ -429,11 +429,11 @@ export interface DashboardAnalyticsBodyProps {
   periodStartDate?: string;
   /** Hide the cumulative pace curve in embedded landing phone previews. */
   hidePaceCurve?: boolean;
-  /** Optional lateral account reconciliation card ("Cuadre con tu cuenta"). */
+  /** Optional account reconciliation ("Cuadre con tu cuenta"), shown as a chip in the hero gauge. */
   reconciliation?: AccountReconciliationModel;
   /** Persists an updated real account balance (or null to clear). */
   onSaveActualBalance?: (actualBalance: number | null) => Promise<void>;
-  /** Renders the reconciliation card without interactive form controls. */
+  /** Renders the reconciliation panel without interactive controls. */
   reconciliationReadOnly?: boolean;
 }
 
@@ -488,25 +488,20 @@ export function DashboardAnalyticsBody({
     lead.spending.detail,
     lead.balance.amount !== null ? lead.balance.detail : "",
   ].filter((note) => note.length > 0);
-  const paceGauge = pace ? (
-    <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} notes={heroNotes} periodEndExclusive={paceEndExclusive} replayKey={paceReplayKey} />
+  const reconciliationChip = reconciliation ? (
+    <AccountReconciliationChip
+      model={reconciliation}
+      onAddIncome={onAddIncome}
+      onSave={onSaveActualBalance}
+      readOnly={reconciliationReadOnly}
+    />
   ) : null;
   return (
     <div className="react-analytics-body">
       {/* The month gauge is the hero: it answers "am I on track?" first and holds income, spent, remaining
           and the share of income once, so the former KPI band and the budget card are merged into it.
           Every panel below keeps its place. */}
-      {paceGauge && reconciliation ? (
-        <div className="react-analytics-top-grid">
-          {paceGauge}
-          <AccountReconciliationCard
-            model={reconciliation}
-            onAddIncome={onAddIncome}
-            onSave={onSaveActualBalance}
-            readOnly={reconciliationReadOnly}
-          />
-        </div>
-      ) : paceGauge}
+      {pace && <DashboardPaceGauge pace={pace} formatClp={formatClp} onAddIncome={onAddIncome} notes={heroNotes} periodEndExclusive={paceEndExclusive} replayKey={paceReplayKey} accessory={reconciliationChip} />}
       {!hidePaceCurve && pace && periodStartDate && paceEndExclusive && categoryMovements && (
         <PaceCurvePanel
           pace={pace}
