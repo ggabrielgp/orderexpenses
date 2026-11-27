@@ -285,6 +285,18 @@
 	border-bottom-color: var(--color-line);
 }
 
+/* Gmail connected badge: dark surface tinted with the success green, not a light mint pill. */
+:root[data-theme="dark"] .react-gmail-connected-badge {
+	border-color: rgb(42 181 160 / 0.32);
+	background: var(--color-success-soft);
+	color: #5cc9b8;
+}
+
+:root[data-theme="dark"] .react-gmail-connected-badge-dot {
+	background: var(--color-success);
+	box-shadow: 0 0 0 3px rgb(42 181 160 / 0.18);
+}
+
 :root[data-theme="dark"] .react-mobile-tabbar {
 	background: #161e2e;
 	border-top-color: var(--color-line);
