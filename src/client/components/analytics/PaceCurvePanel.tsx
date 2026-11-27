@@ -1,9 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import {
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+	type KeyboardEvent,
+	type PointerEvent,
+} from "react";
 import "./pace-curve.css";
 import type { RecognizedExpenseMovement } from "../movements/manualExpense";
 import { formatClp } from "../movements/movementSummary";
 import type { DashboardPace } from "./dashboardPace";
-import { buildPaceCurve, type PaceCurvePoint } from "./paceCurve";
+import { buildPaceCurve, clampTooltipCenter, type PaceCurvePoint } from "./paceCurve";
 
 export interface PaceCurvePanelProps {
 	pace: DashboardPace;
@@ -36,6 +44,8 @@ export function PaceCurvePanel({
 	const [activeIdx, setActiveIdx] = useState<number | null>(null);
 	const [chartWidth, setChartWidth] = useState(DEFAULT_WIDTH);
 	const svgWrapRef = useRef<HTMLDivElement | null>(null);
+	const tooltipRef = useRef<HTMLDivElement | null>(null);
+	const [tooltipWidth, setTooltipWidth] = useState(0);
 
 	useEffect(() => {
 		const el = svgWrapRef.current;
@@ -126,9 +136,17 @@ export function PaceCurvePanel({
 		}
 	}
 
-	const tooltipLeftPct = activePoint
-		? Math.min(82, Math.max(22, (activePoint.x / chartWidth) * 100))
-		: 50;
+	// Measure the rendered tooltip so it can be clamped inside the chart (no horizontal scroll on mobile).
+	useLayoutEffect(() => {
+		const el = tooltipRef.current;
+		if (!el) return;
+		const next = Math.ceil(el.getBoundingClientRect().width);
+		if (next !== tooltipWidth) setTooltipWidth(next);
+	});
+
+	const tooltipLeftPx = activePoint
+		? clampTooltipCenter(activePoint.x, tooltipWidth, chartWidth)
+		: chartWidth / 2;
 
 	return (
 		<section className="react-pace-curve" aria-labelledby="react-pace-curve-title">
@@ -171,8 +189,9 @@ export function PaceCurvePanel({
 				>
 					{activePoint && (
 						<div
+							ref={tooltipRef}
 							className="react-pace-curve-tooltip"
-							style={{ left: `${tooltipLeftPct}%` }}
+							style={{ left: `${tooltipLeftPx}px` }}
 							role="status"
 							aria-live="polite"
 						>

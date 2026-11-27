@@ -72,3 +72,30 @@ test("buildPaceCurve computes cumulative points, per-day breakdown with times, a
 		await rm(cache, { recursive: true, force: true });
 	}
 });
+
+test("clampTooltipCenter keeps the whole tooltip inside the chart width", async () => {
+	const cache = await mkdtemp(join(tmpdir(), "pace-curve-vite-"));
+	const vite = await createServer({
+		configFile: false,
+		envFile: false,
+		cacheDir: cache,
+		server: { middlewareMode: true, hmr: false, ws: false, watch: null },
+		appType: "custom",
+		logLevel: "silent",
+		optimizeDeps: { noDiscovery: true, include: [] },
+	});
+	try {
+		const { clampTooltipCenter } = await vite.ssrLoadModule("/src/client/components/analytics/paceCurve.ts");
+		// Mobile chart (320px) with a 240px tooltip: centers stay within [120, 200].
+		assert.equal(clampTooltipCenter(310, 240, 320), 200); // near right edge
+		assert.equal(clampTooltipCenter(4, 240, 320), 120); // near left edge
+		assert.equal(clampTooltipCenter(160, 240, 320), 160); // centered: unchanged
+		// Desktop: no clamping needed in the middle.
+		assert.equal(clampTooltipCenter(500, 240, 1200), 500);
+		// Tooltip wider than the chart: pin to the chart center instead of overflowing one side.
+		assert.equal(clampTooltipCenter(300, 400, 320), 160);
+	} finally {
+		await vite.close();
+		await rm(cache, { recursive: true, force: true });
+	}
+});

@@ -305,3 +305,14 @@ export function buildPaceCurve(input: {
 		actualAtToday: input.pace.totalSpending,
 	};
 }
+
+/**
+ * Horizontal center (px) for a tooltip that is translated -50% on X, clamped so the whole
+ * tooltip stays inside [0, chartWidth]. Prevents horizontal page scroll near the edges on mobile.
+ * A tooltip wider than the chart is pinned to the chart center.
+ */
+export function clampTooltipCenter(x: number, tooltipWidth: number, chartWidth: number): number {
+	const half = tooltipWidth / 2;
+	if (tooltipWidth >= chartWidth) return chartWidth / 2;
+	return Math.min(chartWidth - half, Math.max(half, x));
+}
